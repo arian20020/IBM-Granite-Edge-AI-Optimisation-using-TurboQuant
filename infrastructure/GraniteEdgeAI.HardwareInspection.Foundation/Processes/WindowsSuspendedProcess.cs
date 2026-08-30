@@ -8,16 +8,34 @@ namespace GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 internal sealed class WindowsSuspendedProcess : IDisposable
 {
+    private readonly BoundedCleanupCoordinator _cleanup;
+
     private WindowsSuspendedProcess(
         Process process,
         SafeProcessHandle processHandle,
         AnonymousPipeServerStream standardOutput,
-        AnonymousPipeServerStream standardError)
+        AnonymousPipeServerStream standardError,
+        TrustedToolOperationEnvironment operationEnvironment)
     {
         Process = process;
         ProcessHandle = processHandle;
         StandardOutput = standardOutput;
         StandardError = standardError;
+        OperationEnvironment = operationEnvironment;
+        _cleanup = new BoundedCleanupCoordinator(
+            Sync(OwnedCleanupStage.StandardOutput, StandardOutput.Dispose),
+            Sync(OwnedCleanupStage.StandardError, StandardError.Dispose),
+            Sync(OwnedCleanupStage.Session, Process.Dispose),
+            Sync(OwnedCleanupStage.ProcessHandle, ProcessHandle.Dispose),
+            Sync(OwnedCleanupStage.OperationEnvironment, () =>
+            {
+                OperationEnvironment.Dispose();
+                if (!OperationEnvironment.CleanupSucceeded)
+                {
+                    throw new InvalidOperationException(
+                        "The trusted operation environment cleanup could not be verified.");
+                }
+            }));
     }
 
     internal Process Process { get; }
@@ -28,17 +46,136 @@ internal sealed class WindowsSuspendedProcess : IDisposable
 
     internal Stream StandardError { get; }
 
+    private TrustedToolOperationEnvironment OperationEnvironment { get; }
+
+    internal bool CleanupSucceeded { get; private set; }
+
+    internal CleanupOutcome? CleanupOutcome { get; private set; }
+
     internal static bool TryStart(
         VerifiedTrustedTool tool,
         TrustedToolCommand command,
         WindowsKillOnCloseJob job,
-        out WindowsSuspendedProcess? launched)
+        out WindowsSuspendedProcess? launched) =>
+        TryStart(tool, command, job, out launched, out bool _);
+
+    internal static bool TryStart(
+        VerifiedTrustedTool tool,
+        TrustedToolCommand command,
+        WindowsKillOnCloseJob job,
+        out WindowsSuspendedProcess? launched,
+        out bool startCleanupSucceeded)
     {
         ArgumentNullException.ThrowIfNull(tool);
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(job);
 
+        TrustedToolOperationEnvironment operationEnvironment;
+        try
+        {
+            operationEnvironment = TrustedToolEnvironmentPolicy.CaptureCurrent();
+        }
+        catch (InvalidOperationException error)
+        {
+            launched = null;
+            startCleanupSucceeded = !error.Message.Contains(
+                "partial cleanup",
+                StringComparison.Ordinal);
+            return false;
+        }
+
+        return TryStartCore(
+            tool.ExecutablePath,
+            command.Arguments,
+            tool.PackageRoot,
+            operationEnvironment,
+            job,
+            out launched,
+            out startCleanupSucceeded);
+    }
+
+    internal static bool TryStart(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        TrustedToolOperationEnvironment operationEnvironment,
+        WindowsKillOnCloseJob job,
+        out WindowsSuspendedProcess? launched,
+        out bool startCleanupSucceeded)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executablePath);
+        ArgumentNullException.ThrowIfNull(arguments);
+        ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
+        ArgumentNullException.ThrowIfNull(operationEnvironment);
+        ArgumentNullException.ThrowIfNull(job);
+        return TryStartCore(
+            executablePath,
+            arguments,
+            workingDirectory,
+            operationEnvironment,
+            job,
+            out launched,
+            out startCleanupSucceeded);
+    }
+
+    internal static bool TryStartWithOutcome(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        TrustedToolOperationEnvironment operationEnvironment,
+        WindowsKillOnCloseJob job,
+        out WindowsSuspendedProcess? launched,
+        out CleanupOutcome startCleanupOutcome)
+    {
+        bool started = TryStartCore(
+            executablePath,
+            arguments,
+            workingDirectory,
+            operationEnvironment,
+            job,
+            out launched,
+            out startCleanupOutcome);
+        return started;
+    }
+
+    private static bool TryStartCore(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        TrustedToolOperationEnvironment suppliedEnvironment,
+        WindowsKillOnCloseJob job,
+        out WindowsSuspendedProcess? launched,
+        out bool startCleanupSucceeded)
+    {
+        bool started = TryStartCore(
+            executablePath,
+            arguments,
+            workingDirectory,
+            suppliedEnvironment,
+            job,
+            out launched,
+            out CleanupOutcome outcome);
+        startCleanupSucceeded = outcome.Succeeded;
+        if (started && !outcome.Succeeded && launched is not null)
+        {
+            _ = AbortTransferredStart(launched, job);
+            launched = null;
+            return false;
+        }
+        return started;
+    }
+
+    private static bool TryStartCore(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        TrustedToolOperationEnvironment suppliedEnvironment,
+        WindowsKillOnCloseJob job,
+        out WindowsSuspendedProcess? launched,
+        out CleanupOutcome startCleanupOutcome)
+    {
         launched = null;
+        startCleanupOutcome = new CleanupOutcome([]);
         AnonymousPipeServerStream? standardInput = null;
         AnonymousPipeServerStream? standardOutput = null;
         AnonymousPipeServerStream? standardError = null;
@@ -48,6 +185,8 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         IntPtr inheritedHandleList = IntPtr.Zero;
         bool attributeListInitialized = false;
         SafeProcessHandle? processHandle = null;
+        Process? process = null;
+        TrustedToolOperationEnvironment? operationEnvironment = suppliedEnvironment;
         try
         {
             standardInput = new AnonymousPipeServerStream(
@@ -86,21 +225,25 @@ internal sealed class WindowsSuspendedProcess : IDisposable
                 },
                 AttributeList = attributeList,
             };
-            string commandLine = BuildCommandLine(tool.ExecutablePath, command.Arguments);
+            string commandLine = BuildCommandLine(executablePath, arguments);
             if (commandLine.Length >= MaximumCommandLineLength)
             {
                 return false;
             }
 
+            using TrustedToolEnvironmentBlock environment =
+                TrustedToolEnvironmentBlock.Create(operationEnvironment.Variables);
+
             processCreated = CreateProcess(
-                tool.ExecutablePath,
+                executablePath,
                 (commandLine + '\0').ToCharArray(),
                 IntPtr.Zero,
                 IntPtr.Zero,
                 inheritHandles: true,
-                CreateNoWindow | CreateSuspended | ExtendedStartupInfoPresent,
-                IntPtr.Zero,
-                tool.PackageRoot,
+                CreateNoWindow | CreateSuspended | ExtendedStartupInfoPresent |
+                    CreateUnicodeEnvironment,
+                environment.Pointer,
+                workingDirectory,
                 ref startup,
                 out processInformation);
             standardInput.DisposeLocalCopyOfClientHandle();
@@ -114,16 +257,12 @@ internal sealed class WindowsSuspendedProcess : IDisposable
             if (!job.TryAssign(processInformation.Process) ||
                 !job.ContainsProcess(processInformation.Process))
             {
-                TerminateAndWait(processInformation.Process);
                 return false;
             }
 
-            Process process = Process.GetProcessById(checked((int)processInformation.ProcessId));
+            process = Process.GetProcessById(checked((int)processInformation.ProcessId));
             if (ResumeThread(processInformation.Thread) == uint.MaxValue)
             {
-                process.Dispose();
-                job.TryTerminate();
-                TerminateAndWait(processInformation.Process);
                 return false;
             }
 
@@ -135,8 +274,11 @@ internal sealed class WindowsSuspendedProcess : IDisposable
                 process,
                 processHandle,
                 standardOutput,
-                standardError);
+                standardError,
+                operationEnvironment);
+            operationEnvironment = null;
             processHandle = null;
+            process = null;
             standardOutput = null!;
             standardError = null!;
             return true;
@@ -146,47 +288,117 @@ internal sealed class WindowsSuspendedProcess : IDisposable
                 InvalidOperationException or ArgumentException or OverflowException or
                 System.ComponentModel.Win32Exception)
         {
-            if (processCreated)
-            {
-                job.TryTerminate();
-                TerminateAndWait(processInformation.Process);
-            }
-
             return false;
         }
         finally
         {
-            standardInput?.Dispose();
-            standardOutput?.Dispose();
-            standardError?.Dispose();
-            if (attributeListInitialized)
-            {
-                DeleteProcThreadAttributeList(attributeList);
-            }
-
-            if (inheritedHandleList != IntPtr.Zero)
-            {
-                Marshal.FreeHGlobal(inheritedHandleList);
-            }
-
-            if (attributeList != IntPtr.Zero)
-            {
-                Marshal.FreeHGlobal(attributeList);
-            }
-
-            if (processInformation.Thread != IntPtr.Zero)
-            {
-                CloseHandle(processInformation.Thread);
-            }
-
-            if (processInformation.Process != IntPtr.Zero)
-            {
-                CloseHandle(processInformation.Process);
-            }
-
-            processHandle?.Dispose();
+            startCleanupOutcome = CleanupFailedStart(
+                processCreated && operationEnvironment is not null,
+                job,
+                standardInput,
+                standardOutput,
+                standardError,
+                process,
+                attributeListInitialized,
+                attributeList,
+                inheritedHandleList,
+                processInformation,
+                processHandle,
+                operationEnvironment);
         }
     }
+
+    private static CleanupOutcome CleanupFailedStart(
+        bool processCreated,
+        WindowsKillOnCloseJob job,
+        AnonymousPipeServerStream? standardInput,
+        AnonymousPipeServerStream? standardOutput,
+        AnonymousPipeServerStream? standardError,
+        Process? process,
+        bool attributeListInitialized,
+        IntPtr attributeList,
+        IntPtr inheritedHandleList,
+        ProcessInformation processInformation,
+        SafeProcessHandle? processHandle,
+        TrustedToolOperationEnvironment? operationEnvironment)
+    {
+        BoundedCleanupCoordinator cleanup = new(
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
+            {
+                if (processCreated &&
+                    (!job.TryTerminate() ||
+                     !await job.WaitForEmptyAsync(TimeSpan.FromSeconds(5))
+                         .ConfigureAwait(false)))
+                {
+                    throw new InvalidOperationException(
+                        "The protected process tree cleanup could not be verified.");
+                }
+            }),
+            Sync(OwnedCleanupStage.StandardInput, () => standardInput?.Dispose()),
+            Sync(OwnedCleanupStage.StandardOutput, () => standardOutput?.Dispose()),
+            Sync(OwnedCleanupStage.StandardError, () => standardError?.Dispose()),
+            Sync(OwnedCleanupStage.Session, () => process?.Dispose()),
+            Sync(OwnedCleanupStage.Closure, () =>
+            {
+                if (attributeListInitialized)
+                {
+                    DeleteProcThreadAttributeList(attributeList);
+                }
+                if (inheritedHandleList != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(inheritedHandleList);
+                }
+                if (attributeList != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(attributeList);
+                }
+            }),
+            Sync(OwnedCleanupStage.ProcessHandle, () =>
+            {
+                bool handlesClosed = true;
+                if (processInformation.Thread != IntPtr.Zero)
+                {
+                    handlesClosed &= CloseHandle(processInformation.Thread);
+                }
+                if (processInformation.Process != IntPtr.Zero)
+                {
+                    handlesClosed &= CloseHandle(processInformation.Process);
+                }
+                processHandle?.Dispose();
+                if (!handlesClosed)
+                {
+                    throw new System.ComponentModel.Win32Exception();
+                }
+            }),
+            Sync(OwnedCleanupStage.OperationEnvironment, () =>
+            {
+                operationEnvironment?.Dispose();
+                if (operationEnvironment is not null &&
+                    !operationEnvironment.CleanupSucceeded)
+                {
+                    throw new InvalidOperationException(
+                        "The trusted operation environment cleanup could not be verified.");
+                }
+            }));
+        return cleanup.ExecuteAsync().GetAwaiter().GetResult();
+    }
+
+    private static CleanupOutcome AbortTransferredStart(
+        WindowsSuspendedProcess launched,
+        WindowsKillOnCloseJob job) =>
+        new BoundedCleanupCoordinator(
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
+            {
+                if (!job.TryTerminate() ||
+                    !await job.WaitForEmptyAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException(
+                        "The transferred process tree cleanup could not be verified.");
+                }
+            }),
+            Sync(OwnedCleanupStage.Session, launched.Dispose))
+        .ExecuteAsync().GetAwaiter().GetResult();
 
     internal bool TryGetExitCode(out int exitCode) =>
         NativeProcessExitCodeAuthority.TryRead(ProcessHandle, out exitCode);
@@ -265,11 +477,17 @@ internal sealed class WindowsSuspendedProcess : IDisposable
 
     public void Dispose()
     {
-        StandardOutput.Dispose();
-        StandardError.Dispose();
-        Process.Dispose();
-        ProcessHandle.Dispose();
+        CleanupOutcome = _cleanup.ExecuteAsync().GetAwaiter().GetResult();
+        CleanupSucceeded = CleanupOutcome.Succeeded;
     }
+
+    private static OwnedCleanupAction Sync(
+        OwnedCleanupStage stage,
+        Action action) => new(stage, () =>
+        {
+            action();
+            return ValueTask.CompletedTask;
+        });
 
     private static string BuildCommandLine(
         string executablePath,
@@ -322,19 +540,9 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         return quoted.ToString();
     }
 
-    private static void TerminateAndWait(IntPtr process)
-    {
-        if (process == IntPtr.Zero)
-        {
-            return;
-        }
-
-        TerminateProcess(process, 1);
-        _ = WaitForSingleObject(process, 5_000);
-    }
-
     private const int MaximumCommandLineLength = 32_767;
     private const uint CreateSuspended = 0x00000004;
+    private const uint CreateUnicodeEnvironment = 0x00000400;
     private const uint ExtendedStartupInfoPresent = 0x00080000;
     private const uint CreateNoWindow = 0x08000000;
     private const uint StartfUseStdHandles = 0x00000100;
@@ -383,15 +591,6 @@ internal sealed class WindowsSuspendedProcess : IDisposable
     [DllImport("kernel32.dll", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static extern uint ResumeThread(IntPtr thread);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool TerminateProcess(IntPtr process, uint exitCode);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    private static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

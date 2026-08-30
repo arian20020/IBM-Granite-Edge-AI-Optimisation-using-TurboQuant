@@ -230,6 +230,12 @@ public sealed class WorkerClientDomainTests
     public void ResultAcceptsInfrastructureFailureAndCopiesDiagnostics()
     {
         string[] suppliedDiagnostics = ["cleanup completed after primary failure"];
+        WorkerClientCleanupFailureFact[] suppliedCleanupFailures =
+        [
+            new(
+                WorkerClientCleanupStage.ProcessTree,
+                WorkerClientCleanupFailureKind.Timeout),
+        ];
         WorkerClientResult result = new(
             TerminalMessage: null,
             Failure: new WorkerClientFailure(
@@ -239,14 +245,23 @@ public sealed class WorkerClientDomainTests
             ForcedTermination: false,
             StandardErrorTruncated: false,
             RetainedStandardError: string.Empty,
-            SecondaryDiagnostics: suppliedDiagnostics);
+            SecondaryDiagnostics: suppliedDiagnostics,
+            CleanupFailures: suppliedCleanupFailures);
 
         suppliedDiagnostics[0] = "mutated by caller";
+        suppliedCleanupFailures[0] = new(
+            WorkerClientCleanupStage.Job,
+            WorkerClientCleanupFailureKind.Unexpected);
         result.Validate();
 
         Assert.AreEqual(
             "cleanup completed after primary failure",
             result.SecondaryDiagnostics[0]);
+        Assert.AreEqual(
+            new WorkerClientCleanupFailureFact(
+                WorkerClientCleanupStage.ProcessTree,
+                WorkerClientCleanupFailureKind.Timeout),
+            result.CleanupFailures[0]);
     }
 
     /// <summary>

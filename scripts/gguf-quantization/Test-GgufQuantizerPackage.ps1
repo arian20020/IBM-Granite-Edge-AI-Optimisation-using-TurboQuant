@@ -40,11 +40,60 @@ function Resolve-ContainedFile {
         throw "Manifest path escaped the stage: $RelativePath"
     }
 
+    $parent = [IO.DirectoryInfo]::new([IO.Path]::GetDirectoryName($candidate))
+    while ($null -ne $parent) {
+        $directory = Get-Item -LiteralPath $parent.FullName -Force
+        if (-not $directory.PSIsContainer -or
+            (($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
+            throw 'quantizer_package_directory_redirected'
+        }
+        if ($directory.FullName.TrimEnd([IO.Path]::DirectorySeparatorChar) -ceq $Root) {
+            break
+        }
+        $parent = $parent.Parent
+    }
+    if ($null -eq $parent) {
+        throw "Manifest path escaped the stage: $RelativePath"
+    }
+
     $item = Get-Item -LiteralPath $candidate -Force
     if ($item.PSIsContainer -or (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
         throw "Manifest member is not a regular file: $RelativePath"
     }
     return $item.FullName
+}
+
+function Get-SafePackageFiles {
+    param([Parameter(Mandatory = $true)][string]$Root)
+
+    $pending = [Collections.Generic.Stack[string]]::new()
+    $files = [Collections.Generic.List[string]]::new()
+    $pending.Push($Root)
+    $directoryCount = 0
+
+    while ($pending.Count -ne 0) {
+        $current = $pending.Pop()
+        foreach ($entry in @(Get-ChildItem -LiteralPath $current -Force)) {
+            if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw 'quantizer_package_directory_redirected'
+            }
+            if ($entry.PSIsContainer) {
+                $directoryCount++
+                if ($directoryCount -gt 256) {
+                    throw 'The quantizer package directory count exceeds the limit.'
+                }
+                $pending.Push($entry.FullName)
+                continue
+            }
+
+            $files.Add($entry.FullName)
+            if ($files.Count -gt 257) {
+                throw 'The quantizer package file count exceeds the limit.'
+            }
+        }
+    }
+
+    return $files.ToArray()
 }
 
 $root = Resolve-SafeDirectory $StageDirectory
@@ -109,11 +158,15 @@ if (-not $listed.Contains([string]$manifest.executableRelativePath) -or
 }
 
 $rootPrefix = $root + [IO.Path]::DirectorySeparatorChar
-$actualFiles = Get-ChildItem -LiteralPath $root -File -Recurse -Force | ForEach-Object {
-    if (-not $_.FullName.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Package member escaped the stage: $($_.FullName)"
+$actualFiles = Get-SafePackageFiles -Root $root | ForEach-Object {
+    $item = Get-Item -LiteralPath $_ -Force
+    if ($item.PSIsContainer) {
+        throw 'The quantizer package contains an unsupported entry.'
     }
-    $_.FullName.Substring($rootPrefix.Length).Replace('\', '/')
+    if (-not $_.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Package member escaped the stage: $_"
+    }
+    $_.Substring($rootPrefix.Length).Replace('\', '/')
 } | Where-Object { $_ -cne 'llama-quantize.package.manifest.json' }
 $extras = @($actualFiles | Where-Object { -not $listed.Contains($_) })
 if ($extras.Count -ne 0) {

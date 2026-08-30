@@ -2,6 +2,8 @@ using GraniteEdgeAI.ModelInspection.WorkerClient;
 using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
 using GraniteEdgeAI.ModelInspection.Transport;
 using GraniteEdgeAI.OpenVino.Contracts;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
+using System.Runtime.ExceptionServices;
 
 namespace GraniteEdgeAI.OpenVino.WorkerClient;
 
@@ -22,6 +24,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
     private readonly Task _watchdogTask;
     private readonly OpenVinoTerminalCleanup _terminalCleanup;
     private readonly VerifiedOpenVinoWorkerClosure _closure;
+    private readonly TrustedToolOperationEnvironment _operationEnvironment;
 
     private DateTimeOffset _lastActivityUtc = DateTimeOffset.UtcNow;
     private Guid? _activeTurnId;
@@ -40,7 +43,8 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         Guid sessionId,
         SessionStartedEvent startupEvidence,
         OpenVinoWorkerClientOptions options,
-        VerifiedOpenVinoWorkerClosure closure)
+        VerifiedOpenVinoWorkerClosure closure,
+        TrustedToolOperationEnvironment operationEnvironment)
     {
         _session = session;
         _stderrTask = stderrTask;
@@ -50,6 +54,7 @@ public sealed class OpenVinoConversation : IAsyncDisposable
         _startupEvidence = startupEvidence;
         _options = options;
         _closure = closure;
+        _operationEnvironment = operationEnvironment;
         _terminalCleanup = new OpenVinoTerminalCleanup(
             session,
             processExit,
@@ -431,6 +436,8 @@ public sealed class OpenVinoConversation : IAsyncDisposable
             return;
         }
 
+        Exception? primaryFailure = null;
+        CleanupOutcome? cleanupOutcome = null;
         try
         {
             _watchdogCancellation.Cancel();
@@ -460,16 +467,49 @@ public sealed class OpenVinoConversation : IAsyncDisposable
                 }
             }
         }
+        catch (Exception error)
+        {
+            primaryFailure = error;
+        }
         finally
         {
             _disposed = true;
-            _watchdogCancellation.Dispose();
-            _operationGate.Dispose();
-            _terminalCleanup.Dispose();
-            await _session.DisposeAsync().ConfigureAwait(false);
-            _closure.Dispose();
+            cleanupOutcome = await new BoundedCleanupCoordinator(
+                Sync(OwnedCleanupStage.Channel, _watchdogCancellation.Dispose),
+                Sync(OwnedCleanupStage.Channel, _operationGate.Dispose),
+                Sync(OwnedCleanupStage.Channel, _terminalCleanup.Dispose),
+                new OwnedCleanupAction(OwnedCleanupStage.Session, () =>
+                    _session.DisposeAsync()),
+                Sync(OwnedCleanupStage.Closure, _closure.Dispose),
+                Sync(OwnedCleanupStage.OperationEnvironment, () =>
+                {
+                    _operationEnvironment.Dispose();
+                    OpenVinoWorkerClient.RequireCleanupSucceeded(
+                        _operationEnvironment);
+                })).ExecuteAsync().ConfigureAwait(false);
+        }
+
+        if (!cleanupOutcome.Succeeded)
+        {
+            throw OpenVinoWorkerClient.RuntimeFailure(
+                new CleanupIntegrityException(
+                    cleanupOutcome.Failures,
+                    primaryFailure));
+        }
+
+        if (primaryFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(primaryFailure).Throw();
         }
     }
+
+    private static OwnedCleanupAction Sync(
+        OwnedCleanupStage stage,
+        Action action) => new(stage, () =>
+        {
+            action();
+            return ValueTask.CompletedTask;
+        });
 
     private async Task CancelCoreAsync(
         OpenVinoWorkerClientException requestedOutcome,

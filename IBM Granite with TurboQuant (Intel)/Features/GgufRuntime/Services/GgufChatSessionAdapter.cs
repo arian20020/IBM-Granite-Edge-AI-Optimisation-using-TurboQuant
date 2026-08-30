@@ -25,6 +25,8 @@ internal sealed class GgufChatSessionAdapter : IGgufChatSession
 {
     private readonly Func<IReadOnlyList<GgufConversationTurn>, CancellationToken,
         Task<IGgufChatRuntimeSession>> startSession;
+    private readonly SemaphoreSlim lifecycleGate = new(1, 1);
+    private readonly SemaphoreSlim stopGate = new(1, 1);
     private readonly SemaphoreSlim sessionGate = new(1, 1);
     private IGgufChatRuntimeSession? session;
     private bool disposed;
@@ -56,26 +58,43 @@ internal sealed class GgufChatSessionAdapter : IGgufChatSession
     {
         ArgumentNullException.ThrowIfNull(conversation);
         IReadOnlyList<GgufConversationTurn> turns = CreateInitialTurns(conversation);
-        await sessionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
-            if (session is not null)
+            await stopGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                await session.DisposeAsync().ConfigureAwait(false);
-                session = null;
-            }
+                await sessionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    ObjectDisposedException.ThrowIf(disposed, this);
+                    if (session is not null)
+                    {
+                        await session.DisposeAsync().ConfigureAwait(false);
+                        session = null;
+                    }
 
-            session = await startSession(turns, cancellationToken).ConfigureAwait(false);
-            if (session is null)
+                    session = await startSession(turns, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (session is null)
+                    {
+                        throw new InvalidOperationException(
+                            "The GGUF runtime session factory returned no session.");
+                    }
+                }
+                finally
+                {
+                    sessionGate.Release();
+                }
+            }
+            finally
             {
-                throw new InvalidOperationException(
-                    "The GGUF runtime session factory returned no session.");
+                stopGate.Release();
             }
         }
         finally
         {
-            sessionGate.Release();
+            lifecycleGate.Release();
         }
     }
 
@@ -84,63 +103,95 @@ internal sealed class GgufChatSessionAdapter : IGgufChatSession
         [System.Runtime.CompilerServices.EnumeratorCancellation]
         CancellationToken cancellationToken)
     {
-        IGgufChatRuntimeSession active = await GetSessionAsync(cancellationToken)
-            .ConfigureAwait(false);
-        await foreach (GgufRuntimeEvent runtimeEvent in
-            active.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false))
+        await lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            GgufChatEvent? chatEvent = runtimeEvent switch
+            IGgufChatRuntimeSession active = await GetSessionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await foreach (GgufRuntimeEvent runtimeEvent in
+                active.GenerateAsync(prompt, cancellationToken).ConfigureAwait(false))
             {
-                TextDeltaEvent delta => new GgufChatDelta(delta.Text),
-                ResponseCompletedEvent completed => new GgufChatCompleted(
-                    completed.Reason switch
-                    {
-                        GgufCompletionReason.Stop => GgufChatCompletionKind.Stop,
-                        GgufCompletionReason.Length => GgufChatCompletionKind.Length,
-                        _ => throw new ArgumentOutOfRangeException(
-                            nameof(runtimeEvent)),
-                    }),
-                ResponseStoppedEvent stopped => new GgufChatStopped(
-                    stopped.Disposition == GgufStopDisposition.StoppedNeedsReload),
-                RuntimeFailureEvent failure => new GgufChatFailed(
-                    failure.Failure.Code,
-                    "The local model could not complete this response."),
-                _ => null,
-            };
-            if (chatEvent is not null)
-            {
-                yield return chatEvent;
+                GgufChatEvent? chatEvent = runtimeEvent switch
+                {
+                    TextDeltaEvent delta => new GgufChatDelta(delta.Text),
+                    ResponseCompletedEvent completed => new GgufChatCompleted(
+                        completed.Reason switch
+                        {
+                            GgufCompletionReason.Stop => GgufChatCompletionKind.Stop,
+                            GgufCompletionReason.Length => GgufChatCompletionKind.Length,
+                            _ => throw new ArgumentOutOfRangeException(
+                                nameof(runtimeEvent)),
+                        }),
+                    ResponseStoppedEvent stopped => new GgufChatStopped(
+                        stopped.Disposition == GgufStopDisposition.StoppedNeedsReload),
+                    RuntimeFailureEvent failure => new GgufChatFailed(
+                        failure.Failure.Code,
+                        "The local model could not complete this response."),
+                    _ => null,
+                };
+                if (chatEvent is not null)
+                {
+                    yield return chatEvent;
+                }
             }
+        }
+        finally
+        {
+            lifecycleGate.Release();
         }
     }
 
     public async ValueTask StopAsync(CancellationToken cancellationToken)
     {
-        IGgufChatRuntimeSession active = await GetSessionAsync(cancellationToken)
-            .ConfigureAwait(false);
-        await active.StopAsync(cancellationToken).ConfigureAwait(false);
+        await stopGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            IGgufChatRuntimeSession active = await GetSessionAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await active.StopAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            stopGate.Release();
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await sessionGate.WaitAsync().ConfigureAwait(false);
+        await lifecycleGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (disposed)
+            await stopGate.WaitAsync().ConfigureAwait(false);
+            try
             {
-                return;
-            }
+                await sessionGate.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    if (disposed)
+                    {
+                        return;
+                    }
 
-            disposed = true;
-            if (session is not null)
+                    disposed = true;
+                    if (session is not null)
+                    {
+                        await session.DisposeAsync().ConfigureAwait(false);
+                        session = null;
+                    }
+                }
+                finally
+                {
+                    sessionGate.Release();
+                }
+            }
+            finally
             {
-                await session.DisposeAsync().ConfigureAwait(false);
-                session = null;
+                stopGate.Release();
             }
         }
         finally
         {
-            sessionGate.Release();
+            lifecycleGate.Release();
         }
     }
 

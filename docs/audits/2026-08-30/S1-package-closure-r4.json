@@ -1,0 +1,1269 @@
+{
+    "schemaVersion":  2,
+    "workerId":  "S1",
+    "baseCommit":  "95e52cd313520a565caebd1e8f88f00e046e3682",
+    "configuration":  "Release",
+    "platform":  "x64",
+    "managedBuild":  {
+                         "status":  "passed",
+                         "fileCount":  240,
+                         "publishReadyToRun":  false,
+                         "nativePackageInputsIncluded":  false
+                     },
+    "strongestPackageGate":  {
+                                 "status":  "blocked",
+                                 "blockers":  [
+                                                  "GgufQuantizerStageDirectory is required when GGUF quantizer packaging is enabled.",
+                                                  "OpenVinoOfficialWorkerStageDirectory is required for x64 builds."
+                                              ]
+                             },
+    "scanPolicy":  {
+                       "unresolvedMsbuildExpressions":  true,
+                       "debugFixtures":  true,
+                       "duplicateWorkerBinaries":  true,
+                       "privateEvidence":  true,
+                       "rawTrxAndDumps":  true,
+                       "modelAssets":  true,
+                       "localPathsAndCredentials":  true,
+                       "capabilities":  true
+                   },
+    "observedCapabilityNames":  [
+                                    "internetClient",
+                                    "runFullTrust",
+                                    "systemAIModels"
+                                ],
+    "entries":  [
+                    {
+                        "path":  "App.xbf",
+                        "bytes":  1065,
+                        "sha256":  "32400b4121a0820755056040e4d9bd4341a3e26c8a9a66a7f4a455b9f8d6f984"
+                    },
+                    {
+                        "path":  "AppxManifest.xml",
+                        "bytes":  3853,
+                        "sha256":  "ed0d1f4a2bab48ddb02c777103563cbd62e888be8457c42ec92173b32e046a36"
+                    },
+                    {
+                        "path":  "Assets/Branding/granite-edge-ai.ico",
+                        "bytes":  10210,
+                        "sha256":  "55c0786cd17c6efb491f511a55e780012db103626578e3b94ee871c9795d3f7f"
+                    },
+                    {
+                        "path":  "Assets/Branding/granite-edge-ai-icon.svg",
+                        "bytes":  1267,
+                        "sha256":  "88f0d26daea8982af2d2828408aae1e2f4ab5c2297449d3123b49cf795695163"
+                    },
+                    {
+                        "path":  "Assets/Branding/granite-edge-ai-lockup-outlined.svg",
+                        "bytes":  21687,
+                        "sha256":  "3ed1906c54832346dc86ce21d5098bb4de0fef37dca5d59fc8a2d76d715b0cc1"
+                    },
+                    {
+                        "path":  "Assets/Branding/windows-icon-manifest.json",
+                        "bytes":  3281,
+                        "sha256":  "8a8e652dcd2b63f50f26ad2481fc3236e4657facf823afe431192a4b33b783ff"
+                    },
+                    {
+                        "path":  "Features/GgufRuntime/ChatPage.xbf",
+                        "bytes":  5153,
+                        "sha256":  "d29051c085992baac7631fda71a49a64c4c5909c9116cd04c2a30911fbd98de5"
+                    },
+                    {
+                        "path":  "Features/GgufRuntime/Controls/ChatComposer.xbf",
+                        "bytes":  4828,
+                        "sha256":  "8f88762ed248db17ef23da46d12226426ace3d1d67856a69db45307792b54814"
+                    },
+                    {
+                        "path":  "Features/GgufRuntime/Controls/ChatHistoryItem.xbf",
+                        "bytes":  883,
+                        "sha256":  "830637a61dd92938abdc2a5d6d29453b6be4cb481be1f9feedc51bddaa92bc3b"
+                    },
+                    {
+                        "path":  "Features/GgufRuntime/Controls/ChatMessageBubble.xbf",
+                        "bytes":  1658,
+                        "sha256":  "50bce5458104fbdee7154cb377edafdf13eb973ae88550b9272cc5e482da060d"
+                    },
+                    {
+                        "path":  "Features/GgufRuntime/Presentation/GgufChatTheme.xbf",
+                        "bytes":  12338,
+                        "sha256":  "e3c538b7a1583f6d98e371b1b6d23ca6f93c43d33638268bf18c412a3ababe7e"
+                    },
+                    {
+                        "path":  "Features/HardwareInspection/HardwareInspectionPage.xbf",
+                        "bytes":  7316,
+                        "sha256":  "2a4fab59bb1cd557e598b75503c11698010fd9a5de29a3f947f2227b07a57825"
+                    },
+                    {
+                        "path":  "Features/HardwareInspection/Presentation/Controls/HardwareInspectionActionCard.xbf",
+                        "bytes":  2557,
+                        "sha256":  "95bb45a00ac8a7405ec189d19710894bf7212ce9c764fdd316aee2efddf8cd60"
+                    },
+                    {
+                        "path":  "Features/HardwareInspection/Presentation/Controls/HardwareInspectionDetailsCard.xbf",
+                        "bytes":  5382,
+                        "sha256":  "e4a970ccd1c8fd7fcd92e63cc9e2cac581dbe990cfadf8efe16b6c6a24f67384"
+                    },
+                    {
+                        "path":  "Features/HardwareInspection/Presentation/Controls/HardwareInspectionOutcomeCard.xbf",
+                        "bytes":  5201,
+                        "sha256":  "4afa9df4b9ea25858357e7a3102376fc020dc31be4c7865bbd6276b15b8be56a"
+                    },
+                    {
+                        "path":  "Features/HardwareInspection/Presentation/Controls/HardwareInspectionProgressCard.xbf",
+                        "bytes":  4768,
+                        "sha256":  "51123380f4ebc19fd315020504406ade92a2b869aafe39a0d066bf2305d03fad"
+                    },
+                    {
+                        "path":  "Features/HardwareInspection/Presentation/Controls/HardwareInspectionRecoveryCard.xbf",
+                        "bytes":  2791,
+                        "sha256":  "b95ce7f4c39fd90fec15879aaa06821cf6af9a0834101493c99904363662a9cb"
+                    },
+                    {
+                        "path":  "Features/HardwareInspection/Presentation/Controls/HardwareInspectionSummaryCard.xbf",
+                        "bytes":  3119,
+                        "sha256":  "f52b420f836e15e2d8587e8265b0d5a2a7971138cc94fb0adc008d32bb4311f7"
+                    },
+                    {
+                        "path":  "Features/HardwareInspection/Presentation/HardwareInspectionTheme.xbf",
+                        "bytes":  5783,
+                        "sha256":  "f85ce65365798fe189fb18bcf7b28e3dd5e9e50439e4d4c11d7baa609f97e7e3"
+                    },
+                    {
+                        "path":  "Features/ModelHardwareCompatibility/CompatibilityPage.xbf",
+                        "bytes":  21273,
+                        "sha256":  "50cf8bca8c6d4ef77aa9fa5f49adef542053a26d83cd2f84c23ebb09b4ade188"
+                    },
+                    {
+                        "path":  "Features/ModelHardwareCompatibility/Controls/CompatibilityBudgetDiagram.xbf",
+                        "bytes":  2755,
+                        "sha256":  "0ee35b3ee23d1277f76b8d1625c0fe2740d9914420a5a5c113aa105dd0e9b130"
+                    },
+                    {
+                        "path":  "Features/ModelHardwareCompatibility/Presentation/CompatibilityTheme.xbf",
+                        "bytes":  5369,
+                        "sha256":  "b4978410038555ba5496856f99d06930b5ce7a603612f9206bef946cdf14364d"
+                    },
+                    {
+                        "path":  "Features/ModelImport/Controls/ImportModelCard.xbf",
+                        "bytes":  13071,
+                        "sha256":  "a9b7be378c56b4888768862328de1a0f80523f802beb12ed988257ed10068f5b"
+                    },
+                    {
+                        "path":  "Features/ModelImport/DownloadedModels/DownloadedModelConsentDialog.xbf",
+                        "bytes":  1168,
+                        "sha256":  "8c7d0cd3494094a4e8087ff3e316824dfeaa66e5eb1e71cd0aad0d9a666a10ab"
+                    },
+                    {
+                        "path":  "Features/ModelImport/FileImport/PickerRoute/ModelFormatSelectionCard.xbf",
+                        "bytes":  5840,
+                        "sha256":  "a7d9ac402cae00adce29a742ea7a37b8de00d2dcf7b3af282f3c49eda4511a6c"
+                    },
+                    {
+                        "path":  "Features/ModelImport/ModelDownload/ModelDownloadCard.xbf",
+                        "bytes":  7650,
+                        "sha256":  "c9b8b059601666551347843ef795e5c98e0455b05cf6040a855063cdc9f43347"
+                    },
+                    {
+                        "path":  "Features/ModelImport/ModelDownload/ModelPreferenceSliderTheme.xbf",
+                        "bytes":  2303,
+                        "sha256":  "909486468181217928ffc652d7a44a6788e704742e00b06a40ca728e91aefe1a"
+                    },
+                    {
+                        "path":  "Features/ModelImport/ModelImportPage.xbf",
+                        "bytes":  4363,
+                        "sha256":  "3d65da715b33ea42918e4917e589a801d4d2fd68d28ce02a170b7cc61ec39003"
+                    },
+                    {
+                        "path":  "Features/ModelInspection/Controls/InspectionActionCard.xbf",
+                        "bytes":  8370,
+                        "sha256":  "055e454ad343ad53b8b09c2355b4bfe64597095e6d628378cc991b84f3215a16"
+                    },
+                    {
+                        "path":  "Features/ModelInspection/Controls/InspectionContentCard.xbf",
+                        "bytes":  16233,
+                        "sha256":  "8f18ba2f2ce7fd9f4bdfa265e3d55d5904e1e215104807f9cd5253a1ed48015d"
+                    },
+                    {
+                        "path":  "Features/ModelInspection/Controls/InspectionDisclosure.xbf",
+                        "bytes":  2254,
+                        "sha256":  "1576fd3e4a030ee5a93c7f2aced8d23659218e97b059fb096cf4f4b8a4acafde"
+                    },
+                    {
+                        "path":  "Features/ModelInspection/Controls/InspectionModelCard.xbf",
+                        "bytes":  26631,
+                        "sha256":  "c127e541aaabce645763e47335018eed4473436a9c26e655b900b8d486abdbe1"
+                    },
+                    {
+                        "path":  "Features/ModelInspection/Controls/InspectionOutcomeCard.xbf",
+                        "bytes":  5266,
+                        "sha256":  "da037b9eb184648e45f2842546bd046e4d6a5e7b1adfa3fab16211b0b543c2e7"
+                    },
+                    {
+                        "path":  "Features/ModelInspection/Controls/InspectionStatusGlyph.xbf",
+                        "bytes":  4776,
+                        "sha256":  "4aa6196d185f4a0b4dbaca88ec7a6b7bb515e9a4ea12f10cd5d8fdd993113f5d"
+                    },
+                    {
+                        "path":  "Features/ModelInspection/ModelInspectionPage.xbf",
+                        "bytes":  6891,
+                        "sha256":  "9926ca9142b69fc10a7dfea007d28734d37796cc9dc271b90c8311c55ec5b7a5"
+                    },
+                    {
+                        "path":  "Features/ModelInspection/Presentation/ModelInspectionTheme.xbf",
+                        "bytes":  8601,
+                        "sha256":  "e27a71c61567f7a6afd79a69c2d3041aabd474be38e9c6c85c3870fcc8f3a8e7"
+                    },
+                    {
+                        "path":  "Features/ModelOptimization/Controls/OptimizationConfigurationCard.xbf",
+                        "bytes":  3697,
+                        "sha256":  "a426fd9aed38293f8861f9ee59722327b13cc7a44be61cf06d4a57e2ed45adff"
+                    },
+                    {
+                        "path":  "Features/ModelOptimization/Controls/OptimizationConfirmationCard.xbf",
+                        "bytes":  1677,
+                        "sha256":  "60eab17ee7884203899347972e3c0fa6126b487bfd9e8ab5f5d42631c2dcc222"
+                    },
+                    {
+                        "path":  "Features/ModelOptimization/Controls/OptimizationDestinationCard.xbf",
+                        "bytes":  829,
+                        "sha256":  "afb579ce302debdc445f7c3c143824cf6bf3b8e41b32581cd58eab71b33792a2"
+                    },
+                    {
+                        "path":  "Features/ModelOptimization/Controls/OptimizationOutcomeCard.xbf",
+                        "bytes":  1776,
+                        "sha256":  "325c809e2a231edd1b0432f278a9de4e110939f665fa2ec50c67c64d8de689be"
+                    },
+                    {
+                        "path":  "Features/ModelOptimization/Controls/OptimizationProgressCard.xbf",
+                        "bytes":  1615,
+                        "sha256":  "9bff2a8de063e1bfe3722a9388b24c601bd40a45bca70837a02a897c679f0209"
+                    },
+                    {
+                        "path":  "Features/ModelOptimization/Controls/OptimizationRecoveryCard.xbf",
+                        "bytes":  817,
+                        "sha256":  "67abb0f9e3d6c423392737c1e0f932238ccbaa4acd77d0b5e3d56bb19848b366"
+                    },
+                    {
+                        "path":  "Features/ModelOptimization/DebugFixtures/OptimizationFixtureGalleryPage.xbf",
+                        "bytes":  1626,
+                        "sha256":  "0a3b65177c1797e20ac9c288869e1007fc0f75572f96462a812fc60b0c127f11"
+                    },
+                    {
+                        "path":  "Features/ModelOptimization/OptimizationPage.xbf",
+                        "bytes":  3568,
+                        "sha256":  "31c4764d17166ef9d07e68a9b7aee1d39da220e488243d68611ee42d2952f46f"
+                    },
+                    {
+                        "path":  "Features/ModelOptimization/Presentation/OptimizationTheme.xbf",
+                        "bytes":  3114,
+                        "sha256":  "5e0a3d421a64a8485a91416933825a832d10f5a0a0ab0f85548cf55b4c1eee4b"
+                    },
+                    {
+                        "path":  "Features/Onboarding/Controls/OnboardingStageIndicator.xbf",
+                        "bytes":  7025,
+                        "sha256":  "332d9fd71758829070eee50da2978d16335a238d72d0818ef8dc777432aa0653"
+                    },
+                    {
+                        "path":  "Features/Onboarding/OnboardingShellPage.xbf",
+                        "bytes":  909,
+                        "sha256":  "5d1bbe476be1cc6706483d9f464dbb8cba49f5961cd2f5230a453702b167a6a4"
+                    },
+                    {
+                        "path":  "Features/Onboarding/Presentation/GraniteJourneyActionPalette.xbf",
+                        "bytes":  2032,
+                        "sha256":  "f0f81163bf1d74abf314748ebe53a8addd29fb21eab913618875f8bbd21aacf6"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/CommunityToolkit.HighPerformance.dll",
+                        "bytes":  153928,
+                        "sha256":  "196607c6d4d704b5ee95c80f8e3cd799595b7d8a08108701894c211b138d2839"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.deps.json",
+                        "bytes":  11265,
+                        "sha256":  "dbe77301f5ade2502e8b93e3b47574981a11aa005e7c20634c5e6508eb3087d6"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.dll",
+                        "bytes":  51712,
+                        "sha256":  "81b9d3d85ec2e13cf6d8b6872a90df1b73a1972df5408eb83f0de716c030f8c6"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.exe",
+                        "bytes":  152064,
+                        "sha256":  "d0f4c4bee0a087a9e3323d66200a8b5ec7fb41483cf3c7492663e76aa315e0f1"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.runtimeconfig.json",
+                        "bytes":  397,
+                        "sha256":  "ca1a6b5b185174698e0f5f9ae732ad3d2d3ed5b122ed666f35cc214283e83b7f"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/LICENSE.llama.cpp.txt",
+                        "bytes":  1099,
+                        "sha256":  "bcd8ec749126d45cb06737d0690295d73df4b6e7e194205bcf91190368f27285"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/LICENSE.LLamaSharp.txt",
+                        "bytes":  1092,
+                        "sha256":  "783acda7b1743723efb68c3a5b480606663967e0264fda67d54cc77581f61a14"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/LLamaSharp.dll",
+                        "bytes":  289280,
+                        "sha256":  "559fd41e6a9757ccd7aaec61255ecde33bc0294894510e10b94d095e02ad7c10"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/Microsoft.Bcl.AsyncInterfaces.dll",
+                        "bytes":  20744,
+                        "sha256":  "e925fe423d376b8c795c17ef57ef61a749f3bd34f044e72b2243103feadac1ec"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/Microsoft.Bcl.Memory.dll",
+                        "bytes":  58680,
+                        "sha256":  "4997699447ec2f43e628c4944aabc63c45bf477f9c9acd2f8b5842d2174b8f93"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/Microsoft.Extensions.AI.Abstractions.dll",
+                        "bytes":  671264,
+                        "sha256":  "d2821531f64704690b3c1f394fcfdf03541de0d8ce7ef9cf5881e5175d933ed1"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+                        "bytes":  65288,
+                        "sha256":  "469d34c0694e977b797ac3758ac472129b685cdd31b2a41faad3a52f0e477c6b"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/Microsoft.Extensions.Logging.Abstractions.dll",
+                        "bytes":  66360,
+                        "sha256":  "2c4243c6bae1104516d089d82e76a982d541c1eca781ec57a549a214c00eee89"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/Microsoft.Windows.SDK.NET.dll",
+                        "bytes":  24877600,
+                        "sha256":  "0ec371d93798852e36461c8adddbeadce0f963a04752f0b64e54fe19c1c834a7"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx/ggml.dll",
+                        "bytes":  67072,
+                        "sha256":  "90653a391d5cc6af47b52b23ef539a057122faabcf4da362cba32115220ecf40"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx/ggml-base.dll",
+                        "bytes":  615936,
+                        "sha256":  "7b110a7049afb7b7c653af4f8f3c023e59995b673df8468db7620a9ff5d9a4d5"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx/ggml-cpu.dll",
+                        "bytes":  820736,
+                        "sha256":  "447502e055c0df2ffd7ceba6e800e1608029bd1d6c760e5a1b29b2f6d9671a72"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx/llama.dll",
+                        "bytes":  2055680,
+                        "sha256":  "43465972ebdc01fddb0b09feb613230a2844e6658e0b2da88025ddfdd51deddb"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx/mtmd.dll",
+                        "bytes":  802816,
+                        "sha256":  "978c6423d378e93a5436c9162cf8f8cc1694ce1d8821b17e039201f91285c9f9"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx2/ggml.dll",
+                        "bytes":  67072,
+                        "sha256":  "44ec41894eb611c9bb86055cedb6759603fcb6a9dc994abccb15f08a031b486a"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx2/ggml-base.dll",
+                        "bytes":  615936,
+                        "sha256":  "09835b5faec3acc7e88f0ddee1ddf8a303108c9664fc581c6b5bff03f1032353"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx2/ggml-cpu.dll",
+                        "bytes":  878592,
+                        "sha256":  "5c579f09d7b4f782c534b03f5962ff82cdddf9374aa443175f9db3cbc86b7b3c"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx2/llama.dll",
+                        "bytes":  2055680,
+                        "sha256":  "1aa8f6f65386b7b977f9a0bb631d6d7e2a30d3beb3f5747e80e1b114f4885fb8"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx2/mtmd.dll",
+                        "bytes":  802816,
+                        "sha256":  "5da6779429096118c15ccc134f0309bb0df6f0a8c010b16e74475285288e3fb6"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx512/ggml.dll",
+                        "bytes":  67072,
+                        "sha256":  "23b4bcf921c6e77d6e0a7864f740f7eb4aec2cb946453f46b8fa5d337460ad8f"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx512/ggml-base.dll",
+                        "bytes":  615936,
+                        "sha256":  "6a45172a836430e372adb31039dd48a94fd5f2a2c023c0f2f7629e0e0faa8fe5"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx512/ggml-cpu.dll",
+                        "bytes":  979456,
+                        "sha256":  "9bbd41bbda9904f72194edccffe91068f56e5b6d49d874a556db08b320e222c7"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx512/llama.dll",
+                        "bytes":  2055680,
+                        "sha256":  "1aa8f6f65386b7b977f9a0bb631d6d7e2a30d3beb3f5747e80e1b114f4885fb8"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/avx512/mtmd.dll",
+                        "bytes":  802816,
+                        "sha256":  "ca9ddab5416c5558d98585fbdb60e0fcb52e1ee2e5395b1ac8848c77e392b3fe"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/noavx/ggml.dll",
+                        "bytes":  67072,
+                        "sha256":  "905ec5ea9db9bd1e795cf2cb4f7f9399c50e82a74379efe75815de7715da45cf"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/noavx/ggml-base.dll",
+                        "bytes":  615936,
+                        "sha256":  "57803fba605d6e3eae4bfc48bf6b120c03ddd3926ad5a0e3bb2b11598b20f598"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/noavx/ggml-cpu.dll",
+                        "bytes":  708096,
+                        "sha256":  "bb3d65715350df4b9f2d605367e7063e27c40146330e6ed9807598c41aec08a5"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/noavx/llama.dll",
+                        "bytes":  2055680,
+                        "sha256":  "6e18361b4fdce03588c19cc21a818ffcb4d3326d3debaa898af4cc27fd10c877"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/runtimes/win-x64/native/noavx/mtmd.dll",
+                        "bytes":  802816,
+                        "sha256":  "c50e84ef123adc015e80d4e3909f83a85b1b35be335a537eaec7b6e13d0a525e"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/System.Diagnostics.DiagnosticSource.dll",
+                        "bytes":  192272,
+                        "sha256":  "fe7e23d4596fcc3888d32c5ca351e85a4b1d167526ac1124781d793240254fa8"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/System.Interactive.Async.dll",
+                        "bytes":  368592,
+                        "sha256":  "07087b29efb233140538b483501f3911f7172990695b7688547496dafbc8946e"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/System.IO.Pipelines.dll",
+                        "bytes":  77616,
+                        "sha256":  "b4df7fe5d08acfcf0d0fe5f968d2fa9c844601b467a0a2d30520f7437093e7a3"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/System.Linq.Async.dll",
+                        "bytes":  1190352,
+                        "sha256":  "9395a4b9e883574feade7d66c3d4e9a7683fb86fd5ef9529d0a5b8beb63acf2b"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/System.Linq.AsyncEnumerable.dll",
+                        "bytes":  456968,
+                        "sha256":  "c37dd84e2dab0a28b8bfb249d37471334e80291845004fb35b7663a741f02e56"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/System.Numerics.Tensors.dll",
+                        "bytes":  546568,
+                        "sha256":  "b23b0fedae379a164040ab004a84f97662f747f81b410783e31640868025fbb0"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/System.Text.Encodings.Web.dll",
+                        "bytes":  66312,
+                        "sha256":  "296790ee0e5f196b3504075e124f3178c2cfcdaf35b95e5936e52f87f4f02ae1"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/System.Text.Json.dll",
+                        "bytes":  677136,
+                        "sha256":  "4cd9a232841bbbd7d2f01dd71d6fb5d14f3fb59b6bc64d7ec73f4ac8324ac6cf"
+                    },
+                    {
+                        "path":  "GgufRuntime/Adapter/WinRT.Runtime.dll",
+                        "bytes":  528944,
+                        "sha256":  "bcf3a14e8712a90837fc5c0d8c8a24696af2bd7f74e9767597ec81ededfb23db"
+                    },
+                    {
+                        "path":  "GgufRuntime/runtime-manifest.json",
+                        "bytes":  23353,
+                        "sha256":  "78fe527ff99d6805a0e2b82d1d90dbe1d8fed0a8b7a8b9c1a7f849ddfef0408a"
+                    },
+                    {
+                        "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Capabilities.dll",
+                        "bytes":  26112,
+                        "sha256":  "38769aa5c4bf0fb4c076fc4e628e138e15081a0aacc5caabe1d02da832bc9375"
+                    },
+                    {
+                        "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Contracts.dll",
+                        "bytes":  37888,
+                        "sha256":  "4c961287224cbd5e6fd50799d501f490721816cde3566316d0ed9f7232dbdca5"
+                    },
+                    {
+                        "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Transport.dll",
+                        "bytes":  23040,
+                        "sha256":  "00086a657525a364e53503b442533b8e2bb96d8f0e16c72ddc051ddc67610b24"
+                    },
+                    {
+                        "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.deps.json",
+                        "bytes":  2730,
+                        "sha256":  "92b7fa490f6f45911815b59cc0825350cfd5f712f3ec2eb8b11d3df3549b0be4"
+                    },
+                    {
+                        "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.dll",
+                        "bytes":  45568,
+                        "sha256":  "aeba1d1dce9f0b9a31a417c1bbb3efcd55d770a7bcfedb11b7d4eb88f880d901"
+                    },
+                    {
+                        "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.exe",
+                        "bytes":  152064,
+                        "sha256":  "9ee7b7cb63c7d26ae2a228488ed083164af3f4e7e8aa9d5b4f9847380c53e958"
+                    },
+                    {
+                        "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.runtimeconfig.json",
+                        "bytes":  397,
+                        "sha256":  "ca1a6b5b185174698e0f5f9ae732ad3d2d3ed5b122ed666f35cc214283e83b7f"
+                    },
+                    {
+                        "path":  "GgufRuntime/Worker/Microsoft.Windows.SDK.NET.dll",
+                        "bytes":  24877600,
+                        "sha256":  "0ec371d93798852e36461c8adddbeadce0f963a04752f0b64e54fe19c1c834a7"
+                    },
+                    {
+                        "path":  "GgufRuntime/Worker/WinRT.Runtime.dll",
+                        "bytes":  528944,
+                        "sha256":  "bcf3a14e8712a90837fc5c0d8c8a24696af2bd7f74e9767597ec81ededfb23db"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufQuantization.Capabilities.dll",
+                        "bytes":  11264,
+                        "sha256":  "2d6f0b785c61f3f4ddbfac7ec561db0ec202b9d9c8c2f1330fae839d38071560"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufQuantization.Capabilities.pdb",
+                        "bytes":  13072,
+                        "sha256":  "d4c962941fbce6e841e2126baa9c6935ec8d530fe92b00dd8abb86b3ec9df55b"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufQuantization.Contracts.dll",
+                        "bytes":  15872,
+                        "sha256":  "5567c916ce39ffce4342d1f7702367e4f049f9fd76d8c96947dd5a7b2c00afcc"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufQuantization.Contracts.pdb",
+                        "bytes":  13272,
+                        "sha256":  "f35a192f9eeda0de21ed8353a82e32eb974b23f77177c692f10f8b31ba789f42"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufQuantization.WorkerClient.dll",
+                        "bytes":  41984,
+                        "sha256":  "3a0da8cd423ad7ab92211227ef2e17d6a4f4cc7c77a1f4389b9f317c58614ae5"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufQuantization.WorkerClient.pdb",
+                        "bytes":  19444,
+                        "sha256":  "e3a4e6034c28949af9c8dfd2ced9f7afd948e501857c28f8d74da29b1fe0dcf1"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufRuntime.Capabilities.dll",
+                        "bytes":  26112,
+                        "sha256":  "076fa34bb570d21457fb353250952503338742c0c92c00eb0a39e584162429be"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufRuntime.Capabilities.pdb",
+                        "bytes":  16560,
+                        "sha256":  "bfb64f553bc847303d596936578b0e866a9516bf19c56fd0711ce3dfb9b20256"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufRuntime.Contracts.dll",
+                        "bytes":  37888,
+                        "sha256":  "90a89643337d2fcd67bb3ba189c4b57683791ffaaeba94de9c1bf28065f2d8bb"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufRuntime.Contracts.pdb",
+                        "bytes":  17152,
+                        "sha256":  "36da09fb62a1e0b549482bb12977ffd432f0c291856918cd4de2f22b479b1097"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufRuntime.Transport.dll",
+                        "bytes":  23040,
+                        "sha256":  "e03bf0eca3f3c3ebe4fdcd16ddbb4464924fe1efc0cf1046f1516c546fdf6348"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufRuntime.Transport.pdb",
+                        "bytes":  15364,
+                        "sha256":  "cf88df44e846aa411628c1b44cb8650cf5794648a07de10aeeca169ce0999862"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufRuntime.WorkerClient.dll",
+                        "bytes":  44032,
+                        "sha256":  "e64ed3bd1ba1e009ddfd8a6529a0cf864500278816e0d0003f7f8534026749ea"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.GgufRuntime.WorkerClient.pdb",
+                        "bytes":  20844,
+                        "sha256":  "d3b964243aed3bd7ee75cf3df0f6826bcae81a0c926ffceb5fa36c76caa26bc8"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.HardwareInspection.Foundation.dll",
+                        "bytes":  143360,
+                        "sha256":  "a11fd02417b6f7d4b8d40ec6ada5aa05b3cbb71ba980d388dfd94c7f2402c437"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.HardwareInspection.Foundation.pdb",
+                        "bytes":  48688,
+                        "sha256":  "88266dad1b092c4ccd2dd11ea95cc7234d918c405838b5c6b00573ba7b197d5e"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.ModelHardwareCompatibility.Core.dll",
+                        "bytes":  414720,
+                        "sha256":  "4528f2709959afe06a0eed41fe917706d00b99f2e4dbb8b53e116c45a7c88aad"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.ModelHardwareCompatibility.Core.pdb",
+                        "bytes":  93232,
+                        "sha256":  "12c9b3396a20dbc091afa3f0686d0890e26cd80d1e8745a709d4a9f663e28fa8"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.ModelInspection.Contracts.dll",
+                        "bytes":  64000,
+                        "sha256":  "0f1f0f373cd077d29154157c72ee24053a53e4109be445c5d2303a14691bc6f8"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.ModelInspection.Contracts.pdb",
+                        "bytes":  23832,
+                        "sha256":  "868d90f391645a82f93176ab3edb0d1741c2e83cf0131e1de1ef95c33932ee9a"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.ModelInspection.Transport.dll",
+                        "bytes":  13312,
+                        "sha256":  "dad008fc7a3e42c9d0ad25c98f91eef1103c090692f97c8ba5371ff6f781d983"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.ModelInspection.Transport.pdb",
+                        "bytes":  13468,
+                        "sha256":  "9a84e224a1b9ac9e08173451fc962aa41a1d8c635eb8188914b30f77e61ae198"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.ModelInspection.WorkerClient.dll",
+                        "bytes":  119296,
+                        "sha256":  "a8bdf9060e99c642aaf4a27932dd867be9b3ca2b2ab8ad116df6f94b73aeec7b"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.ModelInspection.WorkerClient.pdb",
+                        "bytes":  47324,
+                        "sha256":  "7d0d93587b2e47737b339ff3ca096b3529617c965d1a3760a08489178afe8da8"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.OpenVino.Contracts.dll",
+                        "bytes":  193536,
+                        "sha256":  "99e7a40867035060ff5b92615b5a47917f66f3df812f5db0f80e6262f0b85678"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.OpenVino.Contracts.pdb",
+                        "bytes":  105804,
+                        "sha256":  "1535f3ed15e886c979dc8a04e8bd74c415db2ec95bee596e7a23f551a4e79f7d"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.OpenVino.WorkerClient.dll",
+                        "bytes":  85504,
+                        "sha256":  "0d2ff33fa075cc0379c5e0e6d13b54614133fd520b268280dd36a4c32b22e3a3"
+                    },
+                    {
+                        "path":  "GraniteEdgeAI.OpenVino.WorkerClient.pdb",
+                        "bytes":  28600,
+                        "sha256":  "013933cee004da02e365ecb9347ff73644f6bf1144282f4005c57da95d24c5a4"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/ggml.dll",
+                        "bytes":  67072,
+                        "sha256":  "905ec5ea9db9bd1e795cf2cb4f7f9399c50e82a74379efe75815de7715da45cf"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/ggml-base.dll",
+                        "bytes":  615936,
+                        "sha256":  "57803fba605d6e3eae4bfc48bf6b120c03ddd3926ad5a0e3bb2b11598b20f598"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/ggml-cpu.dll",
+                        "bytes":  708096,
+                        "sha256":  "bb3d65715350df4b9f2d605367e7063e27c40146330e6ed9807598c41aec08a5"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe",
+                        "bytes":  42311788,
+                        "sha256":  "05cd5d1ed8f48f8d9dc1651cfc4de1f869d7252cd68ab0d16e03e4fab46928d9"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/llama.dll",
+                        "bytes":  2055680,
+                        "sha256":  "6e18361b4fdce03588c19cc21a818ffcb4d3326d3debaa898af4cc27fd10c877"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/msvcp140.dll",
+                        "bytes":  557728,
+                        "sha256":  "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/mtmd.dll",
+                        "bytes":  802816,
+                        "sha256":  "c50e84ef123adc015e80d4e3909f83a85b1b35be335a537eaec7b6e13d0a525e"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/vcomp140.dll",
+                        "bytes":  193152,
+                        "sha256":  "55aba23cdcd6484fbb06f4155b8ca75adfce7a881f10afd0c49457165e677164"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/vcruntime140.dll",
+                        "bytes":  124544,
+                        "sha256":  "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066"
+                    },
+                    {
+                        "path":  "HardwareInspection/LlamaCppProbe/vcruntime140_1.dll",
+                        "bytes":  49792,
+                        "sha256":  "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f"
+                    },
+                    {
+                        "path":  "HardwareInspection/llamacpp-probe-manifest.json",
+                        "bytes":  678,
+                        "sha256":  "e0697ff60acda12b84d71cc00c0dbab8283a5cdc26ee131a3f0b425bd8a6d134"
+                    },
+                    {
+                        "path":  "IBM Granite with TurboQuant (Intel).build.appxrecipe",
+                        "bytes":  58286,
+                        "sha256":  "284c5f048de8bab6aebaa067510b5c39b835f8cc1177af8be675845bc5b33da7"
+                    },
+                    {
+                        "path":  "IBM Granite with TurboQuant (Intel).deps.json",
+                        "bytes":  24642,
+                        "sha256":  "979eab8de5628312b1c32323adb408da4c66116facc311b79e2914bf211f30f0"
+                    },
+                    {
+                        "path":  "IBM Granite with TurboQuant (Intel).dll",
+                        "bytes":  1890304,
+                        "sha256":  "40cc15d4b57d673868cb8a7302fc155eb6415632f4c022d655b318f0761846d1"
+                    },
+                    {
+                        "path":  "IBM Granite with TurboQuant (Intel).exe",
+                        "bytes":  152576,
+                        "sha256":  "4f2c5319662689ad5c93ef5386ab22cda9b11a1370d98056d677bde41c00429e"
+                    },
+                    {
+                        "path":  "IBM Granite with TurboQuant (Intel).pdb",
+                        "bytes":  617332,
+                        "sha256":  "4e10a6d8529257b6958d1d1491b7ef5d549042b61578c6d3c34e11114fc5f709"
+                    },
+                    {
+                        "path":  "IBM Granite with TurboQuant (Intel).runtimeconfig.json",
+                        "bytes":  397,
+                        "sha256":  "ca1a6b5b185174698e0f5f9ae732ad3d2d3ed5b122ed666f35cc214283e83b7f"
+                    },
+                    {
+                        "path":  "MainWindow.xbf",
+                        "bytes":  1291,
+                        "sha256":  "92712b228950d6b1fc1b2af18d5d8cdc0c4d090b91a388f98a4be00af9d9ede1"
+                    },
+                    {
+                        "path":  "Microsoft.Graphics.Imaging.Projection.dll",
+                        "bytes":  26936,
+                        "sha256":  "1f7e7cb79f841efea2e5f238b059c3896189bc4ce75811cea5124abe50a98560"
+                    },
+                    {
+                        "path":  "Microsoft.InteractiveExperiences.Projection.dll",
+                        "bytes":  1618744,
+                        "sha256":  "59ff8f319db3afc59c27c23eb5a33d53c13303540f458372885beccf866bf504"
+                    },
+                    {
+                        "path":  "Microsoft.ML.OnnxRuntime.dll",
+                        "bytes":  248104,
+                        "sha256":  "92fa22826036602cd2ee74ff0280fb89535119a40df4d84ec7d8c0162a3660b6"
+                    },
+                    {
+                        "path":  "Microsoft.Security.Authentication.OAuth.Projection.dll",
+                        "bytes":  80696,
+                        "sha256":  "7c3b01f0df79c502e380533b5303cf27e4b71272d9e426d135bd2983ab305b0e"
+                    },
+                    {
+                        "path":  "Microsoft.Web.WebView2.Core.dll",
+                        "bytes":  793704,
+                        "sha256":  "17ccd9141c486d7a3689ed38d72d3bd8bb0e216b7990fcc76c132dc9102c6320"
+                    },
+                    {
+                        "path":  "Microsoft.Web.WebView2.Core.Projection.dll",
+                        "bytes":  686192,
+                        "sha256":  "c0036e5306aa9758b6ce0c1b2da2aea9ac58ce2c2b328c52d15b22b720aeadf7"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AI.ContentSafety.Projection.dll",
+                        "bytes":  37216,
+                        "sha256":  "502e688df984a02c2087004b434f076c2be66ad8413f66a4458f903951c4e9e1"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AI.Foundation.Projection.dll",
+                        "bytes":  25400,
+                        "sha256":  "bb9efef24f8ae8fafd628319ce49603ca1f1ddc495f0b9a0b870087d46bfa4b4"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AI.Imaging.Projection.dll",
+                        "bytes":  84280,
+                        "sha256":  "9721b5898872eef14880aafa2c43f5d43cbb5dd3e5472d0a7346d4dc6f1cf90b"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AI.MachineLearning.Projection.dll",
+                        "bytes":  94712,
+                        "sha256":  "e7572e1fb53b8f1182f9fb5d17248a2a37cc98cca8ef2e51620763c85f056666"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AI.Projection.dll",
+                        "bytes":  26936,
+                        "sha256":  "03a97ae434387452b8c91c03fc00de9a83d2ef4482526341269f7fe4c0cad418"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AI.Text.Projection.dll",
+                        "bytes":  100192,
+                        "sha256":  "125295eebac09ff376115630c2cf272971db08cd8ae19a721ade0c8633262022"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AI.Video.Projection.dll",
+                        "bytes":  41784,
+                        "sha256":  "5fb1a60a374a0e1bc1ca7f5c1559bc3fce725be4957d8097b8c40472b68de5e4"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.ApplicationModel.Background.Projection.dll",
+                        "bytes":  25400,
+                        "sha256":  "5723ed363a51e074e673e7efd07d74a30cdb6f8e49703b11686daf7e11b0e178"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.ApplicationModel.DynamicDependency.Projection.dll",
+                        "bytes":  43832,
+                        "sha256":  "037676cee0b3e03d63666a23067a978f1c343c990bb5a1b4755984d10d60553f"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.ApplicationModel.Resources.Projection.dll",
+                        "bytes":  68920,
+                        "sha256":  "20c47a2f198a6c2175501da4167b059b8e07a83aa0cf6377151a8c6f172eb9ab"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.ApplicationModel.WindowsAppRuntime.Projection.dll",
+                        "bytes":  46904,
+                        "sha256":  "8d8ab22a751bcb8b5b08af97fc3cb9d52bd20222dcf8c650e5a1ee40a7682c24"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AppLifecycle.Projection.dll",
+                        "bytes":  40760,
+                        "sha256":  "dabf014853f09913a92931aa4fbf7df7bc1496de68d5d51d5edf601095efc73b"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AppNotifications.Builder.Projection.dll",
+                        "bytes":  68408,
+                        "sha256":  "5e3c28d46475a7d112e815d3020097c177ca2a6dfa06120928c65a755d9a20cd"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.AppNotifications.Projection.dll",
+                        "bytes":  61752,
+                        "sha256":  "fc878f051722e6f0fc35fa90fc772edda34985c7c37924c93913b8d46bc8a5e9"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.BadgeNotifications.Projection.dll",
+                        "bytes":  24376,
+                        "sha256":  "4396aa96b282256fe981bb1ec5c290551aefb6ee4743a763e52e37f5d0664260"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.Foundation.Projection.dll",
+                        "bytes":  30008,
+                        "sha256":  "264856e7cce109efd5622af2d63c966a2731cc44ce9404ccb440ee84484f53c2"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.Management.Deployment.Projection.dll",
+                        "bytes":  172856,
+                        "sha256":  "44ceec6d7a047f63d7cc849cd51cd85f786bd717d3f15772231c122540a8ccb2"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.Media.Capture.Projection.dll",
+                        "bytes":  37688,
+                        "sha256":  "954e96220e8e868b25e3e8f0dc994cb882151803170cebc92113b28b88ff9f11"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.PushNotifications.Projection.dll",
+                        "bytes":  44856,
+                        "sha256":  "c5c62a85baf5bb8d6978b6a7c20b91289f04e6e7f96b40595f869f3c8bc45523"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.SDK.NET.dll",
+                        "bytes":  24877600,
+                        "sha256":  "0ec371d93798852e36461c8adddbeadce0f963a04752f0b64e54fe19c1c834a7"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.Security.AccessControl.Projection.dll",
+                        "bytes":  21304,
+                        "sha256":  "f364b54b98ac2f97dff1fcf8525a5462a458251966de0d1dc0f7dbc335899754"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.Storage.Pickers.Projection.dll",
+                        "bytes":  68408,
+                        "sha256":  "4c597139e521617c8287d1e9eb9fcc0240cf11d57c3187b8bd9188540af862ba"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.Storage.Projection.dll",
+                        "bytes":  38200,
+                        "sha256":  "99e1309d75036aafcdb8492a0873c9f570795d91ee32e6b5710fea4690a6b343"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.System.Power.Projection.dll",
+                        "bytes":  35128,
+                        "sha256":  "67bf52e2e5e7d154956b4ea0e9723c1084ae9c184740e1245c8cc7ee236865e8"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.System.Projection.dll",
+                        "bytes":  28472,
+                        "sha256":  "534eed914c788a0bda99536d787aba2d87643d97fd5f72d3578962b7fff1dcf2"
+                    },
+                    {
+                        "path":  "Microsoft.Windows.Widgets.Projection.dll",
+                        "bytes":  167264,
+                        "sha256":  "8d6e5d3418e2f6eff2b27df0ac51b7dc452a40fc4c98c86f61e305d04b21f89f"
+                    },
+                    {
+                        "path":  "Microsoft.WindowsAppRuntime.Bootstrap.Net.dll",
+                        "bytes":  16696,
+                        "sha256":  "9181be6edc712d61b8961e7ed2591df3d6227d1175d50b831b8f1bfedf1714ff"
+                    },
+                    {
+                        "path":  "Microsoft.WinUI.dll",
+                        "bytes":  7331128,
+                        "sha256":  "8d2b7ef71fce2d6d716735868b0a47adc61b02bfa5b8b4bd5008325a79df54ee"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/CommunityToolkit.HighPerformance.dll",
+                        "bytes":  153928,
+                        "sha256":  "196607c6d4d704b5ee95c80f8e3cd799595b7d8a08108701894c211b138d2839"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Contracts.dll",
+                        "bytes":  64000,
+                        "sha256":  "3110f05afe0821cb89aba9c0d7b35f5358d52d0f00462e51e9330bd94833840b"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.LlamaSharp.dll",
+                        "bytes":  96768,
+                        "sha256":  "4770cf6e36790d77cbd3e89d05f4f3fa265d504535c1028b2d48b390c75474cd"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Transport.dll",
+                        "bytes":  12800,
+                        "sha256":  "ef21a91183939e1a0ea87c06e9c764322e7b713150cace675dbdca8792f9d9c7"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.deps.json",
+                        "bytes":  12669,
+                        "sha256":  "c987c5aca42fe290cd1f5f8a50a53ae61e9c2f155914e59dc04e365ffc883c31"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.dll",
+                        "bytes":  46080,
+                        "sha256":  "d18deb30ed45be534958fac70be2a103e6254ff11b0c38f57736366369e21a58"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.exe",
+                        "bytes":  152064,
+                        "sha256":  "37af9df2d45b1e4f47be9a396f6904300898f4743c749ddde7a514748f99379a"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.runtimeconfig.json",
+                        "bytes":  397,
+                        "sha256":  "ca1a6b5b185174698e0f5f9ae732ad3d2d3ed5b122ed666f35cc214283e83b7f"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/LLamaSharp.dll",
+                        "bytes":  289280,
+                        "sha256":  "559fd41e6a9757ccd7aaec61255ecde33bc0294894510e10b94d095e02ad7c10"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/Microsoft.Bcl.AsyncInterfaces.dll",
+                        "bytes":  20744,
+                        "sha256":  "e925fe423d376b8c795c17ef57ef61a749f3bd34f044e72b2243103feadac1ec"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/Microsoft.Bcl.Memory.dll",
+                        "bytes":  58680,
+                        "sha256":  "4997699447ec2f43e628c4944aabc63c45bf477f9c9acd2f8b5842d2174b8f93"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/Microsoft.Extensions.AI.Abstractions.dll",
+                        "bytes":  671264,
+                        "sha256":  "d2821531f64704690b3c1f394fcfdf03541de0d8ce7ef9cf5881e5175d933ed1"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+                        "bytes":  65288,
+                        "sha256":  "469d34c0694e977b797ac3758ac472129b685cdd31b2a41faad3a52f0e477c6b"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/Microsoft.Extensions.Logging.Abstractions.dll",
+                        "bytes":  66360,
+                        "sha256":  "2c4243c6bae1104516d089d82e76a982d541c1eca781ec57a549a214c00eee89"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/Microsoft.Windows.SDK.NET.dll",
+                        "bytes":  24877600,
+                        "sha256":  "0ec371d93798852e36461c8adddbeadce0f963a04752f0b64e54fe19c1c834a7"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx/ggml.dll",
+                        "bytes":  67072,
+                        "sha256":  "90653a391d5cc6af47b52b23ef539a057122faabcf4da362cba32115220ecf40"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx/ggml-base.dll",
+                        "bytes":  615936,
+                        "sha256":  "7b110a7049afb7b7c653af4f8f3c023e59995b673df8468db7620a9ff5d9a4d5"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx/ggml-cpu.dll",
+                        "bytes":  820736,
+                        "sha256":  "447502e055c0df2ffd7ceba6e800e1608029bd1d6c760e5a1b29b2f6d9671a72"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx/llama.dll",
+                        "bytes":  2055680,
+                        "sha256":  "43465972ebdc01fddb0b09feb613230a2844e6658e0b2da88025ddfdd51deddb"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx/mtmd.dll",
+                        "bytes":  802816,
+                        "sha256":  "978c6423d378e93a5436c9162cf8f8cc1694ce1d8821b17e039201f91285c9f9"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx2/ggml.dll",
+                        "bytes":  67072,
+                        "sha256":  "44ec41894eb611c9bb86055cedb6759603fcb6a9dc994abccb15f08a031b486a"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx2/ggml-base.dll",
+                        "bytes":  615936,
+                        "sha256":  "09835b5faec3acc7e88f0ddee1ddf8a303108c9664fc581c6b5bff03f1032353"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx2/ggml-cpu.dll",
+                        "bytes":  878592,
+                        "sha256":  "5c579f09d7b4f782c534b03f5962ff82cdddf9374aa443175f9db3cbc86b7b3c"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx2/llama.dll",
+                        "bytes":  2055680,
+                        "sha256":  "1aa8f6f65386b7b977f9a0bb631d6d7e2a30d3beb3f5747e80e1b114f4885fb8"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx2/mtmd.dll",
+                        "bytes":  802816,
+                        "sha256":  "5da6779429096118c15ccc134f0309bb0df6f0a8c010b16e74475285288e3fb6"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx512/ggml.dll",
+                        "bytes":  67072,
+                        "sha256":  "23b4bcf921c6e77d6e0a7864f740f7eb4aec2cb946453f46b8fa5d337460ad8f"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx512/ggml-base.dll",
+                        "bytes":  615936,
+                        "sha256":  "6a45172a836430e372adb31039dd48a94fd5f2a2c023c0f2f7629e0e0faa8fe5"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx512/ggml-cpu.dll",
+                        "bytes":  979456,
+                        "sha256":  "9bbd41bbda9904f72194edccffe91068f56e5b6d49d874a556db08b320e222c7"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx512/llama.dll",
+                        "bytes":  2055680,
+                        "sha256":  "1aa8f6f65386b7b977f9a0bb631d6d7e2a30d3beb3f5747e80e1b114f4885fb8"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/avx512/mtmd.dll",
+                        "bytes":  802816,
+                        "sha256":  "ca9ddab5416c5558d98585fbdb60e0fcb52e1ee2e5395b1ac8848c77e392b3fe"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/noavx/ggml.dll",
+                        "bytes":  67072,
+                        "sha256":  "905ec5ea9db9bd1e795cf2cb4f7f9399c50e82a74379efe75815de7715da45cf"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/noavx/ggml-base.dll",
+                        "bytes":  615936,
+                        "sha256":  "57803fba605d6e3eae4bfc48bf6b120c03ddd3926ad5a0e3bb2b11598b20f598"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/noavx/ggml-cpu.dll",
+                        "bytes":  708096,
+                        "sha256":  "bb3d65715350df4b9f2d605367e7063e27c40146330e6ed9807598c41aec08a5"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/noavx/llama.dll",
+                        "bytes":  2055680,
+                        "sha256":  "6e18361b4fdce03588c19cc21a818ffcb4d3326d3debaa898af4cc27fd10c877"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/runtimes/win-x64/native/noavx/mtmd.dll",
+                        "bytes":  802816,
+                        "sha256":  "c50e84ef123adc015e80d4e3909f83a85b1b35be335a537eaec7b6e13d0a525e"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/System.Diagnostics.DiagnosticSource.dll",
+                        "bytes":  192272,
+                        "sha256":  "fe7e23d4596fcc3888d32c5ca351e85a4b1d167526ac1124781d793240254fa8"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/System.Interactive.Async.dll",
+                        "bytes":  368592,
+                        "sha256":  "07087b29efb233140538b483501f3911f7172990695b7688547496dafbc8946e"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/System.IO.Pipelines.dll",
+                        "bytes":  77616,
+                        "sha256":  "b4df7fe5d08acfcf0d0fe5f968d2fa9c844601b467a0a2d30520f7437093e7a3"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/System.Linq.Async.dll",
+                        "bytes":  1190352,
+                        "sha256":  "9395a4b9e883574feade7d66c3d4e9a7683fb86fd5ef9529d0a5b8beb63acf2b"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/System.Linq.AsyncEnumerable.dll",
+                        "bytes":  456968,
+                        "sha256":  "c37dd84e2dab0a28b8bfb249d37471334e80291845004fb35b7663a741f02e56"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/System.Numerics.Tensors.dll",
+                        "bytes":  546568,
+                        "sha256":  "b23b0fedae379a164040ab004a84f97662f747f81b410783e31640868025fbb0"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/System.Text.Encodings.Web.dll",
+                        "bytes":  66312,
+                        "sha256":  "296790ee0e5f196b3504075e124f3178c2cfcdaf35b95e5936e52f87f4f02ae1"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/System.Text.Json.dll",
+                        "bytes":  677136,
+                        "sha256":  "4cd9a232841bbbd7d2f01dd71d6fb5d14f3fb59b6bc64d7ec73f4ac8324ac6cf"
+                    },
+                    {
+                        "path":  "ModelInspection/Worker/WinRT.Runtime.dll",
+                        "bytes":  528944,
+                        "sha256":  "bcf3a14e8712a90837fc5c0d8c8a24696af2bd7f74e9767597ec81ededfb23db"
+                    },
+                    {
+                        "path":  "ModelInspection/worker-manifest.json",
+                        "bytes":  11473,
+                        "sha256":  "084083387a645db10e44ef3e419940fefc6194d80694fcf2de38bee6abc1d087"
+                    },
+                    {
+                        "path":  "resources.pri",
+                        "bytes":  255096,
+                        "sha256":  "c713b8b71708614587adbc78a666eb4dc311de3a29d49fafc8b03375168795ab"
+                    },
+                    {
+                        "path":  "runtimes/win-arm64/native/Microsoft.Windows.ApplicationModel.Background.UniversalBGTask.dll",
+                        "bytes":  82232,
+                        "sha256":  "2a3cab292fa3fca928924f1664858b1c4fdabdf0046ae78cd90a7d8824d57e7d"
+                    },
+                    {
+                        "path":  "runtimes/win-arm64/native/Microsoft.WindowsAppRuntime.Bootstrap.dll",
+                        "bytes":  402232,
+                        "sha256":  "a8b314d0cd126a4f0a3c533ffed5626a458b71c99e924f9f44cac3e6ad78dc9e"
+                    },
+                    {
+                        "path":  "runtimes/win-arm64/native/WebView2Loader.dll",
+                        "bytes":  146024,
+                        "sha256":  "2bbac5865ecd9e1ab245f997de13e22c8f9a7f4cf803efc0e304180926c3b313"
+                    },
+                    {
+                        "path":  "runtimes/win-arm64ec/native/Microsoft.Windows.ApplicationModel.Background.UniversalBGTask.dll",
+                        "bytes":  86840,
+                        "sha256":  "50d24d9618c9971e89bf66c1dfbbe0d563e9dd49f8c65e988ee2ae28d5633bea"
+                    },
+                    {
+                        "path":  "runtimes/win-arm64ec/native/Microsoft.WindowsAppRuntime.Bootstrap.dll",
+                        "bytes":  394040,
+                        "sha256":  "a63d0d7f5e3e863e0781d0a9467011598189f7149a169b91296fea90a31e9906"
+                    },
+                    {
+                        "path":  "runtimes/win-x64/native/Microsoft.Windows.ApplicationModel.Background.UniversalBGTask.dll",
+                        "bytes":  86840,
+                        "sha256":  "50d24d9618c9971e89bf66c1dfbbe0d563e9dd49f8c65e988ee2ae28d5633bea"
+                    },
+                    {
+                        "path":  "runtimes/win-x64/native/Microsoft.WindowsAppRuntime.Bootstrap.dll",
+                        "bytes":  394040,
+                        "sha256":  "a63d0d7f5e3e863e0781d0a9467011598189f7149a169b91296fea90a31e9906"
+                    },
+                    {
+                        "path":  "runtimes/win-x64/native/WebView2Loader.dll",
+                        "bytes":  160368,
+                        "sha256":  "ae69309c5e356350ea28d6b71a900bc43ee7e3f7a457d80a1f82efe6c419cc08"
+                    },
+                    {
+                        "path":  "runtimes/win-x86/native/Microsoft.Windows.ApplicationModel.Background.UniversalBGTask.dll",
+                        "bytes":  64824,
+                        "sha256":  "fbeb0f62eb2e895b65589202717de71b1b751de044fc3822724f61ee8ccdfa3b"
+                    },
+                    {
+                        "path":  "runtimes/win-x86/native/Microsoft.WindowsAppRuntime.Bootstrap.dll",
+                        "bytes":  359736,
+                        "sha256":  "5b0ed82d5183c78f5b641f5ffd7aa4ce4f8e004c0c78a6690da022e4e24ea613"
+                    },
+                    {
+                        "path":  "runtimes/win-x86/native/WebView2Loader.dll",
+                        "bytes":  120944,
+                        "sha256":  "b6613343db03631e6cd044e7edaad6a9a94110f9c37fdb81f37be41b5e327538"
+                    },
+                    {
+                        "path":  "System.Numerics.Tensors.dll",
+                        "bytes":  442680,
+                        "sha256":  "0e59eb423d5a7d82998a0537653565d05033b07c606d59ed0756c2ff028343da"
+                    },
+                    {
+                        "path":  "WinRT.Runtime.dll",
+                        "bytes":  528944,
+                        "sha256":  "bcf3a14e8712a90837fc5c0d8c8a24696af2bd7f74e9767597ec81ededfb23db"
+                    }
+                ],
+    "baseToCandidate":  {
+                            "added":  [
+                                          "internetClient package capability",
+                                          "GraniteEdgeAI.HardwareInspection.Foundation trusted-operation environment implementation"
+                                      ],
+                            "removed":  [
+
+                                        ],
+                            "changed":  [
+                                            "GraniteEdgeAI.GgufRuntime.WorkerClient.dll",
+                                            "GraniteEdgeAI.GgufQuantization.WorkerClient.dll",
+                                            "GraniteEdgeAI.ModelInspection.WorkerClient.dll",
+                                            "GraniteEdgeAI.OpenVino.WorkerClient.dll"
+                                        ],
+                            "unavailableComparisonReason":  "A byte-for-byte base Release output could not be generated because authoritative native package stage roots are absent; source diff identity is recorded instead."
+                        },
+    "differences":  [
+                        {
+                            "code":  "S1-PACKAGE-DEBUG-FIXTURE-XBF",
+                            "severity":  "important",
+                            "owner":  "C0",
+                            "path":  "Features/ModelOptimization/DebugFixtures/OptimizationFixtureGalleryPage.xbf",
+                            "disposition":  "apply-checkable removal from Release package closure required during integration"
+                        },
+                        {
+                            "code":  "S1-PACKAGE-NATIVE-STAGES-ABSENT",
+                            "severity":  "external-block",
+                            "owner":  "C0/E1",
+                            "path":  null,
+                            "disposition":  "no signed/native/package acceptance claim; rerun with exact verified stage roots and hashes"
+                        }
+                    ]
+}

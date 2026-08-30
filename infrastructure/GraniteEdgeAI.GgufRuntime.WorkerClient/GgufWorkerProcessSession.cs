@@ -1,5 +1,6 @@
 using Microsoft.Win32.SafeHandles;
 using GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -7,6 +8,8 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
 {
     private readonly SafeFileHandle _processHandle;
     private readonly GgufWorkerJob _job;
+    private readonly TrustedToolOperationEnvironment _operationEnvironment;
+    private readonly BoundedCleanupCoordinator _cleanup;
     private bool _disposed;
 
     internal GgufWorkerProcessSession(
@@ -15,7 +18,8 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
         GgufWorkerJob job,
         FileStream standardInput,
         FileStream standardOutput,
-        FileStream standardError)
+        FileStream standardError,
+        TrustedToolOperationEnvironment operationEnvironment)
     {
         ProcessId = processId;
         _processHandle = processHandle;
@@ -23,6 +27,24 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
         StandardInput = standardInput;
         StandardOutput = standardOutput;
         StandardError = standardError;
+        _operationEnvironment = operationEnvironment;
+        _cleanup = new BoundedCleanupCoordinator(
+            new OwnedCleanupAction(OwnedCleanupStage.StandardInput, () =>
+                StandardInput.DisposeAsync()),
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
+                await TerminateAndVerifyEmptyAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false)),
+            new OwnedCleanupAction(OwnedCleanupStage.StandardOutput, () =>
+                StandardOutput.DisposeAsync()),
+            new OwnedCleanupAction(OwnedCleanupStage.StandardError, () =>
+                StandardError.DisposeAsync()),
+            Sync(OwnedCleanupStage.ProcessHandle, _processHandle.Dispose),
+            Sync(OwnedCleanupStage.Job, _job.Dispose),
+            Sync(OwnedCleanupStage.OperationEnvironment, () =>
+            {
+                _operationEnvironment.Dispose();
+                RequireCleanupSucceeded(_operationEnvironment);
+            }));
     }
 
     internal uint ProcessId { get; }
@@ -62,26 +84,33 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
+        CleanupOutcome outcome = await _cleanup.ExecuteAsync().ConfigureAwait(false);
         _disposed = true;
-        try
+        if (!outcome.Succeeded)
         {
-            await StandardInput.DisposeAsync().ConfigureAwait(false);
-            if (_job.ActiveProcessCount != 0)
-            {
-                _job.Terminate();
-            }
+            throw new GgufWorkerPolicyException(
+                "worker-cleanup-failed",
+                "The GGUF runtime worker cleanup could not be verified.",
+                new CleanupIntegrityException(outcome.Failures, null));
         }
-        finally
+    }
+
+    private static OwnedCleanupAction Sync(
+        OwnedCleanupStage stage,
+        Action action) => new(stage, () =>
         {
-            await StandardOutput.DisposeAsync().ConfigureAwait(false);
-            await StandardError.DisposeAsync().ConfigureAwait(false);
-            _processHandle.Dispose();
-            _job.Dispose();
+            action();
+            return ValueTask.CompletedTask;
+        });
+
+    private static void RequireCleanupSucceeded(
+        TrustedToolOperationEnvironment operationEnvironment)
+    {
+        if (!operationEnvironment.CleanupSucceeded)
+        {
+            throw new GgufWorkerPolicyException(
+                "worker-cleanup-failed",
+                "The GGUF runtime worker cleanup could not be verified.");
         }
     }
 }

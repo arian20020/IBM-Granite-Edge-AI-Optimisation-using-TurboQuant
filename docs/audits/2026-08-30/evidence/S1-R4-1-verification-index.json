@@ -1,0 +1,459 @@
+{
+  "schemaVersion": 1,
+  "workerId": "S1",
+  "implementationSubjectCommit": "4e76c9f55a787ea8f51ba81d4c870743d41f9d24",
+  "implementationSubjectTree": "b09c181930048c7a15b652fe2af17c46a5db5bde",
+  "baseCommit": "29f52dc4f70f9b9c6612a880299bb3b28dcc2d10",
+  "baseTree": "0c7ed991bb5ba8f74c00c668f60e5fbc2fd77304",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "verificationWindowUtc": {
+    "start": "2026-08-30T16:56:13Z",
+    "end": "2026-08-30T17:15:30Z"
+  },
+  "commands": [
+    {
+      "identity": "msbuild-release-x64-ordinary-package-gate",
+      "startedAtUtc": "2026-08-30T16:56:13Z",
+      "endedAtUtc": "2026-08-30T16:58:01Z",
+      "exitCode": 1
+    },
+    {
+      "identity": "msbuild-release-x64-managed-stage-disabled-membership",
+      "startedAtUtc": "2026-08-30T16:58:11Z",
+      "endedAtUtc": "2026-08-30T16:59:40Z",
+      "exitCode": 0
+    },
+    {
+      "identity": "closure-generation-and-first-party-identity",
+      "startedAtUtc": "2026-08-30T17:03:45Z",
+      "endedAtUtc": "2026-08-30T17:04:57Z",
+      "exitCode": 0
+    },
+    {
+      "identity": "serial-managed-aggregate",
+      "startedAtUtc": "2026-08-30T17:05:09Z",
+      "endedAtUtc": "2026-08-30T17:06:10Z",
+      "exitCode": 0
+    },
+    {
+      "identity": "relevant-cleanup-race-containment-suites-three-repetitions",
+      "startedAtUtc": "2026-08-30T17:06:36Z",
+      "endedAtUtc": "2026-08-30T17:08:25Z",
+      "exitCode": 0
+    },
+    {
+      "identity": "openvino-native-process-integration",
+      "startedAtUtc": "2026-08-30T17:08:47Z",
+      "endedAtUtc": "2026-08-30T17:09:39Z",
+      "exitCode": 2
+    },
+    {
+      "identity": "cross-feature-integration-release",
+      "startedAtUtc": "2026-08-30T17:09:39Z",
+      "endedAtUtc": "2026-08-30T17:09:46Z",
+      "exitCode": 0
+    },
+    {
+      "identity": "model-process-integration-initial-race-observation",
+      "startedAtUtc": "2026-08-30T17:09:57Z",
+      "endedAtUtc": "2026-08-30T17:12:04Z",
+      "exitCode": 2
+    },
+    {
+      "identity": "model-timeout-focused-rerun",
+      "startedAtUtc": "2026-08-30T17:12:10Z",
+      "endedAtUtc": "2026-08-30T17:12:20Z",
+      "exitCode": 0
+    },
+    {
+      "identity": "model-process-integration-final",
+      "startedAtUtc": "2026-08-30T17:12:25Z",
+      "endedAtUtc": "2026-08-30T17:14:06Z",
+      "exitCode": 0
+    },
+    {
+      "identity": "gguf-process-integration-release",
+      "startedAtUtc": "2026-08-30T17:14:21Z",
+      "endedAtUtc": "2026-08-30T17:14:34Z",
+      "exitCode": 0
+    },
+    {
+      "identity": "exact-rebuilt-app-bounded-launch",
+      "startedAtUtc": "2026-08-30T17:14:47Z",
+      "endedAtUtc": "2026-08-30T17:14:54Z",
+      "exitCode": 0
+    },
+    {
+      "identity": "privacy-process-temp-lock-capability-scan",
+      "startedAtUtc": "2026-08-30T17:15:00Z",
+      "endedAtUtc": "2026-08-30T17:15:30Z",
+      "exitCode": 0
+    }
+  ],
+  "managedTests": {
+    "suites": [
+      {
+        "name": "security-audit",
+        "discovered": 12,
+        "executed": 12,
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "name": "gguf-runtime-worker-client",
+        "discovered": 10,
+        "executed": 10,
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "name": "gguf-quantization-worker-client",
+        "discovered": 19,
+        "executed": 19,
+        "passed": 19,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "name": "model-inspection-worker-client",
+        "discovered": 121,
+        "executed": 121,
+        "passed": 121,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "name": "openvino-worker-client",
+        "discovered": 14,
+        "executed": 14,
+        "passed": 14,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "name": "hardware-inspection-foundation",
+        "discovered": 234,
+        "executed": 234,
+        "passed": 234,
+        "failed": 0,
+        "skipped": 0
+      }
+    ],
+    "totals": {
+      "discovered": 410,
+      "executed": 410,
+      "passed": 410,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "focusedTests": {
+    "repetitions": 3,
+    "scope": "all five relevant cleanup-race-containment worker-client/Foundation suites",
+    "perRepetition": {
+      "discovered": 398,
+      "executed": 398,
+      "passed": 398,
+      "failed": 0,
+      "skipped": 0
+    },
+    "aggregateExecutions": {
+      "discovered": 1194,
+      "executed": 1194,
+      "passed": 1194,
+      "failed": 0,
+      "skipped": 0
+    },
+    "sleepsInserted": false
+  },
+  "privacyBoundary": {
+    "publicWorkerStderrRetained": false,
+    "hostileMutation": "forward-slash path, host, username, provider, token",
+    "focusedTest": {
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "integrationTests": [
+    {
+      "name": "model-inspection-process-final",
+      "discovered": 32,
+      "executed": 32,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed; prior timing-sensitive run 31/32, focused and final full reruns passed"
+    },
+    {
+      "name": "gguf-runtime-process",
+      "discovered": 25,
+      "executed": 25,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 1,
+      "disposition": "blocked-controlled-runtime-model-not-configured"
+    },
+    {
+      "name": "openvino-process",
+      "discovered": 69,
+      "executed": 69,
+      "passed": 52,
+      "failed": 2,
+      "skipped": 15,
+      "disposition": "blocked-native-stage-gpu-prerequisites; two TurboQuant tests throw missing-stage instead of inconclusive"
+    },
+    {
+      "name": "cross-feature",
+      "discovered": 52,
+      "executed": 52,
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    }
+  ],
+  "packageGate": {
+    "disposition": "blocked",
+    "firstMissingPrerequisite": "GgufQuantizerStageDirectory is required when GGUF quantizer packaging is enabled.",
+    "actualPackageProduced": false,
+    "stageDisabledOutputClaimedAsPackage": false
+  },
+  "managedBuild": {
+    "configuration": "Release",
+    "platform": "x64",
+    "runtimeIdentifier": "win-x64",
+    "packageGeneration": false,
+    "unavailableNativeStagesExplicitlyDisabled": true,
+    "exitCode": 0
+  },
+  "closure": {
+    "path": "docs/audits/2026-08-30/S1-package-closure-r4-1.json",
+    "bytes": 84447,
+    "sha256": "2e38e8da4014c489a3e1b626643e095f82e4a80969a75884f074d3579603b104",
+    "evaluatedMemberCount": 200,
+    "rawBuildOutputUsedAsMembership": false,
+    "actualPackage": null,
+    "approvedPolicy": {
+      "path": "scripts/verification/S1PackageApprovedPaths.txt",
+      "bytes": 18704,
+      "sha256": "3dbad9457d8dfe3c5f588b1c16da30972dc982ea8e053f5b43a8de2c72d5bf43"
+    }
+  },
+  "launch": {
+    "relativeExecutable": "IBM Granite with TurboQuant (Intel).exe",
+    "bytes": 152576,
+    "sha256": "73dfb19ef30e4a7f2827d36b92be75750b66d2690788c0beb0f7601fe81b4646",
+    "startedAtUtc": "2026-08-30T17:14:47Z",
+    "pid": 6572,
+    "runningAfterFiveSeconds": true,
+    "descendantsObserved": 0,
+    "remainingAfterShutdown": 0,
+    "visualDisposition": "blocked-hidden-managed-launch-is-not-file-13-visual-acceptance"
+  },
+  "firstPartyAssemblyIdentity": {
+    "expectedSubject": "4e76c9f55a787ea8f51ba81d4c870743d41f9d24",
+    "validatorExitCode": 0,
+    "staleIdentitiesRejected": [
+      "cc7aee17",
+      "da49c3d1",
+      "61cb5cf9"
+    ],
+    "records": [
+      {
+        "path": "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.dll",
+        "bytes": 45568,
+        "sha256": "1d0804dd2bceb31a39f498b82ecfd8a76dad2bbc5dcc3d8bc4679f8ecf4b3c39"
+      },
+      {
+        "path": "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Transport.dll",
+        "bytes": 23040,
+        "sha256": "b3b0c6171907a103b4590be78474b60ee4a5d075afccc4d786c2b242f2cfec78"
+      },
+      {
+        "path": "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Contracts.dll",
+        "bytes": 37888,
+        "sha256": "7a099733cc6505e3e51c8f2b5e08fdc644e2c5a1ed75452e2c8901e76e81915e"
+      },
+      {
+        "path": "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Capabilities.dll",
+        "bytes": 26112,
+        "sha256": "2d6bea95950bf104a3725df7aba8e84dca40c9feb96a5b462766f00707af085d"
+      },
+      {
+        "path": "IBM Granite with TurboQuant (Intel).dll",
+        "bytes": 1884160,
+        "sha256": "22ed97da71c7e9b892e51208c0445257cc704a5bc6144c81ef8176c9b9e389fb"
+      },
+      {
+        "path": "GraniteEdgeAI.ModelInspection.Transport.dll",
+        "bytes": 12800,
+        "sha256": "e596b74764fdbe1baf3fa4d8ba2698a123963337c7ef901ed43fca5c02dfe764"
+      },
+      {
+        "path": "GraniteEdgeAI.ModelInspection.Contracts.dll",
+        "bytes": 64000,
+        "sha256": "e2fa6869c736d57bccb58b416585b9736d82c2bd4f8eaed82ebd1e808e0982b1"
+      },
+      {
+        "path": "GraniteEdgeAI.ModelHardwareCompatibility.Core.dll",
+        "bytes": 414208,
+        "sha256": "bbbae9193805588d6284f733a65923c9a6a5cbf458af8fc353908552c69ac083"
+      },
+      {
+        "path": "GraniteEdgeAI.OpenVino.WorkerClient.dll",
+        "bytes": 87552,
+        "sha256": "9ed2025e19579e70145f8607bf585ab553c3c8f4ebf963026e44d8555bd98961"
+      },
+      {
+        "path": "GraniteEdgeAI.OpenVino.Contracts.dll",
+        "bytes": 193024,
+        "sha256": "0cfe73fc4e780d943647fe29f5af17dda7d235aebf07f0a1665c2b458c476869"
+      },
+      {
+        "path": "GraniteEdgeAI.ModelInspection.WorkerClient.dll",
+        "bytes": 125952,
+        "sha256": "6de5d8b6069d131f64767a1d5f0ac86ca9131063e385c9a45f6ea2d199b9cbf5"
+      },
+      {
+        "path": "GraniteEdgeAI.GgufRuntime.Contracts.dll",
+        "bytes": 37888,
+        "sha256": "7a099733cc6505e3e51c8f2b5e08fdc644e2c5a1ed75452e2c8901e76e81915e"
+      },
+      {
+        "path": "GraniteEdgeAI.GgufRuntime.Capabilities.dll",
+        "bytes": 26112,
+        "sha256": "2d6bea95950bf104a3725df7aba8e84dca40c9feb96a5b462766f00707af085d"
+      },
+      {
+        "path": "GraniteEdgeAI.GgufQuantization.WorkerClient.dll",
+        "bytes": 46080,
+        "sha256": "084c7ff6f6e13744388afcc3226fc8b8fa09ff1837c670fb1df6d54a08eb42e4"
+      },
+      {
+        "path": "GraniteEdgeAI.HardwareInspection.Foundation.dll",
+        "bytes": 159744,
+        "sha256": "66839c408310ddfa5b4a9eb3b2d58daed7a92e6e92de122e3152b916e5b9682f"
+      },
+      {
+        "path": "GraniteEdgeAI.GgufRuntime.WorkerClient.dll",
+        "bytes": 48640,
+        "sha256": "1f72a84ae7a47dc4d5f574c89c13f68017d4907a3075bea37c313ca739892d5d"
+      },
+      {
+        "path": "GraniteEdgeAI.GgufRuntime.Transport.dll",
+        "bytes": 23040,
+        "sha256": "b3b0c6171907a103b4590be78474b60ee4a5d075afccc4d786c2b242f2cfec78"
+      },
+      {
+        "path": "GraniteEdgeAI.GgufQuantization.Contracts.dll",
+        "bytes": 15872,
+        "sha256": "589a4c2ae04e3112e78c46c2e82cf21f85a89e462ed4a600a884fd658e8e0467"
+      },
+      {
+        "path": "GraniteEdgeAI.GgufQuantization.Capabilities.dll",
+        "bytes": 10752,
+        "sha256": "d8c6d6fe1ba6a251df34193201588b54168e18906f77bdba3030f2f0bf979595"
+      },
+      {
+        "path": "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.LlamaSharp.dll",
+        "bytes": 96768,
+        "sha256": "6dc5c754cd1db85d7a45d6740646f2714274448028e746c62b8d10dde86b559b"
+      },
+      {
+        "path": "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Contracts.dll",
+        "bytes": 64000,
+        "sha256": "e2fa6869c736d57bccb58b416585b9736d82c2bd4f8eaed82ebd1e808e0982b1"
+      },
+      {
+        "path": "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.dll",
+        "bytes": 46080,
+        "sha256": "017d364dc8c2238eebf54d532e274fef4a3b65569bf96f2b4faea4069bb54f70"
+      },
+      {
+        "path": "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Transport.dll",
+        "bytes": 12800,
+        "sha256": "e596b74764fdbe1baf3fa4d8ba2698a123963337c7ef901ed43fca5c02dfe764"
+      },
+      {
+        "path": "GgufRuntime/Adapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.dll",
+        "bytes": 51712,
+        "sha256": "4c3fde340f758586268166d7e500633dca94d8a42e6053c084ccab7d32386e19"
+      }
+    ]
+  },
+  "stableScans": {
+    "forbiddenMemberMatches": 0,
+    "unresolvedExpressions": 0,
+    "duplicateTargetPaths": 0,
+    "privateSourcePathsEmitted": 0,
+    "privateContentMatches": 0,
+    "staleFirstPartyIdentityMatches": 0,
+    "ownedProcessesAfterShutdown": 0,
+    "ownedListenersAfterShutdown": 0,
+    "operationTempDirectoriesAfterShutdown": 0,
+    "packageMemberLockFailures": 0,
+    "partialAppOutputFiles": 0,
+    "manifestCapabilities": [
+      "internetClient",
+      "runFullTrust",
+      "systemAIModels"
+    ],
+    "diffCheckExitCode": 0
+  },
+  "schemas": [
+    {
+      "path": "docs/audits/2026-08-30/schemas/R4-HANDOFF-RECEIPT-SCHEMA.json",
+      "bytes": 4713,
+      "sha256": "e6ad2e98c09ba93ed2492ac8d6adec8353e309d031f9e16bf01736ce4e04f895",
+      "byteIdenticalToSupplied": true
+    },
+    {
+      "path": "docs/audits/2026-08-30/schemas/R4-EVIDENCE-MANIFEST-SCHEMA.json",
+      "bytes": 3663,
+      "sha256": "f7626490186450d60de0c9b22c0d2ddb72c2f6815f38930bb23b0199f275b37e",
+      "byteIdenticalToSupplied": true
+    }
+  ],
+  "reviews": {
+    "requirements": {
+      "path": "docs/audits/2026-08-30/reviews/S1-R4-1-requirements-review.md",
+      "bytes": 6971,
+      "sha256": "bc4f666b348a19c1363a054a39c779c8f73bacfecaa1cbb48929ac263f143295",
+      "critical": 0,
+      "important": 0
+    },
+    "adversarial": {
+      "path": "docs/audits/2026-08-30/reviews/S1-R4-1-adversarial-security-review.md",
+      "bytes": 5485,
+      "sha256": "4858d91ab88a5d4c4a93b2a331bd564704594f7331e973031a756db5376db0d5",
+      "critical": 0,
+      "important": 0
+    }
+  },
+  "developmentRedGreen": {
+    "red": "Concurrent trusted root custody caused Model two-session worker_crashed; adversarial review then proved public OpenVINO failures could retain hostile worker-authored stderr.",
+    "green": "Root concurrency is corrected; public OpenVINO exceptions retain no worker-authored stderr while preserving truncation state. Final Model process is 32/32 and hostile public-boundary privacy is 1/1."
+  },
+  "blockers": [
+    "GGUF quantizer stage unavailable",
+    "OpenVINO official worker/converter/TurboQuant stages unavailable",
+    "GPU-01 device authorization unavailable",
+    "controlled GGUF runtime/model not configured",
+    "actual staged/signed package unavailable",
+    "authoritative file-13 visual smoke unavailable",
+    "Intel-native and performance host unavailable"
+  ],
+  "nonclaims": [
+    "No signed-package acceptance.",
+    "No Intel-native acceptance.",
+    "No performance acceptance.",
+    "No authoritative visual acceptance.",
+    "Stage-disabled managed output is not an actual package."
+  ]
+}

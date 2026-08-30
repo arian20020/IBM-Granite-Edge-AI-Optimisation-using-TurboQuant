@@ -64,15 +64,21 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
                 tool,
                 command,
                 job,
-                out WindowsSuspendedProcess? launched))
+                out WindowsSuspendedProcess? launched,
+                out bool startCleanupSucceeded))
         {
-            return CreateResult(ExternalProcessTerminationReason.StartFailed, elapsed);
+            return CreateResult(
+                startCleanupSucceeded
+                    ? ExternalProcessTerminationReason.StartFailed
+                    : ExternalProcessTerminationReason.CleanupFailed,
+                elapsed);
         }
 
         WindowsSuspendedProcess running = launched!;
+        ExternalProcessResult result;
         using (running)
         {
-            return await MonitorAsync(
+            result = await MonitorAsync(
                     running,
                     running.StandardOutput,
                     running.StandardError,
@@ -82,6 +88,10 @@ public sealed class ExternalProcessRunner : IExternalProcessRunner
                     cancellationToken)
                 .ConfigureAwait(false);
         }
+
+        return running.CleanupSucceeded
+            ? result
+            : CreateResult(ExternalProcessTerminationReason.CleanupFailed, elapsed);
     }
 
     private static async Task<ExternalProcessResult> MonitorAsync(

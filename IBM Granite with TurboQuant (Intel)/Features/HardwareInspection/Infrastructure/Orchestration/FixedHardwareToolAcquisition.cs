@@ -71,7 +71,9 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
             LlmFitToolAuthority.GetProductionPackageRoot(),
             hardwareRoot,
             probeRoot,
-            () => File.ReadAllBytes(manifestPath),
+            () => TrustedManifestFile.ReadBounded(
+                manifestPath,
+                LlamaCppProbeManifestParser.MaximumManifestBytes),
             verifier.Verify);
     }
 

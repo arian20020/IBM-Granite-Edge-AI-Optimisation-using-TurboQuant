@@ -1,0 +1,638 @@
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using Microsoft.Win32.SafeHandles;
+
+namespace GraniteEdgeAI.HardwareInspection.Foundation.Processes;
+
+public sealed class TrustedToolOperationEnvironment : IDisposable
+{
+    private const int MaximumEntries = 512;
+    private const int MaximumDepth = 16;
+    private const ulong MaximumBytes = 64UL * 1024 * 1024;
+    private static readonly TimeSpan MaximumCleanupDuration = TimeSpan.FromSeconds(2);
+    private static readonly AsyncLocal<Action<string>?> BeforeEntryCustodyOpen = new();
+    private const uint FileFlagBackupSemantics = 0x02000000;
+    private const uint FileFlagOpenReparsePoint = 0x00200000;
+    private const uint DeleteAccess = 0x00010000;
+    private const uint FileReadAttributes = 0x00000080;
+    private string? _temporaryDirectory;
+    private SafeFileHandle? _directoryCustody;
+    private SafeFileHandle? _rootCustody;
+    private readonly object _disposeSync = new();
+
+    private TrustedToolOperationEnvironment(
+        string temporaryDirectory,
+        SafeFileHandle rootCustody,
+        SafeFileHandle directoryCustody,
+        IReadOnlyDictionary<string, string> variables)
+    {
+        _temporaryDirectory = temporaryDirectory;
+        _rootCustody = rootCustody;
+        _directoryCustody = directoryCustody;
+        Variables = variables;
+    }
+
+    public IReadOnlyDictionary<string, string> Variables { get; }
+
+    public bool CleanupSucceeded { get; private set; }
+
+    internal static IDisposable InstallBeforeEntryCustodyOpenForTests(
+        Action<string> callback)
+    {
+        ArgumentNullException.ThrowIfNull(callback);
+        Action<string>? previous = BeforeEntryCustodyOpen.Value;
+        BeforeEntryCustodyOpen.Value = callback;
+        return new CallbackScope(previous);
+    }
+
+    public static TrustedToolOperationEnvironment CreateCurrent(bool includeDotnetRoots)
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["SystemRoot"] = Environment.GetEnvironmentVariable("SystemRoot"),
+            ["WINDIR"] = Environment.GetEnvironmentVariable("WINDIR"),
+        };
+        if (includeDotnetRoots)
+        {
+            environment["DOTNET_ROOT"] = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+            environment["DOTNET_ROOT_X64"] =
+                Environment.GetEnvironmentVariable("DOTNET_ROOT_X64");
+        }
+
+        return Create(environment);
+    }
+
+    internal static TrustedToolOperationEnvironment Create(
+        IReadOnlyDictionary<string, string?> explicitEnvironment) =>
+        Create(explicitEnvironment, localApplicationDataOverride: null);
+
+    internal static TrustedToolOperationEnvironment Create(
+        IReadOnlyDictionary<string, string?> explicitEnvironment,
+        string? localApplicationDataOverride)
+    {
+        ArgumentNullException.ThrowIfNull(explicitEnvironment);
+        string localApplicationData = localApplicationDataOverride ??
+            Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify);
+        if (string.IsNullOrWhiteSpace(localApplicationData))
+        {
+            throw Failure();
+        }
+
+        string ownedRoot = Path.Combine(
+            Path.GetFullPath(localApplicationData),
+            "GraniteEdgeAI",
+            "TrustedToolTemp");
+        RequireLocalFixedPath(ownedRoot);
+        Directory.CreateDirectory(ownedRoot);
+        EnsureNonReparseAncestry(ownedRoot);
+        SafeFileHandle? rootCustody = null;
+        SafeFileHandle? operationCustody = null;
+        bool transferred = false;
+
+        string operationDirectory = Path.Combine(
+            ownedRoot,
+            "operation-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            rootCustody = OpenRootCustody(ownedRoot);
+            Directory.CreateDirectory(operationDirectory);
+            ApplyPrivateAcl(operationDirectory);
+            EnsureNonReparseAncestry(operationDirectory);
+            operationCustody = OpenDirectoryCustody(operationDirectory);
+            RequireSameVolume(rootCustody, operationCustody);
+            VerifyPrivateAcl(operationDirectory);
+
+            var values = new Dictionary<string, string?>(
+                explicitEnvironment,
+                StringComparer.OrdinalIgnoreCase)
+            {
+                ["TEMP"] = operationDirectory,
+                ["TMP"] = operationDirectory,
+            };
+            IReadOnlyDictionary<string, string> child =
+                TrustedToolEnvironmentPolicy.Create(values);
+            TrustedToolOperationEnvironment result = new(
+                operationDirectory,
+                rootCustody,
+                operationCustody,
+                child);
+            transferred = true;
+            return result;
+        }
+        catch
+        {
+            bool cleanupSucceeded = TryDeleteBounded(
+                operationDirectory,
+                operationCustody);
+            operationCustody = null;
+            throw Failure(cleanupSucceeded);
+        }
+        finally
+        {
+            if (!transferred)
+            {
+                operationCustody?.Dispose();
+                rootCustody?.Dispose();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        lock (_disposeSync)
+        {
+            string? directory = _temporaryDirectory;
+            if (directory is null)
+            {
+                return;
+            }
+
+            _temporaryDirectory = null;
+            SafeFileHandle? custody = _directoryCustody;
+            _directoryCustody = null;
+            CleanupSucceeded = TryDeleteBounded(directory, custody);
+            _rootCustody?.Dispose();
+            _rootCustody = null;
+        }
+    }
+
+    private static void RequireLocalFixedPath(string path)
+    {
+        if (!Path.IsPathFullyQualified(path) ||
+            path.StartsWith("\\\\", StringComparison.Ordinal) ||
+            path.StartsWith("//", StringComparison.Ordinal) ||
+            path.StartsWith("\\??\\", StringComparison.Ordinal) ||
+            path.StartsWith("\\\\?\\", StringComparison.Ordinal) ||
+            path.IndexOf(':', 2) >= 0 ||
+            path.Any(static character =>
+                char.IsControl(character) ||
+                System.Globalization.CharUnicodeInfo.GetUnicodeCategory(character) ==
+                    System.Globalization.UnicodeCategory.Format))
+        {
+            throw Failure();
+        }
+
+        string root = Path.GetPathRoot(path) ?? throw Failure();
+        if (new DriveInfo(root).DriveType != DriveType.Fixed)
+        {
+            throw Failure();
+        }
+    }
+
+    private static void ApplyPrivateAcl(string directory)
+    {
+        using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+        SecurityIdentifier owner = identity.User ?? throw Failure();
+        var security = new DirectorySecurity();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.SetOwner(owner);
+        security.AddAccessRule(new FileSystemAccessRule(
+            owner,
+            FileSystemRights.FullControl,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+        new DirectoryInfo(directory).SetAccessControl(security);
+    }
+
+    private static void VerifyPrivateAcl(string directory)
+    {
+        using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+        SecurityIdentifier owner = identity.User ?? throw Failure();
+        DirectorySecurity security = new DirectoryInfo(directory).GetAccessControl();
+        if (!security.AreAccessRulesProtected ||
+            security.GetOwner(typeof(SecurityIdentifier)) is not SecurityIdentifier actualOwner ||
+            actualOwner != owner)
+        {
+            throw Failure();
+        }
+
+        AuthorizationRuleCollection rules = security.GetAccessRules(
+            includeExplicit: true,
+            includeInherited: true,
+            typeof(SecurityIdentifier));
+        FileSystemAccessRule[] fileRules = rules.Cast<FileSystemAccessRule>().ToArray();
+        if (fileRules.Length != 1 ||
+            fileRules[0].IdentityReference != owner ||
+            fileRules[0].AccessControlType != AccessControlType.Allow ||
+            (fileRules[0].FileSystemRights & FileSystemRights.FullControl) !=
+                FileSystemRights.FullControl)
+        {
+            throw Failure();
+        }
+    }
+
+    private static void EnsureNonReparseAncestry(string path)
+    {
+        DirectoryInfo? current = new(path);
+        while (current is not null)
+        {
+            if ((current.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw Failure();
+            }
+
+            current = current.Parent;
+        }
+    }
+
+    private static SafeFileHandle OpenDirectoryCustody(string directory)
+        => OpenVerifiedDirectoryCustody(
+            directory,
+            DeleteAccess | FileReadAttributes);
+
+    private static SafeFileHandle OpenRootCustody(string directory)
+        => OpenVerifiedDirectoryCustody(directory, FileReadAttributes);
+
+    private static SafeFileHandle OpenVerifiedDirectoryCustody(
+        string directory,
+        uint desiredAccess)
+    {
+        SafeFileHandle handle = CreateFile(
+            directory,
+            desiredAccess,
+            FileShare.Read | FileShare.Write,
+            IntPtr.Zero,
+            FileMode.Open,
+            FileFlagBackupSemantics | FileFlagOpenReparsePoint,
+            IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            handle.Dispose();
+            throw Failure();
+        }
+
+        if (!GetFileInformationByHandle(handle, out ByHandleFileInformation information) ||
+            (information.FileAttributes & FileAttributes.Directory) == 0 ||
+            (information.FileAttributes & FileAttributes.ReparsePoint) != 0 ||
+            !string.Equals(
+                NormalizePath(GetFinalPath(handle)),
+                NormalizePath(directory),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            handle.Dispose();
+            throw Failure();
+        }
+
+        return handle;
+    }
+
+    private static void RequireSameVolume(SafeFileHandle root, SafeFileHandle operation)
+    {
+        if (!GetFileInformationByHandle(root, out ByHandleFileInformation rootInfo) ||
+            !GetFileInformationByHandle(operation, out ByHandleFileInformation operationInfo) ||
+            rootInfo.VolumeSerialNumber != operationInfo.VolumeSerialNumber)
+        {
+            throw Failure();
+        }
+    }
+
+    private static string GetFinalPath(SafeFileHandle handle)
+    {
+        char[] buffer = new char[32_768];
+        uint length = GetFinalPathNameByHandle(handle, buffer, (uint)buffer.Length, 0);
+        if (length == 0 || length >= buffer.Length)
+        {
+            throw Failure();
+        }
+
+        string path = new(buffer, 0, checked((int)length));
+        const string prefix = @"\\?\";
+        return path.StartsWith(prefix, StringComparison.Ordinal)
+            ? path[prefix.Length..]
+            : path;
+    }
+
+    private static string NormalizePath(string path) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+
+    private static bool TryDeleteBounded(
+        string root,
+        SafeFileHandle? custody = null)
+    {
+        try
+        {
+            if (!Directory.Exists(root))
+            {
+                return true;
+            }
+
+            if (custody is null)
+            {
+                Directory.Delete(root, recursive: false);
+                return !Directory.Exists(root);
+            }
+
+            int entries = 0;
+            ulong bytes = 0;
+            Stopwatch elapsed = Stopwatch.StartNew();
+            if (!TryDeleteDirectoryContents(
+                    root,
+                    custody,
+                    0,
+                    ref entries,
+                    ref bytes,
+                    elapsed))
+            {
+                return false;
+            }
+
+            if (!MarkForDeletion(custody))
+            {
+                return false;
+            }
+
+            custody?.Dispose();
+            custody = null;
+            return !Directory.Exists(root);
+        }
+        catch (Exception error) when (
+            error is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
+        finally
+        {
+            custody?.Dispose();
+        }
+    }
+
+    private static bool TryDeleteDirectoryContents(
+        string directory,
+        SafeFileHandle directoryCustody,
+        int depth,
+        ref int entries,
+        ref ulong bytes,
+        Stopwatch elapsed)
+    {
+        foreach (string entry in Directory.EnumerateFileSystemEntries(directory))
+        {
+            if (++entries > MaximumEntries || elapsed.Elapsed > MaximumCleanupDuration)
+            {
+                return false;
+            }
+
+            if (!TryReadEntryIdentity(entry, out FileIdentity expectedIdentity))
+            {
+                return false;
+            }
+
+            BeforeEntryCustodyOpen.Value?.Invoke(entry);
+            using SafeFileHandle child = OpenEntryCustody(entry);
+            if (!GetFileInformationByHandle(child, out ByHandleFileInformation information)
+                || FileIdentity.From(information) != expectedIdentity
+                || (information.FileAttributes & FileAttributes.ReparsePoint) != 0
+                || !string.Equals(
+                    NormalizePath(GetFinalPath(child)),
+                    NormalizePath(entry),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            ulong entryBytes = ((ulong)information.FileSizeHigh << 32) |
+                information.FileSizeLow;
+            if (!HasOnlyDefaultDataStream(entry))
+            {
+                return false;
+            }
+
+            bytes = checked(bytes + entryBytes);
+            if (bytes > MaximumBytes)
+            {
+                return false;
+            }
+
+            if ((information.FileAttributes & FileAttributes.Directory) != 0
+                && (depth >= MaximumDepth
+                    || !TryDeleteDirectoryContents(
+                        entry,
+                        child,
+                        depth + 1,
+                        ref entries,
+                        ref bytes,
+                        elapsed)))
+            {
+                return false;
+            }
+
+            if (!MarkForDeletion(child))
+            {
+                return false;
+            }
+        }
+
+        GC.KeepAlive(directoryCustody);
+        return true;
+    }
+
+    private static SafeFileHandle OpenEntryCustody(string entry)
+    {
+        SafeFileHandle handle = CreateFile(
+            entry,
+            DeleteAccess | FileReadAttributes,
+            FileShare.Read,
+            IntPtr.Zero,
+            FileMode.Open,
+            FileFlagBackupSemantics | FileFlagOpenReparsePoint,
+            IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            handle.Dispose();
+            throw Failure();
+        }
+
+        return handle;
+    }
+
+    private static bool TryReadEntryIdentity(string entry, out FileIdentity identity)
+    {
+        using SafeFileHandle handle = CreateFile(
+            entry,
+            FileReadAttributes,
+            FileShare.Read | FileShare.Write | FileShare.Delete,
+            IntPtr.Zero,
+            FileMode.Open,
+            FileFlagBackupSemantics | FileFlagOpenReparsePoint,
+            IntPtr.Zero);
+        if (handle.IsInvalid ||
+            !GetFileInformationByHandle(handle, out ByHandleFileInformation information))
+        {
+            identity = default;
+            return false;
+        }
+
+        identity = FileIdentity.From(information);
+        return true;
+    }
+
+    private static bool HasOnlyDefaultDataStream(string path)
+    {
+        IntPtr search = FindFirstStream(
+            path,
+            StreamInfoLevels.FindStreamInfoStandard,
+            out Win32FindStreamData data,
+            0);
+        if (search == InvalidHandleValue)
+        {
+            return Marshal.GetLastPInvokeError() == ErrorHandleEof;
+        }
+
+        try
+        {
+            do
+            {
+                if (!string.Equals(data.StreamName, "::$DATA", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+            while (FindNextStream(search, out data));
+
+            return Marshal.GetLastPInvokeError() == ErrorHandleEof;
+        }
+        finally
+        {
+            _ = FindClose(search);
+        }
+    }
+
+    private static bool MarkForDeletion(SafeFileHandle handle)
+    {
+        var disposition = new FileDispositionInformation { DeleteFile = true };
+        return SetFileInformationByHandle(
+            handle,
+            FileInformationClass.FileDispositionInfo,
+            ref disposition,
+            (uint)Marshal.SizeOf<FileDispositionInformation>());
+    }
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode,
+        SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(
+        string fileName,
+        uint desiredAccess,
+        FileShare shareMode,
+        IntPtr securityAttributes,
+        FileMode creationDisposition,
+        uint flagsAndAttributes,
+        IntPtr templateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandle(
+        SafeFileHandle file,
+        out ByHandleFileInformation information);
+
+    [DllImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW",
+        CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetFinalPathNameByHandle(
+        SafeFileHandle file,
+        [Out] char[] path,
+        uint pathLength,
+        uint flags);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetFileInformationByHandle(
+        SafeFileHandle file,
+        FileInformationClass informationClass,
+        ref FileDispositionInformation information,
+        uint bufferSize);
+
+    [DllImport("kernel32.dll", EntryPoint = "FindFirstStreamW",
+        CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr FindFirstStream(
+        string fileName,
+        StreamInfoLevels informationLevel,
+        out Win32FindStreamData data,
+        uint flags);
+
+    [DllImport("kernel32.dll", EntryPoint = "FindNextStreamW",
+        CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FindNextStream(
+        IntPtr findStream,
+        out Win32FindStreamData data);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FindClose(IntPtr findFile);
+
+    private const int ErrorHandleEof = 38;
+    private static readonly IntPtr InvalidHandleValue = new(-1);
+
+    private enum StreamInfoLevels
+    {
+        FindStreamInfoStandard = 0,
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct Win32FindStreamData
+    {
+        internal long StreamSize;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 296)]
+        internal string StreamName;
+    }
+
+    private enum FileInformationClass
+    {
+        FileDispositionInfo = 4,
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileDispositionInformation
+    {
+        [MarshalAs(UnmanagedType.Bool)]
+        public bool DeleteFile;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ByHandleFileInformation
+    {
+        public FileAttributes FileAttributes;
+        public System.Runtime.InteropServices.ComTypes.FILETIME CreationTime;
+        public System.Runtime.InteropServices.ComTypes.FILETIME LastAccessTime;
+        public System.Runtime.InteropServices.ComTypes.FILETIME LastWriteTime;
+        public uint VolumeSerialNumber;
+        public uint FileSizeHigh;
+        public uint FileSizeLow;
+        public uint NumberOfLinks;
+        public uint FileIndexHigh;
+        public uint FileIndexLow;
+    }
+
+    private readonly record struct FileIdentity(
+        uint VolumeSerialNumber,
+        uint FileIndexHigh,
+        uint FileIndexLow)
+    {
+        internal static FileIdentity From(ByHandleFileInformation information) =>
+            new(
+                information.VolumeSerialNumber,
+                information.FileIndexHigh,
+                information.FileIndexLow);
+    }
+
+    private sealed class CallbackScope(Action<string>? previous) : IDisposable
+    {
+        private Action<string>? _previous = previous;
+
+        public void Dispose()
+        {
+            Action<string>? restore = Interlocked.Exchange(ref _previous, null);
+            BeforeEntryCustodyOpen.Value = restore;
+        }
+    }
+
+    private static InvalidOperationException Failure(bool? partialCleanupSucceeded = null) =>
+        new(partialCleanupSucceeded == false
+            ? "The trusted hardware tool environment could not be secured and partial cleanup could not be verified."
+            : "The trusted hardware tool environment could not be secured.");
+}

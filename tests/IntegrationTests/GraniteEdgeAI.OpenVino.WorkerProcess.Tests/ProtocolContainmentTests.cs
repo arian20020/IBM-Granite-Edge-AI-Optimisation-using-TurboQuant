@@ -547,7 +547,7 @@ public sealed class ProtocolContainmentTests
     }
 
     [TestMethod]
-    public async Task StderrOverflowIsBoundedAndSanitized()
+    public async Task StderrOverflowIsDrainedButNeverExposedPublicly()
     {
         await using FixtureRun fixture = CreateFixture("stderr-overflow");
         OpenVinoWorkerClient client = CreateClient(
@@ -561,8 +561,7 @@ public sealed class ProtocolContainmentTests
                     CancellationToken.None));
 
         Assert.IsTrue(error.StandardErrorTruncated);
-        Assert.IsLessThanOrEqualTo(1024, error.RetainedStandardError.Length);
-        Assert.IsFalse(error.RetainedStandardError.Contains('\0'));
+        Assert.AreEqual(string.Empty, error.RetainedStandardError);
     }
 
     [TestMethod]

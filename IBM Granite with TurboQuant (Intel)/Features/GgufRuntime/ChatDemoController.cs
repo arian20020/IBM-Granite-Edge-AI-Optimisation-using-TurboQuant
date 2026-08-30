@@ -17,6 +17,9 @@ internal sealed class ChatDemoController : IAsyncDisposable
     private readonly ChatRenderScheduler renderScheduler;
     private readonly string modelId;
     private readonly string profileId;
+    private readonly object operationSync = new();
+    private readonly CancellationTokenSource lifetimeCancellation = new();
+    private readonly HashSet<Task> activeOperations = [];
     private List<HistoryRenderKey> renderedHistory = [];
     private bool followLatest;
     private bool disposed;
@@ -93,13 +96,13 @@ internal sealed class ChatDemoController : IAsyncDisposable
         await coordinator.InitializeAsync(
             modelId,
             profileId,
-            CancellationToken.None);
+            lifetimeCancellation.Token);
         if (coordinator.SelectedConversation is null)
         {
             await coordinator.NewChatAsync(
                 modelId,
                 profileId,
-                CancellationToken.None);
+                lifetimeCancellation.Token);
         }
 
         Render();
@@ -107,93 +110,156 @@ internal sealed class ChatDemoController : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (disposed)
+        Task[] pending;
+        lock (operationSync)
         {
-            return;
-        }
+            if (disposed)
+            {
+                return;
+            }
 
-        disposed = true;
-        renderScheduler.Dispose();
+            disposed = true;
+            pending = activeOperations.ToArray();
+        }
+        lifetimeCancellation.Cancel();
+
         coordinator.ConversationChanged -= Coordinator_ConversationChanged;
         page.NewChatRequested -= Page_NewChatRequested;
         page.SendRequested -= Page_SendRequested;
         page.StopRequested -= Page_StopRequested;
         page.ContinuationRequested -= Page_ContinuationRequested;
         page.ConversationSelected -= Page_ConversationSelected;
+        if (coordinator.IsGenerating)
+        {
+            try
+            {
+                await coordinator.StopAsync(CancellationToken.None);
+            }
+            catch
+            {
+                // Lifetime cancellation remains the fail-closed fallback.
+            }
+        }
+        await Task.WhenAll(pending);
+        renderScheduler.Dispose();
         await coordinator.DisposeAsync();
+        lifetimeCancellation.Dispose();
     }
 
-    private async void Page_NewChatRequested(object? sender, EventArgs eventArguments)
-    {
-        if (disposed)
+    private void Page_NewChatRequested(object? sender, EventArgs eventArguments) =>
+        TrackOperation(async cancellationToken =>
         {
-            return;
-        }
+            followLatest = true;
+            await coordinator.NewChatAsync(
+                modelId,
+                profileId,
+                cancellationToken);
+        });
 
-        followLatest = true;
-        await coordinator.NewChatAsync(
-            modelId,
-            profileId,
-            CancellationToken.None);
-    }
-
-    private async void Page_SendRequested(object? sender, string prompt)
-    {
-        if (disposed)
+    private void Page_SendRequested(object? sender, string prompt) =>
+        TrackOperation(async cancellationToken =>
         {
-            return;
-        }
+            followLatest = true;
+            page.SetGenerating(true);
+            try
+            {
+                await coordinator.SendAsync(prompt, cancellationToken);
+            }
+            finally
+            {
+                page.SetGenerating(false);
+                renderScheduler.Request();
+            }
+        });
 
-        followLatest = true;
-        page.SetGenerating(true);
-        try
+    private void Page_StopRequested(object? sender, EventArgs eventArguments) =>
+        TrackOperation(async cancellationToken =>
         {
-            await coordinator.SendAsync(prompt, CancellationToken.None);
-        }
-        finally
-        {
-            page.SetGenerating(false);
-            renderScheduler.Request();
-        }
-    }
+            await coordinator.StopAsync(cancellationToken);
+        });
 
-    private async void Page_StopRequested(object? sender, EventArgs eventArguments)
-    {
-        if (!disposed)
-        {
-            await coordinator.StopAsync(CancellationToken.None);
-        }
-    }
-
-    private async void Page_ContinuationRequested(object? sender, Guid messageId)
+    private void Page_ContinuationRequested(object? sender, Guid messageId)
     {
         if (disposed || coordinator.IsGenerating)
         {
             return;
         }
 
-        followLatest = true;
-        page.SetGenerating(true);
-        try
+        TrackOperation(async cancellationToken =>
         {
-            await coordinator.ContinueAsync(messageId, CancellationToken.None);
-        }
-        finally
-        {
-            page.SetGenerating(false);
-            renderScheduler.Request();
-        }
+            followLatest = true;
+            page.SetGenerating(true);
+            try
+            {
+                await coordinator.ContinueAsync(messageId, cancellationToken);
+            }
+            finally
+            {
+                page.SetGenerating(false);
+                renderScheduler.Request();
+            }
+        });
     }
 
-    private async void Page_ConversationSelected(object? sender, Guid conversationId)
+    private void Page_ConversationSelected(object? sender, Guid conversationId)
     {
         if (disposed || coordinator.IsGenerating)
         {
             return;
         }
 
-        followLatest = true;
-        await coordinator.SelectAsync(conversationId, CancellationToken.None);
+        TrackOperation(async cancellationToken =>
+        {
+            followLatest = true;
+            await coordinator.SelectAsync(conversationId, cancellationToken);
+        });
+    }
+
+    private void TrackOperation(Func<CancellationToken, Task> operation)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        Task tracked;
+        lock (operationSync)
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            tracked = RunOperationAsync(operation, lifetimeCancellation.Token);
+            activeOperations.Add(tracked);
+        }
+
+        _ = RemoveOperationAsync(tracked);
+    }
+
+    private async Task RunOperationAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await operation(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Controller disposal owns this lifetime cancellation.
+        }
+        catch
+        {
+            // Coordinators map expected failures into state. Unexpected event
+            // failures remain bounded to this surface and request a safe redraw.
+            renderScheduler.Request();
+        }
+    }
+
+    private async Task RemoveOperationAsync(Task operation)
+    {
+        await operation;
+        lock (operationSync)
+        {
+            activeOperations.Remove(operation);
+        }
     }
 
     private void Coordinator_ConversationChanged(object? sender, EventArgs eventArguments) =>

@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient.Tests;
 
@@ -60,4 +61,74 @@ public sealed class WorkerFailureAccumulatorTests
         Assert.AreEqual(1, firstSnapshot.Count);
         Assert.AreEqual(2, accumulator.SecondaryDiagnostics.Count);
     }
+
+    [TestMethod]
+    public void CleanupIntegrityRetainsEveryBoundedStageWithoutSensitiveText()
+    {
+        CleanupFailureFact[] facts = Enum.GetValues<OwnedCleanupStage>()
+            .Select(stage => new CleanupFailureFact(stage, CleanupFailureKind.Unexpected))
+            .ToArray();
+        var integrity = new CleanupIntegrityException(
+            facts,
+            new IOException("C:\\Users\\private\\model.gguf token=secret"));
+        var policy = new WorkerClientPolicyException(
+            new WorkerClientFailure(
+                WorkerClientFailureCodes.WorkerCleanupFailed,
+                "The Model Inspection worker cleanup could not be verified."),
+            integrity);
+        WorkerFailureAccumulator accumulator = new();
+
+        accumulator.RetainCleanupIntegrity(policy);
+
+        Assert.AreSame(policy, accumulator.CleanupIntegrityCause);
+        CleanupIntegrityException retained = Assert.IsInstanceOfType<CleanupIntegrityException>(
+            accumulator.CleanupIntegrityCause!.InnerException);
+        CollectionAssert.AreEqual(facts, retained.Failures.ToArray());
+        Assert.AreEqual(CleanupPrimaryFailureKind.Io, retained.PrimaryFailureKind);
+        Assert.IsNull(retained.InnerException);
+        Assert.AreEqual(facts.Length, accumulator.CleanupFailures.Count);
+        Assert.IsFalse(policy.Message.Contains("private", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(policy.Message.Contains("secret", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(policy.ToString().Contains("private", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(policy.ToString().Contains("secret", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public void DistinctCleanupOutcomesAreMergedBoundedAndSameCauseIsNotDuplicated()
+    {
+        WorkerFailureAccumulator accumulator = new();
+        WorkerClientPolicyException first = PolicyWithCleanup(
+            Enumerable.Repeat(
+                new CleanupFailureFact(
+                    OwnedCleanupStage.Session,
+                    CleanupFailureKind.Io),
+                12).ToArray());
+        WorkerClientPolicyException second = PolicyWithCleanup(
+            Enumerable.Repeat(
+                new CleanupFailureFact(
+                    OwnedCleanupStage.OperationEnvironment,
+                    CleanupFailureKind.Access),
+                12).ToArray());
+
+        accumulator.RetainCleanupIntegrity(first);
+        accumulator.RetainCleanupIntegrity(first);
+        accumulator.RetainCleanupIntegrity(second);
+
+        Assert.AreEqual(16, accumulator.CleanupFailures.Count);
+        Assert.AreEqual(
+            12,
+            accumulator.CleanupFailures.Count(fact =>
+                fact.Stage == WorkerClientCleanupStage.Session));
+        Assert.AreEqual(
+            4,
+            accumulator.CleanupFailures.Count(fact =>
+                fact.Stage == WorkerClientCleanupStage.OperationEnvironment));
+    }
+
+    private static WorkerClientPolicyException PolicyWithCleanup(
+        IReadOnlyList<CleanupFailureFact> facts) => new(
+            new WorkerClientFailure(
+                WorkerClientFailureCodes.WorkerCleanupFailed,
+                "The Model Inspection worker cleanup could not be verified."),
+            new CleanupIntegrityException(facts, null));
 }

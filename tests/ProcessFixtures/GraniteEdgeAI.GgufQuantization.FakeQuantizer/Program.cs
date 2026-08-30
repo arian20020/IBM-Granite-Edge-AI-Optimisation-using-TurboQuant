@@ -19,11 +19,30 @@ if (File.Exists(source + ".delay"))
 {
     await Task.Delay(TimeSpan.FromSeconds(5));
 }
+if (File.Exists(source + ".fail"))
+{
+    return 9;
+}
+if (File.Exists(source + ".noise"))
+{
+    Console.Write(new string('N', 5000));
+    await Console.Out.FlushAsync();
+    if (File.Exists(source + ".hang-after-noise"))
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan);
+    }
+}
 
 await using FileStream input = new(source, FileMode.Open, FileAccess.Read, FileShare.Read);
 await using FileStream result = new(output, FileMode.CreateNew, FileAccess.Write, FileShare.None);
 await input.CopyToAsync(result);
 await result.WriteAsync(new byte[] { (byte)'Q' });
+await result.WriteAsync(new byte[]
+{
+    Environment.GetEnvironmentVariable("GRANITE_SECURITY_AUDIT_SENTINEL") is null
+        ? (byte)'A'
+        : (byte)'P',
+});
 await result.FlushAsync();
 Console.WriteLine("quantize: 100%");
 return 0;

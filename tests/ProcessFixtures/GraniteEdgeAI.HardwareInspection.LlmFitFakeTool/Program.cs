@@ -43,6 +43,7 @@ static async Task<int> RunAsync(string[] arguments)
 
     return mode switch
     {
+        "assert-closed-environment" => EnvironmentIsClosed() ? WriteSuccess() : 92,
         "success" => WriteSuccess(),
         "invalid-json" => WriteInvalidJson(),
         "nonzero" => WriteNonzero(),
@@ -61,6 +62,7 @@ static async Task<string?> ReadClosedModeAsync(string modePath)
 {
     string[] closedModes =
     [
+        "assert-closed-environment",
         "assert-in-job",
         "dashboard",
         "invalid-json",
@@ -89,6 +91,48 @@ static async Task<string?> ReadClosedModeAsync(string modePath)
     }
 
     return null;
+}
+
+static bool EnvironmentIsClosed()
+{
+    string[] rejected =
+    [
+        "GRANITE_SECURITY_AUDIT_SENTINEL",
+        "PATH",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "COR_ENABLE_PROFILING",
+        "COR_PROFILER",
+        "CORECLR_ENABLE_PROFILING",
+        "CORECLR_PROFILER",
+        "DOTNET_STARTUP_HOOKS",
+        "DOTNET_ROOT",
+        "DOTNET_ROOT_X64",
+    ];
+    string[] disabledDiagnostics =
+    [
+        "DOTNET_EnableDiagnostics",
+        "DOTNET_EnableDiagnostics_IPC",
+        "DOTNET_EnableDiagnostics_Debugger",
+        "DOTNET_EnableDiagnostics_Profiler",
+    ];
+    string? temporaryDirectory = Environment.GetEnvironmentVariable("TEMP");
+    string? secondaryTemporaryDirectory = Environment.GetEnvironmentVariable("TMP");
+    return rejected.All(name => Environment.GetEnvironmentVariable(name) is null)
+        && disabledDiagnostics.All(name =>
+            string.Equals(
+                Environment.GetEnvironmentVariable(name),
+                "0",
+                StringComparison.Ordinal))
+        && !string.IsNullOrWhiteSpace(temporaryDirectory)
+        && string.Equals(
+            temporaryDirectory,
+            secondaryTemporaryDirectory,
+            StringComparison.OrdinalIgnoreCase)
+        && Path.GetFileName(temporaryDirectory).StartsWith(
+            "operation-",
+            StringComparison.Ordinal)
+        && Directory.Exists(temporaryDirectory);
 }
 
 static int WriteSuccess()
@@ -232,4 +276,9 @@ internal static class JobMembership
         IntPtr process,
         IntPtr job,
         [MarshalAs(UnmanagedType.Bool)] out bool result);
+}
+
+namespace GraniteEdgeAI.HardwareInspection.LlmFitFakeTool
+{
+    public sealed class FakeToolMarker;
 }

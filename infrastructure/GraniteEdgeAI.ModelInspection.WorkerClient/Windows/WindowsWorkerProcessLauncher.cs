@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
 
@@ -46,6 +47,31 @@ internal static class WindowsWorkerProcessLauncher
         FileStream? standardOutput = null;
         FileStream? standardError = null;
         bool processWasCreated = false;
+        BoundedCleanupCoordinator cleanup = new(
+            Sync(OwnedCleanupStage.StandardInput, () => standardInput?.Dispose()),
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
+            {
+                if (processWasCreated && job is not null)
+                {
+                    job.Terminate(exitCode: 1);
+                    if (!await job.WaitUntilEmptyAsync(
+                            TimeSpan.FromSeconds(5),
+                            CancellationToken.None).ConfigureAwait(false))
+                    {
+                        throw new TimeoutException(
+                            "The Model Inspection launch Job did not become empty.");
+                    }
+                }
+            }),
+            Sync(OwnedCleanupStage.StandardOutput, () => standardOutput?.Dispose()),
+            Sync(OwnedCleanupStage.StandardError, () => standardError?.Dispose()),
+            Sync(OwnedCleanupStage.Channel, () => pipes?.Dispose()),
+            Sync(OwnedCleanupStage.ProcessHandle, () =>
+            {
+                threadHandle?.Dispose();
+                processHandle?.Dispose();
+            }),
+            Sync(OwnedCleanupStage.Job, () => job?.Dispose()));
 
         try
         {
@@ -130,30 +156,27 @@ internal static class WindowsWorkerProcessLauncher
             standardError = null;
             return session;
         }
-        catch (WorkerClientPolicyException)
+        catch (WorkerClientPolicyException primaryFailure)
         {
-            TerminatePartialProcess(job, processWasCreated);
+            RequireLaunchCleanup(cleanup, primaryFailure);
             throw;
         }
         catch (Exception error) when (IsExpectedLaunchError(error))
         {
-            TerminatePartialProcess(job, processWasCreated);
-            throw PolicyFailure(
+            WorkerClientPolicyException primaryFailure = PolicyFailure(
                 WorkerClientFailureCodes.WorkerLaunchFailed,
                 LaunchFailureMessage);
+            RequireLaunchCleanup(cleanup, primaryFailure);
+            throw primaryFailure;
+        }
+        catch (Exception primaryFailure)
+        {
+            RequireLaunchCleanup(cleanup, primaryFailure);
+            throw;
         }
         finally
         {
-            threadHandle?.Dispose();
-            standardInput?.Dispose();
-            standardOutput?.Dispose();
-            standardError?.Dispose();
-            pipes?.Dispose();
-            processHandle?.Dispose();
-
-            // The Job Object is deliberately the final local resource closed.
-            // KILL_ON_JOB_CLOSE remains effective through every earlier cleanup.
-            job?.Dispose();
+            _ = cleanup.ExecuteAsync().GetAwaiter().GetResult();
         }
     }
 
@@ -366,25 +389,28 @@ internal static class WindowsWorkerProcessLauncher
         command.Append('"');
     }
 
-    private static void TerminatePartialProcess(
-        WindowsJobObject? job,
-        bool processWasCreated)
+    private static void RequireLaunchCleanup(
+        BoundedCleanupCoordinator cleanup,
+        Exception primaryFailure)
     {
-        if (!processWasCreated || job is null)
+        CleanupOutcome outcome = cleanup.ExecuteAsync().GetAwaiter().GetResult();
+        if (!outcome.Succeeded)
         {
-            return;
-        }
-
-        try
-        {
-            job.Terminate(exitCode: 1);
-        }
-        catch (Exception error) when (IsExpectedLaunchError(error))
-        {
-            // The final Job Object close in the caller remains the fail-closed
-            // containment fallback even when explicit termination races/fails.
+            throw new WorkerClientPolicyException(
+                new WorkerClientFailure(
+                    WorkerClientFailureCodes.WorkerCleanupFailed,
+                    "The Model Inspection worker launch cleanup could not be verified."),
+                new CleanupIntegrityException(outcome.Failures, primaryFailure));
         }
     }
+
+    private static OwnedCleanupAction Sync(
+        OwnedCleanupStage stage,
+        Action action) => new(stage, () =>
+        {
+            action();
+            return ValueTask.CompletedTask;
+        });
 
     private static bool IsExpectedLaunchError(Exception error) =>
         error is Win32Exception or

@@ -74,4 +74,45 @@ public sealed class GgufRuntimeClientFactoryTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [TestMethod]
+    public void CreateRejectsReparsePointLaunchInputs()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "granite-client-reparse-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string target = Path.Combine(root, "model-target.gguf");
+            string link = Path.Combine(root, "model-link.gguf");
+            File.WriteAllBytes(target, [1, 2, 3, 4]);
+            try
+            {
+                File.CreateSymbolicLink(link, target);
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                Assert.Inconclusive(
+                    $"File symbolic links are unavailable: {exception.GetType().Name}.");
+            }
+
+            string executable = Environment.ProcessPath!;
+            var package = new VerifiedGgufRuntimePackage(
+                executable,
+                executable,
+                "build",
+                "0123456789abcdef0123456789abcdef01234567",
+                ["GGML_NATIVE=OFF"]);
+
+            _ = Assert.ThrowsExactly<ArgumentException>(() =>
+                GgufRuntimeClient.Create(package, link));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

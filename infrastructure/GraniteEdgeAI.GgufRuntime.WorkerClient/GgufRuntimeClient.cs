@@ -6,6 +6,7 @@ using GraniteEdgeAI.GgufRuntime.Contracts.Session;
 using GraniteEdgeAI.GgufRuntime.Capabilities.Manifest;
 using GraniteEdgeAI.GgufRuntime.Transport;
 using GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -73,13 +74,31 @@ public sealed class GgufRuntimeClient
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(initialTurns);
-        IReadOnlyDictionary<string, string> environment =
-            GgufWorkerEnvironmentPolicy.Create(ReadEnvironment());
-        GgufWorkerProcessSession process = GgufWorkerProcessLauncher.Launch(
-            _workerExecutable,
-            [],
-            environment,
-            Path.GetDirectoryName(_workerExecutable)!);
+        TrustedToolOperationEnvironment operationEnvironment =
+            TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: true);
+        GgufWorkerProcessSession process;
+        try
+        {
+            process = GgufWorkerProcessLauncher.Launch(
+                _workerExecutable,
+                [],
+                operationEnvironment.Variables,
+                Path.GetDirectoryName(_workerExecutable)!,
+                operationEnvironment);
+        }
+        catch (Exception primaryFailure)
+        {
+            operationEnvironment.Dispose();
+            if (!operationEnvironment.CleanupSucceeded)
+            {
+                throw new GgufWorkerPolicyException(
+                    "worker-cleanup-failed",
+                    "The GGUF runtime worker startup cleanup could not be verified.",
+                    primaryFailure);
+            }
+
+            throw;
+        }
         try
         {
             await GgufFrameWriter.WriteAsync(
@@ -97,23 +116,22 @@ public sealed class GgufRuntimeClient
                 .ConfigureAwait(false);
             return session;
         }
-        catch
+        catch (Exception primaryFailure)
         {
-            await process.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                await process.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception cleanupFailure)
+            {
+                throw new GgufWorkerPolicyException(
+                    "worker-cleanup-failed",
+                    "The GGUF runtime worker startup cleanup could not be verified.",
+                    new AggregateException(primaryFailure, cleanupFailure));
+            }
+
             throw;
         }
-    }
-
-    private static Dictionary<string, string?> ReadEnvironment()
-    {
-        var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        foreach (System.Collections.DictionaryEntry entry in
-            Environment.GetEnvironmentVariables())
-        {
-            values[(string)entry.Key] = entry.Value as string;
-        }
-
-        return values;
     }
 
     private static string RequireExistingAbsoluteFile(string path, string parameterName)
@@ -126,11 +144,30 @@ public sealed class GgufRuntimeClient
         }
 
         string fullPath = Path.GetFullPath(path);
-        if (!File.Exists(fullPath))
+        var file = new FileInfo(fullPath);
+        if (!file.Exists)
         {
             throw new FileNotFoundException(
-                "A required local runtime input is missing.",
-                fullPath);
+                "A required local runtime input is missing.");
+        }
+
+        if ((file.Attributes & FileAttributes.ReparsePoint) != 0)
+        {
+            throw new ArgumentException(
+                "A redirected runtime input is not accepted.",
+                parameterName);
+        }
+
+        for (DirectoryInfo? directory = file.Directory;
+             directory is not null;
+             directory = directory.Parent)
+        {
+            if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new ArgumentException(
+                    "A redirected runtime input is not accepted.",
+                    parameterName);
+            }
         }
 
         return fullPath;

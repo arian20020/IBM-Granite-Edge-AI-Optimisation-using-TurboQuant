@@ -48,4 +48,20 @@ public sealed class GgufRuntimeManifestJsonTests
         Assert.ThrowsExactly<GgufRuntimeTrustException>(() =>
             GgufRuntimeManifestJson.Deserialize(new byte[(1024 * 1024) + 1]));
     }
+
+    [TestMethod]
+    public void DeserializeRejectsDuplicatePropertiesAtEveryDepth()
+    {
+        byte[] duplicate = Encoding.UTF8.GetBytes(
+            ValidManifest.Replace(
+                "\"length\": 42,",
+                "\"length\": 42, \"length\": 42,",
+                StringComparison.Ordinal));
+
+        GgufRuntimeTrustException failure =
+            Assert.ThrowsExactly<GgufRuntimeTrustException>(() =>
+                GgufRuntimeManifestJson.Deserialize(duplicate));
+
+        Assert.AreEqual("runtime-manifest-json-invalid", failure.Code);
+    }
 }

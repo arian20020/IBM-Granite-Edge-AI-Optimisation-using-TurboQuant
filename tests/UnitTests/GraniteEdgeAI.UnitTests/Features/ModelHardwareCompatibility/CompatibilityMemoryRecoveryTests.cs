@@ -142,6 +142,9 @@ public sealed class CompatibilityMemoryRecoveryTests
     [TestMethod]
     public async Task TaskManager_UsesOnlyTheFixedShellLaunchWithoutArguments()
     {
+        string expectedExecutable = Path.Combine(
+            Environment.SystemDirectory,
+            "Taskmgr.exe");
         var starter = new RecordingTaskManagerStarter();
         var recovery = new WindowsCompatibilityMemoryRecovery(
             [],
@@ -151,7 +154,8 @@ public sealed class CompatibilityMemoryRecoveryTests
         await recovery.OpenTaskManagerAsync(CancellationToken.None);
 
         Assert.IsNotNull(starter.Request);
-        Assert.AreEqual("taskmgr.exe", starter.Request.FileName);
+        Assert.AreEqual(expectedExecutable, starter.Request.FileName);
+        Assert.IsTrue(Path.IsPathFullyQualified(starter.Request.FileName));
         Assert.IsTrue(starter.Request.UseShellExecute);
         Assert.AreEqual(string.Empty, starter.Request.Arguments);
         Assert.AreEqual(string.Empty, starter.Request.Verb);
@@ -183,7 +187,7 @@ public sealed class CompatibilityMemoryRecoveryTests
         ProcessStartInfo first = TaskManagerLaunchRequest.Fixed.CreateProcessStartInfo();
         first.FileName = "mutated-by-test.exe";
         ProcessStartInfo second = TaskManagerLaunchRequest.Fixed.CreateProcessStartInfo();
-        Assert.AreEqual("taskmgr.exe", second.FileName,
+        Assert.AreEqual(expectedExecutable, second.FileName,
             "Each pure descriptor is rebuilt from the immutable fixed request.");
         Assert.AreEqual(string.Empty, second.Arguments);
         Assert.AreEqual(string.Empty, second.Verb);

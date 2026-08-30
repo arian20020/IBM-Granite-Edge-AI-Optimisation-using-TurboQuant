@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient.Windows;
 
@@ -10,7 +11,8 @@ internal static class GgufWorkerProcessLauncher
         string executablePath,
         IReadOnlyList<string> arguments,
         IReadOnlyDictionary<string, string> environment,
-        string workingDirectory)
+        string workingDirectory,
+        TrustedToolOperationEnvironment operationEnvironment)
     {
         ValidateLaunchInput(executablePath, workingDirectory);
         ArgumentNullException.ThrowIfNull(arguments);
@@ -22,6 +24,27 @@ internal static class GgufWorkerProcessLauncher
         FileStream? standardInput = null;
         FileStream? standardOutput = null;
         FileStream? standardError = null;
+        bool processCreated = false;
+        BoundedCleanupCoordinator cleanup = new(
+            Sync(OwnedCleanupStage.StandardInput, () => standardInput?.Dispose()),
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
+            {
+                if (processCreated && job is not null)
+                {
+                    job.Terminate();
+                    if (!await job.WaitUntilEmptyAsync(TimeSpan.FromSeconds(5))
+                            .ConfigureAwait(false))
+                    {
+                        throw new TimeoutException(
+                            "The GGUF launch Job did not become empty.");
+                    }
+                }
+            }),
+            Sync(OwnedCleanupStage.StandardOutput, () => standardOutput?.Dispose()),
+            Sync(OwnedCleanupStage.StandardError, () => standardError?.Dispose()),
+            Sync(OwnedCleanupStage.Channel, () => pipes?.Dispose()),
+            Sync(OwnedCleanupStage.ProcessHandle, () => processHandle?.Dispose()),
+            Sync(OwnedCleanupStage.Job, () => job?.Dispose()));
         try
         {
             using GgufWindowsEnvironmentBlock environmentBlock =
@@ -68,6 +91,7 @@ internal static class GgufWorkerProcessLauncher
                     Marshal.GetLastPInvokeError(),
                     "The GGUF worker process could not be created.");
             }
+            processCreated = true;
 
             processHandle = new SafeFileHandle(processInformation.ProcessHandle, ownsHandle: true);
             using var threadHandle = new SafeFileHandle(
@@ -83,7 +107,8 @@ internal static class GgufWorkerProcessLauncher
                 job,
                 standardInput,
                 standardOutput,
-                standardError);
+                standardError,
+                operationEnvironment);
             processHandle = null;
             job = null;
             standardInput = null;
@@ -91,36 +116,54 @@ internal static class GgufWorkerProcessLauncher
             standardError = null;
             return session;
         }
-        catch (GgufWorkerPolicyException)
+        catch (GgufWorkerPolicyException primaryFailure)
         {
+            RequireLaunchCleanup(cleanup, primaryFailure);
             throw;
         }
         catch (Exception exception) when (
             exception is Win32Exception or IOException or ArgumentException or
                 UnauthorizedAccessException or InvalidOperationException)
         {
-            try
-            {
-                job?.Terminate();
-            }
-            catch (Win32Exception)
-            {
-            }
-
-            throw new GgufWorkerPolicyException(
+            GgufWorkerPolicyException primaryFailure = new(
                 "worker-launch-failed",
-                "The GGUF runtime worker could not be started.");
+                "The GGUF runtime worker could not be started.",
+                exception);
+            RequireLaunchCleanup(cleanup, primaryFailure);
+            throw primaryFailure;
+        }
+        catch (Exception primaryFailure)
+        {
+            RequireLaunchCleanup(cleanup, primaryFailure);
+            throw;
         }
         finally
         {
-            standardInput?.Dispose();
-            standardOutput?.Dispose();
-            standardError?.Dispose();
-            pipes?.Dispose();
-            processHandle?.Dispose();
-            job?.Dispose();
+            _ = cleanup.ExecuteAsync().GetAwaiter().GetResult();
         }
     }
+
+    private static void RequireLaunchCleanup(
+        BoundedCleanupCoordinator cleanup,
+        Exception primaryFailure)
+    {
+        CleanupOutcome outcome = cleanup.ExecuteAsync().GetAwaiter().GetResult();
+        if (!outcome.Succeeded)
+        {
+            throw new GgufWorkerPolicyException(
+                "worker-cleanup-failed",
+                "The GGUF runtime worker launch cleanup could not be verified.",
+                new CleanupIntegrityException(outcome.Failures, primaryFailure));
+        }
+    }
+
+    private static OwnedCleanupAction Sync(
+        OwnedCleanupStage stage,
+        Action action) => new(stage, () =>
+        {
+            action();
+            return ValueTask.CompletedTask;
+        });
 
     private static void ValidateLaunchInput(string executablePath, string workingDirectory)
     {

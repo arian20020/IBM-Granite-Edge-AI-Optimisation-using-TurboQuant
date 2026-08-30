@@ -1,10 +1,12 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using GraniteEdgeAI.GgufRuntime.Contracts;
 using GraniteEdgeAI.GgufRuntime.Contracts.Commands;
 using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
 using GraniteEdgeAI.GgufRuntime.Contracts.Events;
 using GraniteEdgeAI.GgufRuntime.Contracts.Session;
 using GraniteEdgeAI.GgufRuntime.Transport;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.GgufRuntime.WorkerClient;
 
@@ -13,6 +15,7 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
     private readonly GgufWorkerProcessSession _process;
     private readonly GgufFramedChannel _channel;
     private readonly GgufSessionId _sessionId;
+    private readonly BoundedCleanupCoordinator _cleanup;
     private bool _closed;
 
     internal GgufRuntimeSession(
@@ -23,6 +26,14 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
         _process = process;
         _channel = channel;
         _sessionId = sessionId;
+        _cleanup = new BoundedCleanupCoordinator(
+            new OwnedCleanupAction(OwnedCleanupStage.Channel, () =>
+            {
+                _channel.Dispose();
+                return ValueTask.CompletedTask;
+            }),
+            new OwnedCleanupAction(OwnedCleanupStage.Session, () =>
+                _process.DisposeAsync()));
     }
 
     internal uint ActiveProcessCount => _process.ActiveProcessCount;
@@ -127,6 +138,7 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        Exception? primaryFailure = null;
         if (!_closed)
         {
             try
@@ -137,10 +149,30 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
                 exception is IOException or GgufTransportException or
                     GgufWorkerPolicyException or OperationCanceledException)
             {
+                primaryFailure = exception;
             }
         }
 
-        _channel.Dispose();
-        await _process.DisposeAsync().ConfigureAwait(false);
+        CleanupOutcome cleanup = await _cleanup.ExecuteAsync().ConfigureAwait(false);
+        if (!cleanup.Succeeded)
+        {
+            Exception integrity = CleanupIntegrityException.PreserveCancellation(
+                cleanup.Failures,
+                primaryFailure);
+            if (integrity is OperationCanceledException cancellation)
+            {
+                throw cancellation;
+            }
+
+            throw new GgufWorkerPolicyException(
+                "worker-cleanup-failed",
+                "The GGUF runtime worker cleanup could not be verified.",
+                integrity);
+        }
+
+        if (primaryFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(primaryFailure).Throw();
+        }
     }
 }

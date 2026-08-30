@@ -1,7 +1,7 @@
-using System.Collections;
 using GraniteEdgeAI.ModelInspection.Contracts;
 using GraniteEdgeAI.ModelInspection.Transport;
 using GraniteEdgeAI.ModelInspection.WorkerClient.ProtectedWorker;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 
@@ -129,17 +129,18 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         bool handshakeCompleted = false;
         bool startSent = false;
         bool rethrowPreStartCancellation = false;
+        TrustedToolOperationEnvironment? operationEnvironment = null;
 
         try
         {
             using VerifiedWorkerExecutable executable =
                 _resolver.Resolve(_options.ApprovedWorkerRoot);
-            IReadOnlyDictionary<string, string> environment =
-                WorkerEnvironmentPolicy.Create(_parentEnvironmentProvider());
+            operationEnvironment = TrustedToolOperationEnvironment.Create(
+                _parentEnvironmentProvider());
             ProtectedWorkerLaunchSpec launchSpec = new(
                 executable,
                 _testOnlyArguments,
-                environment,
+                operationEnvironment.Variables,
                 WorkerProtocol.MaximumMessageBytes,
                 WorkerProtocol.MaximumMessageBytes,
                 _options.MaximumRetainedStandardErrorBytes,
@@ -218,6 +219,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         }
         catch (WorkerClientPolicyException error)
         {
+            failures.RetainCleanupIntegrity(error);
             WorkerClientFailure policyFailure = error.Failure;
             if (policyFailure.Code == WorkerClientFailureCodes.WorkerProtocolInvalid &&
                 session is not null &&
@@ -286,6 +288,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                     }
                     catch (WorkerClientPolicyException error)
                     {
+                        failures.RetainCleanupIntegrity(error);
                         if (!failures.TrySetPrimary(error.Failure))
                         {
                             failures.AddSecondary(error);
@@ -339,6 +342,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                 }
                 catch (WorkerClientPolicyException error)
                 {
+                    failures.RetainCleanupIntegrity(error);
                     if (!failures.TrySetPrimary(error.Failure))
                     {
                         failures.AddSecondary(error);
@@ -352,10 +356,35 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                         "The Model Inspection worker cleanup could not be verified."));
                 }
             }
+
+            operationEnvironment?.Dispose();
+            if (operationEnvironment is not null && !operationEnvironment.CleanupSucceeded)
+            {
+                var cleanupFailure = new WorkerClientPolicyException(
+                    new WorkerClientFailure(
+                        WorkerClientFailureCodes.WorkerCleanupFailed,
+                        "The Model Inspection worker cleanup could not be verified."),
+                    new CleanupIntegrityException(
+                        [new CleanupFailureFact(
+                            OwnedCleanupStage.OperationEnvironment,
+                            CleanupFailureKind.InvalidState)],
+                        null));
+                failures.RetainCleanupIntegrity(cleanupFailure);
+                _ = failures.TrySetPrimary(cleanupFailure.Failure);
+            }
         }
 
         if (rethrowPreStartCancellation)
         {
+            if (failures.PrimaryFailure is WorkerClientFailure cleanupFailure)
+            {
+                throw new OperationCanceledException(
+                    "The Model Inspection operation was cancelled and cleanup integrity failed.",
+                    failures.CleanupIntegrityCause ??
+                        new WorkerClientPolicyException(cleanupFailure),
+                    cancellationToken);
+            }
+
             throw new OperationCanceledException(cancellationToken);
         }
 
@@ -375,7 +404,8 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             standardError.IsTruncated,
             standardError.RetainedText,
             failures.SecondaryDiagnostics,
-            standardError.InvalidUtf8Detected);
+            StandardErrorInvalidUtf8Detected: standardError.InvalidUtf8Detected,
+            CleanupFailures: failures.CleanupFailures);
         result.Validate();
         return result;
     }
@@ -806,13 +836,12 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
     {
         Dictionary<string, string?> values =
             new(StringComparer.OrdinalIgnoreCase);
-        foreach (DictionaryEntry entry in
-                 Environment.GetEnvironmentVariables())
+        foreach (string key in new[]
+                 {
+                     "SystemRoot", "WINDIR", "DOTNET_ROOT", "DOTNET_ROOT_X64",
+                 })
         {
-            if (entry.Key is string key)
-            {
-                values[key] = entry.Value as string;
-            }
+            values[key] = Environment.GetEnvironmentVariable(key);
         }
 
         return values;

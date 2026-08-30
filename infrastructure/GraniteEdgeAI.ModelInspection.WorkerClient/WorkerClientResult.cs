@@ -2,6 +2,35 @@ using GraniteEdgeAI.ModelInspection.Contracts;
 
 namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 
+public enum WorkerClientCleanupStage
+{
+    StandardInput,
+    StandardOutput,
+    StandardError,
+    Channel,
+    Session,
+    Closure,
+    ProcessTree,
+    ProcessHandle,
+    Job,
+    OperationEnvironment,
+    PendingOutput,
+}
+
+public enum WorkerClientCleanupFailureKind
+{
+    Io,
+    Access,
+    InvalidState,
+    Native,
+    Timeout,
+    Unexpected,
+}
+
+public readonly record struct WorkerClientCleanupFailureFact(
+    WorkerClientCleanupStage Stage,
+    WorkerClientCleanupFailureKind Kind);
+
 /// <summary>
 /// Represents the single unambiguous outcome of one worker process execution.
 /// A result contains either one trusted worker terminal message or one
@@ -21,7 +50,8 @@ public sealed record WorkerClientResult
         bool StandardErrorTruncated,
         string RetainedStandardError,
         IReadOnlyList<string> SecondaryDiagnostics,
-        bool StandardErrorInvalidUtf8Detected = false)
+        bool StandardErrorInvalidUtf8Detected = false,
+        IReadOnlyList<WorkerClientCleanupFailureFact>? CleanupFailures = null)
     {
         ArgumentNullException.ThrowIfNull(RetainedStandardError);
         ArgumentNullException.ThrowIfNull(SecondaryDiagnostics);
@@ -36,6 +66,8 @@ public sealed record WorkerClientResult
             SecondaryDiagnostics.ToArray());
         this.StandardErrorInvalidUtf8Detected =
             StandardErrorInvalidUtf8Detected;
+        this.CleanupFailures = Array.AsReadOnly(
+            (CleanupFailures ?? []).Take(16).ToArray());
     }
 
     public WorkerCompletedMessage? TerminalMessage { get; }
@@ -57,6 +89,8 @@ public sealed record WorkerClientResult
     public string RetainedStandardError { get; }
 
     public IReadOnlyList<string> SecondaryDiagnostics { get; }
+
+    public IReadOnlyList<WorkerClientCleanupFailureFact> CleanupFailures { get; }
 
     /// <summary>
     /// Validates the exclusive outcome rules before the result is returned to a

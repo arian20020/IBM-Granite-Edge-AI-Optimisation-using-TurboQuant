@@ -18,6 +18,7 @@ public static class GgufRuntimeManifestJson
 
         try
         {
+            ValidateNoDuplicateProperties(utf8Json);
             return JsonSerializer.Deserialize<GgufRuntimeManifest>(utf8Json, Options)
                 ?? throw new GgufRuntimeTrustException("runtime-manifest-invalid");
         }
@@ -28,6 +29,43 @@ public static class GgufRuntimeManifestJson
         catch (NotSupportedException)
         {
             throw new GgufRuntimeTrustException("runtime-manifest-json-invalid");
+        }
+    }
+
+    private static void ValidateNoDuplicateProperties(ReadOnlySpan<byte> utf8Json)
+    {
+        using JsonDocument document = JsonDocument.Parse(
+            utf8Json.ToArray(),
+            new JsonDocumentOptions
+            {
+                AllowTrailingCommas = false,
+                CommentHandling = JsonCommentHandling.Disallow,
+                MaxDepth = 16,
+            });
+        ValidateNoDuplicateProperties(document.RootElement);
+    }
+
+    private static void ValidateNoDuplicateProperties(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name))
+                {
+                    throw new JsonException("A duplicate manifest property was rejected.");
+                }
+
+                ValidateNoDuplicateProperties(property.Value);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in element.EnumerateArray())
+            {
+                ValidateNoDuplicateProperties(item);
+            }
         }
     }
 

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "workerId": "S1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "baseCommit": "29f52dc4f70f9b9c6612a880299bb3b28dcc2d10",
+  "baseTree": "0c7ed991bb5ba8f74c00c668f60e5fbc2fd77304",
+  "branch": "audit/ucl-s1-security-remediation-r4-1",
+  "implementationSubjectCommit": "4e76c9f55a787ea8f51ba81d4c870743d41f9d24",
+  "implementationSubjectTree": "b09c181930048c7a15b652fe2af17c46a5db5bde",
+  "worktreeCleanAtHandoff": true,
+  "completedAtUtc": "2026-08-30T17:24:37Z",
+  "report": {
+    "path": "docs/audits/2026-08-30/S1-security-packaging-r4-1.md",
+    "sha256": "625b559ef572c438a8790ffb7767ea390fe72529780e51ed98b2579416446aa9",
+    "bytes": 15309
+  },
+  "transport": "remote",
+  "remoteRef": "refs/remotes/origin/audit/ucl-s1-security-remediation-r4-1",
+  "bundle": null,
+  "evidenceManifest": null,
+  "testTotals": {
+    "discovered": 410,
+    "executed": 410,
+    "passed": 410,
+    "failed": 0,
+    "skipped": 0
+  },
+  "nativeDisposition": "blocked"
+}

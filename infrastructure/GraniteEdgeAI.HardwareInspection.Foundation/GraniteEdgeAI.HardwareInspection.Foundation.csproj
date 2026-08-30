@@ -11,4 +11,12 @@
     <Deterministic>true</Deterministic>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="GraniteEdgeAI.HardwareInspection.Foundation.Tests" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.ModelInspection.WorkerClient" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.ModelInspection.WorkerClient.Tests" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.OpenVino.WorkerClient" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.GgufQuantization.WorkerClient" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.GgufRuntime.WorkerClient" />
+  </ItemGroup>
 </Project>

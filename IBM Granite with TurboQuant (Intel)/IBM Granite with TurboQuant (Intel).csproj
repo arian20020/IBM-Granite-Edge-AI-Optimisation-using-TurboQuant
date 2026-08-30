@@ -72,7 +72,27 @@
     <Content Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
     <EmbeddedResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
     <PRIResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+    <Compile Remove="Features\ModelOptimization\DebugFixtures\**" />
+    <Page Remove="Features\ModelOptimization\DebugFixtures\**" />
+    <None Remove="Features\ModelOptimization\DebugFixtures\**" />
+    <Content Remove="Features\ModelOptimization\DebugFixtures\**" />
+    <EmbeddedResource Remove="Features\ModelOptimization\DebugFixtures\**" />
+    <PRIResource Remove="Features\ModelOptimization\DebugFixtures\**" />
   </ItemGroup>
+
+  <!-- Security evidence seam: emit evaluated MSIX payload membership after the
+       SDK computes it. The transient map is an input to the closure generator,
+       never a package member or durable artifact. -->
+  <Target Name="WriteS1EvaluatedAppxMembership"
+          DependsOnTargets="Build;_ComputeAppxPackagePayload">
+    <Error Condition="'$(S1EvaluatedAppxMembershipFile)' == ''"
+           Text="S1EvaluatedAppxMembershipFile is required." />
+    <WriteLinesToFile
+      File="$(S1EvaluatedAppxMembershipFile)"
+      Lines="@(AppxPackagePayload->'%(TargetPath)|%(FullPath)')"
+      Overwrite="true"
+      Encoding="UTF-8" />
+  </Target>
   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <Compile Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureCatalogue.cs" />
   </ItemGroup>

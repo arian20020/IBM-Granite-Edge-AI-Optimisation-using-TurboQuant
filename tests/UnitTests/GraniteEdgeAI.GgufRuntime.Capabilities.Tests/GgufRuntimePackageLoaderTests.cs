@@ -32,6 +32,32 @@ public sealed class GgufRuntimePackageLoaderTests
         Assert.AreEqual("runtime-manifest-copy-mismatch", exception.Code);
     }
 
+    [TestMethod]
+    public void VerifyRejectsOversizedDetachedManifestBeforeReadingItsBytes()
+    {
+        using var package =
+            GgufRuntimeManifestVerifierTests.TemporaryRuntimePackage.Create();
+        byte[] trusted = Serialize(package.Manifest);
+        string detached = Path.Combine(package.Root, "runtime-manifest.json");
+        using (FileStream stream = new(
+                   detached,
+                   FileMode.Create,
+                   FileAccess.Write,
+                   FileShare.None))
+        {
+            stream.SetLength((long)int.MaxValue + 1);
+        }
+
+        GgufRuntimeTrustException failure =
+            Assert.ThrowsExactly<GgufRuntimeTrustException>(() =>
+                GgufRuntimePackageLoader.Verify(
+                    package.Root,
+                    trusted,
+                    detached));
+
+        Assert.AreEqual("runtime-manifest-copy-mismatch", failure.Code);
+    }
+
     private static byte[] Serialize(GgufRuntimeManifest manifest)
         => JsonSerializer.SerializeToUtf8Bytes(manifest, SerializerOptions);
 

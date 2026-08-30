@@ -24,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj" />
+    <ProjectReference Include="..\..\ProcessFixtures\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool\GraniteEdgeAI.HardwareInspection.LlmFitFakeTool.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Fixtures\LlmFit\*.json" CopyToOutputDirectory="PreserveNewest" />
