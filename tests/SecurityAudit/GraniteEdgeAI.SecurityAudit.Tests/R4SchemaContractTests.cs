@@ -43,6 +43,16 @@ public sealed class R4SchemaContractTests
         overflowArithmetic["testTotals"]!["failed"] = int.MaxValue;
         Assert.IsFalse(R4HandoffSemanticValidator.HasValidReceiptArithmetic(
             JsonSerializer.SerializeToElement(overflowArithmetic)));
+
+        JsonObject schemaRangeArithmetic = (JsonObject)valid.DeepClone();
+        schemaRangeArithmetic["testTotals"]!["discovered"] = long.MaxValue;
+        schemaRangeArithmetic["testTotals"]!["executed"] = long.MaxValue;
+        schemaRangeArithmetic["testTotals"]!["passed"] = long.MaxValue - 2;
+        schemaRangeArithmetic["testTotals"]!["failed"] = 1;
+        schemaRangeArithmetic["testTotals"]!["skipped"] = 1;
+        AssertValid(schema, schemaRangeArithmetic);
+        Assert.IsTrue(R4HandoffSemanticValidator.HasValidReceiptArithmetic(
+            JsonSerializer.SerializeToElement(schemaRangeArithmetic)));
     }
 
     [TestMethod]
