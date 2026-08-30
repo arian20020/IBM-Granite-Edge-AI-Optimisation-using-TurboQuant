@@ -15,6 +15,113 @@ public sealed class ModelInspectionProjectionV2Tests
     private static readonly string Digest = new('a', 64);
 
     [TestMethod]
+    public void HandoffOwnsTheExactCanonicalSixFieldSchemaV2()
+    {
+        var handoff = new ModelInspectionHandoffV2(
+            2,
+            HandoffId,
+            RunId,
+            ModelInspectionOutcomeV2.Ready,
+            Digest,
+            4096);
+
+        byte[] payload = handoff.ToCanonicalUtf8Json();
+
+        string expected =
+            "{\"schemaVersion\":2," +
+            $"\"modelInspectionHandoffId\":\"{HandoffId:D}\"," +
+            $"\"modelInspectionRunId\":\"{RunId:D}\"," +
+            "\"outcome\":\"Ready\"," +
+            $"\"modelSha256\":\"{Digest}\"," +
+            "\"modelLengthBytes\":4096}";
+        Assert.AreEqual(expected, Encoding.UTF8.GetString(payload));
+        Assert.IsLessThanOrEqualTo(512, payload.Length);
+        Assert.AreEqual(handoff, ModelInspectionHandoffV2.Parse(payload));
+    }
+
+    [TestMethod]
+    [DataRow("same-identities")]
+    [DataRow("wrong-version")]
+    [DataRow("non-v4-handoff")]
+    [DataRow("non-v4-run")]
+    [DataRow("unknown-outcome")]
+    [DataRow("uppercase-digest")]
+    [DataRow("zero-length")]
+    public void HandoffRejectsInvalidSchemaIdentityOutcomeOrModelFacts(string mutation)
+    {
+        ModelInspectionHandoffV2 valid = Create(
+            ModelInspectionRoute.Gguf,
+            "gguf").ModelInspectionHandoff;
+        ModelInspectionHandoffV2 invalid = mutation switch
+        {
+            "same-identities" => valid with { ModelInspectionHandoffId = RunId },
+            "wrong-version" => valid with { SchemaVersion = 1 },
+            "non-v4-handoff" => valid with
+            {
+                ModelInspectionHandoffId = Guid.Parse(
+                    "22222222-2222-3222-8222-222222222222")
+            },
+            "non-v4-run" => valid with
+            {
+                ModelInspectionRunId = Guid.Parse(
+                    "11111111-1111-3111-8111-111111111111")
+            },
+            "unknown-outcome" => valid with
+            {
+                Outcome = (ModelInspectionOutcomeV2)999
+            },
+            "uppercase-digest" => valid with
+            {
+                ModelSha256 = Digest.ToUpperInvariant()
+            },
+            "zero-length" => valid with { ModelLengthBytes = 0 },
+            _ => throw new InvalidOperationException()
+        };
+
+        Assert.ThrowsExactly<WorkerProtocolException>(invalid.Validate);
+    }
+
+    [TestMethod]
+    [DataRow("unknown")]
+    [DataRow("reordered")]
+    [DataRow("duplicate")]
+    [DataRow("whitespace")]
+    public void HandoffParseRejectsUnknownDuplicateReorderedOrNonCanonicalJson(
+        string mutation)
+    {
+        string valid =
+            "{\"schemaVersion\":2," +
+            $"\"modelInspectionHandoffId\":\"{HandoffId:D}\"," +
+            $"\"modelInspectionRunId\":\"{RunId:D}\"," +
+            "\"outcome\":\"Ready\"," +
+            $"\"modelSha256\":\"{Digest}\"," +
+            "\"modelLengthBytes\":4096}";
+        string invalid = mutation switch
+        {
+            "unknown" => valid.Replace(
+                "\"modelLengthBytes\":4096}",
+                "\"modelLengthBytes\":4096,\"path\":\"private\"}",
+                StringComparison.Ordinal),
+            "reordered" => valid.Replace(
+                "{\"schemaVersion\":2,",
+                string.Empty,
+                StringComparison.Ordinal).Replace(
+                    "\"modelInspectionRunId\":",
+                    "\"schemaVersion\":2,\"modelInspectionRunId\":",
+                    StringComparison.Ordinal),
+            "duplicate" => valid.Replace(
+                "{\"schemaVersion\":2,",
+                "{\"schemaVersion\":2,\"schemaVersion\":2,",
+                StringComparison.Ordinal),
+            "whitespace" => " " + valid,
+            _ => throw new InvalidOperationException()
+        };
+
+        Assert.ThrowsExactly<WorkerProtocolException>(() =>
+            ModelInspectionHandoffV2.Parse(Encoding.UTF8.GetBytes(invalid)));
+    }
+
+    [TestMethod]
     public void GgufProjectionSerializesCanonicalPathPrivateSchemaV2()
     {
         ModelInspectionProjectionV2 projection = Create(
@@ -193,4 +300,5 @@ public sealed class ModelInspectionProjectionV2Tests
                     property.Name + "." + child.Name)
                 : [property.Name])
             .ToArray();
+
 }

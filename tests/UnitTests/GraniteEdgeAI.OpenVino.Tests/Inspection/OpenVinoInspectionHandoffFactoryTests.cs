@@ -1,6 +1,8 @@
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.OpenVino.Contracts;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SharedHandoff = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
+using SharedOutcome = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOutcomeV2;
 
 namespace GraniteEdgeAI.OpenVino.Tests.Inspection;
 
@@ -92,6 +94,27 @@ public sealed class OpenVinoInspectionHandoffFactoryTests
     }
 
     [TestMethod]
+    public void OpenVinoAdapterEmitsTheSharedCanonicalHandoffBytes()
+    {
+        ModelInspectionHandoffV2 openVino =
+            new OpenVinoInspectionHandoffFactory().Create(
+                StaticResult(),
+                NativeEvidence(),
+                RunId);
+        var shared = new SharedHandoff(
+            2,
+            openVino.ModelInspectionHandoffId,
+            openVino.ModelInspectionRunId,
+            SharedOutcome.ReadyWithWarnings,
+            openVino.ModelSha256,
+            openVino.ModelLengthBytes);
+
+        CollectionAssert.AreEqual(
+            shared.ToCanonicalUtf8Json(),
+            openVino.ToCanonicalUtf8Json());
+    }
+
+    [TestMethod]
     [DataRow((ModelInspectionOutcome)999, ModelDigest, 88L)]
     [DataRow(ModelInspectionOutcome.Ready, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 88L)]
     [DataRow(ModelInspectionOutcome.Ready, ModelDigest, 0L)]
@@ -154,4 +177,5 @@ public sealed class OpenVinoInspectionHandoffFactoryTests
         string text = value.ToString("D");
         return value != Guid.Empty && text[14] == '4' && text[19] is '8' or '9' or 'a' or 'b';
     }
+
 }

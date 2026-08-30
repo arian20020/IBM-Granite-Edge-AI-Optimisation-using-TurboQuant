@@ -34,7 +34,178 @@ public sealed record ModelInspectionHandoffV2(
     Guid ModelInspectionRunId,
     ModelInspectionOutcomeV2 Outcome,
     string ModelSha256,
-    long ModelLengthBytes);
+    long ModelLengthBytes)
+{
+    public const ushort RequiredSchemaVersion = 2;
+    public const int MaximumCanonicalUtf8Bytes = 512;
+
+    public void Validate()
+    {
+        WorkerProtocolValidation.Require(
+            SchemaVersion == RequiredSchemaVersion,
+            nameof(SchemaVersion),
+            "must equal 2");
+        RequireUuidV4(ModelInspectionHandoffId, nameof(ModelInspectionHandoffId));
+        RequireUuidV4(ModelInspectionRunId, nameof(ModelInspectionRunId));
+        WorkerProtocolValidation.Require(
+            ModelInspectionHandoffId != ModelInspectionRunId,
+            nameof(ModelInspectionHandoffId),
+            "must have a role distinct from modelInspectionRunId");
+        WorkerProtocolValidation.RequireDefinedEnum(Outcome, nameof(Outcome));
+        RequireIdentity(ModelSha256, ModelLengthBytes);
+    }
+
+    public byte[] ToCanonicalUtf8Json()
+    {
+        Validate();
+        var buffer = new ArrayBufferWriter<byte>(MaximumCanonicalUtf8Bytes);
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            WriteCanonicalJson(writer);
+        }
+
+        WorkerProtocolValidation.Require(
+            buffer.WrittenCount <= MaximumCanonicalUtf8Bytes,
+            nameof(ModelInspectionHandoffV2),
+            "must stay within the canonical UTF-8 size bound");
+        return buffer.WrittenSpan.ToArray();
+    }
+
+    public static ModelInspectionHandoffV2 Parse(ReadOnlySpan<byte> payload)
+    {
+        WorkerProtocolValidation.Require(
+            !payload.IsEmpty && payload.Length <= MaximumCanonicalUtf8Bytes,
+            nameof(payload),
+            "must be present and within the canonical UTF-8 size bound");
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                payload.ToArray(),
+                new JsonDocumentOptions
+                {
+                    AllowTrailingCommas = false,
+                    CommentHandling = JsonCommentHandling.Disallow,
+                    MaxDepth = 2
+                });
+            ModelInspectionHandoffV2 handoff = ParseElement(document.RootElement);
+            WorkerProtocolValidation.Require(
+                payload.SequenceEqual(handoff.ToCanonicalUtf8Json()),
+                nameof(payload),
+                "must use the exact canonical schema-v2 serialization");
+            return handoff;
+        }
+        catch (WorkerProtocolException)
+        {
+            throw;
+        }
+        catch (Exception error) when (
+            error is JsonException or InvalidOperationException or
+            FormatException or OverflowException)
+        {
+            throw new WorkerProtocolException(
+                "Model Inspection schema-v2 handoff is malformed.");
+        }
+    }
+
+    internal static ModelInspectionHandoffV2 ParseElement(JsonElement root)
+    {
+        RequireProperties(
+            root,
+            "schemaVersion",
+            "modelInspectionHandoffId",
+            "modelInspectionRunId",
+            "outcome",
+            "modelSha256",
+            "modelLengthBytes");
+        var handoff = new ModelInspectionHandoffV2(
+            root.GetProperty("schemaVersion").GetUInt16(),
+            RequiredUuid(root, "modelInspectionHandoffId"),
+            RequiredUuid(root, "modelInspectionRunId"),
+            ParseOutcome(RequiredString(root, "outcome")),
+            RequiredString(root, "modelSha256"),
+            root.GetProperty("modelLengthBytes").GetInt64());
+        handoff.Validate();
+        return handoff;
+    }
+
+    internal void WriteCanonicalJson(Utf8JsonWriter writer)
+    {
+        Validate();
+        writer.WriteStartObject();
+        writer.WriteNumber("schemaVersion", SchemaVersion);
+        writer.WriteString(
+            "modelInspectionHandoffId",
+            ModelInspectionHandoffId.ToString("D"));
+        writer.WriteString(
+            "modelInspectionRunId",
+            ModelInspectionRunId.ToString("D"));
+        writer.WriteString("outcome", Outcome.ToString());
+        writer.WriteString("modelSha256", ModelSha256);
+        writer.WriteNumber("modelLengthBytes", ModelLengthBytes);
+        writer.WriteEndObject();
+    }
+
+    private static void RequireIdentity(string digest, long length)
+    {
+        WorkerProtocolValidation.Require(
+            digest is { Length: 64 } && digest.All(character =>
+                character is >= '0' and <= '9' or >= 'a' and <= 'f'),
+            nameof(ModelSha256),
+            "must contain a lowercase SHA-256 digest");
+        WorkerProtocolValidation.Require(
+            length > 0,
+            nameof(ModelLengthBytes),
+            "must be positive");
+    }
+
+    private static void RequireUuidV4(Guid value, string name)
+    {
+        string text = value.ToString("D");
+        WorkerProtocolValidation.Require(
+            value != Guid.Empty && text[14] == '4' && text[19] is '8' or '9' or 'a' or 'b',
+            name,
+            "must be a non-empty UUIDv4");
+    }
+
+    private static void RequireProperties(JsonElement element, params string[] expected)
+    {
+        WorkerProtocolValidation.Require(
+            element.ValueKind == JsonValueKind.Object &&
+            element.EnumerateObject().Select(property => property.Name)
+                .SequenceEqual(expected, StringComparer.Ordinal),
+            nameof(element),
+            "must contain only the exact ordered schema-v2 fields");
+    }
+
+    private static string RequiredString(JsonElement element, string propertyName)
+    {
+        JsonElement property = element.GetProperty(propertyName);
+        WorkerProtocolValidation.Require(
+            property.ValueKind == JsonValueKind.String && property.GetString() is not null,
+            propertyName,
+            "must be a string");
+        return property.GetString()!;
+    }
+
+    private static Guid RequiredUuid(JsonElement element, string propertyName)
+    {
+        string text = RequiredString(element, propertyName);
+        WorkerProtocolValidation.Require(
+            Guid.TryParseExact(text, "D", out Guid value) &&
+            string.Equals(text, value.ToString("D"), StringComparison.Ordinal),
+            propertyName,
+            "must be a lowercase canonical UUID");
+        return value;
+    }
+
+    private static ModelInspectionOutcomeV2 ParseOutcome(string value) => value switch
+    {
+        "Ready" => ModelInspectionOutcomeV2.Ready,
+        "ReadyWithWarnings" => ModelInspectionOutcomeV2.ReadyWithWarnings,
+        _ => throw new WorkerProtocolException(
+            "outcome must be Ready or ReadyWithWarnings.")
+    };
+}
 
 /// <summary>
 /// The single path-private schema-v2 projection emitted by route-specific
@@ -101,7 +272,7 @@ public sealed record ModelInspectionProjectionV2(
         WorkerProtocolValidation.RequireDefinedEnum(source.Route, nameof(source.Route));
         WorkerProtocolValidation.RequireDefinedEnum(result.Route, nameof(result.Route));
         WorkerProtocolValidation.RequireDefinedEnum(result.Outcome, nameof(result.Outcome));
-        WorkerProtocolValidation.RequireDefinedEnum(handoff.Outcome, nameof(handoff.Outcome));
+        handoff.Validate();
         string expectedModelType = source.Route switch
         {
             ModelInspectionRoute.Gguf => "gguf",
@@ -114,14 +285,7 @@ public sealed record ModelInspectionProjectionV2(
             "must match the selected inspection route");
         RequireIdentity(source.ModelSha256, source.ModelLengthBytes, nameof(ModelSource));
         RequireIdentity(result.ModelSha256, result.ModelLengthBytes, nameof(ModelInspectionResult));
-        RequireIdentity(handoff.ModelSha256, handoff.ModelLengthBytes, nameof(ModelInspectionHandoff));
         RequireUuidV4(result.ModelInspectionRunId, nameof(result.ModelInspectionRunId));
-        RequireUuidV4(handoff.ModelInspectionHandoffId, nameof(handoff.ModelInspectionHandoffId));
-        RequireUuidV4(handoff.ModelInspectionRunId, nameof(handoff.ModelInspectionRunId));
-        WorkerProtocolValidation.Require(
-            handoff.SchemaVersion == RequiredSchemaVersion,
-            nameof(handoff.SchemaVersion),
-            "must equal 2");
         WorkerProtocolValidation.Require(
             source.Route == result.Route,
             nameof(result.Route),
@@ -134,10 +298,6 @@ public sealed record ModelInspectionProjectionV2(
             result.Outcome == handoff.Outcome,
             nameof(handoff.Outcome),
             "must match modelInspectionResult.outcome");
-        WorkerProtocolValidation.Require(
-            handoff.ModelInspectionHandoffId != handoff.ModelInspectionRunId,
-            nameof(handoff.ModelInspectionHandoffId),
-            "must have a role distinct from modelInspectionRunId");
         WorkerProtocolValidation.Require(
             string.Equals(source.ModelSha256, result.ModelSha256, StringComparison.Ordinal) &&
             string.Equals(source.ModelSha256, handoff.ModelSha256, StringComparison.Ordinal) &&
@@ -175,20 +335,7 @@ public sealed record ModelInspectionProjectionV2(
                 ModelInspectionResult.ModelLengthBytes);
             writer.WriteEndObject();
             writer.WritePropertyName("modelInspectionHandoff");
-            writer.WriteStartObject();
-            writer.WriteNumber("schemaVersion", ModelInspectionHandoff.SchemaVersion);
-            writer.WriteString(
-                "modelInspectionHandoffId",
-                ModelInspectionHandoff.ModelInspectionHandoffId.ToString("D"));
-            writer.WriteString(
-                "modelInspectionRunId",
-                ModelInspectionHandoff.ModelInspectionRunId.ToString("D"));
-            writer.WriteString("outcome", ModelInspectionHandoff.Outcome.ToString());
-            writer.WriteString("modelSha256", ModelInspectionHandoff.ModelSha256);
-            writer.WriteNumber(
-                "modelLengthBytes",
-                ModelInspectionHandoff.ModelLengthBytes);
-            writer.WriteEndObject();
+            ModelInspectionHandoff.WriteCanonicalJson(writer);
             writer.WriteEndObject();
         }
 
@@ -233,14 +380,6 @@ public sealed record ModelInspectionProjectionV2(
                 "route",
                 "modelSha256",
                 "modelLengthBytes");
-            RequireProperties(
-                handoff,
-                "schemaVersion",
-                "modelInspectionHandoffId",
-                "modelInspectionRunId",
-                "outcome",
-                "modelSha256",
-                "modelLengthBytes");
 
             var projection = new ModelInspectionProjectionV2(
                 root.GetProperty("schemaVersion").GetUInt16(),
@@ -255,13 +394,7 @@ public sealed record ModelInspectionProjectionV2(
                     ParseRoute(RequiredString(result, "route")),
                     RequiredString(result, "modelSha256"),
                     result.GetProperty("modelLengthBytes").GetInt64()),
-                new ModelInspectionHandoffV2(
-                    handoff.GetProperty("schemaVersion").GetUInt16(),
-                    RequiredUuid(handoff, "modelInspectionHandoffId"),
-                    RequiredUuid(handoff, "modelInspectionRunId"),
-                    ParseOutcome(RequiredString(handoff, "outcome")),
-                    RequiredString(handoff, "modelSha256"),
-                    handoff.GetProperty("modelLengthBytes").GetInt64()));
+                ModelInspectionHandoffV2.ParseElement(handoff));
             projection.Validate();
             WorkerProtocolValidation.Require(
                 payload.SequenceEqual(projection.ToCanonicalUtf8Json()),
