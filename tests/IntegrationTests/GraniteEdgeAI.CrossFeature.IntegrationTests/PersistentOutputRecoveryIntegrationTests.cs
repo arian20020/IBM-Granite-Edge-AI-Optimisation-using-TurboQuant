@@ -124,6 +124,54 @@ public sealed class PersistentOutputRecoveryIntegrationTests
             fixture.CommittedRoot, "*", SearchOption.AllDirectories).Count());
     }
 
+    [TestMethod]
+    public void StorageCustodyRejectsReparseOrRecordsHostCapabilityBlocker()
+    {
+        string root = Path.Combine(Path.GetTempPath(),
+            "geai-t1-reparse-root-" + Guid.NewGuid().ToString("N"));
+        string outside = Path.Combine(Path.GetTempPath(),
+            "geai-t1-reparse-outside-" + Guid.NewGuid().ToString("N"));
+        string link = Path.Combine(root, "candidate-link");
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(outside);
+        string sentinel = Path.Combine(outside, "must-remain.txt");
+        File.WriteAllText(sentinel, "outside-custody");
+        bool linkCreated = false;
+        try
+        {
+            try
+            {
+                Directory.CreateSymbolicLink(link, outside);
+                linkCreated = true;
+            }
+            catch (Exception error) when (error is UnauthorizedAccessException
+                                               or IOException
+                                               or NotSupportedException)
+            {
+                Console.WriteLine("REPARSE_CAPABILITY_BLOCKED:" + error.GetType().Name);
+                Assert.IsTrue(File.Exists(sentinel),
+                    "The host denied reparse creation before custody was exercised.");
+                return;
+            }
+
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                StoragePathGuard.RequireChild(root, link, mustExist: true));
+            Console.WriteLine("REPARSE_CUSTODY_EXERCISED:directory-symbolic-link");
+            Assert.IsTrue(File.Exists(sentinel));
+        }
+        finally
+        {
+            if (linkCreated && Directory.Exists(link))
+                Directory.Delete(link);
+            if (Directory.Exists(root))
+                Directory.Delete(root);
+            Assert.IsTrue(File.Exists(sentinel),
+                "Cleanup must not recursively follow the reparse target.");
+            File.Delete(sentinel);
+            Directory.Delete(outside);
+        }
+    }
+
     private sealed class OutputFixture : IDisposable
     {
         private readonly string _root = Path.Combine(

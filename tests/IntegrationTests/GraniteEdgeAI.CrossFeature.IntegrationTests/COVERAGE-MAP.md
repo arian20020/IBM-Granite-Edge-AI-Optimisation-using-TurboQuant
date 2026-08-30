@@ -1,12 +1,13 @@
 # T1 R4 executable coverage map
 
-Every linked-contract test compiles the canonical production file directly from the app, shared, or infrastructure tree. `LinkedProductionSourcesResolveCanonicallyWithoutLocalDuplicates` makes this apply-checkable: all includes must resolve, stay beneath allowed roots, exclude `bin`/`obj`, have unique canonical sources and `Link` destinations, and have no test-local `Production` shadow directory. A copied implementation therefore cannot silently diverge from the production source under test.
+Every linked-contract test compiles a canonical production file directly from the app, shared, or infrastructure tree. `LinkedProductionSourcesResolveCanonicallyWithoutLocalDuplicates` verifies path identity, allowed roots, exclusions, unique sources/destinations, and absence of a test-local `Production` shadow. `LinkedCompilationOptionsAndReferenceBoundaryRemainExplicit` pins the test host's relevant compiler options, absence of test-only constants, reference boundary, and explicit Include-group count. These checks detect path and host-option drift; they do **not** prove absolute semantic parity with each owning project (conditional build logic, generated inputs, and owning-project references may still differ).
 
 “Composition fitness” means an executing source/composition assertion only. It is neither behavioral runtime evidence nor native acceptance.
 
 | Test method | Owner | Behavior | Layer | Current disposition | Native/C0 follow-up |
 |---|---|---|---|---|---|
 | `LinkedProductionSourcesResolveCanonicallyWithoutLocalDuplicates` | T1 | Canonical compile links cannot drift or be shadowed. | Managed build fitness | GREEN | None. |
+| `LinkedCompilationOptionsAndReferenceBoundaryRemainExplicit` | T1 | Relevant options/constants, project references, and Include-group count stay explicit. | Managed build fitness | GREEN | C0 replaces links with project references when assemblies expose the required seams. |
 | `CoverageMapListsEveryExecutableMethod` | T1 | Every executable method appears in this map. | Managed documentation fitness | GREEN | None. |
 | `CurrentModelFitAllowsDirectChat` | T1 | Current fit permits direct Chat per route. | Managed behavioral | GREEN | E1 packaged journey. |
 | `OnlyAdmittedAlternativeFitRequiresOptimization` | T1 | Only a safe admitted alternative permits optimization. | Managed behavioral | GREEN | E1 packaged journey. |
@@ -36,6 +37,7 @@ Every linked-contract test compiles the canonical production file directly from 
 | `SamePlanAttemptCannotPublishThroughDuplicateLiveLeases` | T1 | Duplicate live lease rejects. | Managed behavioral | GREEN | None. |
 | `PublishedPlanRejectsASecondTerminalOutputAsStale` | T1 | Second terminal publication rejects. | Managed behavioral | GREEN | None. |
 | `RetiringUnsealedLeaseLeavesNoStagedOutputOrPublication` | T1 | Retiring unsealed lease must leave no orphan. | Managed behavioral/deterministic | **INTENTIONAL RED** | C0 storage-owner fix; E1 residue acceptance. |
+| `StorageCustodyRejectsReparseOrRecordsHostCapabilityBlocker` | T1 | Real storage guard rejects a created directory reparse; if creation is denied, records only host capability and preserves outside sentinel. | Managed behavioral or explicit capability blocker | GREEN on this host | C0 retains guard; E1 repeats under packaged ACLs. A blocked host run is not custody proof. |
 | `AdmittedPreferenceIssuesStableExactV3Plan` | T1 | Plan v3 is stable except attempt identity. | Managed behavioral | GREEN | Worker E1. |
 | `ResultFactoryCopiesExactPersistentPlanAuthority` | T1 | Result factory copies exact plan/config/source authority; no journey claim. | Managed contract behavioral | GREEN | End-to-end propagation is covered only by coordinator/registry and E1. |
 | `TurboQuantConfigurationCannotBeAdmittedWithoutExactBuildCapability` | T1 | TurboQuant requires exact build capability. | Managed behavioral | GREEN | Intel/TurboQuant native activation E1. |
@@ -75,3 +77,28 @@ Exactly five unique methods are expected RED on this base:
 5. `OpenVinoChatConsumesExactResultBoundConfiguration`
 
 No T1 result claims Intel-native behavior, performance acceptance, packaged UIA/scaling, real worker/model execution, network transfer, or native filesystem acceptance.
+
+## Linked Include groups and project-reference disposition
+
+| Compile Include | Purpose | Why linked on this base / C0 action |
+|---|---|---|
+| `ModelImport/Selection/*.cs` | Classifier and typed route/privacy contracts. | App is a WinUI executable; internals are friended only to `GraniteEdgeAI.UnitTests`. C0 exposes a referenceable seam. |
+| `ModelImport/DragDropRoute/ModelImportDropHandler.cs` | Drop convergence. | Same internal WinUI-app boundary; C0 exposes a referenceable seam. |
+| `ModelInspection/Application/ModelInspectionHandoff*.cs` | Handoff codec/registry. | Same internal WinUI-app boundary; C0 exposes a contract assembly. |
+| `ModelInspection/Contracts/*.cs` | Typed inspection evidence. | Same internal WinUI-app boundary; C0 exposes a contract assembly. |
+| `ModelOptimization/Storage/*.cs` | Registry/custody, excluding source resolver. | Same internal WinUI-app boundary; C0 exposes storage seams in a library. |
+| `ModelOptimization/Application/*.cs` | Reducer/coordinator lifecycle. | Same internal WinUI-app boundary; C0 exposes journey seams in a library. |
+| `ModelHardwareCompatibility/Application/OptimizationJourneyEntryContext.cs` | Entry binding. | Same internal WinUI-app boundary; C0 exposes the entry contract. |
+| `ModelHardwareCompatibility/Contracts/*.cs` | Selection handoff contracts. | Same internal WinUI-app boundary; C0 exposes a contract assembly. |
+| `GgufRuntime/History/ChatCompletionStatus.cs` | Chat history state. | Same internal WinUI-app boundary; C0 exposes runtime history seams. |
+| `GgufRuntime/History/ChatConversation.cs` | Conversation state. | Same internal WinUI-app boundary; C0 exposes runtime history seams. |
+| `GgufRuntime/History/ChatHistoryPolicy.cs` | History bounds. | Same internal WinUI-app boundary; C0 exposes runtime history seams. |
+| `GgufRuntime/History/ChatMessage.cs` | Message contract. | Same internal WinUI-app boundary; C0 exposes runtime history seams. |
+| `GgufRuntime/History/ChatTitlePolicy.cs` | Title policy. | Same internal WinUI-app boundary; C0 exposes runtime history seams. |
+| `GgufRuntime/Services/IGgufChatSession.cs` | Session interface. | Same internal WinUI-app boundary; C0 exposes runtime service seams. |
+| `GgufRuntime/Services/GgufChatSessionAdapter.cs` | Session lifetime adapter. | Same internal WinUI-app boundary; C0 exposes runtime service seams. |
+| `GgufQuantization.WorkerClient/GgufQuantizerEnvironmentPolicy.cs` | Child environment policy. | Worker-client project friends only its owner tests; C0 adds a public/referenceable seam. |
+| `GraniteEdgeAI.GgufRuntime.Contracts/**/*.cs` | Runtime protocol contracts. | Project-reference assets are absent in the managed `--no-restore` base used here; C0 restores/integrates the project and replaces the link. |
+| `GraniteEdgeAI.ModelHardwareCompatibility.Core/**/*.cs` | Compatibility/planning engine. | Core project friends only owner/native suites, not T1; C0 adds T1-visible public seams or a supported friend reference. |
+
+`GraniteEdgeAI.OpenVino.Contracts` already uses a project reference and is not source-linked.

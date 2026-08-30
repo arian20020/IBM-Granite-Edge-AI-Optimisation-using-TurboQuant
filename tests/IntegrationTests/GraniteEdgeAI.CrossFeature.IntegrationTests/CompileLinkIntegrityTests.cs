@@ -6,6 +6,18 @@ namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 [TestClass]
 public sealed class CompileLinkIntegrityTests
 {
+    private static readonly string[] CompilerPropertyNames =
+    [
+        "TargetFramework", "PlatformTarget", "RuntimeIdentifier",
+        "ImplicitUsings", "Nullable", "TreatWarningsAsErrors", "EnableNETAnalyzers",
+        "AnalysisLevel", "Deterministic"
+    ];
+
+    private static readonly string[] ExpectedProjectReferences =
+    [
+        @"..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj"
+    ];
+
     [TestMethod]
     public void LinkedProductionSourcesResolveCanonicallyWithoutLocalDuplicates()
     {
@@ -74,6 +86,51 @@ public sealed class CompileLinkIntegrityTests
 
         foreach (string method in methods)
             StringAssert.Contains(map, $"`{method}`", method);
+    }
+
+    [TestMethod]
+    public void LinkedCompilationOptionsAndReferenceBoundaryRemainExplicit()
+    {
+        string projectDirectory = ProjectDirectory();
+        XDocument project = XDocument.Load(Path.Combine(projectDirectory,
+            "GraniteEdgeAI.CrossFeature.IntegrationTests.csproj"));
+        Dictionary<string, string> properties = project.Descendants()
+            .Where(element => CompilerPropertyNames.Contains(
+                element.Name.LocalName, StringComparer.Ordinal))
+            .ToDictionary(element => element.Name.LocalName, element => element.Value,
+                StringComparer.Ordinal);
+        var expectedProperties = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["TargetFramework"] = "net8.0-windows10.0.19041.0",
+            ["PlatformTarget"] = "x64",
+            ["RuntimeIdentifier"] = "win-x64",
+            ["ImplicitUsings"] = "enable",
+            ["Nullable"] = "enable",
+            ["TreatWarningsAsErrors"] = "true",
+            ["EnableNETAnalyzers"] = "true",
+            ["AnalysisLevel"] = "latest-recommended",
+            ["Deterministic"] = "true"
+        };
+        CollectionAssert.AreEquivalent(expectedProperties, properties);
+        Assert.IsFalse(project.Descendants().Any(element =>
+            element.Name.LocalName == "DefineConstants"),
+            "Linked sources must not silently acquire test-only compile constants.");
+
+        string[] projectReferences = project.Descendants()
+            .Where(element => element.Name.LocalName == "ProjectReference")
+            .Select(element => element.Attribute("Include")!.Value)
+            .ToArray();
+        CollectionAssert.AreEqual(ExpectedProjectReferences, projectReferences);
+
+        string[] includeGroups = project.Descendants()
+            .Where(element => element.Name.LocalName == "Compile"
+                && element.Attribute("Include") is not null)
+            .Select(element => element.Attribute("Include")!.Value)
+            .ToArray();
+        Assert.AreEqual(18, includeGroups.Length,
+            "Every linked production group must remain explicit and documented.");
+        Assert.IsTrue(includeGroups.All(include =>
+            include.StartsWith(@"..\..\..\", StringComparison.Ordinal)));
     }
 
     private static IReadOnlyList<string> Expand(string projectDirectory, string include)
@@ -150,10 +207,35 @@ public sealed class CompileLinkIntegrityTests
     private static string Canonical(string path) =>
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
-    private static string ProjectDirectory() =>
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
-            "..", "..", "..", "..", ".."));
+    private static string ProjectDirectory()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName,
+                    "GraniteEdgeAI.CrossFeature.IntegrationTests.csproj"))
+                && File.Exists(Path.Combine(directory.FullName, "COVERAGE-MAP.md")))
+            {
+                return directory.FullName;
+            }
+            directory = directory.Parent;
+        }
+        throw new DirectoryNotFoundException(
+            "Cross-feature test project markers were not found in executable ancestry.");
+    }
 
-    private static string RepositoryRoot(string projectDirectory) =>
-        Path.GetFullPath(Path.Combine(projectDirectory, "..", "..", ".."));
+    private static string RepositoryRoot(string projectDirectory)
+    {
+        DirectoryInfo? directory = new(projectDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName,
+                    "IBM Granite with TurboQuant (Intel).slnx")))
+            {
+                return directory.FullName;
+            }
+            directory = directory.Parent;
+        }
+        throw new DirectoryNotFoundException("Repository marker was not found.");
+    }
 }
