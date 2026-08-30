@@ -31,8 +31,8 @@ public sealed class ModelInspectionProjectionFactoryTests
         Assert.IsNotNull(ggufHandoff);
         ModelInspectionProjectionV2 gguf =
             ModelInspectionProjectionFactory.CreateGguf(ggufHandoff);
-        GraniteEdgeAI.OpenVino.Contracts.ModelInspectionHandoffV2
-            openVinoHandoff = new OpenVinoInspectionHandoffFactory().Create(
+        ModelInspectionHandoffV2 openVinoHandoff =
+            new OpenVinoInspectionHandoffFactory().Create(
                 StaticResult(),
                 NativeEvidence(),
                 RunId);

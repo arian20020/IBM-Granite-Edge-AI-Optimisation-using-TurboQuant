@@ -8,7 +8,7 @@ using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using SharedProjection = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionProjectionV2;
-using SharedOutcome = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOutcomeV2;
+using ModelInspectionHandoffV2 = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
@@ -292,6 +292,19 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 Configuration: null);
         }
 
+        OpenVinoSupportCode? completedEvidenceFailure =
+            ValidateCompletedEvidence(completed, inspectionRunId, evidence);
+        if (completedEvidenceFailure is OpenVinoSupportCode failureCode)
+        {
+            OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(failureCode);
+            stateMachine.TryCompleteInspection(operationId, outcome);
+            return new OpenVinoRouteInspectionResult(
+                outcome,
+                HandoffLease: null,
+                OpenVinoPromptAdapter.MapFailure(failureCode),
+                Configuration: null);
+        }
+
         OpenVinoRouteInspectionOutcome readyOutcome = evidence.HasChatTemplate
             ? OpenVinoRouteInspectionOutcome.Ready
             : OpenVinoRouteInspectionOutcome.ReadyWithWarnings;
@@ -460,6 +473,34 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             "Unknown OpenVINO support code.")
     };
 
+    private static OpenVinoSupportCode? ValidateCompletedEvidence(
+        InspectionCompletedEvent completed,
+        Guid inspectionRunId,
+        OpenVinoStaticPackageEvidence expected)
+    {
+        try
+        {
+            completed.Validate();
+        }
+        catch (OpenVinoProtocolException)
+        {
+            return OpenVinoSupportCode.RuntimeProtocolFailed;
+        }
+
+        return completed.InspectionRunId != inspectionRunId ||
+            !string.Equals(
+                completed.PackageManifestDigest,
+                expected.PackageManifestDigest,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                completed.ModelSha256,
+                expected.ModelSha256,
+                StringComparison.Ordinal) ||
+            completed.ModelLengthBytes != expected.ModelLengthBytes
+                ? OpenVinoSupportCode.PackageChanged
+                : null;
+    }
+
     private static bool ProjectionMatchesHandoff(
         SharedProjection projection,
         ModelInspectionHandoffV2 handoff) =>
@@ -475,8 +516,8 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             handoff.ModelInspectionRunId &&
         projection.ModelInspectionHandoff.ModelInspectionRunId ==
             handoff.ModelInspectionRunId &&
-        projection.ModelInspectionResult.Outcome == MapOutcome(handoff.Outcome) &&
-        projection.ModelInspectionHandoff.Outcome == MapOutcome(handoff.Outcome) &&
+        projection.ModelInspectionResult.Outcome == handoff.Outcome &&
+        projection.ModelInspectionHandoff.Outcome == handoff.Outcome &&
         string.Equals(
             projection.ModelSource.ModelSha256,
             handoff.ModelSha256,
@@ -493,13 +534,4 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         projection.ModelInspectionResult.ModelLengthBytes == handoff.ModelLengthBytes &&
         projection.ModelInspectionHandoff.ModelLengthBytes == handoff.ModelLengthBytes;
 
-    private static SharedOutcome MapOutcome(ModelInspectionOutcome outcome) =>
-        outcome switch
-        {
-            ModelInspectionOutcome.Ready => SharedOutcome.Ready,
-            ModelInspectionOutcome.ReadyWithWarnings =>
-                SharedOutcome.ReadyWithWarnings,
-            _ => throw new InvalidOperationException(
-                "The OpenVINO handoff outcome is unsupported.")
-        };
 }

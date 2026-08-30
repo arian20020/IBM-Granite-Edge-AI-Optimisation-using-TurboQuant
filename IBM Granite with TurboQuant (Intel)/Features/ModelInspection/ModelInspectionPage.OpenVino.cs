@@ -18,6 +18,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.System;
 using Windows.UI.Core;
+using ModelInspectionHandoffV2 = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
 
 namespace GraniteEdgeAI.Features.ModelInspection;
 
@@ -261,7 +262,7 @@ public sealed partial class ModelInspectionPage
         ModelInspectionHandoffV2 source = result.Handoff
             ?? throw new InvalidOperationException("A ready OpenVINO result requires a handoff.");
         ModelOutcome outcome = source.Outcome ==
-            GraniteEdgeAI.OpenVino.Contracts.ModelInspectionOutcome.Ready
+            GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOutcomeV2.Ready
                 ? ModelOutcome.Ready
                 : ModelOutcome.ReadyWithWarnings;
         _openVinoHardwareHandoff = new ModelInspectionHandoff(

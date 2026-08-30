@@ -372,6 +372,80 @@ public sealed class OpenVinoRouteServiceTests
     }
 
     [TestMethod]
+    [DataRow("inspection-run")]
+    [DataRow("package-digest")]
+    [DataRow("model-digest")]
+    [DataRow("model-length")]
+    public async Task MismatchedCompletedEvidenceProducesTypedStaleResultWithoutCapability(
+        string mismatch)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command =>
+        {
+            InspectionCompletedEvent completed = Completed(command);
+            return mismatch switch
+            {
+                "inspection-run" => completed with { InspectionRunId = Guid.NewGuid() },
+                "package-digest" => completed with { PackageManifestDigest = new string('b', 64) },
+                "model-digest" => completed with { ModelSha256 = new string('c', 64) },
+                "model-length" => completed with { ModelLengthBytes = completed.ModelLengthBytes + 1 },
+                _ => throw new AssertFailedException("Unknown mismatch case.")
+            };
+        });
+
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            CancellationToken.None);
+
+        Assert.AreEqual(OpenVinoRouteInspectionOutcome.StaleEvidence, result.Outcome);
+        AssertNoCapability(result);
+        Assert.AreEqual(
+            OpenVinoSupportCode.PackageChanged.ToProtocolValue(),
+            result.Failure?.SupportCode);
+    }
+
+    [TestMethod]
+    [DataRow("empty-run")]
+    [DataRow("invalid-package-digest")]
+    [DataRow("invalid-model-digest")]
+    [DataRow("nonpositive-model-length")]
+    [DataRow("main-model-not-parsed")]
+    [DataRow("tokenizer-not-parsed")]
+    [DataRow("detokenizer-not-parsed")]
+    [DataRow("missing-build-evidence")]
+    public async Task InvalidCompletedEvidenceProducesTypedInvalidResultWithoutCapability(
+        string mutation)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command =>
+        {
+            InspectionCompletedEvent completed = Completed(command);
+            return mutation switch
+            {
+                "empty-run" => completed with { InspectionRunId = Guid.Empty },
+                "invalid-package-digest" => completed with { PackageManifestDigest = "invalid" },
+                "invalid-model-digest" => completed with { ModelSha256 = "invalid" },
+                "nonpositive-model-length" => completed with { ModelLengthBytes = 0 },
+                "main-model-not-parsed" => completed with { MainModelParsed = false },
+                "tokenizer-not-parsed" => completed with { TokenizerParsed = false },
+                "detokenizer-not-parsed" => completed with { DetokenizerParsed = false },
+                "missing-build-evidence" => completed with { BuildEvidence = null! },
+                _ => throw new AssertFailedException("Unknown invalid evidence case.")
+            };
+        });
+
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            CancellationToken.None);
+
+        Assert.AreEqual(OpenVinoRouteInspectionOutcome.InvalidEvidence, result.Outcome);
+        AssertNoCapability(result);
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeProtocolFailed.ToProtocolValue(),
+            result.Failure?.SupportCode);
+    }
+
+    [TestMethod]
     public async Task ProgrammingFailureIsNotConvertedToAnOperationalResult()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -511,6 +585,24 @@ public sealed class OpenVinoRouteServiceTests
         new OpenVinoInspectionHandoffFactory(),
         worker,
         new UnusedChannelFactory());
+
+    private static InspectionCompletedEvent Completed(StartInspectionCommand command) => new(
+        command.InspectionRunId,
+        command.PackageManifestDigest,
+        command.ModelSha256,
+        command.ModelLengthBytes,
+        true,
+        true,
+        true,
+        BuildEvidence());
+
+    private static void AssertNoCapability(OpenVinoRouteInspectionResult result)
+    {
+        Assert.IsNull(result.Handoff);
+        Assert.IsNull(result.HandoffLease);
+        Assert.IsNull(result.Configuration);
+        Assert.IsNull(result.ConversionOffer);
+    }
 
     private static OpenVinoBuildEvidence BuildEvidence() => new(
         "2026.3.0-22451-8a17657b995-releases/2026/3",

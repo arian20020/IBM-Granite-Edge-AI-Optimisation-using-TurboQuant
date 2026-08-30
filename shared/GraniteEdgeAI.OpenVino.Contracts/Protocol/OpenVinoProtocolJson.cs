@@ -14,7 +14,7 @@ public static class OpenVinoProtocolJson
         MaxDepth = OpenVinoProtocol.MaximumJsonDepth
     };
 
-    /// <summary>Serializes a known command, event, or model handoff after validation.</summary>
+    /// <summary>Serializes a known command or event after validation.</summary>
     public static byte[] Serialize(object value)
     {
         if (value is null)
@@ -46,57 +46,6 @@ public static class OpenVinoProtocolJson
     /// <summary>Parses one event with exact discriminator and member closure.</summary>
     public static IOpenVinoEvent DeserializeEvent(ReadOnlySpan<byte> payload) =>
         Deserialize(payload, "eventType", DeserializeEventByType);
-
-    /// <summary>Serializes an exact six-field, path-minimized handoff.</summary>
-    public static byte[] SerializeHandoff(ModelInspectionHandoffV2 handoff)
-    {
-        if (handoff is null)
-        {
-            throw new OpenVinoProtocolException("handoff must be present.");
-        }
-
-        handoff.Validate();
-        byte[] payload = Serialize(handoff);
-        OpenVinoProtocol.Require(payload.Length <= ModelInspectionHandoffV2.MaximumCanonicalUtf8Bytes, "handoff exceeds the canonical UTF-8 size limit.");
-        return payload;
-    }
-
-    /// <summary>Parses and validates an exact six-field, path-minimized handoff.</summary>
-    public static ModelInspectionHandoffV2 DeserializeHandoff(ReadOnlySpan<byte> payload)
-    {
-        EnsureLineLength(payload.Length);
-        OpenVinoProtocol.Require(payload.Length <= ModelInspectionHandoffV2.MaximumCanonicalUtf8Bytes, "handoff exceeds the canonical UTF-8 size limit.");
-
-        try
-        {
-            string json = OpenVinoProtocol.StrictUtf8.GetString(payload);
-            using JsonDocument document = JsonDocument.Parse(json, DocumentOptions);
-            JsonElement root = document.RootElement;
-            OpenVinoProtocol.Require(root.ValueKind == JsonValueKind.Object, "handoff JSON root must be an object.");
-            RejectDuplicateProperties(root);
-            ModelInspectionHandoffV2.ValidateCanonicalDocument(root);
-            ModelInspectionHandoffV2? handoff = JsonSerializer.Deserialize(json, OpenVinoProtocolJsonContext.Default.ModelInspectionHandoffV2);
-            if (handoff is null)
-            {
-                throw new OpenVinoProtocolException("handoff JSON did not produce a handoff.");
-            }
-
-            handoff.Validate();
-            byte[] canonicalPayload = SerializeHandoff(handoff);
-            OpenVinoProtocol.Require(
-                payload.SequenceEqual(canonicalPayload),
-                "handoff JSON must use the canonical representation.");
-            return handoff;
-        }
-        catch (OpenVinoProtocolException)
-        {
-            throw;
-        }
-        catch (Exception exception) when (exception is DecoderFallbackException or JsonException or NotSupportedException)
-        {
-            throw new OpenVinoProtocolException("handoff JSON is invalid.");
-        }
-    }
 
     private static T Deserialize<T>(
         ReadOnlySpan<byte> payload,
@@ -181,9 +130,6 @@ public static class OpenVinoProtocolJson
             case IOpenVinoEvent @event:
                 @event.Validate();
                 return;
-            case ModelInspectionHandoffV2 handoff:
-                handoff.Validate();
-                return;
             default:
                 throw new OpenVinoProtocolException("only approved OpenVINO contracts may cross this boundary.");
         }
@@ -209,7 +155,6 @@ public static class OpenVinoProtocolJson
         type == typeof(SessionCompletedEvent) ? OpenVinoProtocolJsonContext.Default.SessionCompletedEvent :
         type == typeof(SessionFailedEvent) ? OpenVinoProtocolJsonContext.Default.SessionFailedEvent :
         type == typeof(SessionCancelledEvent) ? OpenVinoProtocolJsonContext.Default.SessionCancelledEvent :
-        type == typeof(ModelInspectionHandoffV2) ? OpenVinoProtocolJsonContext.Default.ModelInspectionHandoffV2 :
         throw new OpenVinoProtocolException("only approved OpenVINO contracts may cross this boundary.");
 
     private static void RejectDuplicateProperties(JsonElement element)
