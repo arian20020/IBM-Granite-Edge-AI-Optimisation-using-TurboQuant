@@ -360,9 +360,17 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             operationEnvironment?.Dispose();
             if (operationEnvironment is not null && !operationEnvironment.CleanupSucceeded)
             {
-                _ = failures.TrySetPrimary(new WorkerClientFailure(
-                    WorkerClientFailureCodes.WorkerCleanupFailed,
-                    "The Model Inspection worker cleanup could not be verified."));
+                var cleanupFailure = new WorkerClientPolicyException(
+                    new WorkerClientFailure(
+                        WorkerClientFailureCodes.WorkerCleanupFailed,
+                        "The Model Inspection worker cleanup could not be verified."),
+                    new CleanupIntegrityException(
+                        [new CleanupFailureFact(
+                            OwnedCleanupStage.OperationEnvironment,
+                            CleanupFailureKind.InvalidState)],
+                        null));
+                failures.RetainCleanupIntegrity(cleanupFailure);
+                _ = failures.TrySetPrimary(cleanupFailure.Failure);
             }
         }
 
