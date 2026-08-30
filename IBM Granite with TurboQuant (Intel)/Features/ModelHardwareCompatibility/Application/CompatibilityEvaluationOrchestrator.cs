@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.Features.ApplicationComposition;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 
@@ -15,7 +16,7 @@ internal sealed class CompatibilityEvaluationOrchestrator
     private readonly ICompatibilityFreshResourcesSource _freshResourcesSource;
     private readonly TimeProvider _timeProvider;
 
-    internal CompatibilityEvaluationOrchestrator(
+    private CompatibilityEvaluationOrchestrator(
         ICompatibilityFreshResourcesSource freshResourcesSource,
         TimeProvider timeProvider)
     {
@@ -23,6 +24,15 @@ internal sealed class CompatibilityEvaluationOrchestrator
             ?? throw new ArgumentNullException(nameof(freshResourcesSource));
         _timeProvider = timeProvider
             ?? throw new ArgumentNullException(nameof(timeProvider));
+    }
+
+    internal static CompatibilityEvaluationOrchestrator CreateForAuthority(
+        object authorityToken,
+        ICompatibilityFreshResourcesSource freshResourcesSource,
+        TimeProvider timeProvider)
+    {
+        A1BackendProductionAuthorities.AssertAuthorityToken(authorityToken);
+        return new(freshResourcesSource, timeProvider);
     }
 
     internal async Task<CompatibilityEvaluation> EvaluateAuthorityAsync(

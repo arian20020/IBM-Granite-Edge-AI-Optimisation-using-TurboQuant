@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ApplicationFaults;
+using GraniteEdgeAI.Features.ApplicationComposition;
 using GraniteEdgeAI.Features.GgufRuntime.History;
 using GraniteEdgeAI.Features.GgufRuntime.Services;
 using GraniteEdgeAI.GgufRuntime.Capabilities.Manifest;
@@ -93,10 +94,12 @@ internal sealed class ChatDemoController : IAsyncDisposable
     internal ChatOperationSupportCode? LastSupportCode => lastSupportCode;
 
     internal static async Task<ChatDemoController> CreateInitializedProductionAsync(
+        object authorityToken,
         ChatPage page,
         GgufChatLaunchRequest request,
         CancellationToken cancellationToken)
     {
+        A1BackendProductionAuthorities.AssertAuthorityToken(authorityToken);
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(request);
         GgufRuntimeClient client = GgufRuntimeClient.CreateFromPackage(

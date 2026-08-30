@@ -11,7 +11,7 @@ using GraniteEdgeAI.OpenVino.WorkerClient;
 
 namespace GraniteEdgeAI.Features.ApplicationComposition;
 
-internal enum A1BackendAuthorityKind
+file enum A1BackendAuthorityKind
 {
     FreshCompatibility,
     RouteExactOptimization,
@@ -19,7 +19,7 @@ internal enum A1BackendAuthorityKind
     InitializedGgufChat,
 }
 
-internal sealed class A1BackendAuthorityRegistry
+file sealed class A1BackendAuthorityRegistry
 {
     private readonly HashSet<A1BackendAuthorityKind> _registrations = [];
 
@@ -42,26 +42,43 @@ internal sealed class A1BackendAuthorityRegistry
 /// </summary>
 internal sealed class A1BackendProductionAuthorities
 {
+    private static readonly object s_authorityToken = new();
+    private static readonly A1BackendAuthorityRegistry s_registry = new();
     private static readonly A1BackendProductionAuthorities s_shared =
-        new(new A1BackendAuthorityRegistry());
+        new();
 
-    internal A1BackendProductionAuthorities(A1BackendAuthorityRegistry registry)
+    private A1BackendProductionAuthorities()
     {
-        ArgumentNullException.ThrowIfNull(registry);
-        registry.Register(A1BackendAuthorityKind.FreshCompatibility);
-        registry.Register(A1BackendAuthorityKind.RouteExactOptimization);
-        registry.Register(A1BackendAuthorityKind.OfficialOpenVinoWorker);
-        registry.Register(A1BackendAuthorityKind.InitializedGgufChat);
-        RegistrationCount = registry.Count;
+        s_registry.Register(A1BackendAuthorityKind.FreshCompatibility);
+        s_registry.Register(A1BackendAuthorityKind.RouteExactOptimization);
+        s_registry.Register(A1BackendAuthorityKind.OfficialOpenVinoWorker);
+        s_registry.Register(A1BackendAuthorityKind.InitializedGgufChat);
+        RegistrationCount = s_registry.Count;
     }
 
     internal static A1BackendProductionAuthorities Shared => s_shared;
 
     internal int RegistrationCount { get; }
 
+    internal static A1BackendProductionAuthorities CreateAdditionalRouteForValidation() =>
+        new();
+
+    internal static void AssertAuthorityToken(object token)
+    {
+        if (!ReferenceEquals(token, s_authorityToken))
+        {
+            throw new InvalidOperationException(
+                "A1 backend construction requires the process production authority.");
+        }
+    }
+
     internal CompatibilityEvaluationOrchestrator CreateCompatibility(
         ICompatibilityFreshResourcesSource source,
-        TimeProvider timeProvider) => new(source, timeProvider);
+        TimeProvider timeProvider) =>
+        CompatibilityEvaluationOrchestrator.CreateForAuthority(
+            s_authorityToken,
+            source,
+            timeProvider);
 
     internal OptimizationBackendCompositionFactory CreateOptimization(
         ModelSourceCustodyRegistry sourceCustody,
@@ -69,12 +86,24 @@ internal sealed class A1BackendProductionAuthorities
         GgufOptimizationProductionAuthority? ggufAuthority,
         OpenVinoOptimizationProductionAuthority? openVinoAuthority,
         OpenVinoOptimizationService? openVinoService,
-        TimeProvider timeProvider) => new(
+        TimeProvider timeProvider) =>
+        OptimizationBackendCompositionFactory.CreateForAuthority(
+            s_authorityToken,
             sourceCustody,
             appRoot,
             ggufAuthority,
             openVinoAuthority,
             openVinoService,
+            timeProvider);
+
+    internal OptimizationBackendCompositionFactory CreateOptimizationForValidation(
+        string appRoot,
+        IEnumerable<IOptimizationBackendBuilder> builders,
+        TimeProvider timeProvider) =>
+        OptimizationBackendCompositionFactory.CreateForAuthority(
+            s_authorityToken,
+            appRoot,
+            builders,
             timeProvider);
 
     internal OpenVinoWorkerInstallation CreateOfficialWorkerInstallation(
@@ -89,6 +118,7 @@ internal sealed class A1BackendProductionAuthorities
         GgufChatLaunchRequest request,
         CancellationToken cancellationToken) =>
         ChatDemoController.CreateInitializedProductionAsync(
+            s_authorityToken,
             page,
             request,
             cancellationToken);

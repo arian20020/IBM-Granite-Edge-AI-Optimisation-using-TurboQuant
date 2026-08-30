@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
+using GraniteEdgeAI.Features.ApplicationComposition;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
 namespace GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility;
@@ -10,7 +11,7 @@ public sealed class CompatibilityEvaluationOrchestratorTests
     public async Task AuthorityEvaluationUsesTheInjectedClock()
     {
         DateTimeOffset expected = new(2035, 6, 7, 8, 9, 10, TimeSpan.Zero);
-        var orchestrator = new CompatibilityEvaluationOrchestrator(
+        var orchestrator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
             new FixedSource(Fresh(expected)),
             new FixedTimeProvider(expected));
         DateTimeOffset observed = default;
@@ -34,7 +35,7 @@ public sealed class CompatibilityEvaluationOrchestratorTests
     [TestMethod]
     public async Task TypedCaptureUnavailabilityUsesOneFailClosedFallback()
     {
-        var orchestrator = new CompatibilityEvaluationOrchestrator(
+        var orchestrator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
             new ThrowingSource(new CompatibilityFreshResourcesUnavailableException(
                 CompatibilityFreshResourcesUnavailableReason.StorageInaccessible)),
             TimeProvider.System);
@@ -59,7 +60,7 @@ public sealed class CompatibilityEvaluationOrchestratorTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var orchestrator = new CompatibilityEvaluationOrchestrator(
+        var orchestrator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
             new CancellingSource(cancellation.Token),
             TimeProvider.System);
 
@@ -77,7 +78,7 @@ public sealed class CompatibilityEvaluationOrchestratorTests
     [TestMethod]
     public async Task SourceProgrammingFaultIsNotConvertedIntoCompatibilityFallback()
     {
-        var orchestrator = new CompatibilityEvaluationOrchestrator(
+        var orchestrator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
             new ThrowingSource(new InvalidOperationException("programming defect")),
             TimeProvider.System);
 
@@ -93,7 +94,7 @@ public sealed class CompatibilityEvaluationOrchestratorTests
     public async Task EvaluatorProgrammingFaultIsNotConvertedIntoCompatibilityFallback()
     {
         DateTimeOffset now = new(2035, 6, 7, 8, 9, 10, TimeSpan.Zero);
-        var orchestrator = new CompatibilityEvaluationOrchestrator(
+        var orchestrator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
             new FixedSource(Fresh(now)),
             new FixedTimeProvider(now));
 
@@ -109,7 +110,7 @@ public sealed class CompatibilityEvaluationOrchestratorTests
     public async Task UnboundProductionInputUsesTheSameFailClosedFallback()
     {
         DateTimeOffset now = new(2035, 6, 7, 8, 9, 10, TimeSpan.Zero);
-        var orchestrator = new CompatibilityEvaluationOrchestrator(
+        var orchestrator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
             new FixedSource(Fresh(now)),
             new FixedTimeProvider(now));
 

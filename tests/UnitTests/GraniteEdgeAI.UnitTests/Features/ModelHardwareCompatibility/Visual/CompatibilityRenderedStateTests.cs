@@ -4,6 +4,7 @@
 #if DEBUG
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
 using GraniteEdgeAI.Features.ApplicationFaults;
+using GraniteEdgeAI.Features.ApplicationComposition;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.DebugFixtures;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
@@ -466,7 +467,7 @@ public sealed class CompatibilityRenderedStateTests
     {
         var reporter = new BoundedApplicationFaultReporter(capacity: 4);
         var source = new UnavailableFreshSource();
-        var orchestrator = new CompatibilityEvaluationOrchestrator(
+        var orchestrator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
             source,
             TimeProvider.System);
         var page = new CompatibilityPage(

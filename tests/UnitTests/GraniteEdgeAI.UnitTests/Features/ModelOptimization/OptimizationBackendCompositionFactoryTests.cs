@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelOptimization.Journey;
 using GraniteEdgeAI.Features.ModelOptimization.Storage;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility;
+using GraniteEdgeAI.Features.ApplicationComposition;
 
 namespace GraniteEdgeAI.UnitTests.Features.ModelOptimization;
 
@@ -15,7 +16,7 @@ public sealed class OptimizationBackendCompositionFactoryTests
         using var root = new TemporaryDirectory();
         var gguf = new FakeBuilder(OptimizationRoute.Gguf);
         var openVino = new FakeBuilder(OptimizationRoute.OpenVino);
-        var factory = new OptimizationBackendCompositionFactory(
+        var factory = A1BackendProductionAuthorities.Shared.CreateOptimizationForValidation(
             root.Path,
             [gguf, openVino],
             TimeProvider.System);
@@ -36,7 +37,7 @@ public sealed class OptimizationBackendCompositionFactoryTests
     public void MissingRouteAuthorityRefusesCompositionWithoutFallback()
     {
         using var root = new TemporaryDirectory();
-        var factory = new OptimizationBackendCompositionFactory(
+        var factory = A1BackendProductionAuthorities.Shared.CreateOptimizationForValidation(
             root.Path,
             [new FakeBuilder(OptimizationRoute.Gguf)],
             TimeProvider.System);
@@ -56,7 +57,7 @@ public sealed class OptimizationBackendCompositionFactoryTests
         using var root = new TemporaryDirectory();
 
         Assert.ThrowsExactly<ArgumentException>(() =>
-            new OptimizationBackendCompositionFactory(
+            A1BackendProductionAuthorities.Shared.CreateOptimizationForValidation(
                 root.Path,
                 [
                     new FakeBuilder(OptimizationRoute.Gguf),

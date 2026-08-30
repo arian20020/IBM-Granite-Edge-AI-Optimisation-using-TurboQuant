@@ -9,6 +9,7 @@ using GraniteEdgeAI.Features.ModelOptimization.Execution.OpenVino;
 using GraniteEdgeAI.Features.ModelOptimization.Storage;
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.Features.ApplicationComposition;
 
 namespace GraniteEdgeAI.Features.ModelOptimization.Journey;
 
@@ -39,7 +40,7 @@ internal sealed class OptimizationBackendCompositionFactory
         _builders;
     private readonly TimeProvider _timeProvider;
 
-    internal OptimizationBackendCompositionFactory(
+    private OptimizationBackendCompositionFactory(
         ModelSourceCustodyRegistry sourceCustody,
         string appRoot,
         GgufOptimizationProductionAuthority? ggufAuthority,
@@ -58,7 +59,7 @@ internal sealed class OptimizationBackendCompositionFactory
     {
     }
 
-    internal OptimizationBackendCompositionFactory(
+    private OptimizationBackendCompositionFactory(
         string appRoot,
         IEnumerable<IOptimizationBackendBuilder> builders,
         TimeProvider timeProvider)
@@ -81,6 +82,35 @@ internal sealed class OptimizationBackendCompositionFactory
             }
         }
         _builders = mapped;
+    }
+
+    internal static OptimizationBackendCompositionFactory CreateForAuthority(
+        object authorityToken,
+        ModelSourceCustodyRegistry sourceCustody,
+        string appRoot,
+        GgufOptimizationProductionAuthority? ggufAuthority,
+        OpenVinoOptimizationProductionAuthority? openVinoAuthority,
+        OpenVinoOptimizationService? openVinoService,
+        TimeProvider? timeProvider = null)
+    {
+        A1BackendProductionAuthorities.AssertAuthorityToken(authorityToken);
+        return new(
+            sourceCustody,
+            appRoot,
+            ggufAuthority,
+            openVinoAuthority,
+            openVinoService,
+            timeProvider);
+    }
+
+    internal static OptimizationBackendCompositionFactory CreateForAuthority(
+        object authorityToken,
+        string appRoot,
+        IEnumerable<IOptimizationBackendBuilder> builders,
+        TimeProvider timeProvider)
+    {
+        A1BackendProductionAuthorities.AssertAuthorityToken(authorityToken);
+        return new(appRoot, builders, timeProvider);
     }
 
     internal bool TryCreate(

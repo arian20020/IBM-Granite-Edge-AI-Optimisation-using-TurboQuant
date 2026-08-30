@@ -1,6 +1,8 @@
 using GraniteEdgeAI.UnitTests.Features.ModelOptimization;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ApplicationComposition;
+using GraniteEdgeAI.Features.GgufRuntime;
+using GraniteEdgeAI.Features.ModelOptimization.Journey;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 using GraniteEdgeAI.UnitTests.Features.GgufRuntime;
@@ -40,12 +42,40 @@ public sealed class A1BackendProductionReachabilityTests
     [TestMethod]
     public void ProductionRegistryRejectsASecondAuthorityCompositionRoute()
     {
-        var registry = new A1BackendAuthorityRegistry();
-        var first = new A1BackendProductionAuthorities(registry);
+        A1BackendProductionAuthorities first =
+            A1BackendProductionAuthorities.Shared;
 
         Assert.AreEqual(4, first.RegistrationCount);
         Assert.ThrowsExactly<InvalidOperationException>(() =>
-            new A1BackendProductionAuthorities(registry));
+            A1BackendProductionAuthorities.CreateAdditionalRouteForValidation());
+        Assert.AreEqual(4, first.RegistrationCount);
+    }
+
+    [TestMethod]
+    public async Task ForgedTokenCannotBypassTheProductionRoot()
+    {
+        object forgedToken = new();
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            CompatibilityEvaluationOrchestrator.CreateForAuthority(
+                forgedToken,
+                new CountingFreshSource(),
+                TimeProvider.System));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            ChatDemoController.CreateInitializedProductionAsync(
+                forgedToken,
+                null!,
+                null!,
+                CancellationToken.None));
+
+        Assert.IsTrue(typeof(CompatibilityEvaluationOrchestrator)
+            .GetConstructors(System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)
+            .All(constructor => constructor.IsPrivate));
+        Assert.IsTrue(typeof(OptimizationBackendCompositionFactory)
+            .GetConstructors(System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)
+            .All(constructor => constructor.IsPrivate));
     }
 
     [TestMethod]
