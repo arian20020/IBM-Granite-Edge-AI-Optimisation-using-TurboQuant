@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.Selection;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
 namespace GraniteEdgeAI.UnitTests;
@@ -29,12 +30,18 @@ public sealed class ModelImportDownloadedModelIntegrationTests
                     "Granite", "granite", "3B", "Q4_K_M", 4, 4096, 3, timestamp)),
                 classifier: new AcceptedGgufClassifier(),
                 modelDownloadCoordinator: coordinator);
-            int requests = 0;
-            page.ModelInspectionRequested += (_, _) => requests++;
+            VerifiedDownloadInspectionReadyEventArgs? ready = null;
+            page.VerifiedDownloadInspectionReady += (_, value) => ready = value;
 
             await coordinator.StartAsync(50, allowMetered: false, CancellationToken.None);
 
-            Assert.AreEqual(1, requests);
+            Assert.IsNotNull(ready);
+            Assert.IsFalse(ready.GetType().GetProperties().Any(property =>
+                property.Name.Contains("Path", StringComparison.OrdinalIgnoreCase)
+                || property.PropertyType == typeof(ModelInspectionRequest)));
+            Assert.IsTrue(page.TryClaimVerifiedDownloadInspection(ready.OperationId, out ModelInspectionRequest? request));
+            Assert.IsNotNull(request);
+            Assert.IsFalse(page.TryClaimVerifiedDownloadInspection(ready.OperationId, out _));
             Assert.IsTrue(page.HasValidatedModel);
             Assert.AreEqual(ModelSelectionRoute.Gguf, page.CurrentRoute);
             Assert.IsFalse(coordinator.TryClaimVerifiedModel(coordinator.State.OperationId!.Value, out _));

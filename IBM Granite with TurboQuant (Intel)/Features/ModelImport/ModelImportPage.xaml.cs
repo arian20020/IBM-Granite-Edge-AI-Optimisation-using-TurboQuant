@@ -42,6 +42,8 @@ namespace GraniteEdgeAI.Features.ModelImport
         private readonly ModelDownloadCoordinator _modelDownloadCoordinator;
         private readonly bool _ownsModelDownloadCoordinator;
         private ModelDownloadOperationId? _automaticDownloadSubmission;
+        private ModelDownloadOperationId? _automaticInspectionOperation;
+        private ModelInspectionRequest? _automaticInspectionRequest;
         private readonly object _navigationRetirementLock = new();
         private Task? _navigationRetirementTask;
         private int _isRetired;
@@ -138,6 +140,7 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         /// Raised when the user requests full inspection of the validated model.
         internal event EventHandler<ModelInspectionRequestedEventArgs>? ModelInspectionRequested;
+        internal event EventHandler<VerifiedDownloadInspectionReadyEventArgs>? VerifiedDownloadInspectionReady;
         internal event EventHandler<OpenVinoInspectionRequestedEventArgs>? OpenVinoInspectionRequested;
         internal event EventHandler<SourceModelConversionRequestedEventArgs>? SourceModelConversionRequested;
 
@@ -487,8 +490,37 @@ namespace GraniteEdgeAI.Features.ModelImport
                 HasValidatedModel &&
                 CurrentRoute == ModelSelectionRoute.Gguf)
             {
-                TryRequestModelInspection();
+                string? selectedPath = SelectedModelPath;
+                ModelQuickScanResult? scan = ValidatedScanResult;
+                if (!string.IsNullOrWhiteSpace(selectedPath) && scan is not null
+                    && ModelInspectionRequestFactory.TryCreate(selectedPath, scan, out ModelInspectionRequest? request)
+                    && request is not null)
+                {
+                    _automaticInspectionOperation = e.OperationId;
+                    _automaticInspectionRequest = request;
+                    VerifiedDownloadInspectionReady?.Invoke(
+                        this, new VerifiedDownloadInspectionReadyEventArgs(e.OperationId, e.DisplayName));
+                }
             }
+        }
+
+        // C0 claims this capability directly from the still-live import page and installs it
+        // into Model Inspection without placing the path-bearing request in an event or Frame parameter.
+        internal bool TryClaimVerifiedDownloadInspection(
+            ModelDownloadOperationId operationId,
+            out ModelInspectionRequest? request)
+        {
+            if (Volatile.Read(ref _isRetired) == 0
+                && _automaticInspectionOperation == operationId
+                && _automaticInspectionRequest is not null)
+            {
+                request = _automaticInspectionRequest;
+                _automaticInspectionOperation = null;
+                _automaticInspectionRequest = null;
+                return true;
+            }
+            request = null;
+            return false;
         }
 
         private async void ModelImportPage_Loaded(object sender, RoutedEventArgs e)
@@ -519,6 +551,8 @@ namespace GraniteEdgeAI.Features.ModelImport
         private void RetireAutomaticDownloadHandoff()
         {
             _automaticDownloadSubmission = null;
+            _automaticInspectionOperation = null;
+            _automaticInspectionRequest = null;
             _modelDownloadCoordinator.RetireAutomaticHandoff();
         }
 

@@ -174,6 +174,8 @@ namespace GraniteEdgeAI.Features.ModelImport
                 }
 
                 Interlocked.Exchange(ref _isRetired, 1);
+                _automaticInspectionOperation = null;
+                _automaticInspectionRequest = null;
                 Loaded -= ModelImportPage_Loaded;
                 _modelDownloadCoordinator.VerifiedModelAvailable -=
                     ModelDownloadCoordinator_VerifiedModelAvailable;
