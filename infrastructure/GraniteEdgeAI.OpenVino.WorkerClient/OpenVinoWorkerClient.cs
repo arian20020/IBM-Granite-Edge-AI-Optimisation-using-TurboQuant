@@ -544,15 +544,12 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         return new string(characters);
     }
 
-    private static IReadOnlyDictionary<string, string?>
+    internal static IReadOnlyDictionary<string, string?>
         CaptureParentEnvironment()
     {
         Dictionary<string, string?> values =
             new(StringComparer.OrdinalIgnoreCase);
-        foreach (string key in new[]
-                 {
-                     "SystemRoot", "WINDIR", "DOTNET_ROOT", "DOTNET_ROOT_X64",
-                 })
+        foreach (string key in new[] { "SystemRoot", "WINDIR" })
         {
             values[key] = Environment.GetEnvironmentVariable(key);
         }

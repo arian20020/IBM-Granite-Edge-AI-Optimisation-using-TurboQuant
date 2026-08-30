@@ -12,6 +12,8 @@ public sealed class OpenVinoWorkerClientTests
 
     private static readonly string[] ConversationLifecycleMethods =
         ["CancelAsync", "CloseAsync", "DisposeAsync", "PromptAsync", "StopAsync"];
+    private static readonly string[] NativeEnvironmentKeys =
+        ["SystemRoot", "WINDIR"];
 
     [TestMethod]
     public void PublicBoundaryExposesInspectionAndManagedSessionOperations()
@@ -120,6 +122,21 @@ public sealed class OpenVinoWorkerClientTests
             };
 
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(relaxed.Validate);
+    }
+
+    [TestMethod]
+    public void NativeWorkerParentCaptureOmitsDotnetRootsAndHostileAuthority()
+    {
+        IReadOnlyDictionary<string, string?> captured =
+            OpenVinoWorkerClient.CaptureParentEnvironment();
+
+        CollectionAssert.AreEquivalent(
+            NativeEnvironmentKeys,
+            captured.Keys.ToArray());
+        Assert.IsFalse(captured.ContainsKey("DOTNET_ROOT"));
+        Assert.IsFalse(captured.ContainsKey("DOTNET_ROOT_X64"));
+        Assert.IsFalse(captured.ContainsKey("PATH"));
+        Assert.IsFalse(captured.ContainsKey("COMSPEC"));
     }
 
     private static OpenVinoBuildEvidence BuildEvidence() => new(
