@@ -66,6 +66,33 @@ public sealed class TrustedToolEnvironmentPolicyTests
             failure.Message.Contains("private-relative-path", StringComparison.Ordinal));
     }
 
+    [TestMethod]
+    public void CreateRejectsExistingDirectoryThatIsNotTheCanonicalWindowsRoot()
+    {
+        Dictionary<string, string?> parent = ValidParent();
+
+        InvalidOperationException failure = Assert.ThrowsExactly<InvalidOperationException>(
+            () => TrustedToolEnvironmentPolicy.Create(parent));
+
+        Assert.AreEqual(
+            "The trusted hardware tool environment could not be secured.",
+            failure.Message);
+    }
+
+    [TestMethod]
+    public void CreateRejectsMismatchedSystemRootAndWindir()
+    {
+        Dictionary<string, string?> parent = ValidParent();
+        parent["SystemRoot"] = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+
+        InvalidOperationException failure = Assert.ThrowsExactly<InvalidOperationException>(
+            () => TrustedToolEnvironmentPolicy.Create(parent));
+
+        Assert.AreEqual(
+            "The trusted hardware tool environment could not be secured.",
+            failure.Message);
+    }
+
     private static Dictionary<string, string?> ValidParent()
     {
         string directory = Path.GetTempPath();
