@@ -286,12 +286,12 @@
                     {
                         "path":  "GgufRuntime/Adapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.dll",
                         "bytes":  51712,
-                        "sha256":  "efc5b914d115756383e543ea17d097d316322a7d3b17f7b578e8ecb4487b1869"
+                        "sha256":  "81b9d3d85ec2e13cf6d8b6872a90df1b73a1972df5408eb83f0de716c030f8c6"
                     },
                     {
                         "path":  "GgufRuntime/Adapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.exe",
                         "bytes":  152064,
-                        "sha256":  "48376bc7c996e3724634e18bd8cd02195afc890822ea08ce052b3d1b0954d938"
+                        "sha256":  "d0f4c4bee0a087a9e3323d66200a8b5ec7fb41483cf3c7492663e76aa315e0f1"
                     },
                     {
                         "path":  "GgufRuntime/Adapter/GraniteEdgeAI.GgufRuntime.NativeAdapter.runtimeconfig.json",
@@ -491,22 +491,22 @@
                     {
                         "path":  "GgufRuntime/runtime-manifest.json",
                         "bytes":  23353,
-                        "sha256":  "985db6a3043fea3c144a85431ee24abf29e7bfac324496cef97bca7f624634f7"
+                        "sha256":  "78fe527ff99d6805a0e2b82d1d90dbe1d8fed0a8b7a8b9c1a7f849ddfef0408a"
                     },
                     {
                         "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Capabilities.dll",
                         "bytes":  26112,
-                        "sha256":  "d7cae21d83eb90c43941ad82fc56b6d57ff54baf9f2d204737ee220019ed8249"
+                        "sha256":  "38769aa5c4bf0fb4c076fc4e628e138e15081a0aacc5caabe1d02da832bc9375"
                     },
                     {
                         "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Contracts.dll",
                         "bytes":  37888,
-                        "sha256":  "0b9f8a3274b0128642382c868d7a6cfc8a5bc89fa33dc22dc9447e3a1bc4eb58"
+                        "sha256":  "4c961287224cbd5e6fd50799d501f490721816cde3566316d0ed9f7232dbdca5"
                     },
                     {
                         "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Transport.dll",
                         "bytes":  23040,
-                        "sha256":  "0ed196dad1840fb49b08a6d326bf3dc426814b03f064d68eb7dd5d65c484dc69"
+                        "sha256":  "00086a657525a364e53503b442533b8e2bb96d8f0e16c72ddc051ddc67610b24"
                     },
                     {
                         "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.deps.json",
@@ -516,12 +516,12 @@
                     {
                         "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.dll",
                         "bytes":  45568,
-                        "sha256":  "3542e37cf030291adabae2b86720c1adab8681eecf0df547f11861a76089a539"
+                        "sha256":  "aeba1d1dce9f0b9a31a417c1bbb3efcd55d770a7bcfedb11b7d4eb88f880d901"
                     },
                     {
                         "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.exe",
                         "bytes":  152064,
-                        "sha256":  "c71e2b24f238faba6d7b4e9ca30a7051a4eea239b5317ac07880b947782a49c1"
+                        "sha256":  "9ee7b7cb63c7d26ae2a228488ed083164af3f4e7e8aa9d5b4f9847380c53e958"
                     },
                     {
                         "path":  "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.runtimeconfig.json",
@@ -541,142 +541,142 @@
                     {
                         "path":  "GraniteEdgeAI.GgufQuantization.Capabilities.dll",
                         "bytes":  11264,
-                        "sha256":  "dd9f964b442a8df1d259f95e0f84b431697146b570d0adc10e3829af94a77cfe"
+                        "sha256":  "2d6f0b785c61f3f4ddbfac7ec561db0ec202b9d9c8c2f1330fae839d38071560"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufQuantization.Capabilities.pdb",
-                        "bytes":  13076,
-                        "sha256":  "f7c64e89ff7c01c167bc257762d4622b5a8a055410425e2053abb6b734236e20"
+                        "bytes":  13072,
+                        "sha256":  "d4c962941fbce6e841e2126baa9c6935ec8d530fe92b00dd8abb86b3ec9df55b"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufQuantization.Contracts.dll",
                         "bytes":  15872,
-                        "sha256":  "42aefa8f0d6227f58efdeaf93011353cb5c1d849c20e74754f5b2e3bf0874456"
+                        "sha256":  "5567c916ce39ffce4342d1f7702367e4f049f9fd76d8c96947dd5a7b2c00afcc"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufQuantization.Contracts.pdb",
                         "bytes":  13272,
-                        "sha256":  "def888c3ba0c28dcc4c95ec5aa471e2585f2f096f392bf983a38a7a9c146af75"
+                        "sha256":  "f35a192f9eeda0de21ed8353a82e32eb974b23f77177c692f10f8b31ba789f42"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufQuantization.WorkerClient.dll",
                         "bytes":  41984,
-                        "sha256":  "8e201fa349390755ace6853eba26ebad316da6c4a72ed7660bb7eab0652a0a54"
+                        "sha256":  "3a0da8cd423ad7ab92211227ef2e17d6a4f4cc7c77a1f4389b9f317c58614ae5"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufQuantization.WorkerClient.pdb",
-                        "bytes":  19448,
-                        "sha256":  "a750a4fd9c083dfa62d77122bdc6ed2302848f5e7ff681f5fcffa578562d38f7"
+                        "bytes":  19444,
+                        "sha256":  "e3a4e6034c28949af9c8dfd2ced9f7afd948e501857c28f8d74da29b1fe0dcf1"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufRuntime.Capabilities.dll",
                         "bytes":  26112,
-                        "sha256":  "7ebea89de949105401a967f32f108f67afe0719c8814291fd9beaa541ab84b8e"
+                        "sha256":  "076fa34bb570d21457fb353250952503338742c0c92c00eb0a39e584162429be"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufRuntime.Capabilities.pdb",
                         "bytes":  16560,
-                        "sha256":  "aa9a38edcadce1291d588e62a05bca8b372c74892d58927d64b32eb44b6bc056"
+                        "sha256":  "bfb64f553bc847303d596936578b0e866a9516bf19c56fd0711ce3dfb9b20256"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufRuntime.Contracts.dll",
                         "bytes":  37888,
-                        "sha256":  "d07752ff9fe4befc58703ce8cf57f9c77525ca62e410a302e0ca969f117f129f"
+                        "sha256":  "90a89643337d2fcd67bb3ba189c4b57683791ffaaeba94de9c1bf28065f2d8bb"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufRuntime.Contracts.pdb",
-                        "bytes":  17156,
-                        "sha256":  "0a63b5ae7c25fc02571edf4fb5f13a809643458c20585037242f49c55fcd9bbe"
+                        "bytes":  17152,
+                        "sha256":  "36da09fb62a1e0b549482bb12977ffd432f0c291856918cd4de2f22b479b1097"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufRuntime.Transport.dll",
                         "bytes":  23040,
-                        "sha256":  "12a3c82e505774cb616ab772375c6abee68b8281a46aeb60985c8270ee34a758"
+                        "sha256":  "e03bf0eca3f3c3ebe4fdcd16ddbb4464924fe1efc0cf1046f1516c546fdf6348"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufRuntime.Transport.pdb",
                         "bytes":  15364,
-                        "sha256":  "3a706e19273d14601e7d1ba017e258f53083d63379897886c68318c51fafefe5"
+                        "sha256":  "cf88df44e846aa411628c1b44cb8650cf5794648a07de10aeeca169ce0999862"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufRuntime.WorkerClient.dll",
                         "bytes":  44032,
-                        "sha256":  "f775a4e1b6826037670e81555e815c47c282ad95fe06095e0b8e9980cdf59c85"
+                        "sha256":  "e64ed3bd1ba1e009ddfd8a6529a0cf864500278816e0d0003f7f8534026749ea"
                     },
                     {
                         "path":  "GraniteEdgeAI.GgufRuntime.WorkerClient.pdb",
                         "bytes":  20844,
-                        "sha256":  "cb13b4e344b98094c27a48bd953954f193d45fd1588c09e958888ce83346c667"
+                        "sha256":  "d3b964243aed3bd7ee75cf3df0f6826bcae81a0c926ffceb5fa36c76caa26bc8"
                     },
                     {
                         "path":  "GraniteEdgeAI.HardwareInspection.Foundation.dll",
-                        "bytes":  142336,
-                        "sha256":  "2c1564edf2d087a5e47fa45ac4a6707b2ce5bdc94167cbf695dcbed15eabc853"
+                        "bytes":  143360,
+                        "sha256":  "a11fd02417b6f7d4b8d40ec6ada5aa05b3cbb71ba980d388dfd94c7f2402c437"
                     },
                     {
                         "path":  "GraniteEdgeAI.HardwareInspection.Foundation.pdb",
-                        "bytes":  48652,
-                        "sha256":  "02adc9a6c0d1e0e37f31650a50941bd4991614ace6606dd9e2d6d71858d3fec5"
+                        "bytes":  48688,
+                        "sha256":  "88266dad1b092c4ccd2dd11ea95cc7234d918c405838b5c6b00573ba7b197d5e"
                     },
                     {
                         "path":  "GraniteEdgeAI.ModelHardwareCompatibility.Core.dll",
                         "bytes":  414720,
-                        "sha256":  "f5d17ed9d2e31d7ce4f41b23f3c778e5b10700e9967b56185e9fa993b24dec31"
+                        "sha256":  "4528f2709959afe06a0eed41fe917706d00b99f2e4dbb8b53e116c45a7c88aad"
                     },
                     {
                         "path":  "GraniteEdgeAI.ModelHardwareCompatibility.Core.pdb",
                         "bytes":  93232,
-                        "sha256":  "d161a6a6a9684127c503231eea38539a89b563b359648f6b794ad82baa130624"
+                        "sha256":  "12c9b3396a20dbc091afa3f0686d0890e26cd80d1e8745a709d4a9f663e28fa8"
                     },
                     {
                         "path":  "GraniteEdgeAI.ModelInspection.Contracts.dll",
                         "bytes":  64000,
-                        "sha256":  "348c82bdd65ea5aea97687f385f7002bc17ff6c41d0a509d51e647c54498dc87"
+                        "sha256":  "0f1f0f373cd077d29154157c72ee24053a53e4109be445c5d2303a14691bc6f8"
                     },
                     {
                         "path":  "GraniteEdgeAI.ModelInspection.Contracts.pdb",
                         "bytes":  23832,
-                        "sha256":  "59d77d0f9f25f9dd294c6c894b94a36532eaf24c589c79e39af57b0e8b51281a"
+                        "sha256":  "868d90f391645a82f93176ab3edb0d1741c2e83cf0131e1de1ef95c33932ee9a"
                     },
                     {
                         "path":  "GraniteEdgeAI.ModelInspection.Transport.dll",
                         "bytes":  13312,
-                        "sha256":  "cc644dade4bef3a8ce6425bd250ba914ef8f3c49015101070c96b77afa1f2ff7"
+                        "sha256":  "dad008fc7a3e42c9d0ad25c98f91eef1103c090692f97c8ba5371ff6f781d983"
                     },
                     {
                         "path":  "GraniteEdgeAI.ModelInspection.Transport.pdb",
                         "bytes":  13468,
-                        "sha256":  "9d672c1ea771252a5f57a68421bb0cd0128989227c2061d6a76ffad33b6495af"
+                        "sha256":  "9a84e224a1b9ac9e08173451fc962aa41a1d8c635eb8188914b30f77e61ae198"
                     },
                     {
                         "path":  "GraniteEdgeAI.ModelInspection.WorkerClient.dll",
                         "bytes":  119296,
-                        "sha256":  "0043a7ded97599305af2f7c537ad544dc5bf37229103898d67c4e2c5a9108733"
+                        "sha256":  "a8bdf9060e99c642aaf4a27932dd867be9b3ca2b2ab8ad116df6f94b73aeec7b"
                     },
                     {
                         "path":  "GraniteEdgeAI.ModelInspection.WorkerClient.pdb",
                         "bytes":  47324,
-                        "sha256":  "97320fdc4bbe26db0231c7fd8d426d1bbd1749f0d79a5058d3e30a273ef9d0cf"
+                        "sha256":  "7d0d93587b2e47737b339ff3ca096b3529617c965d1a3760a08489178afe8da8"
                     },
                     {
                         "path":  "GraniteEdgeAI.OpenVino.Contracts.dll",
                         "bytes":  193536,
-                        "sha256":  "729ac618647766eac73abc4a58bc595a6fe33babac30fdae4218ed984df8c5a4"
+                        "sha256":  "99e7a40867035060ff5b92615b5a47917f66f3df812f5db0f80e6262f0b85678"
                     },
                     {
                         "path":  "GraniteEdgeAI.OpenVino.Contracts.pdb",
                         "bytes":  105804,
-                        "sha256":  "0b0b74578d5e234d411d5af660276349065eaaad4152d3771b6299a0b7281621"
+                        "sha256":  "1535f3ed15e886c979dc8a04e8bd74c415db2ec95bee596e7a23f551a4e79f7d"
                     },
                     {
                         "path":  "GraniteEdgeAI.OpenVino.WorkerClient.dll",
                         "bytes":  85504,
-                        "sha256":  "e43473d01cf8a3c54160f5fe41096db33281c10d7636e7362637b2945137f744"
+                        "sha256":  "0d2ff33fa075cc0379c5e0e6d13b54614133fd520b268280dd36a4c32b22e3a3"
                     },
                     {
                         "path":  "GraniteEdgeAI.OpenVino.WorkerClient.pdb",
-                        "bytes":  28604,
-                        "sha256":  "05500282bcff4f1988f1c94c3bbe58fb64384e25b0dd9e43c2667bd796e2fae3"
+                        "bytes":  28600,
+                        "sha256":  "013933cee004da02e365ecb9347ff73644f6bf1144282f4005c57da95d24c5a4"
                     },
                     {
                         "path":  "HardwareInspection/LlamaCppProbe/ggml.dll",
@@ -695,8 +695,8 @@
                     },
                     {
                         "path":  "HardwareInspection/LlamaCppProbe/GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe",
-                        "bytes":  42311796,
-                        "sha256":  "9e12999057aabc8ce62a78052988b226799e73d9c492226477c227c776fe9771"
+                        "bytes":  42311788,
+                        "sha256":  "05cd5d1ed8f48f8d9dc1651cfc4de1f869d7252cd68ab0d16e03e4fab46928d9"
                     },
                     {
                         "path":  "HardwareInspection/LlamaCppProbe/llama.dll",
@@ -731,7 +731,7 @@
                     {
                         "path":  "HardwareInspection/llamacpp-probe-manifest.json",
                         "bytes":  678,
-                        "sha256":  "4ff0f2b9c5c4bcaf687c290d040fe4ff943c4a8f8b0949b2f7a9d7306adaff52"
+                        "sha256":  "e0697ff60acda12b84d71cc00c0dbab8283a5cdc26ee131a3f0b425bd8a6d134"
                     },
                     {
                         "path":  "IBM Granite with TurboQuant (Intel).build.appxrecipe",
@@ -746,17 +746,17 @@
                     {
                         "path":  "IBM Granite with TurboQuant (Intel).dll",
                         "bytes":  1890304,
-                        "sha256":  "edb456e10ea217c792ff16ccb6d2bf5f59c4083252531621c3aa3369bcdb0238"
+                        "sha256":  "40cc15d4b57d673868cb8a7302fc155eb6415632f4c022d655b318f0761846d1"
                     },
                     {
                         "path":  "IBM Granite with TurboQuant (Intel).exe",
                         "bytes":  152576,
-                        "sha256":  "de37bf200a28e66266004e29979cf151e32dbeee2553db02152c345097a1766c"
+                        "sha256":  "4f2c5319662689ad5c93ef5386ab22cda9b11a1370d98056d677bde41c00429e"
                     },
                     {
                         "path":  "IBM Granite with TurboQuant (Intel).pdb",
                         "bytes":  617332,
-                        "sha256":  "e1b60ac59eb1bc9f7c230af6bf946fcb9f2a713158cacffdb2692285de9e8700"
+                        "sha256":  "4e10a6d8529257b6958d1d1491b7ef5d549042b61578c6d3c34e11114fc5f709"
                     },
                     {
                         "path":  "IBM Granite with TurboQuant (Intel).runtimeconfig.json",
@@ -946,17 +946,17 @@
                     {
                         "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Contracts.dll",
                         "bytes":  64000,
-                        "sha256":  "973e3854617523f0db819f7826518d1f31a7f8a20c2822e154a685b4ba5375e7"
+                        "sha256":  "3110f05afe0821cb89aba9c0d7b35f5358d52d0f00462e51e9330bd94833840b"
                     },
                     {
                         "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.LlamaSharp.dll",
                         "bytes":  96768,
-                        "sha256":  "0c5b8c0491911dcdc6f78053b5a3f694082dc1e099fdccebe5bed216f4ca5346"
+                        "sha256":  "4770cf6e36790d77cbd3e89d05f4f3fa265d504535c1028b2d48b390c75474cd"
                     },
                     {
                         "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Transport.dll",
                         "bytes":  12800,
-                        "sha256":  "ebad884f5ce9ccccb7b2040956bcb59245013c268bc57fdcbd9e1f1282ecd53c"
+                        "sha256":  "ef21a91183939e1a0ea87c06e9c764322e7b713150cace675dbdca8792f9d9c7"
                     },
                     {
                         "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.deps.json",
@@ -966,12 +966,12 @@
                     {
                         "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.dll",
                         "bytes":  46080,
-                        "sha256":  "9a0952bfe3c7f8f12e372c29ce259b9a5414e0637fcecc99b88d96008cfc3059"
+                        "sha256":  "d18deb30ed45be534958fac70be2a103e6254ff11b0c38f57736366369e21a58"
                     },
                     {
                         "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.exe",
                         "bytes":  152064,
-                        "sha256":  "5e20477e799b6eb9979f4ed259d8e8b94138a58fcdf407acada3c6cc9316e6b4"
+                        "sha256":  "37af9df2d45b1e4f47be9a396f6904300898f4743c749ddde7a514748f99379a"
                     },
                     {
                         "path":  "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.runtimeconfig.json",
@@ -1161,7 +1161,7 @@
                     {
                         "path":  "ModelInspection/worker-manifest.json",
                         "bytes":  11473,
-                        "sha256":  "a13e1fae104eb23cab35f20563dccaef160b8a55131b1a303b260bc61fa2389b"
+                        "sha256":  "084083387a645db10e44ef3e419940fefc6194d80694fcf2de38bee6abc1d087"
                     },
                     {
                         "path":  "resources.pri",

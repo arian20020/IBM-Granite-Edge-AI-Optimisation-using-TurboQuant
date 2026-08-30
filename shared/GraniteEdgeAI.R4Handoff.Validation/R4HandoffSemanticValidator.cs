@@ -36,7 +36,7 @@ public static class R4HandoffSemanticValidator
         && TryReadNonNegative(totals, "failed", out int failed)
         && TryReadNonNegative(totals, "skipped", out int skipped)
         && discovered == executed
-        && executed == checked(passed + failed + skipped);
+        && (long)executed == (long)passed + failed + skipped;
 
     private static bool TryReadNonNegative(
         JsonElement parent,

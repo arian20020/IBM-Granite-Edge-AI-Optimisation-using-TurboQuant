@@ -12,7 +12,8 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
     private const int MaximumDepth = 16;
     private const uint FileFlagBackupSemantics = 0x02000000;
     private const uint FileFlagOpenReparsePoint = 0x00200000;
-    private const uint GenericRead = 0x80000000;
+    private const uint DeleteAccess = 0x00010000;
+    private const uint FileReadAttributes = 0x00000080;
     private string? _temporaryDirectory;
     private SafeFileHandle? _directoryCustody;
 
@@ -145,7 +146,7 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
     {
         SafeFileHandle handle = CreateFile(
             directory,
-            GenericRead,
+            DeleteAccess | FileReadAttributes,
             FileShare.Read | FileShare.Write,
             IntPtr.Zero,
             FileMode.Open,
@@ -171,56 +172,25 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
                 return true;
             }
 
-            var pending = new Stack<(string Path, int Depth, bool Visited)>();
-            pending.Push((root, 0, false));
-            int entries = 0;
-            while (pending.Count > 0 && entries <= MaximumEntries)
+            if (custody is null)
             {
-                (string path, int depth, bool visited) = pending.Pop();
-                if (visited)
-                {
-                    if (!string.Equals(path, root, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Directory.Delete(path, recursive: false);
-                    }
+                Directory.Delete(root, recursive: false);
+                return !Directory.Exists(root);
+            }
 
-                    continue;
-                }
+            int entries = 0;
+            if (!TryDeleteDirectoryContents(root, custody, 0, ref entries))
+            {
+                return false;
+            }
 
-                FileAttributes attributes = File.GetAttributes(path);
-                if ((attributes & FileAttributes.ReparsePoint) != 0 || depth > MaximumDepth)
-                {
-                    return false;
-                }
-
-                pending.Push((path, depth, true));
-                foreach (string entry in Directory.EnumerateFileSystemEntries(path))
-                {
-                    if (++entries > MaximumEntries)
-                    {
-                        return false;
-                    }
-
-                    FileAttributes entryAttributes = File.GetAttributes(entry);
-                    if ((entryAttributes & FileAttributes.ReparsePoint) != 0)
-                    {
-                        return false;
-                    }
-
-                    if ((entryAttributes & FileAttributes.Directory) != 0)
-                    {
-                        pending.Push((entry, depth + 1, false));
-                    }
-                    else
-                    {
-                        File.Delete(entry);
-                    }
-                }
+            if (!MarkForDeletion(custody))
+            {
+                return false;
             }
 
             custody?.Dispose();
             custody = null;
-            Directory.Delete(root, recursive: false);
             return !Directory.Exists(root);
         }
         catch (Exception error) when (
@@ -234,6 +204,72 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
         }
     }
 
+    private static bool TryDeleteDirectoryContents(
+        string directory,
+        SafeFileHandle directoryCustody,
+        int depth,
+        ref int entries)
+    {
+        foreach (string entry in Directory.EnumerateFileSystemEntries(directory))
+        {
+            if (++entries > MaximumEntries)
+            {
+                return false;
+            }
+
+            using SafeFileHandle child = OpenEntryCustody(entry);
+            if (!GetFileInformationByHandle(child, out ByHandleFileInformation information)
+                || (information.FileAttributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return false;
+            }
+
+            if ((information.FileAttributes & FileAttributes.Directory) != 0
+                && (depth >= MaximumDepth
+                    || !TryDeleteDirectoryContents(entry, child, depth + 1, ref entries)))
+            {
+                return false;
+            }
+
+            if (!MarkForDeletion(child))
+            {
+                return false;
+            }
+        }
+
+        GC.KeepAlive(directoryCustody);
+        return true;
+    }
+
+    private static SafeFileHandle OpenEntryCustody(string entry)
+    {
+        SafeFileHandle handle = CreateFile(
+            entry,
+            DeleteAccess | FileReadAttributes,
+            FileShare.Read | FileShare.Write,
+            IntPtr.Zero,
+            FileMode.Open,
+            FileFlagBackupSemantics | FileFlagOpenReparsePoint,
+            IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            handle.Dispose();
+            throw Failure();
+        }
+
+        return handle;
+    }
+
+    private static bool MarkForDeletion(SafeFileHandle handle)
+    {
+        var disposition = new FileDispositionInformation { DeleteFile = true };
+        return SetFileInformationByHandle(
+            handle,
+            FileInformationClass.FileDispositionInfo,
+            ref disposition,
+            (uint)Marshal.SizeOf<FileDispositionInformation>());
+    }
+
     [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode,
         SetLastError = true)]
     private static extern SafeFileHandle CreateFile(
@@ -244,6 +280,47 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
         FileMode creationDisposition,
         uint flagsAndAttributes,
         IntPtr templateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandle(
+        SafeFileHandle file,
+        out ByHandleFileInformation information);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetFileInformationByHandle(
+        SafeFileHandle file,
+        FileInformationClass informationClass,
+        ref FileDispositionInformation information,
+        uint bufferSize);
+
+    private enum FileInformationClass
+    {
+        FileDispositionInfo = 4,
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FileDispositionInformation
+    {
+        [MarshalAs(UnmanagedType.Bool)]
+        public bool DeleteFile;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ByHandleFileInformation
+    {
+        public FileAttributes FileAttributes;
+        public System.Runtime.InteropServices.ComTypes.FILETIME CreationTime;
+        public System.Runtime.InteropServices.ComTypes.FILETIME LastAccessTime;
+        public System.Runtime.InteropServices.ComTypes.FILETIME LastWriteTime;
+        public uint VolumeSerialNumber;
+        public uint FileSizeHigh;
+        public uint FileSizeLow;
+        public uint NumberOfLinks;
+        public uint FileIndexHigh;
+        public uint FileIndexLow;
+    }
 
     private static InvalidOperationException Failure() => new(
         "The trusted hardware tool environment could not be secured.");

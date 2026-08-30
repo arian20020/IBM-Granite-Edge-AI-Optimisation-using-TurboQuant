@@ -37,6 +37,12 @@ public sealed class R4SchemaContractTests
         badArithmetic["testTotals"]!["passed"] = 6;
         Assert.IsFalse(R4HandoffSemanticValidator.HasValidReceiptArithmetic(
             JsonSerializer.SerializeToElement(badArithmetic)));
+
+        JsonObject overflowArithmetic = (JsonObject)valid.DeepClone();
+        overflowArithmetic["testTotals"]!["passed"] = int.MaxValue;
+        overflowArithmetic["testTotals"]!["failed"] = int.MaxValue;
+        Assert.IsFalse(R4HandoffSemanticValidator.HasValidReceiptArithmetic(
+            JsonSerializer.SerializeToElement(overflowArithmetic)));
     }
 
     [TestMethod]

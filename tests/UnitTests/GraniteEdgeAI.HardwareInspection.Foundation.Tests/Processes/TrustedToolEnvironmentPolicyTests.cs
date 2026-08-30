@@ -185,6 +185,70 @@ public sealed class TrustedToolEnvironmentPolicyTests
         }
     }
 
+    [TestMethod]
+    public void OperationEnvironmentDeletesNestedFilesUnderStableDirectoryCustody()
+    {
+        TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        string operationDirectory = operation.Variables["TEMP"];
+        string childDirectory = Path.Combine(operationDirectory, "child");
+        Directory.CreateDirectory(childDirectory);
+        File.WriteAllText(Path.Combine(childDirectory, "sentinel.txt"), "retain");
+        try
+        {
+            operation.Dispose();
+
+            Assert.IsTrue(operation.CleanupSucceeded);
+            Assert.IsFalse(Directory.Exists(operationDirectory));
+        }
+        finally
+        {
+            operation.Dispose();
+            if (Directory.Exists(operationDirectory))
+            {
+                Directory.Delete(operationDirectory, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void OperationEnvironmentRejectsChildDirectoryReparseWithoutFollowingTarget()
+    {
+        TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        string operationDirectory = operation.Variables["TEMP"];
+        string externalDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "geai-s1-cleanup-target-" + Guid.NewGuid().ToString("N"));
+        string sentinel = Path.Combine(externalDirectory, "sentinel.txt");
+        string link = Path.Combine(operationDirectory, "child-link");
+        Directory.CreateDirectory(externalDirectory);
+        File.WriteAllText(sentinel, "retain");
+        Directory.CreateSymbolicLink(link, externalDirectory);
+        try
+        {
+            operation.Dispose();
+
+            Assert.IsFalse(operation.CleanupSucceeded);
+            Assert.IsTrue(File.Exists(sentinel));
+        }
+        finally
+        {
+            operation.Dispose();
+            if (Directory.Exists(link))
+            {
+                Directory.Delete(link);
+            }
+
+            if (Directory.Exists(operationDirectory))
+            {
+                Directory.Delete(operationDirectory, recursive: true);
+            }
+
+            Directory.Delete(externalDirectory, recursive: true);
+        }
+    }
+
     private static Dictionary<string, string?> ValidParent()
     {
         string windowsDirectory =
