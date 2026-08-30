@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "workerId": "S1",
+  "configuration": "Release",
+  "platform": "x64",
+  "managedBuild": {
+    "status": "passed",
+    "fileCount": 240,
+    "publishReadyToRun": false,
+    "nativePackageInputsIncluded": false
+  },
+  "strongestPackageGate": {
+    "status": "blocked",
+    "blockers": [
+      "GgufQuantizerStageDirectory is required when GGUF quantizer packaging is enabled.",
+      "OpenVinoOfficialWorkerStageDirectory is required for x64 builds."
+    ]
+  },
+  "allowedCapabilityNames": [
+    "internetClient",
+    "runFullTrust",
+    "systemAIModels"
+  ],
+  "observedCapabilityNames": [
+    "internetClient",
+    "runFullTrust",
+    "systemAIModels"
+  ],
+  "allowedWorkerIdentities": [
+    "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.dll",
+    "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.exe",
+    "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.dll",
+    "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.exe"
+  ],
+  "observedWorkerIdentities": [
+    "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.dll",
+    "GgufRuntime/Worker/GraniteEdgeAI.GgufRuntime.Worker.exe",
+    "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.dll",
+    "ModelInspection/Worker/GraniteEdgeAI.ModelInspection.Worker.exe"
+  ],
+  "forbiddenClassCounts": {
+    "unresolvedMsbuildExpressionFilename": 0,
+    "rawTrx": 0,
+    "dump": 0,
+    "modelAsset": 0,
+    "privateEvidence": 0,
+    "duplicateWorkerIdentity": 0
+  },
+  "differences": [
+    {
+      "code": "S1-PACKAGE-DEBUG-FIXTURE-XBF",
+      "severity": "important",
+      "owner": "C0",
+      "path": "Features/ModelOptimization/DebugFixtures/OptimizationFixtureGalleryPage.xbf",
+      "disposition": "apply-checkable removal from Release package closure required during integration"
+    },
+    {
+      "code": "S1-PACKAGE-NATIVE-STAGES-ABSENT",
+      "severity": "external-block",
+      "owner": "C0/E1",
+      "path": null,
+      "disposition": "no signed/native/package acceptance claim; rerun with exact verified stage roots and hashes"
+    }
+  ]
+}
