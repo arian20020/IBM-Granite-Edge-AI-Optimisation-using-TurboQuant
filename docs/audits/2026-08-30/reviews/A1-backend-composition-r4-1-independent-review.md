@@ -1,6 +1,7 @@
 # A1 R4.1 independent review
 
-Reviewer task: `/root/r4_1_independent_review`  
+Reviewer task: `/root/r4_1_independent_review`
+
 Mode: independent, read-only; no reviewer edits, commits, merges, or pushes.
 
 ## Final reviewed identities

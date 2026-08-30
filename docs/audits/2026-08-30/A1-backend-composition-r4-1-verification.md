@@ -1,8 +1,11 @@
 # A1 R4.1 subject-bound verification ledger
 
-Implementation subject: `7dbf42bd3a72ba8b11c8342ad0abb150e0268c3d`  
-Tree: `bf3c1da94688e50b673d660ff0b79a459ac26755`  
-External manifest: `C:\UCL-AUDIT-HANDOFFS\R4-A1-R4-1\7dbf42bd3a72ba8b11c8342ad0abb150e0268c3d\EVIDENCE-MANIFEST.json`  
+Implementation subject: `7dbf42bd3a72ba8b11c8342ad0abb150e0268c3d`
+
+Tree: `bf3c1da94688e50b673d660ff0b79a459ac26755`
+
+External manifest: `C:\UCL-AUDIT-HANDOFFS\R4-A1-R4-1\7dbf42bd3a72ba8b11c8342ad0abb150e0268c3d\EVIDENCE-MANIFEST.json`
+
 Manifest SHA-256/bytes: `c04f43b177e6eadfa88f84702070b0d5c73cd66354e6e770f1fe0a276b9749e1` / 21,372
 
 All raw TRX/build logs were parsed outside Git and then overwritten with privacy-safe tombstones. The manifest hashes the 19 sanitized records, not raw machine-bearing output.
