@@ -93,4 +93,3 @@ hardware suites, Debug x64 builds, evaluated fixture/package matrices, privacy
 and duplicate scans, `git diff --check`, and a bounded exact-app smoke. Native
 and performance acceptance are explicitly not claimed on this development
 machine.
-

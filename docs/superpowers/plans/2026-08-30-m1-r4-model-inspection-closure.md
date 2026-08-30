@@ -102,4 +102,3 @@
 - [ ] Create the evidence manifest against the supplied R4 v2 schema, hashing the finalized report and binding the subject.
 - [ ] Create the receipt against the supplied R4 v2 schema, hashing the report/manifest and binding the same subject.
 - [ ] Commit durable artifacts, verify clean status, push `audit/ucl-m1-model-inspection-remediation-r4`, and independently prove remote equality, ancestry, and exact report/manifest/receipt blobs.
-
