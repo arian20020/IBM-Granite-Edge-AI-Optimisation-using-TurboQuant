@@ -26,6 +26,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
     }
 
     internal event Action<OptimizationCommand>? ActionRequested;
+    internal event EventHandler<OptimizationExportViewState>? ExportStateChanged;
     internal string PrimaryActionText => DestinationCore.VisibleActionTexts[0];
     internal string SecondaryActionText => DestinationCore.VisibleActionTexts[1];
     internal OptimizationExportViewState ExportState => _exportController?.State ?? OptimizationExportViewState.Unbound();
@@ -117,6 +118,7 @@ public sealed partial class OptimizationDestinationCard : UserControl
     private void ExportController_StateChanged(object? sender, OptimizationExportViewState state)
     {
         if (sender is not OptimizationExportController controller || !ReferenceEquals(controller, _exportController)) return;
+        ExportStateChanged?.Invoke(this, state);
         DispatcherQueue dispatcher = DispatcherQueue;
         if (!dispatcher.HasThreadAccess)
         {
@@ -153,8 +155,9 @@ public sealed partial class OptimizationDestinationCard : UserControl
         if (_exportController is not null)
         {
             _exportController.StateChanged -= ExportController_StateChanged;
+            Task retirement = _exportController.RetireAsync();
             _detachedCleanup = Task.WhenAll(_detachedCleanup, _exportController.CleanupReconciliation);
-            _detachedOperations = Task.WhenAll(_detachedOperations, _exportController.RetireAsync());
+            _detachedOperations = Task.WhenAll(_detachedOperations, retirement);
             _exportController = null;
         }
         ExportStatusText.Text = OptimizationExportViewState.Unbound().StatusText;

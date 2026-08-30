@@ -304,6 +304,27 @@ public sealed class OptimizationExportControllerTests
     }
 
     [TestMethod]
+    public async Task PromptCancellationAndPromptProviderFaultStillClearCleanupGate()
+    {
+        var service = new ControlledExportService();
+        var controller = new OptimizationExportController(service, TimeSpan.FromSeconds(1));
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.IsTrue(controller.TryCancel());
+        service.Fault();
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () => await operation);
+        await controller.CleanupReconciliation.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.IsFalse(controller.IsCleanupPending);
+        Assert.AreEqual(OptimizationExportStateKind.Failed, controller.State.Kind);
+        Assert.AreEqual(OptimizationExportFailure.None, controller.State.Failure);
+        controller.Bind(Target());
+        Assert.AreEqual(OptimizationExportStateKind.Ready, controller.State.Kind);
+    }
+
+    [TestMethod]
     public async Task DelayedSuccessfulCleanupReconcilesToRetryableCancellation()
     {
         using var release = new ManualResetEventSlim(false);
@@ -447,6 +468,7 @@ public sealed class OptimizationExportControllerTests
         public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken)
         { CallCount++; LastTarget = target; Started.TrySetResult(); return _completion.Task; }
         internal void Complete(OptimizationExportResult result) => _completion.SetResult(result);
+        internal void Fault() => _completion.SetException(new InvalidOperationException(FaultThenSuccessService.PrivateFault));
     }
 
     private sealed class BlockingCancellationExportService(ManualResetEventSlim release, bool throwAfterRelease = false) : IOptimizationExportService

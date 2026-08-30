@@ -193,20 +193,30 @@ internal sealed class OptimizationExportController
         lock (_gate)
         {
             if (_retirementTask is not null) return _retirementTask;
+            VerifiedPersistentExportTarget? target = _target;
             _retired = true; _target = null; _state = OptimizationExportViewState.Unbound();
-            _retirementTask = RetireCoreAsync(
-                _activeCancellation,
-                _activeTask ?? Task.CompletedTask,
-                _cleanupReconciliation,
-                _activeGeneration);
+            if (_activeCancellation is not null
+                && _activeGeneration is long active
+                && _cleanupPendingGeneration != active
+                && target is not null)
+            {
+                _cancelledGeneration = active;
+                _cleanupPendingGeneration = active;
+                Task cancellationObservation = RequestCancellation(_activeCancellation, active);
+                _cleanupReconciliation = PublishCancellationTimeoutAsync(
+                    active,
+                    target,
+                    cancellationObservation,
+                    _activeTask ?? Task.CompletedTask);
+            }
+            _retirementTask = RetireCoreAsync(_cleanupReconciliation);
             return _retirementTask;
         }
     }
 
-    private async Task RetireCoreAsync(CancellationTokenSource? cancellation, Task activeTask, Task cleanupReconciliation, long? generation)
+    private async Task RetireCoreAsync(Task cleanupReconciliation)
     {
-        if (cancellation is not null && generation is long active) _ = RequestCancellation(cancellation, active);
-        try { await Task.WhenAll(activeTask, cleanupReconciliation).WaitAsync(_retirementTimeout).ConfigureAwait(false); }
+        try { await cleanupReconciliation.WaitAsync(_retirementTimeout).ConfigureAwait(false); }
         catch (TimeoutException) { Trace.TraceWarning("Optimization-export retirement detached after its five-second cleanup boundary."); }
         catch (Exception exception) { Trace.TraceWarning("Optimization-export retirement observed a settled {0} operation.", exception.GetType().Name); }
     }
@@ -308,7 +318,12 @@ internal sealed class OptimizationExportController
     {
         bool timedOut = false;
         Task cleanup = Task.WhenAll(cancellationObservation, activeTask);
-        try { await cleanup.WaitAsync(_retirementTimeout).ConfigureAwait(false); }
+        bool cleanupSettled = false;
+        try
+        {
+            await cleanup.WaitAsync(_retirementTimeout).ConfigureAwait(false);
+            cleanupSettled = true;
+        }
         catch (TimeoutException)
         {
             timedOut = true;
@@ -324,11 +339,17 @@ internal sealed class OptimizationExportController
             }
             if (failed is not null) PublishState(failed);
         }
-        try { await cleanup.ConfigureAwait(false); }
         catch (Exception exception)
         {
+            cleanupSettled = true;
             Trace.TraceWarning("Optimization-export cleanup reconciliation observed {0}.", exception.GetType().Name);
         }
+        if (!cleanupSettled)
+            try { await cleanup.ConfigureAwait(false); }
+            catch (Exception exception)
+            {
+                Trace.TraceWarning("Optimization-export cleanup reconciliation observed {0}.", exception.GetType().Name);
+            }
         OptimizationExportViewState? reconciled = null;
         lock (_gate)
         {

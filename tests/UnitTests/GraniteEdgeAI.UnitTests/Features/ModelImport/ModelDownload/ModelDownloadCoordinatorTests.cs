@@ -535,6 +535,30 @@ public sealed class ModelDownloadCoordinatorTests
         Assert.AreNotEqual(cancelledOperation, coordinator.State.OperationId);
     }
 
+    [TestMethod]
+    public async Task InactiveInterruptedDiscardBlocksConcurrentResumeAndStart()
+    {
+        var service = new BlockingDiscardDownloadService();
+        var coordinator = new ModelDownloadCoordinator(
+            service,
+            new FakeNetworkPolicy(ModelDownloadConnectionKind.Offline));
+        await coordinator.StartAsync(50, false, CancellationToken.None);
+        Assert.AreEqual(ModelDownloadStage.Interrupted, coordinator.State.Stage);
+        Task discard = coordinator.CancelAsync(true, CancellationToken.None);
+        await service.DiscardStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.ResumeAsync(false, CancellationToken.None));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            coordinator.StartAsync(65, false, CancellationToken.None));
+
+        service.ReleaseDiscard.TrySetResult();
+        await discard.WaitAsync(TimeSpan.FromSeconds(1));
+        ModelDownloadOperationId discardedOperation = coordinator.State.OperationId!.Value;
+        await coordinator.StartAsync(65, false, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreNotEqual(discardedOperation, coordinator.State.OperationId);
+    }
+
     private sealed class FakeNetworkPolicy(ModelDownloadConnectionKind kind) : IModelDownloadNetworkPolicy
     {
         public ModelDownloadConnectionKind GetCurrentConnectionKind() => kind;

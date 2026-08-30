@@ -159,6 +159,33 @@ public sealed class OptimizationDestinationCardTests
     }
 
     [UITestMethod]
+    public async Task ClearingRunningExportCreatesDetachedCleanupGateBeforeRebind()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var card = new OptimizationDestinationCard();
+        OptimizationPresentationState presentation = PersistentPresentation();
+        var service = new BlockingCancellationExportService(release);
+        card.Apply(presentation);
+        VerifiedPersistentExportTarget target = Target(presentation.OptimizationPlanId);
+        Assert.IsTrue(card.BindVerifiedExport(target, service, TimeSpan.FromMilliseconds(50)));
+        Task<bool> operation = card.TryStartExportAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        card.ClearExportBinding();
+        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        service.Complete(OptimizationExportResult.Cancelled());
+        card.Apply(presentation);
+        await card.DetachedOperations.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsFalse(card.DetachedCleanup.IsCompleted);
+        Assert.IsFalse(card.BindVerifiedExport(target, new ImmediateExportService()));
+
+        release.Set();
+        Assert.IsTrue(await operation.WaitAsync(TimeSpan.FromSeconds(1)));
+        await card.DetachedCleanup.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsTrue(card.BindVerifiedExport(target, new ImmediateExportService()));
+    }
+
+    [UITestMethod]
     public void ExportControlsHaveStableAccessibleSemantics()
     {
         OptimizationDestinationCard card = new();
@@ -200,9 +227,18 @@ public sealed class OptimizationDestinationCardTests
         OptimizationDestinationCard card,
         Func<OptimizationExportViewState, bool> predicate)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-        while (!predicate(card.ExportState))
-            await Task.Delay(10, timeout.Token);
+        if (predicate(card.ExportState)) return;
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<OptimizationExportViewState>? handler = null;
+        handler = (_, state) =>
+        {
+            if (!predicate(state)) return;
+            card.ExportStateChanged -= handler;
+            completion.TrySetResult();
+        };
+        card.ExportStateChanged += handler;
+        handler!(card, card.ExportState);
+        await completion.Task.WaitAsync(TimeSpan.FromSeconds(1));
     }
 
     private sealed class ImmediateExportService : IOptimizationExportService
