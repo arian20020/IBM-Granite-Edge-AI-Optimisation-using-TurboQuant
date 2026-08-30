@@ -85,8 +85,18 @@ internal static class FixtureProgram
 
         if (scenario == "stderr-overflow")
         {
+            byte[] hostile = Encoding.UTF8.GetBytes(
+                "C:/Users/private/model.gguf host=private-host " +
+                "username=private-user provider=private-provider token=secret\n");
+            byte[] outputBytes = new byte[16 * 1024];
+            for (int offset = 0; offset < outputBytes.Length; offset += hostile.Length)
+            {
+                hostile.AsSpan(0, Math.Min(hostile.Length, outputBytes.Length - offset))
+                    .CopyTo(outputBytes.AsSpan(offset));
+            }
+
             await Console.OpenStandardError()
-                .WriteAsync(new byte[16 * 1024])
+                .WriteAsync(outputBytes)
                 .ConfigureAwait(false);
             await WriteRawAsync(output, Encoding.UTF8.GetBytes("{\n"))
                 .ConfigureAwait(false);

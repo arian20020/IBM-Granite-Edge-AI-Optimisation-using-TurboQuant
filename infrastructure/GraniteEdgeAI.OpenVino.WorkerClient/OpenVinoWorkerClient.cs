@@ -628,24 +628,8 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         return new OpenVinoWorkerClientException(
             mapped.SupportCode,
             mapped.Message,
-            SanitizeDiagnostic(stderr?.RetainedText ?? string.Empty),
-            stderr?.IsTruncated ?? false);
-    }
-
-    private static string SanitizeDiagnostic(string value)
-    {
-        char[] characters = value.ToCharArray();
-        for (int index = 0; index < characters.Length; index++)
-        {
-            char character = characters[index];
-            if (char.IsControl(character) &&
-                character is not '\r' and not '\n' and not '\t')
-            {
-                characters[index] = ' ';
-            }
-        }
-
-        return new string(characters);
+            retainedStandardError: string.Empty,
+            standardErrorTruncated: stderr?.IsTruncated ?? false);
     }
 
     internal static IReadOnlyDictionary<string, string?>
