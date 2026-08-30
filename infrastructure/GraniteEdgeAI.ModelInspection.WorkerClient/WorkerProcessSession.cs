@@ -160,7 +160,8 @@ internal sealed class WorkerProcessSession : IAsyncDisposable
             throw new WorkerClientPolicyException(
                 new WorkerClientFailure(
                     WorkerClientFailureCodes.WorkerCleanupFailed,
-                    "The Model Inspection worker process tree could not be fully verified during cleanup."));
+                    "The Model Inspection worker process tree could not be fully verified during cleanup."),
+                new CleanupIntegrityException(outcome.Failures, null));
         }
     }
 

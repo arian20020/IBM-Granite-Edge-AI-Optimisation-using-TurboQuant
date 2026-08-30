@@ -26,6 +26,11 @@ if (File.Exists(source + ".fail"))
 if (File.Exists(source + ".noise"))
 {
     Console.Write(new string('N', 5000));
+    await Console.Out.FlushAsync();
+    if (File.Exists(source + ".hang-after-noise"))
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan);
+    }
 }
 
 await using FileStream input = new(source, FileMode.Open, FileAccess.Read, FileShare.Read);

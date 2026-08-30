@@ -370,6 +370,12 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
 
             ulong entryBytes = ((ulong)information.FileSizeHigh << 32) |
                 information.FileSizeLow;
+            if ((information.FileAttributes & FileAttributes.Directory) == 0 &&
+                !HasOnlyDefaultDataStream(entry))
+            {
+                return false;
+            }
+
             bytes = checked(bytes + entryBytes);
             if (bytes > MaximumBytes)
             {
@@ -404,7 +410,7 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
         SafeFileHandle handle = CreateFile(
             entry,
             DeleteAccess | FileReadAttributes,
-            FileShare.Read | FileShare.Write,
+            FileShare.Read,
             IntPtr.Zero,
             FileMode.Open,
             FileFlagBackupSemantics | FileFlagOpenReparsePoint,
@@ -416,6 +422,37 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
         }
 
         return handle;
+    }
+
+    private static bool HasOnlyDefaultDataStream(string path)
+    {
+        IntPtr search = FindFirstStream(
+            path,
+            StreamInfoLevels.FindStreamInfoStandard,
+            out Win32FindStreamData data,
+            0);
+        if (search == InvalidHandleValue)
+        {
+            return Marshal.GetLastPInvokeError() == ErrorHandleEof;
+        }
+
+        try
+        {
+            do
+            {
+                if (!string.Equals(data.StreamName, "::$DATA", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+            while (FindNextStream(search, out data));
+
+            return Marshal.GetLastPInvokeError() == ErrorHandleEof;
+        }
+        finally
+        {
+            _ = FindClose(search);
+        }
     }
 
     private static bool MarkForDeletion(SafeFileHandle handle)
@@ -460,6 +497,42 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
         FileInformationClass informationClass,
         ref FileDispositionInformation information,
         uint bufferSize);
+
+    [DllImport("kernel32.dll", EntryPoint = "FindFirstStreamW",
+        CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr FindFirstStream(
+        string fileName,
+        StreamInfoLevels informationLevel,
+        out Win32FindStreamData data,
+        uint flags);
+
+    [DllImport("kernel32.dll", EntryPoint = "FindNextStreamW",
+        CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FindNextStream(
+        IntPtr findStream,
+        out Win32FindStreamData data);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FindClose(IntPtr findFile);
+
+    private const int ErrorHandleEof = 38;
+    private static readonly IntPtr InvalidHandleValue = new(-1);
+
+    private enum StreamInfoLevels
+    {
+        FindStreamInfoStandard = 0,
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct Win32FindStreamData
+    {
+        internal long StreamSize;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 296)]
+        internal string StreamName;
+    }
 
     private enum FileInformationClass
     {

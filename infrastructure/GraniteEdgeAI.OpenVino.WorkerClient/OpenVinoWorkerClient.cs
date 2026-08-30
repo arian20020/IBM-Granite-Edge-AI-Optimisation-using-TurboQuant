@@ -63,6 +63,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         TrustedToolOperationEnvironment? operationEnvironment = null;
         IOpenVinoEvent? result = null;
         OpenVinoWorkerClientException? mappedFailure = null;
+        Exception? controlledPrimary = null;
         Exception? unexpectedFailure = null;
         CleanupOutcome? cleanupOutcome = null;
         try
@@ -106,6 +107,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         }
         catch (Exception error) when (IsControlled(error))
         {
+            controlledPrimary = error;
             mappedFailure = await ConvertFailureAsync(
                     error,
                     session,
@@ -128,7 +130,14 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
 
         if (!cleanupOutcome.Succeeded)
         {
-            throw RuntimeFailure(mappedFailure ?? unexpectedFailure);
+            Exception integrity = CleanupIntegrityException.PreserveCancellation(
+                cleanupOutcome.Failures,
+                controlledPrimary ?? unexpectedFailure);
+            if (integrity is OperationCanceledException cancellation)
+            {
+                throw cancellation;
+            }
+            throw RuntimeFailure(integrity);
         }
 
         if (mappedFailure is not null)
@@ -156,6 +165,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         TrustedToolOperationEnvironment? operationEnvironment = null;
         OpenVinoConversation? result = null;
         OpenVinoWorkerClientException? mappedFailure = null;
+        Exception? controlledPrimary = null;
         Exception? unexpectedFailure = null;
         CleanupOutcome? cleanupOutcome = null;
         try
@@ -216,6 +226,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         }
         catch (Exception error) when (IsControlled(error))
         {
+            controlledPrimary = error;
             mappedFailure = await ConvertFailureAsync(
                     error,
                     session,
@@ -238,7 +249,14 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
 
         if (!cleanupOutcome.Succeeded)
         {
-            throw RuntimeFailure(mappedFailure ?? unexpectedFailure);
+            Exception integrity = CleanupIntegrityException.PreserveCancellation(
+                cleanupOutcome.Failures,
+                controlledPrimary ?? unexpectedFailure);
+            if (integrity is OperationCanceledException cancellation)
+            {
+                throw cancellation;
+            }
+            throw RuntimeFailure(integrity);
         }
 
         if (mappedFailure is not null)
@@ -295,7 +313,9 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                 .ConfigureAwait(false);
             if (!cleanup.Succeeded)
             {
-                throw RuntimeFailure(primaryFailure);
+                throw RuntimeFailure(new CleanupIntegrityException(
+                    cleanup.Failures,
+                    primaryFailure));
             }
 
             throw;

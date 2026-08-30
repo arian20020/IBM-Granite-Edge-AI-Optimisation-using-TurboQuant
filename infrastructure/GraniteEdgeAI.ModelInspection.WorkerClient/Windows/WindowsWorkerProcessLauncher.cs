@@ -49,14 +49,19 @@ internal static class WindowsWorkerProcessLauncher
         bool processWasCreated = false;
         BoundedCleanupCoordinator cleanup = new(
             Sync(OwnedCleanupStage.StandardInput, () => standardInput?.Dispose()),
-            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, () =>
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
             {
                 if (processWasCreated && job is not null)
                 {
                     job.Terminate(exitCode: 1);
+                    if (!await job.WaitUntilEmptyAsync(
+                            TimeSpan.FromSeconds(5),
+                            CancellationToken.None).ConfigureAwait(false))
+                    {
+                        throw new TimeoutException(
+                            "The Model Inspection launch Job did not become empty.");
+                    }
                 }
-
-                return ValueTask.CompletedTask;
             }),
             Sync(OwnedCleanupStage.StandardOutput, () => standardOutput?.Dispose()),
             Sync(OwnedCleanupStage.StandardError, () => standardError?.Dispose()),
@@ -395,7 +400,7 @@ internal static class WindowsWorkerProcessLauncher
                 new WorkerClientFailure(
                     WorkerClientFailureCodes.WorkerCleanupFailed,
                     "The Model Inspection worker launch cleanup could not be verified."),
-                primaryFailure);
+                new CleanupIntegrityException(outcome.Failures, primaryFailure));
         }
     }
 

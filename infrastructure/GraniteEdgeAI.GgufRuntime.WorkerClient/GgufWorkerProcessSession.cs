@@ -90,7 +90,8 @@ internal sealed class GgufWorkerProcessSession : IAsyncDisposable
         {
             throw new GgufWorkerPolicyException(
                 "worker-cleanup-failed",
-                "The GGUF runtime worker cleanup could not be verified.");
+                "The GGUF runtime worker cleanup could not be verified.",
+                new CleanupIntegrityException(outcome.Failures, null));
         }
     }
 

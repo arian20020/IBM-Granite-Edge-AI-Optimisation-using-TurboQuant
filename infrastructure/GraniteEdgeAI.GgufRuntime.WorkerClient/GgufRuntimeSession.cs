@@ -156,10 +156,18 @@ public sealed class GgufRuntimeSession : IAsyncDisposable
         CleanupOutcome cleanup = await _cleanup.ExecuteAsync().ConfigureAwait(false);
         if (!cleanup.Succeeded)
         {
+            Exception integrity = CleanupIntegrityException.PreserveCancellation(
+                cleanup.Failures,
+                primaryFailure);
+            if (integrity is OperationCanceledException cancellation)
+            {
+                throw cancellation;
+            }
+
             throw new GgufWorkerPolicyException(
                 "worker-cleanup-failed",
                 "The GGUF runtime worker cleanup could not be verified.",
-                primaryFailure);
+                integrity);
         }
 
         if (primaryFailure is not null)

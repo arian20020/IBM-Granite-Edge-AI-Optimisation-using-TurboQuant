@@ -246,6 +246,60 @@ public sealed class TrustedToolEnvironmentPolicyTests
     }
 
     [TestMethod]
+    public void OperationEnvironmentRejectsNamedAlternateDataStream()
+    {
+        TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        string operationDirectory = operation.Variables["TEMP"];
+        string file = Path.Combine(operationDirectory, "payload.tmp");
+        File.WriteAllText(file, "default");
+        File.WriteAllText(file + ":private", "named-stream");
+        try
+        {
+            operation.Dispose();
+
+            Assert.IsFalse(operation.CleanupSucceeded);
+            Assert.IsTrue(File.Exists(file));
+        }
+        finally
+        {
+            operation.Dispose();
+            if (Directory.Exists(operationDirectory))
+            {
+                Directory.Delete(operationDirectory, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void OperationEnvironmentFailsClosedBeyondMaximumCleanupDepth()
+    {
+        TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        string operationDirectory = operation.Variables["TEMP"];
+        string current = operationDirectory;
+        for (int depth = 0; depth < 18; depth++)
+        {
+            current = Directory.CreateDirectory(Path.Combine(current, "d")).FullName;
+        }
+
+        try
+        {
+            operation.Dispose();
+            Assert.IsFalse(operation.CleanupSucceeded);
+            Assert.IsTrue(Directory.Exists(operationDirectory));
+        }
+        finally
+        {
+            operation.Dispose();
+            if (Directory.Exists(operationDirectory))
+            {
+                Directory.Delete(operationDirectory, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public void OperationEnvironmentRetainsDirectoryCustodyUntilDisposed()
     {
         using TrustedToolOperationEnvironment operation =

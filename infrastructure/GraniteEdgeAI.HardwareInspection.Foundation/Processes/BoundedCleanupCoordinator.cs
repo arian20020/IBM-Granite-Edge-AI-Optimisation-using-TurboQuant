@@ -41,6 +41,32 @@ internal sealed class CleanupOutcome
     internal bool Succeeded => Failures.Count == 0;
 }
 
+internal sealed class CleanupIntegrityException : InvalidOperationException
+{
+    internal CleanupIntegrityException(
+        IReadOnlyList<CleanupFailureFact> failures,
+        Exception? primaryFailure)
+        : base("Cleanup integrity could not be verified.", primaryFailure)
+    {
+        Failures = failures.Take(16).ToArray();
+    }
+
+    internal IReadOnlyList<CleanupFailureFact> Failures { get; }
+
+    internal static Exception PreserveCancellation(
+        IReadOnlyList<CleanupFailureFact> failures,
+        Exception? primaryFailure)
+    {
+        var integrity = new CleanupIntegrityException(failures, primaryFailure);
+        return primaryFailure is OperationCanceledException cancellation
+            ? new OperationCanceledException(
+                "The operation was cancelled and cleanup integrity failed.",
+                integrity,
+                cancellation.CancellationToken)
+            : integrity;
+    }
+}
+
 internal readonly record struct OwnedCleanupAction(
     OwnedCleanupStage Stage,
     Func<ValueTask> ExecuteAsync);

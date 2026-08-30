@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
@@ -110,6 +111,23 @@ internal sealed class GgufWorkerJob : IDisposable
                 Marshal.GetLastPInvokeError(),
                 "The GGUF worker Job could not be terminated.");
         }
+    }
+
+    internal async Task<bool> WaitUntilEmptyAsync(TimeSpan timeout)
+    {
+        long started = Stopwatch.GetTimestamp();
+        while (ActiveProcessCount != 0)
+        {
+            TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
+            if (elapsed >= timeout)
+            {
+                return false;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(25)).ConfigureAwait(false);
+        }
+
+        return true;
     }
 
     public void Dispose()

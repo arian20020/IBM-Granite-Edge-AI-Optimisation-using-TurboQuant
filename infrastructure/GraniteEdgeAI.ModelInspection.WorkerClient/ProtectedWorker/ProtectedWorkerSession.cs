@@ -86,9 +86,11 @@ public sealed class ProtectedWorkerSession : IAsyncDisposable
         CleanupOutcome outcome = await _cleanup.ExecuteAsync().ConfigureAwait(false);
         if (!outcome.Succeeded)
         {
-            throw WorkerClientPolicyException.For(
-                WorkerClientFailureCodes.WorkerCleanupFailed,
-                "The protected worker cleanup could not be verified.");
+            throw new WorkerClientPolicyException(
+                new WorkerClientFailure(
+                    WorkerClientFailureCodes.WorkerCleanupFailed,
+                    "The protected worker cleanup could not be verified."),
+                new CleanupIntegrityException(outcome.Failures, null));
         }
     }
 }

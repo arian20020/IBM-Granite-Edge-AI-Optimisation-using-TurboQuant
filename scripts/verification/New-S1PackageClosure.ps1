@@ -10,7 +10,7 @@ param(
     [string]$Configuration = 'Release',
     [string]$Platform = 'x64',
     [string]$RuntimeIdentifier = 'win-x64',
-    [string]$PreviousClosureFile,
+    [Parameter(Mandatory = $true)][string]$PreviousClosureFile,
     [string]$ActualPackageFile,
     [string[]]$Blocker = @()
 )
@@ -56,38 +56,26 @@ function Assert-NoPrivateContent([string]$Path) {
     }
 }
 
-function Test-ContainsBytes([string]$Path, [byte[]]$Needle) {
-    $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-    try {
-        $buffer = [byte[]]::new(1048576)
-        $tail = [byte[]]::new(0)
-        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
-            $chunk = [byte[]]::new($tail.Length + $read)
-            if ($tail.Length -gt 0) { [Array]::Copy($tail, 0, $chunk, 0, $tail.Length) }
-            [Array]::Copy($buffer, 0, $chunk, $tail.Length, $read)
-            if ([Text.Encoding]::ASCII.GetString($chunk).IndexOf(
-                    [Text.Encoding]::ASCII.GetString($Needle),
-                    [StringComparison]::Ordinal) -ge 0) { return $true }
-            $tailLength = [Math]::Min($Needle.Length - 1, $chunk.Length)
-            $tail = [byte[]]::new($tailLength)
-            [Array]::Copy($chunk, $chunk.Length - $tailLength, $tail, 0, $tailLength)
-        }
-        return $false
-    }
-    finally {
-        $stream.Dispose()
-    }
-}
-
 function Get-AllowlistReason([string]$TargetPath) {
+    if ($TargetPath.EndsWith('.runtimeconfig.json', [StringComparison]::OrdinalIgnoreCase)) {
+        return 'managed-runtime-configuration'
+    }
+    if ($TargetPath.EndsWith('.deps.json', [StringComparison]::OrdinalIgnoreCase)) {
+        return 'managed-dependency-closure'
+    }
     $extension = [IO.Path]::GetExtension($TargetPath).ToLowerInvariant()
     switch ($extension) {
-        '.exe' { return 'first-party-or-approved-runtime-executable' }
-        '.dll' { return 'first-party-or-approved-runtime-library' }
+        '.exe' { return 'explicitly-approved-runtime-executable' }
+        '.dll' {
+            $filename = [IO.Path]::GetFileName($TargetPath)
+            if ($filename.StartsWith('GraniteEdgeAI.', [StringComparison]::Ordinal) -or
+                $filename -eq 'IBM Granite with TurboQuant (Intel).dll') {
+                return 'first-party-managed-assembly'
+            }
+            return 'explicitly-approved-third-party-runtime-library'
+        }
         '.winmd' { return 'approved-runtime-metadata' }
         '.json' { return 'runtime-or-closure-configuration' }
-        '.runtimeconfig.json' { return 'managed-runtime-configuration' }
-        '.deps.json' { return 'managed-dependency-closure' }
         '.xbf' { return 'compiled-production-ui' }
         '.pri' { return 'compiled-production-resources' }
         '.xml' { return 'package-or-runtime-metadata' }
@@ -108,12 +96,22 @@ Assert-CanonicalGitIdentity 'ImplementationSubjectCommit' $ImplementationSubject
 Assert-CanonicalGitIdentity 'ImplementationSubjectTree' $ImplementationSubjectTree
 Assert-CanonicalGitIdentity 'BaseCommit' $BaseCommit
 Assert-CanonicalGitIdentity 'BaseTree' $BaseTree
-$ImplementationSubjectCommitBytes = [Text.Encoding]::ASCII.GetBytes($ImplementationSubjectCommit)
 if ($BuildCommandIdentity -cnotmatch '^[a-z0-9][a-z0-9._:-]{0,127}$') {
     throw 'BuildCommandIdentity is not sanitized.'
 }
 if (-not (Test-Path -LiteralPath $EvaluatedMembershipFile -PathType Leaf)) {
     throw 'The evaluated AppX membership input is unavailable.'
+}
+if (-not (Test-Path -LiteralPath $PreviousClosureFile -PathType Leaf)) {
+    throw 'The explicit prior package allowlist is unavailable.'
+}
+$previous = Get-Content -LiteralPath $PreviousClosureFile -Raw | ConvertFrom-Json
+$previousPaths = @($previous.entries | ForEach-Object { [string]$_.path })
+$approvedPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+foreach ($approvedPath in $previousPaths) {
+    if (-not $approvedPaths.Add($approvedPath)) {
+        throw 'The explicit prior package allowlist contains a duplicate path.'
+    }
 }
 
 $forbidden = '(?i)(^|/)(debugfixtures?|tests?|evidence|models?|credentials?|secrets?|tokens?|proxies?)(/|$)|\.pdb$|\.appxrecipe$|\.build\.appxrecipe$|\.trx$|\.dmp$|\.dump$'
@@ -130,6 +128,7 @@ foreach ($line in [IO.File]::ReadAllLines((Resolve-Path -LiteralPath $EvaluatedM
         $target.Contains('$(') -or
         $target.Split('/') -contains '..' -or
         $target -match $forbidden -or
+        -not $approvedPaths.Contains($target) -or
         -not $seen.Add($target)) {
         throw 'Evaluated package membership failed closed policy.'
     }
@@ -139,10 +138,6 @@ foreach ($line in [IO.File]::ReadAllLines((Resolve-Path -LiteralPath $EvaluatedM
     }
     $file = Get-Item -LiteralPath $source
     Assert-NoPrivateContent $source
-    if ($target -match '(?i)(^|/)(?:GraniteEdgeAI\.|IBM Granite with TurboQuant \(Intel\)\.).*\.dll$' -and
-        -not (Test-ContainsBytes $source $ImplementationSubjectCommitBytes)) {
-        throw 'First-party package member does not bind to the implementation subject.'
-    }
     $entries.Add([ordered]@{
         path = $target
         bytes = [long]$file.Length
@@ -153,10 +148,12 @@ foreach ($line in [IO.File]::ReadAllLines((Resolve-Path -LiteralPath $EvaluatedM
 if ($entries.Count -eq 0) { throw 'Evaluated AppX membership was empty.' }
 $entries = @($entries | Sort-Object -Property path)
 
-$previousPaths = @()
-if ($PreviousClosureFile -and (Test-Path -LiteralPath $PreviousClosureFile -PathType Leaf)) {
-    $previous = Get-Content -LiteralPath $PreviousClosureFile -Raw | ConvertFrom-Json
-    $previousPaths = @($previous.entries | ForEach-Object { [string]$_.path })
+$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+$validatorProject = Join-Path $repositoryRoot 'tools\GraniteEdgeAI.R4Handoff.Validator\GraniteEdgeAI.R4Handoff.Validator.csproj'
+& dotnet run --project $validatorProject --configuration Release --no-restore -- `
+    assembly-membership ([IO.Path]::GetFullPath($EvaluatedMembershipFile)) $ImplementationSubjectCommit
+if ($LASTEXITCODE -ne 0) {
+    throw 'First-party package member does not bind to the implementation subject.'
 }
 $currentPaths = @($entries | ForEach-Object { [string]$_.path })
 $actualPackage = $null

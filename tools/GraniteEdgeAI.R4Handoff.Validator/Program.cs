@@ -10,6 +10,11 @@ internal static class Program
 
     public static int Main(string[] args)
     {
+        if (args.Length == 3 && args[0] == "assembly-membership")
+        {
+            return ValidateAssemblyMembership(args[1], args[2]);
+        }
+
         if (args.Length != 3
             || (args[0] != "receipt" && args[0] != "evidence"))
         {
@@ -46,6 +51,48 @@ internal static class Program
             or ArgumentException)
         {
             Console.Error.WriteLine("R4 handoff validation failed.");
+            return 1;
+        }
+    }
+
+    private static int ValidateAssemblyMembership(string membershipPath, string subject)
+    {
+        try
+        {
+            foreach (string line in File.ReadLines(membershipPath))
+            {
+                string[] parts = line.Split('|', 2);
+                if (parts.Length != 2)
+                {
+                    return 1;
+                }
+
+                string target = parts[0].Replace('\\', '/');
+                string filename = Path.GetFileName(target);
+                bool firstPartyAssembly = target.EndsWith(
+                        ".dll",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    (filename.StartsWith("GraniteEdgeAI.", StringComparison.Ordinal) ||
+                     filename.Equals(
+                         "IBM Granite with TurboQuant (Intel).dll",
+                         StringComparison.Ordinal));
+                if (firstPartyAssembly &&
+                    !AssemblyRepositoryIdentityVerifier.HasExactSubject(parts[1], subject))
+                {
+                    Console.Error.WriteLine(
+                        "First-party assembly identity validation failed.");
+                    return 1;
+                }
+            }
+
+            Console.WriteLine("First-party assembly identity validation passed.");
+            return 0;
+        }
+        catch (Exception error) when (
+            error is IOException or UnauthorizedAccessException or BadImageFormatException or
+                InvalidOperationException or ArgumentException)
+        {
+            Console.Error.WriteLine("First-party assembly identity validation failed.");
             return 1;
         }
     }

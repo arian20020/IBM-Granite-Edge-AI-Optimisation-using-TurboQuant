@@ -6,6 +6,33 @@ namespace GraniteEdgeAI.HardwareInspection.Foundation.Tests.Processes;
 public sealed class BoundedCleanupCoordinatorTests
 {
     [TestMethod]
+    public void CleanupIntegrityPreservesExactCancellationTokenAndTypedFacts()
+    {
+        using var source = new CancellationTokenSource();
+        source.Cancel();
+        CleanupOutcome outcome = new([
+            new CleanupFailureFact(
+                OwnedCleanupStage.ProcessTree,
+                CleanupFailureKind.Timeout),
+            new CleanupFailureFact(
+                OwnedCleanupStage.OperationEnvironment,
+                CleanupFailureKind.Access)]);
+
+        var cancellation = (OperationCanceledException)
+            CleanupIntegrityException.PreserveCancellation(
+                outcome.Failures,
+                new OperationCanceledException(source.Token));
+
+        Assert.AreEqual(source.Token, cancellation.CancellationToken);
+        var integrity = (CleanupIntegrityException)cancellation.InnerException!;
+        Assert.AreEqual(2, integrity.Failures.Count);
+        Assert.AreEqual(OwnedCleanupStage.ProcessTree, integrity.Failures[0].Stage);
+        Assert.AreEqual(
+            OwnedCleanupStage.OperationEnvironment,
+            integrity.Failures[1].Stage);
+    }
+
+    [TestMethod]
     public async Task EveryStageRunsExactlyOnceWhenEarlierStagesThrow()
     {
         int[] calls = new int[4];

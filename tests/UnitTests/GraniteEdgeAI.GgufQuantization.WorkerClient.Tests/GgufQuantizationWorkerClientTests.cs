@@ -186,6 +186,32 @@ public sealed class GgufQuantizationWorkerClientTests
     }
 
     [TestMethod]
+    public async Task OversizedOutputImmediatelyTerminatesChildThatWouldOtherwiseHang()
+    {
+        using var fixture = new QuantizerFixture();
+        File.WriteAllText(fixture.FakeNoiseMarker, "noise");
+        File.WriteAllText(fixture.FakeHangAfterNoiseMarker, "hang");
+        VerifiedGgufQuantizerPackage package =
+            GgufQuantizerPackageVerifier.Verify(fixture.Stage, fixture.ManifestSha256);
+        using GgufQuantizationFileLease lease = GgufQuantizationFileLease.Create(
+            fixture.SourcePath, fixture.SourceSha256, fixture.SourceLength,
+            fixture.OutputPath);
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+
+        GgufQuantizationEvent result = await new GgufQuantizationWorkerClient(
+            TimeSpan.FromSeconds(30)).ExecuteAsync(
+                Command(GgufQuantizationFormat.F16, GgufQuantizationFormat.Q4KM, null,
+                    fixture.ManifestSha256),
+                package,
+                lease,
+                CancellationToken.None);
+
+        Assert.AreEqual(GgufQuantizationSupportCode.ProtocolViolation, result.SupportCode);
+        Assert.IsTrue(elapsed.Elapsed < TimeSpan.FromSeconds(15));
+        Assert.IsFalse(File.Exists(fixture.OutputPath));
+    }
+
+    [TestMethod]
     public void PackageVerifierRejectsDuplicateJsonProperties()
     {
         using var fixture = new QuantizerFixture();
@@ -439,6 +465,7 @@ public sealed class GgufQuantizationWorkerClientTests
             FakeDelayMarker = SourcePath + ".delay";
             FakeFailureMarker = SourcePath + ".fail";
             FakeNoiseMarker = SourcePath + ".noise";
+            FakeHangAfterNoiseMarker = SourcePath + ".hang-after-noise";
             File.WriteAllBytes(SourcePath, [1, 2, 3, 4]);
             SourceSha256 = Sha(SourcePath);
             SourceLength = (ulong)new FileInfo(SourcePath).Length;
@@ -452,6 +479,7 @@ public sealed class GgufQuantizationWorkerClientTests
         internal string FakeDelayMarker { get; }
         internal string FakeFailureMarker { get; }
         internal string FakeNoiseMarker { get; }
+        internal string FakeHangAfterNoiseMarker { get; }
         internal string SourceSha256 { get; }
         internal ulong SourceLength { get; }
         internal string ManifestSha256 { get; private set; } = string.Empty;

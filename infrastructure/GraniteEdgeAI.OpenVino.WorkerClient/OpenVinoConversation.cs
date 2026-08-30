@@ -491,7 +491,10 @@ public sealed class OpenVinoConversation : IAsyncDisposable
 
         if (!cleanupOutcome.Succeeded)
         {
-            throw OpenVinoWorkerClient.RuntimeFailure(primaryFailure);
+            throw OpenVinoWorkerClient.RuntimeFailure(
+                new CleanupIntegrityException(
+                    cleanupOutcome.Failures,
+                    primaryFailure));
         }
 
         if (primaryFailure is not null)

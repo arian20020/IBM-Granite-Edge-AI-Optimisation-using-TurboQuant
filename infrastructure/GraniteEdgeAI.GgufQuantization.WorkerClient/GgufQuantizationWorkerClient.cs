@@ -54,20 +54,19 @@ public sealed class GgufQuantizationWorkerClient
             return Failed(command, GgufQuantizationSupportCode.ProcessFailed, 0);
         }
 
-        if (!WindowsSuspendedProcess.TryStart(
+        if (!WindowsSuspendedProcess.TryStartWithOutcome(
                 package.ExecutablePath,
                 BuildArguments(command, lease.SourcePath, lease.OutputPath),
                 Path.GetDirectoryName(lease.OutputPath)!,
                 operationEnvironment,
                 job,
                 out WindowsSuspendedProcess? launched,
-                out bool startCleanupSucceeded))
+                out CleanupOutcome startCleanup))
         {
             job.Dispose();
-            if (!startCleanupSucceeded)
+            if (!startCleanup.Succeeded)
             {
-                throw new InvalidOperationException(
-                    "The GGUF quantizer startup cleanup could not be verified.");
+                throw new QuantizerCleanupException(startCleanup.Failures, null);
             }
 
             return Failed(command, GgufQuantizationSupportCode.ProcessFailed, 0);
@@ -84,11 +83,22 @@ public sealed class GgufQuantizationWorkerClient
                 running.StandardOutput, package.StandardOutputMaximumBytes, linked.Token);
             Task error = DrainBoundedAsync(
                 running.StandardError, package.StandardErrorMaximumBytes, linked.Token);
-            await Task.WhenAll(
-                    running.Process.WaitForExitAsync(linked.Token),
-                    output,
-                    error)
+            Task processExit = running.Process.WaitForExitAsync(linked.Token);
+            Task firstTerminal = await Task.WhenAny(processExit, output, error)
                 .ConfigureAwait(false);
+            if (firstTerminal == output)
+            {
+                // A bounded drain fault is terminal. Observe it immediately so
+                // cleanup terminates the contained tree rather than waiting for
+                // the process-wide timeout.
+                await output.ConfigureAwait(false);
+            }
+            else if (firstTerminal == error)
+            {
+                await error.ConfigureAwait(false);
+            }
+
+            await Task.WhenAll(processExit, output, error).ConfigureAwait(false);
 
             if (!running.TryGetExitCode(out int exitCode) || exitCode != 0)
             {
@@ -132,6 +142,7 @@ public sealed class GgufQuantizationWorkerClient
         }
         catch (InvalidDataException)
         {
+            await linked.CancelAsync().ConfigureAwait(false);
             result = Failed(command, GgufQuantizationSupportCode.ProtocolViolation, 0);
         }
         catch (Exception error)

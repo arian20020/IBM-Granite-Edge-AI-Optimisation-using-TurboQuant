@@ -27,14 +27,18 @@ internal static class GgufWorkerProcessLauncher
         bool processCreated = false;
         BoundedCleanupCoordinator cleanup = new(
             Sync(OwnedCleanupStage.StandardInput, () => standardInput?.Dispose()),
-            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, () =>
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
             {
                 if (processCreated && job is not null)
                 {
                     job.Terminate();
+                    if (!await job.WaitUntilEmptyAsync(TimeSpan.FromSeconds(5))
+                            .ConfigureAwait(false))
+                    {
+                        throw new TimeoutException(
+                            "The GGUF launch Job did not become empty.");
+                    }
                 }
-
-                return ValueTask.CompletedTask;
             }),
             Sync(OwnedCleanupStage.StandardOutput, () => standardOutput?.Dispose()),
             Sync(OwnedCleanupStage.StandardError, () => standardError?.Dispose()),
@@ -149,7 +153,7 @@ internal static class GgufWorkerProcessLauncher
             throw new GgufWorkerPolicyException(
                 "worker-cleanup-failed",
                 "The GGUF runtime worker launch cleanup could not be verified.",
-                primaryFailure);
+                new CleanupIntegrityException(outcome.Failures, primaryFailure));
         }
     }
 
