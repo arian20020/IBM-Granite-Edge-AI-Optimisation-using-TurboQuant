@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "workerId": "A1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "baseCommit": "3c2cccbf77e5acf1ebf673c78f57e35a08950450",
+  "baseTree": "47ed8e9b751e3ad5e3d24943a447a2c4b0b32c0b",
+  "branch": "audit/ucl-a1-remediation-r4",
+  "implementationSubjectCommit": "4db647ac038c3cd691b219cf29e0ec02965dfdb0",
+  "implementationSubjectTree": "9a68aa4d0cc9b4dd690310dce8943dd04312cd75",
+  "worktreeCleanAtHandoff": true,
+  "completedAtUtc": "2026-08-30T04:57:17Z",
+  "report": {
+    "path": "docs/audits/2026-08-30/A1-backend-composition-r4.md",
+    "sha256": "db0d05f24d8f73bd06504e28a3fc9507014bd79e14cc5b8ff8c563eb87c3bfcd",
+    "bytes": 15669
+  },
+  "transport": "remote",
+  "remoteRef": "refs/remotes/origin/audit/ucl-a1-remediation-r4",
+  "bundle": null,
+  "evidenceManifest": null,
+  "testTotals": {
+    "discovered": 1507,
+    "executed": 1507,
+    "passed": 1485,
+    "failed": 22,
+    "skipped": 0
+  },
+  "nativeDisposition": "blocked"
+}
