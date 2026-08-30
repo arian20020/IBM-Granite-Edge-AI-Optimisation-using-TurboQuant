@@ -3,28 +3,28 @@
   "workerId": "T1",
   "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
   "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
-  "baseCommit": "af799e8ba62bd4528568ab9ddcf72d82da762ca1",
-  "baseTree": "5b6d13707fbceb351ef161f72f220786d463d667",
-  "branch": "test/ucl-t1-cross-feature-remediation-r4-1",
-  "implementationSubjectCommit": "6f6d774681a735c67c655598e95cd8b9310cf015",
-  "implementationSubjectTree": "3cfeed36bd0cdedf8e3b9274684f4c765a808cee",
+  "baseCommit": "027a9d9f9348546b0bc7d4f4f23005e9c0ec30ca",
+  "baseTree": "87c90f613eb716806d15fed6e5e67367e7f4707b",
+  "branch": "test/ucl-t1-cross-feature-remediation-r4-2",
+  "implementationSubjectCommit": "9b3bffefdd5f337803a52b938b141d8a56063f99",
+  "implementationSubjectTree": "0ceb829d73d3eb1483ee4b87d491806ac9306720",
   "worktreeCleanAtHandoff": true,
-  "completedAtUtc": "2026-08-30T16:05:01Z",
+  "completedAtUtc": "2026-08-30T17:55:15Z",
   "report": {
-    "path": "docs/audits/2026-08-30/T1-cross-feature-integration-r4-1.md",
-    "sha256": "cf6dacd10770fd4f6977173293f46fc14be385e90feb737f79c7bbc3d0d7d16d",
-    "bytes": 26084
+    "path": "docs/audits/2026-08-30/T1-cross-feature-integration-r4-2.md",
+    "sha256": "92208a289df2cb73eef9b9f9880d6497567747785bd362896469e1f08639acfa",
+    "bytes": 16491
   },
   "transport": "remote",
-  "remoteRef": "refs/remotes/origin/test/ucl-t1-cross-feature-remediation-r4-1",
+  "remoteRef": "refs/remotes/origin/test/ucl-t1-cross-feature-remediation-r4-2",
   "bundle": null,
   "evidenceManifest": null,
   "testTotals": {
-    "discovered": 2181,
-    "executed": 2181,
-    "passed": 2142,
-    "failed": 32,
-    "skipped": 7
+    "discovered": 143,
+    "executed": 143,
+    "passed": 133,
+    "failed": 10,
+    "skipped": 0
   },
   "nativeDisposition": "blocked"
 }
