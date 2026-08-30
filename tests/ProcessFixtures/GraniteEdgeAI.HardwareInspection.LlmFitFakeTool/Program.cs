@@ -114,12 +114,23 @@ static bool EnvironmentIsClosed()
         "DOTNET_EnableDiagnostics_Debugger",
         "DOTNET_EnableDiagnostics_Profiler",
     ];
+    string? temporaryDirectory = Environment.GetEnvironmentVariable("TEMP");
+    string? secondaryTemporaryDirectory = Environment.GetEnvironmentVariable("TMP");
     return rejected.All(name => Environment.GetEnvironmentVariable(name) is null)
         && disabledDiagnostics.All(name =>
             string.Equals(
                 Environment.GetEnvironmentVariable(name),
                 "0",
-                StringComparison.Ordinal));
+                StringComparison.Ordinal))
+        && !string.IsNullOrWhiteSpace(temporaryDirectory)
+        && string.Equals(
+            temporaryDirectory,
+            secondaryTemporaryDirectory,
+            StringComparison.OrdinalIgnoreCase)
+        && Path.GetFileName(temporaryDirectory).StartsWith(
+            "operation-",
+            StringComparison.Ordinal)
+        && Directory.Exists(temporaryDirectory);
 }
 
 static int WriteSuccess()

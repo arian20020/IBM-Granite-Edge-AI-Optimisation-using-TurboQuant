@@ -15,9 +15,17 @@ public sealed class ExternalProcessEnvironmentSecurityTests
     public async Task VerifiedTrustedToolReceivesClosedEnvironmentWithoutParentSecretsOrPath()
     {
         string? previous = Environment.GetEnvironmentVariable(Sentinel);
+        string? previousTemp = Environment.GetEnvironmentVariable("TEMP");
+        string? previousTmp = Environment.GetEnvironmentVariable("TMP");
+        string poisonedTemp = Path.Combine(
+            Path.GetTempPath(),
+            "geai-s1-poisoned-parent-temp-" + Guid.NewGuid().ToString("N"));
         try
         {
+            Directory.CreateDirectory(poisonedTemp);
             Environment.SetEnvironmentVariable(Sentinel, "credential-shaped-parent-value");
+            Environment.SetEnvironmentVariable("TEMP", poisonedTemp);
+            Environment.SetEnvironmentVariable("TMP", poisonedTemp);
             using var package = new VerifiedEnvironmentToolPackage();
 
             ExternalProcessResult result = await new ExternalProcessRunner().RunAsync(
@@ -38,6 +46,9 @@ public sealed class ExternalProcessEnvironmentSecurityTests
         finally
         {
             Environment.SetEnvironmentVariable(Sentinel, previous);
+            Environment.SetEnvironmentVariable("TEMP", previousTemp);
+            Environment.SetEnvironmentVariable("TMP", previousTmp);
+            Directory.Delete(poisonedTemp, recursive: true);
         }
     }
 
