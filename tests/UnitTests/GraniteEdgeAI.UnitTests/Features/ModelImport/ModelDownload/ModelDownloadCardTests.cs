@@ -183,6 +183,7 @@ public sealed class ModelDownloadCardTests
             var button = (Button)card.FindName("DownloadModelButton");
             Assert.IsFalse(button.IsEnabled);
             Assert.AreEqual("Cleanup pending", button.Content);
+            Assert.AreEqual("Model download cleanup in progress", AutomationProperties.GetName(button));
         }
         finally { release.Set(); }
     }

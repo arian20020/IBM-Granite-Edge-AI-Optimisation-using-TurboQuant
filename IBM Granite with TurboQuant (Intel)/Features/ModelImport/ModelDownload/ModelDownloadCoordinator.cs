@@ -44,10 +44,12 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     private bool _automaticHandoffRetired;
     private bool _cancellationFailed;
     private ModelDownloadOperationId? _cancellationRequestedOperation;
+    private ModelDownloadOperationId? _cancellationPendingOperation;
     private CancellationTokenSource? _recoveryCancellation;
     private TaskCompletionSource? _recoveryCompletion;
     private bool _disposed;
     private Task? _retirementTask;
+    private Task _cancellationReconciliation = Task.CompletedTask;
 
     internal ModelDownloadCoordinator(
         IModelDownloadService service,
@@ -66,6 +68,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     internal ModelDownloadCoordinatorState State { get; private set; }
     internal event EventHandler<ModelDownloadCoordinatorState>? StateChanged;
     internal event EventHandler<VerifiedModelAvailableEventArgs>? VerifiedModelAvailable;
+    internal Task CancellationReconciliation => _cancellationReconciliation;
 
     internal async Task RecoverAsync(CancellationToken cancellationToken)
     {
@@ -135,7 +138,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         lock (_sync)
         {
             ThrowIfDisposed();
-            if (_activeCancellation is not null)
+            if (_activeCancellation is not null || _cancellationPendingOperation is not null)
             {
                 throw new InvalidOperationException("A model download is already active.");
             }
@@ -150,6 +153,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             _automaticHandoffRetired = false;
             _cancellationFailed = false;
             _cancellationRequestedOperation = null;
+            _cancellationPendingOperation = null;
             started = new(operationId, ModelDownloadStage.Preparing,
                 entry.PreferenceLabel, entry.Quantisation, entry.DownloadSizeText,
                 0, entry.ExpectedByteLength, null);
@@ -183,11 +187,14 @@ internal sealed class ModelDownloadCoordinator : IDisposable
 
             bool cancellationFailed;
             bool cancellationWon;
+            bool cancellationPending;
             lock (_sync)
             {
                 cancellationFailed = _cancellationFailed;
                 cancellationWon = _cancellationRequestedOperation == operationId;
+                cancellationPending = _cancellationPendingOperation == operationId;
             }
+            if (cancellationPending) return;
             ModelDownloadStage stage = cancellationFailed
                 ? ModelDownloadStage.Failed
                 : cancellationWon
@@ -201,7 +208,8 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             Publish(operationId, entry, stage,
                 result.VerifiedModel?.ByteLength ?? State.DownloadedBytes,
                 cancellationFailed ? "download-cancellation-cleanup-failed"
-                    : cancellationWon ? "download-cancelled" : result.ErrorCode);
+                    : cancellationWon ? "download-cancelled" : result.ErrorCode,
+                allowAfterCancellation: true);
 
             if (result.VerifiedModel is not null && stage == ModelDownloadStage.Completed)
             {
@@ -267,7 +275,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             if (discardPartial && State.Stage == ModelDownloadStage.Interrupted)
             {
                 await _service.DiscardPartialAsync(entry, cancellationToken);
-                Publish(operationId.Value, entry, ModelDownloadStage.Interrupted, 0, "download-cancelled-discarded");
+                Publish(operationId.Value, entry, ModelDownloadStage.Interrupted, 0, "download-cancelled-discarded", allowAfterCancellation: true);
             }
             return;
         }
@@ -278,11 +286,12 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             cancelling = State with { ErrorCode = "download-cancelling" };
             State = cancelling;
         }
-        Task<bool> cancellationRequest = RequestCancellation(active);
         lock (_sync)
         {
             _cancellationRequestedOperation = operationId;
+            _cancellationPendingOperation = operationId;
         }
+        Task<bool> cancellationRequest = RequestCancellation(active);
         PublishState(cancelling);
         bool quiesced = false;
         try
@@ -294,7 +303,11 @@ internal sealed class ModelDownloadCoordinator : IDisposable
         }
         catch (TimeoutException)
         {
-            lock (_sync) _cancellationFailed = true;
+            lock (_sync)
+            {
+                _cancellationFailed = true;
+                _cancellationPendingOperation = operationId;
+            }
             Trace.TraceWarning("Model-download cancellation detached after its five-second cleanup boundary.");
         }
         if (discardPartial && quiesced)
@@ -304,6 +317,7 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             lock (_sync)
             {
                 cancellationFailed = _cancellationFailed;
+                _cancellationPendingOperation = null;
             }
             ModelDownloadCoordinatorState cancelled = new(
                 operationId,
@@ -327,10 +341,16 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             ModelDownloadCoordinatorState failed = cancelling with
             {
                 Stage = ModelDownloadStage.Failed,
-                ErrorCode = "download-cancellation-cleanup-failed"
+                ErrorCode = "download-cancellation-cleanup-pending"
             };
             lock (_sync) State = failed;
             PublishState(failed);
+            _cancellationReconciliation = ReconcileCancellationAfterTimeoutAsync(
+                operationId!.Value,
+                entry,
+                discardPartial,
+                completion ?? Task.CompletedTask,
+                cancellationRequest);
         }
         else if (!cancellationRequest.Result)
         {
@@ -339,8 +359,26 @@ internal sealed class ModelDownloadCoordinator : IDisposable
                 Stage = ModelDownloadStage.Failed,
                 ErrorCode = "download-cancellation-cleanup-failed"
             };
-            lock (_sync) State = failed;
+            lock (_sync)
+            {
+                _cancellationPendingOperation = null;
+                State = failed;
+            }
             PublishState(failed);
+        }
+        else if (quiesced)
+        {
+            ModelDownloadCoordinatorState cancelled = cancelling with
+            {
+                Stage = ModelDownloadStage.Interrupted,
+                ErrorCode = "download-cancelled"
+            };
+            lock (_sync)
+            {
+                _cancellationPendingOperation = null;
+                State = cancelled;
+            }
+            PublishState(cancelled);
         }
     }
 
@@ -388,12 +426,13 @@ internal sealed class ModelDownloadCoordinator : IDisposable
     }
 
     private void Publish(ModelDownloadOperationId operationId, ModelDownloadCatalogEntry entry,
-        ModelDownloadStage stage, long downloadedBytes, string? errorCode)
+        ModelDownloadStage stage, long downloadedBytes, string? errorCode, bool allowAfterCancellation = false)
     {
         ModelDownloadCoordinatorState next;
         lock (_sync)
         {
-            if (_disposed || (State.OperationId is not null && State.OperationId != operationId))
+            if (_disposed || (State.OperationId is not null && State.OperationId != operationId)
+                || (!allowAfterCancellation && _cancellationRequestedOperation == operationId))
             {
                 return;
             }
@@ -535,6 +574,44 @@ internal sealed class ModelDownloadCoordinator : IDisposable
             _cancellationTasks.Add(cancellation, created);
             return created;
         }
+    }
+
+    private async Task ReconcileCancellationAfterTimeoutAsync(
+        ModelDownloadOperationId operationId,
+        ModelDownloadCatalogEntry entry,
+        bool discardPartial,
+        Task completion,
+        Task<bool> cancellationRequest)
+    {
+        await Task.WhenAll(completion, cancellationRequest).ConfigureAwait(false);
+        bool cleanupSucceeded = cancellationRequest.Result;
+        if (cleanupSucceeded && discardPartial)
+        {
+            try { await _service.DiscardPartialAsync(entry, CancellationToken.None).ConfigureAwait(false); }
+            catch (Exception exception)
+            {
+                cleanupSucceeded = false;
+                Trace.TraceWarning("Deferred model-download cleanup observed {0}.", exception.GetType().Name);
+            }
+        }
+
+        ModelDownloadCoordinatorState? reconciled = null;
+        lock (_sync)
+        {
+            if (_cancellationPendingOperation != operationId || State.OperationId != operationId) return;
+            _cancellationPendingOperation = null;
+            _cancellationFailed = !cleanupSucceeded;
+            reconciled = State with
+            {
+                Stage = cleanupSucceeded ? ModelDownloadStage.Interrupted : ModelDownloadStage.Failed,
+                DownloadedBytes = cleanupSucceeded && discardPartial ? 0 : State.DownloadedBytes,
+                ErrorCode = cleanupSucceeded
+                    ? discardPartial ? "download-cancelled-discarded" : "download-cancelled"
+                    : "download-cancellation-cleanup-failed"
+            };
+            State = reconciled;
+        }
+        PublishState(reconciled!);
     }
 
     private static async Task<bool> RequestCancellationCoreAsync(CancellationTokenSource cancellation)

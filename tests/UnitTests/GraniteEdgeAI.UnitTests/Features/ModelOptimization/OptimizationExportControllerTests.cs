@@ -162,6 +162,7 @@ public sealed class OptimizationExportControllerTests
         var controller = new OptimizationExportController(service);
         controller.Bind(Target());
         Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
         Assert.IsTrue(controller.TryCancel());
         service.Complete(OptimizationExportResult.Failed(OptimizationExportFailure.CleanupFailure));
         Assert.IsTrue(await operation);
@@ -193,6 +194,7 @@ public sealed class OptimizationExportControllerTests
         var controller = new OptimizationExportController(service);
         controller.Bind(Target());
         Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
         Task retirement = controller.RetireAsync();
         Assert.AreSame(retirement, controller.RetireAsync());
         Assert.IsFalse(retirement.IsCompleted);
@@ -280,6 +282,34 @@ public sealed class OptimizationExportControllerTests
     }
 
     [TestMethod]
+    public async Task DelayedSuccessfulCleanupReconcilesToRetryableCancellation()
+    {
+        using var release = new ManualResetEventSlim(false);
+        var service = new BlockingCancellationExportService(release);
+        var controller = new OptimizationExportController(service, TimeSpan.FromMilliseconds(50));
+        var reconciled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        controller.StateChanged += (_, state) =>
+        {
+            if (state.Kind == OptimizationExportStateKind.Cancelled) reconciled.TrySetResult();
+            if (state.Kind == OptimizationExportStateKind.Failed && state.Failure == OptimizationExportFailure.CleanupFailure) pending.TrySetResult();
+        };
+        controller.Bind(Target());
+        Task<bool> operation = controller.TryStartAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsTrue(controller.TryCancel());
+        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        service.Complete(OptimizationExportResult.Cancelled());
+        await pending.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.IsFalse(await controller.TryRetryAsync());
+
+        release.Set();
+        await operation.WaitAsync(TimeSpan.FromSeconds(1));
+        await reconciled.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.AreEqual(OptimizationExportStateKind.Cancelled, controller.State.Kind);
+    }
+
+    [TestMethod]
     public async Task ObserverFailureDoesNotBlockOtherObserversOrCompletion()
     {
         var controller = new OptimizationExportController(new ImmediateService(
@@ -300,10 +330,11 @@ public sealed class OptimizationExportControllerTests
     private sealed class ControlledExportService : IOptimizationExportService
     {
         private readonly TaskCompletionSource<OptimizationExportResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int CallCount { get; private set; }
         internal VerifiedPersistentExportTarget? LastTarget { get; private set; }
         public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken)
-        { CallCount++; LastTarget = target; return _completion.Task; }
+        { CallCount++; LastTarget = target; Started.TrySetResult(); return _completion.Task; }
         internal void Complete(OptimizationExportResult result) => _completion.SetResult(result);
     }
 

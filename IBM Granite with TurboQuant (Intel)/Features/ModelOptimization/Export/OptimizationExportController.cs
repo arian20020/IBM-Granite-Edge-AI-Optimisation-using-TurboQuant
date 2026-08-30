@@ -32,6 +32,8 @@ internal sealed class OptimizationExportController
     private long? _activeGeneration;
     private long? _cancelledGeneration;
     private long? _cancellationFailureGeneration;
+    private long? _cancellationCallbackFailureGeneration;
+    private long? _cleanupPendingGeneration;
     private CancellationTokenSource? _activeCancellation;
     private Task<bool>? _activeTask;
     private VerifiedPersistentExportTarget? _target;
@@ -56,7 +58,7 @@ internal sealed class OptimizationExportController
         lock (_gate)
         {
             if (_retired) throw new InvalidOperationException("A retired export controller cannot be rebound.");
-            if (_activeGeneration is not null) throw new InvalidOperationException("An active export cannot be rebound.");
+            if (_activeGeneration is not null || _cleanupPendingGeneration is not null) throw new InvalidOperationException("An active export cannot be rebound.");
             _target = target;
             _state = next = new(OptimizationExportStateKind.Ready, "Ready to save this verified model result.", target);
         }
@@ -73,7 +75,7 @@ internal sealed class OptimizationExportController
         Task<bool> operation;
         lock (_gate)
         {
-            if (_retired || _activeGeneration is not null || _target is null
+            if (_retired || _activeGeneration is not null || _cleanupPendingGeneration is not null || _target is null
                 || _state.Kind is not (OptimizationExportStateKind.Ready or OptimizationExportStateKind.Cancelled or OptimizationExportStateKind.Failed))
                 return Task.FromResult(false);
             target = _target;
@@ -165,7 +167,8 @@ internal sealed class OptimizationExportController
             _cancelledGeneration = active;
             _state = cancelling = _state with { Kind = OptimizationExportStateKind.Cancelling, StatusText = "Cancelling export and cleaning up incomplete output." };
             Task cancellationObservation = RequestCancellation(_activeCancellation, active);
-            _ = PublishCancellationTimeoutAsync(active, _state.Target!, cancellationObservation);
+            _cleanupPendingGeneration = active;
+            _ = PublishCancellationTimeoutAsync(active, _state.Target!, cancellationObservation, _activeTask!);
         }
         PublishState(cancelling);
         return true;
@@ -192,7 +195,7 @@ internal sealed class OptimizationExportController
 
     internal Task<bool> TryRetryAsync()
     {
-        lock (_gate) if (_retired || _activeGeneration is not null || _state.Kind is not (OptimizationExportStateKind.Cancelled or OptimizationExportStateKind.Failed) || _target is null) return Task.FromResult(false);
+        lock (_gate) if (_retired || _activeGeneration is not null || _cleanupPendingGeneration is not null || _state.Kind is not (OptimizationExportStateKind.Cancelled or OptimizationExportStateKind.Failed) || _target is null) return Task.FromResult(false);
         return TryStartAsync();
     }
 
@@ -279,22 +282,37 @@ internal sealed class OptimizationExportController
         }
     }
 
-    private async Task PublishCancellationTimeoutAsync(long generation, VerifiedPersistentExportTarget target, Task cancellationObservation)
+    private async Task PublishCancellationTimeoutAsync(long generation, VerifiedPersistentExportTarget target, Task cancellationObservation, Task activeTask)
     {
+        bool timedOut = false;
         try { await cancellationObservation.WaitAsync(_retirementTimeout).ConfigureAwait(false); }
         catch (TimeoutException)
         {
+            timedOut = true;
             OptimizationExportViewState? failed = null;
             lock (_gate)
             {
-                if (_activeGeneration == generation)
+                if (!_retired && (_activeGeneration == generation || _cleanupPendingGeneration == generation))
                 {
                     _cancellationFailureGeneration = generation;
+                    _cleanupPendingGeneration = generation;
                     _state = failed = ToTerminalState(target, OptimizationExportResult.Failed(OptimizationExportFailure.CleanupFailure));
                 }
             }
             if (failed is not null) PublishState(failed);
         }
+        await Task.WhenAll(cancellationObservation, activeTask).ConfigureAwait(false);
+        OptimizationExportViewState? reconciled = null;
+        lock (_gate)
+        {
+            if (_cleanupPendingGeneration == generation)
+            {
+                _cleanupPendingGeneration = null;
+                if (timedOut && _cancellationCallbackFailureGeneration != generation && !_retired)
+                    _state = reconciled = ToTerminalState(target, OptimizationExportResult.Cancelled());
+            }
+        }
+        if (reconciled is not null) PublishState(reconciled);
     }
 
     private async Task ObserveCancellationAsync(Task cancellation, long generation)
@@ -304,7 +322,11 @@ internal sealed class OptimizationExportController
         {
             Trace.TraceWarning("Optimization-export cancellation observed {0}.", exception.GetType().Name);
             lock (_gate)
-                if (_activeGeneration == generation) _cancellationFailureGeneration = generation;
+                if (_activeGeneration == generation || _cleanupPendingGeneration == generation)
+                {
+                    _cancellationFailureGeneration = generation;
+                    _cancellationCallbackFailureGeneration = generation;
+                }
         }
     }
 
