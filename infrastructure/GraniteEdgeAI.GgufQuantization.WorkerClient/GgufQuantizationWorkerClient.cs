@@ -73,6 +73,34 @@ public sealed class GgufQuantizationWorkerClient
         }
 
         WindowsSuspendedProcess running = launched!;
+        if (!startCleanup.Succeeded)
+        {
+            CleanupOutcome abort = await new BoundedCleanupCoordinator(
+                new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
+                {
+                    if (!job.TryTerminate() ||
+                        !await job.WaitForEmptyAsync(TimeSpan.FromSeconds(5))
+                            .ConfigureAwait(false))
+                    {
+                        throw new InvalidOperationException(
+                            "The GGUF quantizer startup abort could not be verified.");
+                    }
+                }),
+                new OwnedCleanupAction(OwnedCleanupStage.Session, () =>
+                {
+                    running.Dispose();
+                    return ValueTask.CompletedTask;
+                }),
+                new OwnedCleanupAction(OwnedCleanupStage.Job, () =>
+                {
+                    job.Dispose();
+                    return ValueTask.CompletedTask;
+                })).ExecuteAsync().ConfigureAwait(false);
+            throw new QuantizerCleanupException(
+                startCleanup.Failures.Concat(abort.Failures).Take(16).ToArray(),
+                null);
+        }
+
         using var timeout = new CancellationTokenSource(_timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
         GgufQuantizationEvent? result = null;

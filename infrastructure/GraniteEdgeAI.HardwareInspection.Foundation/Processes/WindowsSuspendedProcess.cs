@@ -156,6 +156,12 @@ internal sealed class WindowsSuspendedProcess : IDisposable
             out launched,
             out CleanupOutcome outcome);
         startCleanupSucceeded = outcome.Succeeded;
+        if (started && !outcome.Succeeded && launched is not null)
+        {
+            _ = AbortTransferredStart(launched, job);
+            launched = null;
+            return false;
+        }
         return started;
     }
 
@@ -286,22 +292,19 @@ internal sealed class WindowsSuspendedProcess : IDisposable
         }
         finally
         {
-            if (launched is null)
-            {
-                startCleanupOutcome = CleanupFailedStart(
-                    processCreated,
-                    job,
-                    standardInput,
-                    standardOutput,
-                    standardError,
-                    process,
-                    attributeListInitialized,
-                    attributeList,
-                    inheritedHandleList,
-                    processInformation,
-                    processHandle,
-                    operationEnvironment);
-            }
+            startCleanupOutcome = CleanupFailedStart(
+                processCreated && operationEnvironment is not null,
+                job,
+                standardInput,
+                standardOutput,
+                standardError,
+                process,
+                attributeListInitialized,
+                attributeList,
+                inheritedHandleList,
+                processInformation,
+                processHandle,
+                operationEnvironment);
         }
     }
 
@@ -379,6 +382,23 @@ internal sealed class WindowsSuspendedProcess : IDisposable
             }));
         return cleanup.ExecuteAsync().GetAwaiter().GetResult();
     }
+
+    private static CleanupOutcome AbortTransferredStart(
+        WindowsSuspendedProcess launched,
+        WindowsKillOnCloseJob job) =>
+        new BoundedCleanupCoordinator(
+            new OwnedCleanupAction(OwnedCleanupStage.ProcessTree, async () =>
+            {
+                if (!job.TryTerminate() ||
+                    !await job.WaitForEmptyAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException(
+                        "The transferred process tree cleanup could not be verified.");
+                }
+            }),
+            Sync(OwnedCleanupStage.Session, launched.Dispose))
+        .ExecuteAsync().GetAwaiter().GetResult();
 
     internal bool TryGetExitCode(out int exitCode) =>
         NativeProcessExitCodeAuthority.TryRead(ProcessHandle, out exitCode);
