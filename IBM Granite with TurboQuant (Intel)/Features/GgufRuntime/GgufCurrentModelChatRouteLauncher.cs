@@ -49,13 +49,20 @@ internal sealed class GgufCurrentModelChatRouteLauncher(
             "Selected model",
             configuration);
         var page = new ChatPage();
-        ChatDemoController controller = await ChatDemoController.CreateProductionAsync(
+        ChatDemoController controller = await ChatDemoController.CreateInitializedProductionAsync(
             page,
             request,
             cancellationToken);
-        await controller.InitializeAsync();
-        _showChat(page, controller);
-        return CurrentModelChatLaunchResult.Success;
+        try
+        {
+            _showChat(page, controller);
+            return CurrentModelChatLaunchResult.Success;
+        }
+        catch
+        {
+            await controller.DisposeAsync();
+            throw;
+        }
     }
 
     internal static GgufRuntimeConfiguration CreateConfiguration(

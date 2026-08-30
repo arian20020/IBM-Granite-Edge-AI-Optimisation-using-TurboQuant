@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
+using GraniteEdgeAI.Features.ApplicationFaults;
+using GraniteEdgeAI.Features.GgufRuntime;
 using GraniteEdgeAI.Features.ModelInspection.SourceCustody;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
@@ -28,12 +30,18 @@ internal sealed class CurrentModelChatLaunchRegistry
         new(StringComparer.Ordinal);
     private readonly Dictionary<OptimizationRoute, ICurrentModelChatRouteLauncher>
         _launchers = [];
+    private readonly IApplicationFaultReporter _faultReporter;
     private bool _disposed;
+    private int _unexpectedGgufFaultReported;
 
     internal CurrentModelChatLaunchRegistry(
-        ModelSourceCustodyRegistry sourceCustody) =>
+        ModelSourceCustodyRegistry sourceCustody,
+        IApplicationFaultReporter? faultReporter = null)
+    {
         _sourceCustody = sourceCustody
             ?? throw new ArgumentNullException(nameof(sourceCustody));
+        _faultReporter = faultReporter ?? BoundedApplicationFaultReporter.Shared;
+    }
 
     internal bool RegisterContext(CurrentModelLaunchContext context)
     {
@@ -111,8 +119,20 @@ internal sealed class CurrentModelChatLaunchRegistry
                 return CurrentModelChatLaunchResult.Failed(
                     CurrentModelChatSupportCode.CancelledByUser);
             }
-            catch
+            catch (Exception exception)
             {
+                if (launcher.Route == OptimizationRoute.Gguf
+                    && !ChatDemoController.TryClassifyOperationalFailure(
+                        exception,
+                        out _)
+                    && Interlocked.Exchange(
+                        ref _unexpectedGgufFaultReported,
+                        1) == 0)
+                {
+                    _faultReporter.Report(ApplicationFault.FromException(
+                        ApplicationFaultCode.GgufChatOperationUnexpected,
+                        exception));
+                }
                 return CurrentModelChatLaunchResult.Failed(
                     CurrentModelChatSupportCode.LaunchFailed);
             }

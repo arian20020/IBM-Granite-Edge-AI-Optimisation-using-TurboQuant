@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
@@ -80,13 +79,7 @@ internal sealed class CompatibilityEvaluationOrchestrator
         {
             return await _freshResourcesSource.CaptureAsync(cancellationToken);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception exception) when (exception is IOException
-            or UnauthorizedAccessException
-            or InvalidOperationException)
+        catch (CompatibilityFreshResourcesUnavailableException)
         {
             return null;
         }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
+using GraniteEdgeAI.Features.ApplicationFaults;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
@@ -31,6 +32,8 @@ internal sealed partial class CompatibilityPage : Page
     private bool _applyingOptimization;
     private bool _compactModeRows;
     private bool _isActive;
+    private readonly IApplicationFaultReporter _faultReporter;
+    private int _unexpectedFaultReported;
 
     public CompatibilityPage()
         : this(new ViewModels.CompatibilityViewModel())
@@ -39,10 +42,12 @@ internal sealed partial class CompatibilityPage : Page
 
     internal CompatibilityPage(
         Func<CancellationToken, Task<GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation.CompatibilityScreenModel>> evaluator,
-        bool continueDestinationAvailable = true)
+        bool continueDestinationAvailable = true,
+        IApplicationFaultReporter? faultReporter = null)
         : this(new ViewModels.CompatibilityViewModel(
             evaluator,
-            continueDestinationAvailable))
+            continueDestinationAvailable),
+            faultReporter)
     {
     }
 
@@ -59,13 +64,17 @@ internal sealed partial class CompatibilityPage : Page
             continueDestinationAvailable,
             actionAuthority: actionAuthority,
             currentModelHandoffResolver: currentModelHandoffResolver,
-            timeProvider: timeProvider))
+            timeProvider: timeProvider),
+            faultReporter: null)
     {
     }
 
-    private CompatibilityPage(ViewModels.CompatibilityViewModel viewModel)
+    private CompatibilityPage(
+        ViewModels.CompatibilityViewModel viewModel,
+        IApplicationFaultReporter? faultReporter = null)
     {
         ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+        _faultReporter = faultReporter ?? BoundedApplicationFaultReporter.Shared;
         InitializeComponent();
         Apply(CompatibilityPresentation.Empty);
 
@@ -111,8 +120,10 @@ internal sealed partial class CompatibilityPage : Page
     /// </summary>
     internal ViewModels.CompatibilityViewModel ViewModel { get; }
 
-    private async void Page_Loaded(object sender, RoutedEventArgs e) =>
+    private async void Page_Loaded(object sender, RoutedEventArgs e)
+    {
         await ActivateAsync();
+    }
 
     private void Page_Unloaded(object sender, RoutedEventArgs e) => Deactivate();
 
@@ -137,11 +148,17 @@ internal sealed partial class CompatibilityPage : Page
         {
             await ViewModel.StartAsync();
         }
-        catch
+        catch (Exception exception)
         {
-            // StartAsync has already rendered the path-private safe failure.
-            // Loaded is async-void at the framework boundary, so the exception
-            // must not escape and terminate the application.
+            // StartAsync has already rendered the privacy-safe failure. The
+            // framework boundary reports one stable fact and never releases raw
+            // exception content to an unhandled-exception path.
+            if (Interlocked.Exchange(ref _unexpectedFaultReported, 1) == 0)
+            {
+                _faultReporter.Report(ApplicationFault.FromException(
+                    ApplicationFaultCode.CompatibilityEvaluationUnexpected,
+                    exception));
+            }
         }
     }
 

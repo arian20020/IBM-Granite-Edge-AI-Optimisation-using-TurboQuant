@@ -2,14 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.ExceptionServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.ApplicationFaults;
 using GraniteEdgeAI.Features.GgufRuntime.History;
 using GraniteEdgeAI.Features.GgufRuntime.Services;
+using GraniteEdgeAI.GgufRuntime.Capabilities.Manifest;
 using GraniteEdgeAI.GgufRuntime.WorkerClient;
 
 namespace GraniteEdgeAI.Features.GgufRuntime;
+
+internal enum ChatOperationSupportCode
+{
+    HistoryUnavailable,
+    RuntimeUnavailable,
+}
 
 internal sealed class ChatDemoController : IAsyncDisposable
 {
@@ -18,26 +26,17 @@ internal sealed class ChatDemoController : IAsyncDisposable
     private readonly ChatRenderScheduler renderScheduler;
     private readonly string modelId;
     private readonly string profileId;
+    private readonly IApplicationFaultReporter faultReporter;
     private readonly object operationSync = new();
-    private readonly object failureSync = new();
     private readonly CancellationTokenSource lifetimeCancellation = new();
     private readonly HashSet<Task> activeOperations = [];
-    private readonly List<Exception> operationFailures = [];
     private List<HistoryRenderKey> renderedHistory = [];
     private bool followLatest;
     private bool disposed;
     private Task? retirementTask;
-
-    internal ChatDemoController(ChatPage page)
-        : this(
-            page,
-            new DemoGgufChatSession(),
-            "granite-demo",
-            "local-preview",
-            "Preview mode",
-            "No model loaded")
-    {
-    }
+    private int operationFaultReported;
+    private int retirementFaultReported;
+    private ChatOperationSupportCode? lastSupportCode;
 
     private ChatDemoController(
         ChatPage page,
@@ -45,20 +44,39 @@ internal sealed class ChatDemoController : IAsyncDisposable
         string modelId,
         string profileId,
         string displayName,
-        string runtimeDescription)
+        string runtimeDescription,
+        IApplicationFaultReporter? faultReporter = null)
+        : this(
+            page,
+            CreateHistoryStore(),
+            session,
+            modelId,
+            profileId,
+            displayName,
+            runtimeDescription,
+            faultReporter)
+    {
+    }
+
+    private ChatDemoController(
+        ChatPage page,
+        IChatHistoryStore store,
+        IGgufChatSession session,
+        string modelId,
+        string profileId,
+        string displayName,
+        string runtimeDescription,
+        IApplicationFaultReporter? faultReporter)
     {
         this.page = page ?? throw new ArgumentNullException(nameof(page));
         this.modelId = modelId;
         this.profileId = profileId;
-        string root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GraniteEdgeAI",
-            "ChatHistory");
         coordinator = new GgufChatCoordinator(
-            new AtomicJsonChatHistoryStore(root),
+            store ?? throw new ArgumentNullException(nameof(store)),
             session,
             TimeProvider.System,
             TimeZoneInfo.Local);
+        this.faultReporter = faultReporter ?? BoundedApplicationFaultReporter.Shared;
         renderScheduler = new ChatRenderScheduler(
             callback => page.DispatcherQueue.TryEnqueue(() => callback()),
             Render);
@@ -71,7 +89,9 @@ internal sealed class ChatDemoController : IAsyncDisposable
         page.SetModelHeader(displayName, runtimeDescription);
     }
 
-    internal static async Task<ChatDemoController> CreateProductionAsync(
+    internal ChatOperationSupportCode? LastSupportCode => lastSupportCode;
+
+    internal static async Task<ChatDemoController> CreateInitializedProductionAsync(
         ChatPage page,
         GgufChatLaunchRequest request,
         CancellationToken cancellationToken)
@@ -86,27 +106,89 @@ internal sealed class ChatDemoController : IAsyncDisposable
         var session = new GgufChatSessionAdapter(
             client,
             request.Configuration);
-        return new ChatDemoController(
-            page,
-            session,
-            request.Configuration.ModelId,
-            request.Configuration.ProfileId,
-            request.DisplayName,
-            $"{request.Configuration.Backend} Â· {request.Configuration.RuntimeBuildId}");
+        ChatDemoController? controller = null;
+        try
+        {
+            controller = new ChatDemoController(
+                page,
+                session,
+                request.Configuration.ModelId,
+                request.Configuration.ProfileId,
+                request.DisplayName,
+                $"{request.Configuration.Backend} - {request.Configuration.RuntimeBuildId}");
+            await controller.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            return controller;
+        }
+        catch
+        {
+            if (controller is not null)
+            {
+                await controller.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                await DisposeUnownedSessionAsync(session, faultReporter: null)
+                    .ConfigureAwait(false);
+            }
+            throw;
+        }
     }
 
-    internal async Task InitializeAsync()
+    internal static async Task<ChatDemoController> CreateInitializedAsync(
+        ChatPage page,
+        IChatHistoryStore store,
+        IGgufChatSession session,
+        string modelId,
+        string profileId,
+        string displayName,
+        string runtimeDescription,
+        IApplicationFaultReporter? faultReporter,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ChatDemoController? controller = null;
+        try
+        {
+            controller = new ChatDemoController(
+                page,
+                store,
+                session,
+                modelId,
+                profileId,
+                displayName,
+                runtimeDescription,
+                faultReporter);
+            await controller.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            return controller;
+        }
+        catch
+        {
+            if (controller is not null)
+            {
+                await controller.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                await DisposeUnownedSessionAsync(session, faultReporter)
+                    .ConfigureAwait(false);
+            }
+
+            throw;
+        }
+    }
+
+    private async Task InitializeAsync(CancellationToken cancellationToken)
     {
         await coordinator.InitializeAsync(
             modelId,
             profileId,
-            lifetimeCancellation.Token);
+            cancellationToken);
         if (coordinator.SelectedConversation is null)
         {
             await coordinator.NewChatAsync(
                 modelId,
                 profileId,
-                lifetimeCancellation.Token);
+                cancellationToken);
         }
 
         Render();
@@ -141,17 +223,19 @@ internal sealed class ChatDemoController : IAsyncDisposable
         try
         {
             await RetireCoreAsync();
-            completion.SetResult();
         }
         catch (Exception exception)
         {
-            completion.SetException(exception);
+            ReportRetirementFault(exception);
+        }
+        finally
+        {
+            completion.TrySetResult();
         }
     }
 
     private async Task RetireCoreAsync()
     {
-        List<Exception> failures = [];
         Task[] pending;
         lock (operationSync)
         {
@@ -164,7 +248,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            failures.Add(exception);
+            HandleRetirementFailure(exception);
         }
 
         coordinator.ConversationChanged -= Coordinator_ConversationChanged;
@@ -181,7 +265,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
             }
             catch (Exception exception)
             {
-                failures.Add(exception);
+                HandleRetirementFailure(exception);
             }
         }
 
@@ -191,12 +275,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            failures.Add(exception);
-        }
-
-        lock (failureSync)
-        {
-            failures.AddRange(operationFailures);
+            HandleRetirementFailure(exception);
         }
 
         try
@@ -205,7 +284,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            failures.Add(exception);
+            HandleRetirementFailure(exception);
         }
 
         try
@@ -214,7 +293,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            failures.Add(exception);
+            HandleRetirementFailure(exception);
         }
 
         try
@@ -223,17 +302,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            failures.Add(exception);
-        }
-
-        if (failures.Count == 1)
-        {
-            ExceptionDispatchInfo.Capture(failures[0]).Throw();
-        }
-
-        if (failures.Count > 1)
-        {
-            throw new AggregateException("GGUF Chat retirement failed.", failures);
+            HandleRetirementFailure(exception);
         }
     }
 
@@ -338,21 +407,129 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            lock (failureSync)
+            if (TryClassifyOperationalFailure(exception, out ChatOperationSupportCode code))
             {
-                operationFailures.Add(exception);
+                lastSupportCode = code;
+            }
+            else if (Interlocked.Exchange(ref operationFaultReported, 1) == 0)
+            {
+                faultReporter.Report(ApplicationFault.FromException(
+                    ApplicationFaultCode.GgufChatOperationUnexpected,
+                    exception));
             }
 
-            renderScheduler.Request();
+            TryRequestRender();
         }
     }
 
     private async Task RemoveOperationAsync(Task operation)
     {
-        await operation;
-        lock (operationSync)
+        try
         {
-            activeOperations.Remove(operation);
+            await operation;
+        }
+        catch (Exception exception)
+        {
+            if (Interlocked.Exchange(ref operationFaultReported, 1) == 0)
+            {
+                faultReporter.Report(ApplicationFault.FromException(
+                    ApplicationFaultCode.GgufChatOperationUnexpected,
+                    exception));
+            }
+        }
+        finally
+        {
+            lock (operationSync)
+            {
+                activeOperations.Remove(operation);
+            }
+        }
+    }
+
+    private void TryRequestRender()
+    {
+        try
+        {
+            renderScheduler.Request();
+        }
+        catch (Exception exception)
+        {
+            if (Interlocked.Exchange(ref operationFaultReported, 1) == 0)
+            {
+                faultReporter.Report(ApplicationFault.FromException(
+                    ApplicationFaultCode.GgufChatOperationUnexpected,
+                    exception));
+            }
+        }
+    }
+
+    private void HandleRetirementFailure(Exception exception)
+    {
+        if (TryClassifyOperationalFailure(exception, out ChatOperationSupportCode code))
+        {
+            lastSupportCode = code;
+            return;
+        }
+
+        ReportRetirementFault(exception);
+    }
+
+    private void ReportRetirementFault(Exception exception)
+    {
+        if (Interlocked.Exchange(ref retirementFaultReported, 1) == 0)
+        {
+            faultReporter.Report(ApplicationFault.FromException(
+                ApplicationFaultCode.GgufChatRetirementUnexpected,
+                exception));
+        }
+    }
+
+    internal static bool TryClassifyOperationalFailure(
+        Exception exception,
+        out ChatOperationSupportCode code)
+    {
+        if (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            code = ChatOperationSupportCode.HistoryUnavailable;
+            return true;
+        }
+
+        if (exception is GgufRuntimeStartupException
+            or GgufWorkerPolicyException
+            or GgufRuntimeTrustException
+            or GgufChatLaunchException)
+        {
+            code = ChatOperationSupportCode.RuntimeUnavailable;
+            return true;
+        }
+
+        code = default;
+        return false;
+    }
+
+    private static IChatHistoryStore CreateHistoryStore()
+    {
+        string root = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "GraniteEdgeAI",
+            "ChatHistory");
+        return new AtomicJsonChatHistoryStore(root);
+    }
+
+    private static async Task DisposeUnownedSessionAsync(
+        IGgufChatSession session,
+        IApplicationFaultReporter? faultReporter)
+    {
+        try
+        {
+            await session.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            (faultReporter ?? BoundedApplicationFaultReporter.Shared).Report(
+                ApplicationFault.FromException(
+                    ApplicationFaultCode.GgufChatInitializationCleanupUnexpected,
+                    exception));
         }
     }
 

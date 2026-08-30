@@ -3,7 +3,9 @@
 // nine of them cannot be reached without the adapters that do not exist yet.
 #if DEBUG
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
+using GraniteEdgeAI.Features.ApplicationFaults;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.DebugFixtures;
+using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Candidates;
@@ -431,11 +433,14 @@ public sealed class CompatibilityRenderedStateTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task HostLoadedBoundary_ReportsAnEvaluatorFaultWithoutThrowing()
+    public async Task HostLoadedBoundary_ReportsOneSafeEvaluatorFaultWithoutThrowing()
     {
-        var page = new CompatibilityPage(_ =>
-            Task.FromException<CompatibilityScreenModel>(
-                new InvalidOperationException("adapter failed")));
+        const string privateText = @"adapter failed at C:\Users\private\model.gguf";
+        var reporter = new BoundedApplicationFaultReporter(capacity: 4);
+        var page = new CompatibilityPage(
+            _ => Task.FromException<CompatibilityScreenModel>(
+                new InvalidOperationException(privateText)),
+            faultReporter: reporter);
 
         await InvokeLifecycleAsync(page, "ActivateAsync");
 
@@ -443,6 +448,38 @@ public sealed class CompatibilityRenderedStateTests
             "The compatibility check could not finish",
             page.ViewModel.Presentation.OutcomeTitle);
         Assert.AreEqual("Check again", Element<Button>(page, "SecondaryAction").Content);
+        IReadOnlyList<ApplicationFault> faults = reporter.Capture();
+        Assert.HasCount(1, faults);
+        ApplicationFault fault = faults[0];
+        Assert.AreEqual(ApplicationFaultCode.CompatibilityEvaluationUnexpected, fault.Code);
+        Assert.AreEqual(ApplicationFaultClassification.InvalidOperation, fault.Classification);
+        Assert.IsFalse(fault.ToString().Contains(privateText, StringComparison.Ordinal));
+
+        InvokeLifecycle(page, "Deactivate");
+        await InvokeLifecycleAsync(page, "ActivateAsync");
+        Assert.HasCount(1, reporter.Capture(), "The host boundary reports its fault code once.");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task HostLoadedTypedUnavailabilityRendersSafelyWithoutFaultReport()
+    {
+        var reporter = new BoundedApplicationFaultReporter(capacity: 4);
+        var source = new UnavailableFreshSource();
+        var orchestrator = new CompatibilityEvaluationOrchestrator(
+            source,
+            TimeProvider.System);
+        var page = new CompatibilityPage(
+            token => orchestrator.EvaluateBoundAsync(UnreachableBinder, token),
+            faultReporter: reporter);
+
+        await InvokeLifecycleAsync(page, "ActivateAsync");
+
+        Assert.AreEqual(
+            "We can't answer this yet",
+            page.ViewModel.Presentation.OutcomeTitle);
+        Assert.AreEqual(1, source.CaptureCount);
+        Assert.HasCount(0, reporter.Capture());
     }
 
     [TestMethod]
@@ -1010,6 +1047,29 @@ public sealed class CompatibilityRenderedStateTests
     private static CompatibilityPage CreatePage()
     {
         return new CompatibilityPage { StartAutomatically = false };
+    }
+
+    private static bool UnreachableBinder(
+        CompatibilityFreshResourcesInput fresh,
+        out CompatibilityProductionInput? input)
+    {
+        input = null;
+        Assert.Fail("Typed unavailability must not invoke the production binder.");
+        return false;
+    }
+
+    private sealed class UnavailableFreshSource : ICompatibilityFreshResourcesSource
+    {
+        internal int CaptureCount { get; private set; }
+
+        public ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
+            CancellationToken cancellationToken)
+        {
+            CaptureCount++;
+            return ValueTask.FromException<CompatibilityFreshResourcesInput>(
+                new CompatibilityFreshResourcesUnavailableException(
+                    CompatibilityFreshResourcesUnavailableReason.StorageUnavailable));
+        }
     }
 }
 #endif

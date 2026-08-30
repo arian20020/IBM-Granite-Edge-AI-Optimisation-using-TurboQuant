@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
+using GraniteEdgeAI.Features.ApplicationFaults;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelInspection.SourceCustody;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
@@ -99,6 +100,33 @@ public sealed class CurrentModelLaunchHandoffTests
         Assert.AreEqual(@"C:\models\granite.gguf", launcher.ObservedPrivateSource);
     }
 
+    [TestMethod]
+    public async Task RegistryReportsOneSafeUnexpectedGgufLaunchFault()
+    {
+        Fixture fixture = CreateFixture();
+        using var custody = new ModelSourceCustodyRegistry();
+        custody.Register(new ModelSourceCustodyRecord(
+            fixture.SourceKey,
+            @"C:\private\model.gguf"));
+        var reporter = new BoundedApplicationFaultReporter(4);
+        using var registry = new CurrentModelChatLaunchRegistry(custody, reporter);
+        registry.RegisterContext(fixture.Context);
+        registry.RegisterRoute(new ThrowingLauncher(
+            new InvalidOperationException(@"private C:\Users\person\model.gguf")));
+
+        CurrentModelChatLaunchResult first = await registry.LaunchAsync(
+            fixture.Handoff, CancellationToken.None);
+        CurrentModelChatLaunchResult second = await registry.LaunchAsync(
+            fixture.Handoff, CancellationToken.None);
+
+        Assert.IsFalse(first.Succeeded);
+        Assert.IsFalse(second.Succeeded);
+        IReadOnlyList<ApplicationFault> faults = reporter.Capture();
+        Assert.HasCount(1, faults);
+        Assert.AreEqual(ApplicationFaultCode.GgufChatOperationUnexpected, faults[0].Code);
+        Assert.AreEqual(ApplicationFaultClassification.InvalidOperation, faults[0].Classification);
+    }
+
     private static Fixture CreateFixture()
     {
         OptimizationExecutionPayload payload =
@@ -167,5 +195,16 @@ public sealed class CurrentModelLaunchHandoffTests
             ObservedPrivateSource = sourceLease.SourcePath;
             return Task.FromResult(CurrentModelChatLaunchResult.Success);
         }
+    }
+
+    private sealed class ThrowingLauncher(Exception exception)
+        : ICurrentModelChatRouteLauncher
+    {
+        public OptimizationRoute Route => OptimizationRoute.Gguf;
+        public Task<CurrentModelChatLaunchResult> LaunchAsync(
+            CurrentModelLaunchContext context,
+            ModelSourceLease sourceLease,
+            CancellationToken cancellationToken) =>
+            Task.FromException<CurrentModelChatLaunchResult>(exception);
     }
 }

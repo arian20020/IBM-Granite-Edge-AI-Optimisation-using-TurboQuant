@@ -32,10 +32,11 @@ public sealed class CompatibilityEvaluationOrchestratorTests
     }
 
     [TestMethod]
-    public async Task CaptureFailureUsesOneFailClosedFallback()
+    public async Task TypedCaptureUnavailabilityUsesOneFailClosedFallback()
     {
         var orchestrator = new CompatibilityEvaluationOrchestrator(
-            new ThrowingSource(new IOException("capture failed")),
+            new ThrowingSource(new CompatibilityFreshResourcesUnavailableException(
+                CompatibilityFreshResourcesUnavailableReason.StorageInaccessible)),
             TimeProvider.System);
         bool evaluatorInvoked = false;
 
@@ -54,17 +55,37 @@ public sealed class CompatibilityEvaluationOrchestratorTests
     }
 
     [TestMethod]
-    public async Task CancellationIsNeverConvertedIntoCompatibilityFallback()
+    public async Task CancellationPreservesTheExactCallerToken()
     {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
         var orchestrator = new CompatibilityEvaluationOrchestrator(
-            new ThrowingSource(new OperationCanceledException()),
+            new CancellingSource(cancellation.Token),
             TimeProvider.System);
 
-        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
+        OperationCanceledException exception =
+            await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
             orchestrator.EvaluateAuthorityAsync(
                 new HashSet<string>(StringComparer.Ordinal),
                 (fresh, optedIn, evaluatedAtUtc, token) =>
                     throw new InvalidOperationException(),
+                cancellation.Token));
+
+        Assert.AreEqual(cancellation.Token, exception.CancellationToken);
+    }
+
+    [TestMethod]
+    public async Task SourceProgrammingFaultIsNotConvertedIntoCompatibilityFallback()
+    {
+        var orchestrator = new CompatibilityEvaluationOrchestrator(
+            new ThrowingSource(new InvalidOperationException("programming defect")),
+            TimeProvider.System);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            orchestrator.EvaluateAuthorityAsync(
+                new HashSet<string>(StringComparer.Ordinal),
+                (fresh, optedIn, evaluatedAtUtc, token) =>
+                    throw new AssertFailedException("Evaluator must not run."),
                 CancellationToken.None));
     }
 
@@ -128,6 +149,14 @@ public sealed class CompatibilityEvaluationOrchestratorTests
         public ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
             CancellationToken cancellationToken) => ValueTask.FromException<
                 CompatibilityFreshResourcesInput>(exception);
+    }
+
+    private sealed class CancellingSource(CancellationToken token)
+        : ICompatibilityFreshResourcesSource
+    {
+        public ValueTask<CompatibilityFreshResourcesInput> CaptureAsync(
+            CancellationToken cancellationToken) => ValueTask.FromException<
+                CompatibilityFreshResourcesInput>(new OperationCanceledException(token));
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider

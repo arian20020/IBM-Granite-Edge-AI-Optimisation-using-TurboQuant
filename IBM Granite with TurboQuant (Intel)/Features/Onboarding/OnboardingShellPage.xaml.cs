@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.HardwareInspection;
+using GraniteEdgeAI.Features.ApplicationFaults;
 using GraniteEdgeAI.Features.HardwareInspection.Application;
 #if HARDWARE_INSPECTION_X64
 using GraniteEdgeAI.Features.HardwareInspection.Orchestration;
@@ -60,6 +61,7 @@ namespace GraniteEdgeAI.Features.Onboarding
         private ChatPage? _attachedChatPage;
         private ChatDemoController? _chatController;
         private bool _ggufChatRouteRegistered;
+        private int _ggufChatLaunchFaultReported;
         private OptimizationPage? _attachedOptimizationPage;
         private CompatibilityPage? _compatibilityPageForOptimizationReturn;
         private OptimizationJourneyCoordinator? _optimizationCoordinator;
@@ -1063,18 +1065,58 @@ namespace GraniteEdgeAI.Features.Onboarding
                     "Optimised model",
                     configuration);
                 var page = new ChatPage();
-                ChatDemoController controller =
-                    await ChatDemoController.CreateProductionAsync(
-                        page,
-                        request,
-                        CancellationToken.None);
-                await controller.InitializeAsync();
-                await RetireOptimizationAsync();
-                ShowGgufChat(page, controller);
+                ChatDemoController? controller;
+                try
+                {
+                    controller = await ChatDemoController
+                        .CreateInitializedProductionAsync(
+                            page,
+                            request,
+                            CancellationToken.None);
+                }
+                catch (Exception exception)
+                {
+                    ReportGgufLaunchFault(exception);
+                    return;
+                }
+
+                try
+                {
+                    await RetireOptimizationAsync();
+                    ShowGgufChat(page, controller);
+                    controller = null;
+                }
+                finally
+                {
+                    if (controller is not null)
+                    {
+                        await controller.DisposeAsync();
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                ReportGgufLaunchFault(exception);
             }
             finally
             {
                 sourceLease?.Dispose();
+            }
+        }
+
+        private void ReportGgufLaunchFault(Exception exception)
+        {
+            if (!ChatDemoController.TryClassifyOperationalFailure(
+                    exception,
+                    out _)
+                && Interlocked.Exchange(
+                    ref _ggufChatLaunchFaultReported,
+                    1) == 0)
+            {
+                BoundedApplicationFaultReporter.Shared.Report(
+                    ApplicationFault.FromException(
+                        ApplicationFaultCode.GgufChatOperationUnexpected,
+                        exception));
             }
         }
 
@@ -1601,20 +1643,29 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         private async void ChatPage_ImportModelRequested(
             object? sender,
-            EventArgs eventArguments)
+            EventArgs eventArguments) =>
+            await RetireChatAndNavigateToImportAsync(sender as ChatPage);
+
+        private async Task RetireChatAndNavigateToImportAsync(ChatPage? page)
         {
-            if (!ReferenceEquals(sender, _attachedChatPage))
+            if (!ReferenceEquals(page, _attachedChatPage))
             {
                 return;
             }
             _attachedChatPage!.ImportModelRequested -= ChatPage_ImportModelRequested;
             _attachedChatPage = null;
-            if (_chatController is { } controller)
+            try
             {
-                _chatController = null;
-                await controller.DisposeAsync();
+                if (_chatController is { } controller)
+                {
+                    _chatController = null;
+                    await controller.DisposeAsync();
+                }
             }
-            NavigateToFreshModelImport();
+            finally
+            {
+                NavigateToFreshModelImport();
+            }
         }
 
         private static bool DefaultCompatibilityNavigation(

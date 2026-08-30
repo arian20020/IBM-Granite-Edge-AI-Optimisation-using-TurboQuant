@@ -72,11 +72,26 @@ public sealed class A1BackendProductionReachabilityTests
             "Features", "GgufRuntime", "ChatDemoController.cs");
 
         Assert.AreEqual(2, Occurrences(
-            callers, "ChatDemoController.CreateProductionAsync("));
+            callers, ".CreateInitializedProductionAsync("));
+        Assert.AreEqual(0, Occurrences(
+            callers, ".InitializeAsync();"));
         Assert.AreEqual(1, Occurrences(
             owner, "retirementTask = retirementStarter.Task;"));
         Assert.AreEqual(1, Occurrences(
             owner, "_ = CompleteRetirementAsync(retirementStarter);"));
+    }
+
+    [TestMethod]
+    public void ReleaseChatProductionTreeContainsNoDemoAuthority()
+    {
+        string applicationRoot = Path.Combine(
+            OptimizationImportManifestTests.FindRepositoryRoot(),
+            "IBM Granite with TurboQuant (Intel)");
+        string source = ReadProductionTree(applicationRoot);
+
+        Assert.AreEqual(0, Occurrences(source, "DemoGgufChatSession"));
+        Assert.AreEqual(0, Occurrences(source, "Preview mode"));
+        Assert.AreEqual(0, Occurrences(source, "No model loaded"));
     }
 
     [TestMethod]
