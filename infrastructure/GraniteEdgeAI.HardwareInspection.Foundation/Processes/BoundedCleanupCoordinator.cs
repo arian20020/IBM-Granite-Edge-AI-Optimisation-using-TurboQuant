@@ -47,6 +47,7 @@ internal readonly record struct OwnedCleanupAction(
 
 internal sealed class BoundedCleanupCoordinator
 {
+    private const int MaximumRetainedFailures = 16;
     private readonly OwnedCleanupAction[] _actions;
     private readonly object _sync = new();
     private Task<CleanupOutcome>? _execution;
@@ -67,12 +68,36 @@ internal sealed class BoundedCleanupCoordinator
 
     private async Task<CleanupOutcome> ExecuteCoreAsync()
     {
-        if (_actions.Length == 0)
+        List<CleanupFailureFact>? failures = null;
+        foreach (OwnedCleanupAction action in _actions)
         {
-            return new CleanupOutcome([]);
+            try
+            {
+                await action.ExecuteAsync().ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                failures ??= new List<CleanupFailureFact>(MaximumRetainedFailures);
+                if (failures.Count < MaximumRetainedFailures)
+                {
+                    failures.Add(new CleanupFailureFact(
+                        action.Stage,
+                        Classify(error)));
+                }
+            }
         }
 
-        await _actions[0].ExecuteAsync().ConfigureAwait(false);
-        return new CleanupOutcome([]);
+        return new CleanupOutcome(failures?.ToArray() ?? []);
     }
+
+    private static CleanupFailureKind Classify(Exception error) => error switch
+    {
+        IOException => CleanupFailureKind.Io,
+        UnauthorizedAccessException => CleanupFailureKind.Access,
+        TimeoutException => CleanupFailureKind.Timeout,
+        System.ComponentModel.Win32Exception => CleanupFailureKind.Native,
+        InvalidOperationException or ObjectDisposedException or ArgumentException =>
+            CleanupFailureKind.InvalidState,
+        _ => CleanupFailureKind.Unexpected,
+    };
 }
