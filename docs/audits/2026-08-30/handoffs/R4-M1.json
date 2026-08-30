@@ -12,15 +12,15 @@
   "completedAtUtc": "2026-08-30T06:43:03Z",
   "report": {
     "path": "docs/audits/2026-08-30/M1-model-inspection-r4.md",
-    "sha256": "cf65deb2b7b696ff0a3e182e8f3613bb79e7233242e611951ba44cf442d4a306",
-    "bytes": 10075
+    "sha256": "09f1b137904a88962db2a9a62170d07cdee5effcdd9568b9ff70a128b37bd5fc",
+    "bytes": 10059
   },
   "transport": "remote",
   "remoteRef": "refs/remotes/origin/audit/ucl-m1-model-inspection-remediation-r4",
   "bundle": null,
   "evidenceManifest": {
     "path": "docs/audits/2026-08-30/evidence/M1-model-inspection-r4.json",
-    "sha256": "85186c80925a1660678a933d3354f429403c57488c292813e448ea12dced5554",
+    "sha256": "38039a5189e5210a94d2b73941f3f8fe4a8a5834bdae8a877870e97af2395b48",
     "bytes": 6142,
     "evidenceSubjectCommit": "044e65bd48ddc02e56d1ba3678235869cba8a059",
     "evidenceSubjectTree": "f1d8c0dff5edd481a092e6f4f11f374199f21e0f"

@@ -1,13 +1,13 @@
 # M1 Model Inspection R4
 
-Date: 2026-08-30  
-Worker: M1  
-Branch: `audit/ucl-m1-model-inspection-remediation-r4`  
-Base commit: `282a7690edd9bfbb48dbb324d09e76a7a154652e`  
-Base tree: `812c22ea640633c5e8835266b902fb802728eea9`  
-Frozen campaign commit: `4748fe04f19afdf6b27c4c12502b84db325e7294`  
-Frozen campaign tree: `fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91`  
-Implementation subject: `044e65bd48ddc02e56d1ba3678235869cba8a059`  
+Date: 2026-08-30
+Worker: M1
+Branch: `audit/ucl-m1-model-inspection-remediation-r4`
+Base commit: `282a7690edd9bfbb48dbb324d09e76a7a154652e`
+Base tree: `812c22ea640633c5e8835266b902fb802728eea9`
+Frozen campaign commit: `4748fe04f19afdf6b27c4c12502b84db325e7294`
+Frozen campaign tree: `fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91`
+Implementation subject: `044e65bd48ddc02e56d1ba3678235869cba8a059`
 Implementation tree: `f1d8c0dff5edd481a092e6f4f11f374199f21e0f`
 
 ## Outcome

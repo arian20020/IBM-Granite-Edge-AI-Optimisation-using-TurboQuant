@@ -13,8 +13,8 @@
   "evidenceStatus": "mixed",
   "report": {
     "path": "docs/audits/2026-08-30/M1-model-inspection-r4.md",
-    "sha256": "cf65deb2b7b696ff0a3e182e8f3613bb79e7233242e611951ba44cf442d4a306",
-    "bytes": 10075
+    "sha256": "09f1b137904a88962db2a9a62170d07cdee5effcdd9568b9ff70a128b37bd5fc",
+    "bytes": 10059
   },
   "inputs": [
     {
