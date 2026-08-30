@@ -36,7 +36,7 @@ public sealed class PackageMembershipPolicyTests
                 (string?)element.Attribute("Name") == "WriteS1EvaluatedAppxMembership");
 
         Assert.AreEqual(
-            "_ComputeAppxPackagePayload",
+            "Build;_ComputeAppxPackagePayload",
             (string?)target.Attribute("DependsOnTargets"));
         XElement write = target.Elements()
             .Single(element => element.Name.LocalName == "WriteLinesToFile");
