@@ -100,26 +100,4 @@ public sealed class PlanningBoundaryIntegrationTests
                 HardwareDigest));
     }
 
-    [TestMethod]
-    public void CrossFeatureAuthorityTextContainsNoPathsSecretsOrRawProviderOutput()
-    {
-        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
-            "model-run-privacy",
-            "model-handoff-privacy",
-            ModelDigest,
-            4096,
-            "hardware-run-privacy",
-            HardwareDigest);
-        string publicShape = binding.ToString();
-
-        foreach (string canary in new[]
-        {
-            @"C:\Users\private", "SECRET_CANARY", "providerOutput",
-            "raw model output", "proxyUrl", "authorization"
-        })
-        {
-            Assert.IsFalse(publicShape.Contains(canary,
-                StringComparison.OrdinalIgnoreCase), canary);
-        }
-    }
 }

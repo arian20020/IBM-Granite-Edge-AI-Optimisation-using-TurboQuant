@@ -26,7 +26,7 @@ public sealed class PlanAndExecutionIntegrationTests
     }
 
     [TestMethod]
-    public void PlanAndResultPreserveExactFormatConfigurationAndProvenanceIdentity()
+    public void ResultFactoryCopiesExactPersistentPlanAuthority()
     {
         OptimizationExecutionPlan plan = CrossFeaturePlanFixture.Issue();
         OpenVinoExecutionPayload payload = plan.ExecutionPayload.OpenVino!;

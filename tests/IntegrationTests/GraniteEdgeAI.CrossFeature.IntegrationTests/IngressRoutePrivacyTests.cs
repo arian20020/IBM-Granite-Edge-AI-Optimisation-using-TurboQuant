@@ -200,6 +200,66 @@ public sealed class IngressRoutePrivacyTests
         }
     }
 
+    [TestMethod]
+    [DataRow(@"C:\Users\private\secret.gguf")]
+    [DataRow(@"\\server\share\secret.gguf")]
+    [DataRow("/home/private/secret.gguf")]
+    public void TypedDiagnosticRejectsRootedPrivacyCanaries(string canary)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            new ModelSelectionDiagnostic(
+                "selection-private-canary",
+                "Provider output exposed " + canary));
+    }
+
+    [TestMethod]
+    public void TypedFailureSanitizesHostileDisplayPathAndKeepsBoundedCode()
+    {
+        const string privateRoot = @"C:\Users\private\SECRET_CANARY";
+        var diagnostic = new ModelSelectionDiagnostic(
+            "selection-access-denied",
+            "This model could not be opened.");
+
+        ModelSelectionResult result = ModelSelectionResult.Failure(
+            ModelSelectionOperationId.CreateNew(),
+            privateRoot + @"\granite.gguf",
+            diagnostic);
+
+        Assert.AreEqual("granite.gguf", result.DisplayName);
+        Assert.AreEqual("selection-access-denied", result.Diagnostic!.Code);
+        Assert.AreEqual("This model could not be opened.", result.Diagnostic.Message);
+        Assert.IsFalse(result.DisplayName.Contains(privateRoot,
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task CallerCancellationSuppressesLateSelectionPublicationWithoutSleep()
+    {
+        string root = CreatePrivateRoot("cancelled-source");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "config.json"),
+                "{\"model_type\":\"granite\",\"architectures\":[\"GraniteForCausalLM\"]}");
+            await File.WriteAllBytesAsync(
+                Path.Combine(root, "model.safetensors"), [0x01]);
+            using var cancellation = new CancellationTokenSource();
+            var classifier = new BoundedModelSelectionClassifier(
+                afterMetadataRead: cancellation.Cancel);
+            ModelSelectionInput input = new ModelSelectionInputNormalizer()
+                .FromPickerPath(root, isFolder: true);
+
+            await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
+                classifier.ClassifyAsync(
+                    ModelSelectionOperationId.CreateNew(),
+                    input,
+                    cancellation.Token));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreatePrivateRoot(string suffix)
     {
         string root = Path.Combine(

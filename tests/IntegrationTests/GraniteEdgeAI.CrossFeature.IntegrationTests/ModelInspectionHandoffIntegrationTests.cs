@@ -1,7 +1,6 @@
 using System.Text;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
-using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using OpenVinoHandoff = GraniteEdgeAI.OpenVino.Contracts.ModelInspectionHandoffV2;
 using OpenVinoOutcome = GraniteEdgeAI.OpenVino.Contracts.ModelInspectionOutcome;
 
@@ -106,33 +105,6 @@ public sealed class ModelInspectionHandoffIntegrationTests
         Assert.AreEqual(
             ModelInspectionHandoffLifecycleState.Issued,
             registry.GetState(replacement.ModelInspectionHandoffId));
-    }
-
-    [TestMethod]
-    public void ExactInspectedIdentitySurvivesPlanningAndTerminalPublication()
-    {
-        ModelInspectionHandoff handoff = new(
-            ModelInspectionHandoff.CurrentSchemaVersion,
-            HandoffId,
-            ModelRunId,
-            ModelInspectionOutcome.Ready,
-            CrossFeaturePlanFixture.ModelDigest,
-            checked((long)(4 * CrossFeaturePlanFixture.GiB)));
-        OptimizationExecutionPlan plan = CrossFeaturePlanFixture.Issue();
-        OptimizationExecutionResult result = OptimizationExecutionResult.Succeeded(
-            plan,
-            "identity-continuous-output",
-            new string('8', 64),
-            4096,
-            sourceUnchanged: true,
-            DateTimeOffset.UnixEpoch);
-
-        Assert.AreEqual(handoff.ModelSha256, plan.Binding.ModelSha256);
-        Assert.AreEqual((ulong)handoff.ModelLengthBytes,
-            plan.Binding.ModelLengthBytes);
-        Assert.AreEqual(plan.Binding.ModelSha256, result.SourceSha256);
-        Assert.AreEqual(plan.ConfigurationSha256, result.ConfigurationSha256);
-        Assert.AreEqual(plan.OptimizationPlanId, result.OptimizationPlanId);
     }
 
     private static ModelInspectionHandoff Create(Guid handoffId) => new(

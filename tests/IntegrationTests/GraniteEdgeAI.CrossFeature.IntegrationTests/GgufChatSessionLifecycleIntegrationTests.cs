@@ -22,8 +22,10 @@ public sealed class GgufChatSessionLifecycleIntegrationTests
         Task generation = ConsumeAsync(adapter);
         await runtime.Started.WaitAsync(TimeSpan.FromSeconds(5));
 
-        Task disposal = adapter.DisposeAsync().AsTask();
-        await Task.Delay(100);
+        var disposalPending = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        Task disposal = ObservePendingDisposalAsync(adapter, disposalPending);
+        await disposalPending.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.IsFalse(disposal.IsCompleted);
         Assert.IsFalse(runtime.Disposed);
@@ -62,6 +64,17 @@ public sealed class GgufChatSessionLifecycleIntegrationTests
             adapter.GenerateAsync("prompt", CancellationToken.None))
         {
         }
+    }
+
+    private static async Task ObservePendingDisposalAsync(
+        GgufChatSessionAdapter adapter,
+        TaskCompletionSource disposalPending)
+    {
+        ValueTask operation = adapter.DisposeAsync();
+        Assert.IsFalse(operation.IsCompleted,
+            "Disposal must be pending while generation owns the runtime.");
+        disposalPending.TrySetResult();
+        await operation;
     }
 
     private sealed class BlockingRuntimeSession : IGgufChatRuntimeSession

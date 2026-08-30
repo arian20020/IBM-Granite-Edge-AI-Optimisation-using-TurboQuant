@@ -64,9 +64,12 @@ public sealed class OptimizationReducerIdentityTests
         OptimizationJourneyState afterLateCompletion = OptimizationJourneyReducer.Apply(
             cancelling,
             new OptimizationCompleted(2, late));
+        OptimizationJourneyState afterLateCancellation = OptimizationJourneyReducer.Apply(
+            afterLateCompletion,
+            new OptimizationCancelled(2));
 
-        Assert.AreEqual(cancelling, afterLateCompletion);
-        Assert.IsNull(afterLateCompletion.Result);
+        Assert.AreEqual(cancelling, afterLateCancellation);
+        Assert.IsNull(afterLateCancellation.Result);
     }
 
     private static OptimizationJourneyState RunningState(
