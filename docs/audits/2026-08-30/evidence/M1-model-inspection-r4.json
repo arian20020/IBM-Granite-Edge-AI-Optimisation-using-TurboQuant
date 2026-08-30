@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 2,
+  "workerId": "M1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "ca913c68eb62fdd70f1c408fd74e7b9afb66a546",
+  "evidenceSubjectTree": "f83793dbea0a6a5f3a8e8ca343526eff9a947b9b",
+  "createdAtUtc": "2026-08-30T16:10:56Z",
+  "route": [
+    "shared",
+    "gguf",
+    "openvino"
+  ],
+  "evidenceStatus": "mixed",
+  "report": {
+    "path": "docs/audits/2026-08-30/M1-model-inspection-r4.md",
+    "sha256": "6d7b5b259e797d6784f49f3cb6e627e3bdbcec06590f45006238fe41d365b7fd",
+    "bytes": 28328
+  },
+  "inputs": [
+    {
+      "kind": "canonicalSchemaAuthority",
+      "id": "model-inspection-schema-v2-six-field-authority",
+      "sha256": "5073d5c535def722f19c2cb07d986d6c63a7af0588b6706fc4c6f0165e8b9b73",
+      "bytes": 19772,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "routeSpecificInspection",
+      "id": "live-gguf-registry-projection-factory",
+      "sha256": "b94d1a559c0f94133f75d3598dc82f095af883eb9fadb855d77b422322a5873d",
+      "bytes": 1887,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "routeSpecificInspection",
+      "id": "live-openvino-typed-inspection-service",
+      "sha256": "9faaf2b65afee0b3aa66436b5cb2dd381ce21918d233091ac202b96d9851910e",
+      "bytes": 22734,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "modelInspectionHandoff",
+      "id": "gguf-canonical-handoff-adapter",
+      "sha256": "7a5c74bfe48e0b41988a7c063b7b203045852a78b767c92ecaa16f4f9f2150fd",
+      "bytes": 2694,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "modelInspectionResult",
+      "id": "openvino-typed-activation-outcome-policy",
+      "sha256": "36f08d11c4cd9a8f3465c775b15d4924f35084ca5550b2116cfd6870aaf64b7f",
+      "bytes": 6169,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {
+      "id": "MODEL-INSPECTION-CONTRACTS",
+      "exitCode": 2,
+      "discovered": 428,
+      "executed": 428,
+      "passed": 427,
+      "failed": 1,
+      "skipped": 0,
+      "disposition": "mixed",
+      "resultSha256": "952a4f62efab556bc04e7c13f65d1261cd7a34f945be48320193c3c50f183a9b"
+    },
+    {
+      "id": "MODEL-INSPECTION-TRANSPORT",
+      "exitCode": 0,
+      "discovered": 27,
+      "executed": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "6414d314fe127a80e4077245f86c4673d48fda5c6e118388e391573026454258"
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER",
+      "exitCode": 0,
+      "discovered": 78,
+      "executed": 78,
+      "passed": 78,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "06efec396c9a0cb61ca058883a8f4f3a2726680b4890a5b220ba120dc20fe016"
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER-CLIENT",
+      "exitCode": 0,
+      "discovered": 119,
+      "executed": 119,
+      "passed": 119,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "7f09fff8dc8f7573738a92f98d793551a11259f3ae6421bb67b000a785155da0"
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER-PROCESS",
+      "exitCode": 0,
+      "discovered": 8,
+      "executed": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "ee1c1b6003d4bb94af0adf31e2e857ef0d85ae34a2b33418cac641d7bcf52fed"
+    },
+    {
+      "id": "MODEL-HARDWARE-COMPATIBILITY",
+      "exitCode": 0,
+      "discovered": 1050,
+      "executed": 1050,
+      "passed": 1050,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "23a77224dcaaf65586999b0ecf8594693708bacf15022ecb3f542ff6340e5e0d"
+    },
+    {
+      "id": "HARDWARE-FOUNDATION-CONSUMERS",
+      "exitCode": 0,
+      "discovered": 202,
+      "executed": 202,
+      "passed": 202,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "24091fcc895dea852ec017cabc8663c9841cef41197a97e5364fcc8721d9b2ba"
+    },
+    {
+      "id": "LLAMASHARP-DETERMINISTIC",
+      "exitCode": 0,
+      "discovered": 191,
+      "executed": 191,
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "c2a066715f9f03fd85cd3e1804395f91a2b5ba26155d68967f10705210c35dff"
+    },
+    {
+      "id": "GGUF-LIVE-HANDOFF-PROJECTION",
+      "exitCode": 0,
+      "discovered": 2,
+      "executed": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "f86050a96cf96c90ac06bc6446f0612e3cbb9e272a61f7791c0f555c3840700b"
+    },
+    {
+      "id": "OPENVINO-MANAGED-ROUTE",
+      "exitCode": 0,
+      "discovered": 480,
+      "executed": 480,
+      "passed": 473,
+      "failed": 0,
+      "skipped": 7,
+      "disposition": "mixed",
+      "resultSha256": "f9fb03801953617bdce65822f4ba118bbdc0f68cf8c78ca82225b8c9eafd8867"
+    },
+    {
+      "id": "DEBUG-X64-APPLICATION-BUILD",
+      "exitCode": 1,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "blocked"
+    },
+    {
+      "id": "DEBUG-X64-PACKAGED-TEST-BUILD",
+      "exitCode": 0,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "SOURCE-PRIVACY-INVENTORY-GATES",
+      "exitCode": 0,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "C0-FIXTURE-PROPOSAL-APPLY-CHECK",
+      "exitCode": 0,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    }
+  ],
+  "blockers": [
+    "The C0-owned shared application closure assertion fails after evaluating 21 prohibited DebugFixtures items; C0 must consume or supersede the apply-checkable fixture-boundary proposal.",
+    "Seven OpenVINO package-closure cases require approved converter or official-worker stage roots that were not supplied on this non-authoritative development machine.",
+    "The Debug x64 application build requires OpenVinoOfficialWorkerStageDirectory, so it produced no exact executable for visual or native acceptance."
+  ],
+  "nonClaims": [
+    "No Intel-native GGUF or OpenVINO execution, performance, quality, signed-package, App Control, installed-layout, visual, or end-to-end acceptance is claimed.",
+    "No failed, skipped, blocked, structural, build-only, fixture, or mock-only row is represented as native or user-facing success.",
+    "No model path, filename, prompt, model bytes, free-form model metadata, user or machine identity, provider response, credential, binary, or raw TRX is committed as evidence output."
+  ]
+}

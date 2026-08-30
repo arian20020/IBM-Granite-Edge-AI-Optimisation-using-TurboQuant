@@ -1,0 +1,16 @@
+diff --git a/IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj b/IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj
+--- a/IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj
++++ b/IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj
+@@ -72,6 +72,12 @@
+     <Content Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+     <EmbeddedResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
+     <PRIResource Remove="Features\ModelHardwareCompatibility\DebugFixtures\**" />
++    <Compile Remove="Features\ModelOptimization\DebugFixtures\**" />
++    <Page Remove="Features\ModelOptimization\DebugFixtures\**" />
++    <None Remove="Features\ModelOptimization\DebugFixtures\**" />
++    <Content Remove="Features\ModelOptimization\DebugFixtures\**" />
++    <EmbeddedResource Remove="Features\ModelOptimization\DebugFixtures\**" />
++    <PRIResource Remove="Features\ModelOptimization\DebugFixtures\**" />
+   </ItemGroup>
+   <ItemGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+     <Compile Include="Features\ModelHardwareCompatibility\DebugFixtures\CompatibilityFixtureCatalogue.cs" />

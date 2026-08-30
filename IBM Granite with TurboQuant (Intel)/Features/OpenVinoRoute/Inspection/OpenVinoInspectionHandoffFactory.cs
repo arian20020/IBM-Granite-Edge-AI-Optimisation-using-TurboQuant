@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using GraniteEdgeAI.OpenVino.Contracts;
+using ModelInspectionHandoffV2 = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
+using ModelInspectionOutcomeV2 = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOutcomeV2;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 
@@ -55,9 +57,12 @@ public sealed class OpenVinoInspectionHandoffFactory
         }
 
         ModelInspectionHandoffV2 handoff = new(
+            ModelInspectionHandoffV2.RequiredSchemaVersion,
             Guid.NewGuid(),
             modelInspectionRunId,
-            nativeValidation.Outcome,
+            nativeValidation.Outcome == ModelInspectionOutcome.Ready
+                ? ModelInspectionOutcomeV2.Ready
+                : ModelInspectionOutcomeV2.ReadyWithWarnings,
             staticEvidence.ModelSha256,
             staticEvidence.ModelLengthBytes);
         byte[] canonical = handoff.ToCanonicalUtf8Json();

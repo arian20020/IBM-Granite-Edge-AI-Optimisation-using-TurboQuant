@@ -11,7 +11,7 @@ public static class ChatTemplateEvidenceFactory
 {
     /// <summary>
     /// Records presence, exact character length and SHA-256 when the metadata
-    /// key exists. Empty and whitespace-only values remain present evidence.
+    /// key contains usable non-whitespace content.
     /// </summary>
     public static ChatTemplateEvidence Create(
         IReadOnlyDictionary<string, string> metadata)
@@ -20,7 +20,8 @@ public static class ChatTemplateEvidenceFactory
 
         if (!metadata.TryGetValue(
                 "tokenizer.chat_template",
-                out string? template))
+                out string? template) ||
+            string.IsNullOrWhiteSpace(template))
         {
             return new ChatTemplateEvidence
             {

@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using GraniteEdgeAI.ModelInspection.Contracts.Tests.Support;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
@@ -14,31 +15,6 @@ namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
 public sealed class ModelInspectionVisualSourceContractTests
 {
     private static readonly string Root = FindRepositoryRoot();
-
-    private const string WorkerPublishedFilesItemName =
-        "_ModelInspectionWorkerPublishedFiles";
-
-    private const string WorkerPublishedFilesRootExpression =
-        "$(_ModelInspectionWorkerPublishRoot)\\**\\*";
-
-    private const string WorkerPublishRootPropertyName =
-        "_ModelInspectionWorkerPublishRoot";
-
-    private const string WorkerPublishRootPropertyValue =
-        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)model-inspection-worker\\$(Configuration)\\win-x64'))";
-
-    private const string WorkerManifestPathPropertyName =
-        "_ModelInspectionWorkerManifestPath";
-
-    private const string WorkerManifestPathPropertyValue =
-        "$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\\$(BaseIntermediateOutputPath)model-inspection-worker\\$(Configuration)\\worker-manifest.json'))";
-
-    private static readonly HashSet<string> WorkerPackagePathPropertyNames =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            WorkerPublishRootPropertyName,
-            WorkerManifestPathPropertyName
-        };
 
     private static readonly HashSet<string> PackageRelevantItemNames =
         new(StringComparer.OrdinalIgnoreCase)
@@ -322,58 +298,29 @@ public sealed class ModelInspectionVisualSourceContractTests
 
         foreach (string projectPath in new[] { appProjectPath, testProjectPath })
         {
-            ProjectPackageItemSpec[] itemSpecs =
-                ProjectItemSpecs(projectPath).ToArray();
-            int expectedControlledImportItems = string.Equals(
-                projectPath,
-                appProjectPath,
-                StringComparison.OrdinalIgnoreCase)
-                    ? 4
-                    : 0;
-            Assert.AreEqual(
-                expectedControlledImportItems,
-                itemSpecs.Count(itemSpec =>
-                    itemSpec.IsControlledWorkerPackageExpression),
-                $"{projectPath} must account for its exact controlled imported package items.");
-            int expectedControlledBackingItems = string.Equals(
-                projectPath,
-                appProjectPath,
-                StringComparison.OrdinalIgnoreCase)
-                    ? 1
-                    : 0;
-            Assert.AreEqual(
-                expectedControlledBackingItems,
-                itemSpecs.Count(itemSpec =>
-                    itemSpec.IsControlledWorkerPublishedFilesExpression),
-                $"{projectPath} must account for the exact worker-package backing item.");
-            int expectedControlledPathProperties = string.Equals(
-                projectPath,
-                appProjectPath,
-                StringComparison.OrdinalIgnoreCase)
-                    ? 2
-                    : 0;
-            Assert.AreEqual(
-                expectedControlledPathProperties,
-                itemSpecs.Count(itemSpec =>
-                    itemSpec.IsWorkerPackagePathPropertyDefinition),
-                $"{projectPath} must not define or override worker-package path properties outside their exact trusted definitions.");
-            Assert.AreEqual(
-                expectedControlledPathProperties,
-                itemSpecs.Count(itemSpec =>
-                    itemSpec.IsControlledWorkerPackagePathPropertyDefinition),
-                $"{projectPath} must retain the exact trusted worker-package path property definitions.");
+            IReadOnlyList<EvaluatedMsBuildItem> itemSpecs =
+                EvaluatedMsBuildItems.Evaluate(
+                    projectPath,
+                    PackageRelevantItemNames,
+                    properties: new Dictionary<string, string>
+                    {
+                        ["Configuration"] = "Release",
+                        ["Platform"] = "x64",
+                        ["DesignTimeBuild"] = "true",
+                    });
             foreach (string prohibitedSource in prohibitedSources)
             {
                 Assert.IsFalse(
-                    itemSpecs.Any(itemSpec => ProjectItemSpecMatchesPath(
-                        itemSpec,
-                        prohibitedSource)),
+                    itemSpecs.Any(itemSpec => string.Equals(
+                        Path.GetFullPath(itemSpec.FullPath),
+                        Path.GetFullPath(prohibitedSource),
+                        StringComparison.OrdinalIgnoreCase)),
                     $"{projectPath} must not package {prohibitedSource}.");
             }
 
             Assert.IsFalse(
                 itemSpecs
-                    .Select(itemSpec => NormalizeProjectPath(itemSpec.Value))
+                    .Select(itemSpec => NormalizeProjectPath(itemSpec.FullPath))
                     .Any(itemSpec => itemSpec?.Contains(
                         "TestFixtures/ModelInspectionVisual",
                         StringComparison.OrdinalIgnoreCase) is true),
@@ -1454,274 +1401,6 @@ public sealed class ModelInspectionVisualSourceContractTests
                 expectedPath,
                 StringComparison.Ordinal));
 
-    private static IReadOnlyList<ProjectPackageItemSpec> ProjectItemSpecs(
-        string projectPath)
-    {
-        string absoluteProjectPath = Path.GetFullPath(projectPath);
-        string evaluationProjectDirectory = Path.GetDirectoryName(
-            absoluteProjectPath)
-            ?? throw new InvalidDataException(
-                $"{absoluteProjectPath} has no directory.");
-        var itemSpecs = new List<ProjectPackageItemSpec>();
-        var visitedProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        AddProjectItemSpecs(
-            absoluteProjectPath,
-            evaluationProjectDirectory,
-            visitedProjects,
-            itemSpecs);
-        return itemSpecs;
-    }
-
-    private static void AddProjectItemSpecs(
-        string projectPath,
-        string evaluationProjectDirectory,
-        ISet<string> visitedProjects,
-        ICollection<ProjectPackageItemSpec> itemSpecs)
-    {
-        string absoluteProjectPath = Path.GetFullPath(projectPath);
-        if (!visitedProjects.Add(absoluteProjectPath))
-        {
-            return;
-        }
-
-        XDocument project = XDocument.Load(absoluteProjectPath);
-        foreach (XElement item in project
-                     .Descendants()
-                     .Where(item =>
-                         PackageRelevantItemNames.Contains(item.Name.LocalName) ||
-                         string.Equals(
-                             item.Name.LocalName,
-                             WorkerPublishedFilesItemName,
-                             StringComparison.OrdinalIgnoreCase) ||
-                         WorkerPackagePathPropertyNames.Contains(
-                             item.Name.LocalName)))
-        {
-            if (WorkerPackagePathPropertyNames.Contains(item.Name.LocalName))
-            {
-                itemSpecs.Add(new ProjectPackageItemSpec(
-                    item.Value,
-                    absoluteProjectPath,
-                    evaluationProjectDirectory,
-                    IsControlledWorkerPackageExpression: false,
-                    IsControlledWorkerPublishedFilesExpression: false,
-                    IsWorkerPackagePathPropertyDefinition: true,
-                    IsControlledWorkerPackagePathPropertyDefinition:
-                        IsControlledWorkerPackagePathPropertyDefinition(
-                            absoluteProjectPath,
-                            item.Name.LocalName,
-                            item.Value)));
-                continue;
-            }
-
-            foreach (string attributeName in new[] { "Include", "Update" })
-            {
-                string? value = item.Attribute(attributeName)?.Value;
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    itemSpecs.Add(new ProjectPackageItemSpec(
-                        value,
-                        absoluteProjectPath,
-                        evaluationProjectDirectory,
-                        IsControlledWorkerPackageExpression(
-                            absoluteProjectPath,
-                            item.Name.LocalName,
-                            value),
-                        IsControlledWorkerPublishedFilesExpression(
-                            absoluteProjectPath,
-                            item.Name.LocalName,
-                            value),
-                        IsWorkerPackagePathPropertyDefinition: false,
-                        IsControlledWorkerPackagePathPropertyDefinition: false));
-                }
-            }
-        }
-
-        string projectDirectory = Path.GetDirectoryName(absoluteProjectPath)
-            ?? throw new InvalidDataException(
-                $"{absoluteProjectPath} has no directory.");
-        foreach (XElement import in project
-                     .Descendants()
-                     .Where(element => string.Equals(
-                         element.Name.LocalName,
-                         "Import",
-                         StringComparison.Ordinal)))
-        {
-            string importSpec = import.Attribute("Project")?.Value
-                ?? throw new InvalidDataException(
-                    $"{absoluteProjectPath} has an Import without Project.");
-            if (ContainsMsBuildExpression(importSpec) ||
-                importSpec.IndexOfAny(['*', '?']) >= 0)
-            {
-                Assert.Fail(
-                    $"{absoluteProjectPath} has an unresolved explicit Import " +
-                    $"'{importSpec}'.");
-            }
-
-            foreach (string importCandidate in importSpec.Split(
-                         ';',
-                         StringSplitOptions.RemoveEmptyEntries |
-                         StringSplitOptions.TrimEntries))
-            {
-                string importedProject = Path.GetFullPath(Path.Combine(
-                    projectDirectory,
-                    NormalizeProjectPath(importCandidate)!));
-                Assert.IsTrue(
-                    File.Exists(importedProject),
-                    $"Explicit import does not exist: {importedProject}");
-                AddProjectItemSpecs(
-                    importedProject,
-                    evaluationProjectDirectory,
-                    visitedProjects,
-                    itemSpecs);
-            }
-        }
-    }
-
-    private static bool IsControlledWorkerPackageExpression(
-        string sourcePath,
-        string itemName,
-        string itemSpec)
-    {
-        if (!IsWorkerPackagingTarget(sourcePath))
-        {
-            return false;
-        }
-
-        return (itemName, itemSpec) switch
-        {
-            ("Content", "@(_ModelInspectionWorkerPublishedFiles)") => true,
-            ("Content", "$(_ModelInspectionWorkerManifestPath)") => true,
-            ("EmbeddedResource", "$(_ModelInspectionWorkerManifestPath)") => true,
-            ("Content", "@(_OpenVinoOfficialWorkerFile)") => true,
-            _ => false
-        };
-    }
-
-    private static bool IsControlledWorkerPublishedFilesExpression(
-        string sourcePath,
-        string itemName,
-        string itemSpec) =>
-        IsWorkerPackagingTarget(sourcePath) &&
-        string.Equals(
-            itemName,
-            WorkerPublishedFilesItemName,
-            StringComparison.Ordinal) &&
-        string.Equals(
-            itemSpec,
-            WorkerPublishedFilesRootExpression,
-            StringComparison.Ordinal);
-
-    private static bool IsControlledWorkerPackagePathPropertyDefinition(
-        string sourcePath,
-        string propertyName,
-        string propertyValue)
-    {
-        if (!IsWorkerPackagingTarget(sourcePath))
-        {
-            return false;
-        }
-
-        return (propertyName, propertyValue) switch
-        {
-            (WorkerPublishRootPropertyName, WorkerPublishRootPropertyValue) => true,
-            (WorkerManifestPathPropertyName, WorkerManifestPathPropertyValue) => true,
-            _ => false
-        };
-    }
-
-    private static bool IsWorkerPackagingTarget(string sourcePath)
-    {
-        string relativeSource = NormalizeProjectPath(
-            Path.GetRelativePath(Root, sourcePath))!;
-        return relativeSource is
-            "IBM Granite with TurboQuant (Intel)/ModelInspection.WorkerPackaging.targets" or
-            "IBM Granite with TurboQuant (Intel)/OpenVino.WorkerPackaging.targets";
-    }
-
-    private static bool ContainsMsBuildExpression(string value) =>
-        value.Contains("$(", StringComparison.Ordinal) ||
-        value.Contains("@(", StringComparison.Ordinal) ||
-        value.Contains("%(", StringComparison.Ordinal);
-
-    private static bool ProjectItemSpecMatchesPath(
-        ProjectPackageItemSpec itemSpec,
-        string targetPath)
-    {
-        string normalizedTarget = NormalizeProjectPath(Path.GetFullPath(targetPath))!;
-        foreach (string candidate in itemSpec.Value.Split(
-                     ';',
-                     StringSplitOptions.RemoveEmptyEntries |
-                     StringSplitOptions.TrimEntries))
-        {
-            if (ContainsMsBuildExpression(candidate))
-            {
-                if (!itemSpec.IsControlledWorkerPackageExpression &&
-                    !itemSpec.IsControlledWorkerPublishedFilesExpression &&
-                    !itemSpec.IsControlledWorkerPackagePathPropertyDefinition)
-                {
-                    Assert.Fail(
-                        $"{itemSpec.SourcePath} contains unresolved " +
-                        $"package-relevant item expression '{candidate}'.");
-                }
-
-                continue;
-            }
-
-            string normalizedCandidate = NormalizeProjectPath(candidate)!;
-            int wildcardIndex = normalizedCandidate.IndexOfAny(['*', '?']);
-            string absolutePattern;
-            if (wildcardIndex < 0)
-            {
-                absolutePattern = NormalizeProjectPath(Path.GetFullPath(
-                    Path.Combine(
-                        itemSpec.EvaluationProjectDirectory,
-                        normalizedCandidate)))!;
-            }
-            else
-            {
-                int directoryEnd = normalizedCandidate.LastIndexOf(
-                    '/',
-                    wildcardIndex);
-                string staticDirectory = directoryEnd < 0
-                    ? string.Empty
-                    : normalizedCandidate[..(directoryEnd + 1)];
-                string wildcardPattern = directoryEnd < 0
-                    ? normalizedCandidate
-                    : normalizedCandidate[(directoryEnd + 1)..];
-                string absoluteDirectory = NormalizeProjectPath(Path.GetFullPath(
-                    Path.Combine(
-                        itemSpec.EvaluationProjectDirectory,
-                        staticDirectory)))!;
-                absolutePattern =
-                    $"{absoluteDirectory.TrimEnd('/')}/{wildcardPattern}";
-            }
-
-            string regexPattern = Regex.Escape(absolutePattern)
-                .Replace(@"\*\*/", "(?:.*/)?", StringComparison.Ordinal)
-                .Replace(@"\*\*", ".*", StringComparison.Ordinal)
-                .Replace(@"\*", "[^/]*", StringComparison.Ordinal)
-                .Replace(@"\?", "[^/]", StringComparison.Ordinal);
-            if (Regex.IsMatch(
-                    normalizedTarget,
-                    $"^{regexPattern}$",
-                    RegexOptions.CultureInvariant |
-                    RegexOptions.IgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private sealed record ProjectPackageItemSpec(
-        string Value,
-        string SourcePath,
-        string EvaluationProjectDirectory,
-        bool IsControlledWorkerPackageExpression,
-        bool IsControlledWorkerPublishedFilesExpression,
-        bool IsWorkerPackagePathPropertyDefinition,
-        bool IsControlledWorkerPackagePathPropertyDefinition);
 
     private static string? NormalizeProjectPath(string? path) => path?.Replace('\\', '/');
 

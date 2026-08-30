@@ -8,6 +8,16 @@ namespace GraniteEdgeAI.OpenVino.Contracts.Tests;
 [TestCategory("Contract")]
 public sealed class ProtocolJsonTests
 {
+    [TestMethod]
+    public void OpenVinoContractsAssemblyDoesNotDeclareModelInspectionHandoffAuthority()
+    {
+        Assert.IsNull(
+            typeof(OpenVinoProtocolJson).Assembly.GetType(
+                "GraniteEdgeAI.OpenVino.Contracts.ModelInspectionHandoffV2",
+                throwOnError: false),
+            "Model Inspection contracts must be the sole schema-v2 handoff authority.");
+    }
+
     private static readonly Guid SessionId = Guid.Parse("9d86e640-2f8f-4f35-8f51-c7e2bc3d07c0");
     private static readonly Guid RunId = Guid.Parse("6e1ff10c-fd83-4b03-9a12-d35247e5a6a3");
     private static readonly Guid TurnId = Guid.Parse("2ff65f3b-4ee0-4e04-8c48-73f95af43a6f");
@@ -133,53 +143,6 @@ public sealed class ProtocolJsonTests
         TokenEvent @event = new(SessionId, TurnId, 0, new string('x', OpenVinoProtocol.MaximumOperationTextUtf8Bytes + 1));
 
         Assert.ThrowsExactly<OpenVinoProtocolException>(() => OpenVinoProtocolJson.Serialize(@event));
-    }
-
-    [TestMethod]
-    public void HandoffParsingRejectsPathsAndNoncanonicalIdentifiersInsteadOfLeakingOrAcceptingMutableModelIdentity()
-    {
-        string invalid = $$"""{"schemaVersion":2,"modelInspectionHandoffId":"{{Guid.NewGuid():D}}","modelInspectionRunId":"{{RunId:D}}","outcome":"Ready","modelSha256":"{{Digest}}","modelLengthBytes":1,"path":"C:\\model\\openvino_model.bin"}""";
-
-        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
-            ModelInspectionHandoffV2.Parse(Encoding.UTF8.GetBytes(invalid)));
-    }
-
-    [TestMethod]
-    public void HandoffCanonicalSerializationContainsExactlyTheSixPathFreeFieldsForOpenvinoModelBinIdentity()
-    {
-        ModelInspectionHandoffV2 handoff = new(
-            Guid.Parse("3b0ff45e-07a6-4a3a-8a2e-947ca3f8e9a6"),
-            RunId,
-            ModelInspectionOutcome.ReadyWithWarnings,
-            Digest,
-            42);
-
-        byte[] payload = handoff.ToCanonicalUtf8Json();
-        string json = Encoding.UTF8.GetString(payload);
-
-        Assert.IsTrue(payload.Length <= ModelInspectionHandoffV2.MaximumCanonicalUtf8Bytes);
-        StringAssert.Contains(json, "\"schemaVersion\":2");
-        StringAssert.Contains(json, "\"modelSha256\":\"" + Digest + "\"");
-        Assert.IsFalse(json.Contains("path", StringComparison.OrdinalIgnoreCase));
-        Assert.AreEqual(handoff, ModelInspectionHandoffV2.Parse(payload));
-    }
-
-    [TestMethod]
-    public void HandoffParsingRejectsNoncanonicalPropertyOrderInsteadOfTreatingEquivalentJsonAsTheCanonicalHandoff()
-    {
-        string reordered = $$"""{"modelInspectionRunId":"{{RunId:D}}","schemaVersion":2,"modelInspectionHandoffId":"3b0ff45e-07a6-4a3a-8a2e-947ca3f8e9a6","outcome":"Ready","modelSha256":"{{Digest}}","modelLengthBytes":1}""";
-
-        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
-            ModelInspectionHandoffV2.Parse(Encoding.UTF8.GetBytes(reordered)));
-    }
-
-    [TestMethod]
-    public void HandoffParsingRejectsWrongOutcomeCaseInsteadOfCoercingAnIneligibleOutcome()
-    {
-        string lowerCaseOutcome = $$"""{"schemaVersion":2,"modelInspectionHandoffId":"3b0ff45e-07a6-4a3a-8a2e-947ca3f8e9a6","modelInspectionRunId":"{{RunId:D}}","outcome":"ready","modelSha256":"{{Digest}}","modelLengthBytes":1}""";
-
-        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
-            ModelInspectionHandoffV2.Parse(Encoding.UTF8.GetBytes(lowerCaseOutcome)));
     }
 
     private static StartSessionCommand StartCommand() => new(

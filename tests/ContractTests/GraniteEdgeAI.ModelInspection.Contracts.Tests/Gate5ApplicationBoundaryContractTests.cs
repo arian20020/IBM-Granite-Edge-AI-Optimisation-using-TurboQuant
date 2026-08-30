@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
@@ -18,6 +19,54 @@ public sealed class Gate5ApplicationBoundaryContractTests
     private const string CompositionSource =
         "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionWorkerComposition.cs";
     private static readonly string Root = FindRepositoryRoot();
+
+    [TestMethod]
+    public void OwnedModelInspectionWorkflowsUseMtpProjectSelection()
+    {
+        string workflowRoot = Path.Combine(Root, ".github", "workflows");
+        string[] workflowPaths = Directory
+            .EnumerateFiles(workflowRoot, "*.yml")
+            .Where(path =>
+                Path.GetFileName(path).Equals(
+                    "build-and-test.yml",
+                    StringComparison.Ordinal) ||
+                Path.GetFileName(path).StartsWith(
+                    "model-inspection-",
+                    StringComparison.Ordinal) ||
+                Path.GetFileName(path).StartsWith(
+                    "llamasharp-",
+                    StringComparison.Ordinal))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        var commands = new List<(string Workflow, string FirstArgument)>();
+        foreach (string workflowPath in workflowPaths)
+        {
+            string workflow = File.ReadAllText(workflowPath);
+            foreach (Match command in Regex.Matches(
+                         workflow,
+                         @"(?m)^\s*dotnet test(?:\s*`\r?\n\s*|\s+)(?<argument>\S+)"))
+            {
+                commands.Add((
+                    Path.GetFileName(workflowPath),
+                    command.Groups["argument"].Value));
+            }
+        }
+
+        Assert.AreEqual(13, commands.Count, "The owned workflow test-command inventory drifted.");
+        string[] legacyCommands = commands
+            .Where(command => !string.Equals(
+                command.FirstArgument,
+                "--project",
+                StringComparison.Ordinal))
+            .Select(command => $"{command.Workflow}: dotnet test {command.FirstArgument}")
+            .ToArray();
+        Assert.AreEqual(
+            0,
+            legacyCommands.Length,
+            "MTP requires explicit --project selection:" + Environment.NewLine +
+            string.Join(Environment.NewLine, legacyCommands));
+    }
 
     [TestMethod]
     public void ApplicationExecutionLayerHasEveryRequiredResponsibility()
@@ -168,6 +217,7 @@ public sealed class Gate5ApplicationBoundaryContractTests
         string[] approvedSources =
         [
             "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ManifestVerifyingInspectionWorkerClient.cs",
+            "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionProjectionFactory.cs",
             CompositionSource,
             "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerProcessLlamaModelProbe.cs",
             "IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Runtime/WorkerRequestMapper.cs",

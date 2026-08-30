@@ -1,9 +1,12 @@
+using System.Reflection;
+using System.Text;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
+using GraniteEdgeAI.ModelInspection.Contracts;
 
 namespace GraniteEdgeAI.OpenVino.Tests;
 
@@ -39,6 +42,89 @@ public sealed class OpenVinoRouteServiceTests
         string publicResult = result.ToString();
         Assert.IsFalse(publicResult.Contains(package.Root, StringComparison.OrdinalIgnoreCase));
         Assert.AreEqual(1, worker.InspectCount);
+    }
+
+    [TestMethod]
+    public async Task LiveRouteRetainsProjectionOfTheExactIssuedHandoff()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command => new InspectionCompletedEvent(
+            command.InspectionRunId,
+            command.PackageManifestDigest,
+            command.ModelSha256,
+            command.ModelLengthBytes,
+            true,
+            true,
+            true,
+            BuildEvidence()));
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            CancellationToken.None);
+        OpenVinoRouteHandoffLease lease = result.HandoffLease!;
+
+        PropertyInfo? property = typeof(OpenVinoRouteHandoffLease).GetProperty(
+            "Projection",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(
+            property,
+            "The live OpenVINO route does not retain its schema-v2 projection.");
+        ModelInspectionProjectionV2 projection =
+            (ModelInspectionProjectionV2)property.GetValue(lease)!;
+
+        Assert.AreEqual(result.Handoff!.ModelInspectionHandoffId,
+            projection.ModelInspectionHandoff.ModelInspectionHandoffId);
+        Assert.AreEqual(result.Handoff.ModelInspectionRunId,
+            projection.ModelInspectionHandoff.ModelInspectionRunId);
+        Assert.AreEqual(result.Handoff.ModelSha256,
+            projection.ModelInspectionHandoff.ModelSha256);
+        Assert.AreEqual(result.Handoff.ModelLengthBytes,
+            projection.ModelInspectionHandoff.ModelLengthBytes);
+        Assert.AreEqual(ModelInspectionRoute.OpenVino, projection.ModelSource.Route);
+        Assert.IsFalse(
+            Encoding.UTF8.GetString(projection.ToCanonicalUtf8Json())
+                .Contains(package.Root, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public async Task MutatedProjectionIsRejectedBeforePathBearingLeaseConsumption()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command => new InspectionCompletedEvent(
+            command.InspectionRunId,
+            command.PackageManifestDigest,
+            command.ModelSha256,
+            command.ModelLengthBytes,
+            true,
+            true,
+            true,
+            BuildEvidence()));
+        OpenVinoRouteService service = Service(worker);
+        OpenVinoRouteInspectionResult result = await service.InspectAsync(
+            package.Root,
+            CancellationToken.None);
+        OpenVinoRouteHandoffLease lease = result.HandoffLease!;
+        ModelInspectionProjectionV2 mutated = lease.Projection with
+        {
+            ModelInspectionHandoff = lease.Projection.ModelInspectionHandoff with
+            {
+                ModelInspectionHandoffId = Guid.NewGuid()
+            }
+        };
+        FieldInfo? backingField = typeof(OpenVinoRouteHandoffLease).GetField(
+            "<Projection>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(backingField);
+        backingField.SetValue(lease, mutated);
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            service.StartSessionAsync(
+                lease,
+                _ => { },
+                CancellationToken.None));
+
+        Assert.IsTrue(
+            lease.HasPathBearingDescriptor,
+            "Projection mismatch consumed the path-bearing descriptor.");
     }
 
     [TestMethod]
@@ -132,6 +218,7 @@ public sealed class OpenVinoRouteServiceTests
         Assert.IsNull(result.Handoff);
         Assert.IsNull(result.HandoffLease);
         Assert.IsNull(result.Configuration);
+        Assert.IsNull(result.ConversionOffer);
         Assert.AreEqual(0, worker.InspectCount);
     }
 
@@ -147,6 +234,7 @@ public sealed class OpenVinoRouteServiceTests
             CancellationToken.None);
 
         Assert.AreEqual(OpenVinoRouteInspectionOutcome.ConversionRequired, result.Outcome);
+        Assert.IsNull(result.Handoff);
         Assert.IsNull(result.HandoffLease);
         Assert.IsNull(result.Failure);
         Assert.IsNull(result.Configuration);
@@ -159,11 +247,362 @@ public sealed class OpenVinoRouteServiceTests
         Assert.ThrowsExactly<InvalidOperationException>(() => result.ConversionOffer.Consume());
     }
 
+    [TestMethod]
+    [DataRow(OpenVinoSupportCode.PackageMissingResource,
+        OpenVinoRouteInspectionOutcome.IncompletePackage)]
+    [DataRow(OpenVinoSupportCode.PackageInconsistentResource,
+        OpenVinoRouteInspectionOutcome.IncompletePackage)]
+    [DataRow(OpenVinoSupportCode.PackageUnsafePath,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.PackageChanged,
+        OpenVinoRouteInspectionOutcome.StaleEvidence)]
+    [DataRow(OpenVinoSupportCode.PackageUnreadable,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.ModelArchitectureUnsupported,
+        OpenVinoRouteInspectionOutcome.Unsupported)]
+    [DataRow(OpenVinoSupportCode.ModelTaskUnsupported,
+        OpenVinoRouteInspectionOutcome.Unsupported)]
+    [DataRow(OpenVinoSupportCode.TokenizerUnsupported,
+        OpenVinoRouteInspectionOutcome.Unsupported)]
+    [DataRow(OpenVinoSupportCode.RuntimeIntegrityFailed,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.RuntimeDependencyMissing,
+        OpenVinoRouteInspectionOutcome.DependencyUnavailable)]
+    [DataRow(OpenVinoSupportCode.RuntimeLoadFailed,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.RuntimeDeviceUnavailable,
+        OpenVinoRouteInspectionOutcome.DependencyUnavailable)]
+    [DataRow(OpenVinoSupportCode.RuntimeDeviceMismatch,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.RuntimeContextExceeded,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.RuntimeProtocolFailed,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.RuntimeTimedOut,
+        OpenVinoRouteInspectionOutcome.TimedOut)]
+    [DataRow(OpenVinoSupportCode.OperationCancelled,
+        OpenVinoRouteInspectionOutcome.Cancelled)]
+    [DataRow(OpenVinoSupportCode.ConversionPreflightFailed,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.ConversionFailed,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.ConversionOutputInvalid,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.ConversionPublishFailed,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.OptimizationUnsupported,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.TurboQuantUnavailable,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    [DataRow(OpenVinoSupportCode.TurboQuantActivationUnverified,
+        OpenVinoRouteInspectionOutcome.InvalidEvidence)]
+    public async Task WorkerFailureSupportCodeProducesTypedPathFreeNonReadyResult(
+        OpenVinoSupportCode supportCode,
+        OpenVinoRouteInspectionOutcome expectedOutcome)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command => new InspectionFailedEvent(
+            command.InspectionRunId,
+            supportCode));
+
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            CancellationToken.None);
+
+        Assert.AreEqual(expectedOutcome, result.Outcome);
+        Assert.IsNull(result.Handoff);
+        Assert.IsNull(result.HandoffLease);
+        Assert.IsNull(result.Configuration);
+        Assert.IsNull(result.ConversionOffer);
+        Assert.IsNotNull(result.Failure);
+        Assert.AreEqual(supportCode.ToProtocolValue(), result.Failure.SupportCode);
+        Assert.IsFalse(result.ToString().Contains(
+            package.Root,
+            StringComparison.OrdinalIgnoreCase));
+        Assert.AreEqual(1, worker.InspectCount);
+    }
+
+    [TestMethod]
+    public async Task CallerCancellationProducesTypedPathFreeCancelledResult()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+        FakeWorkerClient worker = new((_, token) =>
+            Task.FromCanceled<IOpenVinoEvent>(token));
+
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            cancellation.Token);
+
+        Assert.AreEqual(OpenVinoRouteInspectionOutcome.Cancelled, result.Outcome);
+        Assert.IsNull(result.Handoff);
+        Assert.IsNull(result.HandoffLease);
+        Assert.IsNull(result.Configuration);
+        Assert.IsNull(result.ConversionOffer);
+        Assert.AreEqual(
+            OpenVinoSupportCode.OperationCancelled.ToProtocolValue(),
+            result.Failure?.SupportCode);
+        Assert.IsFalse(result.ToString().Contains(
+            package.Root,
+            StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public async Task UnexpectedWorkerTerminalProducesInvalidEvidenceWithoutCapability()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command =>
+            new InspectionStartedEvent(command.InspectionRunId));
+
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            CancellationToken.None);
+
+        Assert.AreEqual(
+            OpenVinoRouteInspectionOutcome.InvalidEvidence,
+            result.Outcome);
+        Assert.IsNull(result.Handoff);
+        Assert.IsNull(result.HandoffLease);
+        Assert.IsNull(result.Configuration);
+        Assert.IsNull(result.ConversionOffer);
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeProtocolFailed.ToProtocolValue(),
+            result.Failure?.SupportCode);
+    }
+
+    [TestMethod]
+    [DataRow("inspection-run")]
+    [DataRow("package-digest")]
+    [DataRow("model-digest")]
+    [DataRow("model-length")]
+    public async Task MismatchedCompletedEvidenceProducesTypedStaleResultWithoutCapability(
+        string mismatch)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command =>
+        {
+            InspectionCompletedEvent completed = Completed(command);
+            return mismatch switch
+            {
+                "inspection-run" => completed with { InspectionRunId = Guid.NewGuid() },
+                "package-digest" => completed with { PackageManifestDigest = new string('b', 64) },
+                "model-digest" => completed with { ModelSha256 = new string('c', 64) },
+                "model-length" => completed with { ModelLengthBytes = completed.ModelLengthBytes + 1 },
+                _ => throw new AssertFailedException("Unknown mismatch case.")
+            };
+        });
+
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            CancellationToken.None);
+
+        Assert.AreEqual(OpenVinoRouteInspectionOutcome.StaleEvidence, result.Outcome);
+        AssertNoCapability(result);
+        Assert.AreEqual(
+            OpenVinoSupportCode.PackageChanged.ToProtocolValue(),
+            result.Failure?.SupportCode);
+    }
+
+    [TestMethod]
+    [DataRow("empty-run")]
+    [DataRow("invalid-package-digest")]
+    [DataRow("invalid-model-digest")]
+    [DataRow("nonpositive-model-length")]
+    [DataRow("main-model-not-parsed")]
+    [DataRow("tokenizer-not-parsed")]
+    [DataRow("detokenizer-not-parsed")]
+    [DataRow("missing-build-evidence")]
+    public async Task InvalidCompletedEvidenceProducesTypedInvalidResultWithoutCapability(
+        string mutation)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new(command =>
+        {
+            InspectionCompletedEvent completed = Completed(command);
+            return mutation switch
+            {
+                "empty-run" => completed with { InspectionRunId = Guid.Empty },
+                "invalid-package-digest" => completed with { PackageManifestDigest = "invalid" },
+                "invalid-model-digest" => completed with { ModelSha256 = "invalid" },
+                "nonpositive-model-length" => completed with { ModelLengthBytes = 0 },
+                "main-model-not-parsed" => completed with { MainModelParsed = false },
+                "tokenizer-not-parsed" => completed with { TokenizerParsed = false },
+                "detokenizer-not-parsed" => completed with { DetokenizerParsed = false },
+                "missing-build-evidence" => completed with { BuildEvidence = null! },
+                _ => throw new AssertFailedException("Unknown invalid evidence case.")
+            };
+        });
+
+        OpenVinoRouteInspectionResult result = await Service(worker).InspectAsync(
+            package.Root,
+            CancellationToken.None);
+
+        Assert.AreEqual(OpenVinoRouteInspectionOutcome.InvalidEvidence, result.Outcome);
+        AssertNoCapability(result);
+        Assert.AreEqual(
+            OpenVinoSupportCode.RuntimeProtocolFailed.ToProtocolValue(),
+            result.Failure?.SupportCode);
+    }
+
+    [TestMethod]
+    public async Task ProgrammingFailureIsNotConvertedToAnOperationalResult()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        FakeWorkerClient worker = new((_, _) =>
+            Task.FromException<IOpenVinoEvent>(
+                new InvalidOperationException("programming defect")));
+
+        InvalidOperationException failure =
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+                Service(worker).InspectAsync(package.Root, CancellationToken.None));
+
+        Assert.AreEqual("programming defect", failure.Message);
+    }
+
+    [TestMethod]
+    [DataRow(OpenVinoRouteInspectionOutcome.ConversionRequired, "",
+        OpenVinoInspectionPresentationKind.ConversionRequired,
+        "Conversion required",
+        "This supported Granite source must be converted before local prompting.",
+        "Choose another model package.",
+        "conversion_required", true)]
+    [DataRow(OpenVinoRouteInspectionOutcome.IncompletePackage,
+        "package_missing_resource",
+        OpenVinoInspectionPresentationKind.IncompletePackage,
+        "Incomplete package",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "package_missing_resource", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.Unsupported,
+        "model_architecture_unsupported",
+        OpenVinoInspectionPresentationKind.Unsupported,
+        "Unsupported package",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "model_architecture_unsupported", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.DependencyUnavailable,
+        "runtime_dependency_missing",
+        OpenVinoInspectionPresentationKind.OperationalFailure,
+        "OpenVINO unavailable",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "runtime_dependency_missing", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.Cancelled,
+        "operation_cancelled",
+        OpenVinoInspectionPresentationKind.Cancelled,
+        "Inspection cancelled",
+        "The local OpenVINO operation was cancelled.",
+        "Start inspection again when ready.",
+        "operation_cancelled", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.TimedOut,
+        "runtime_timed_out",
+        OpenVinoInspectionPresentationKind.OperationalFailure,
+        "Inspection timed out",
+        "The local OpenVINO operation exceeded its time limit.",
+        "Retry the operation.",
+        "runtime_timed_out", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.InvalidEvidence,
+        "runtime_protocol_failed",
+        OpenVinoInspectionPresentationKind.Invalid,
+        "Invalid evidence",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "runtime_protocol_failed", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.StaleEvidence,
+        "package_changed",
+        OpenVinoInspectionPresentationKind.Invalid,
+        "Package changed",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "package_changed", false)]
+    public void HeadlessPresentationPolicyProducesBoundedDisposition(
+        OpenVinoRouteInspectionOutcome outcome,
+        string supportCode,
+        OpenVinoInspectionPresentationKind expectedKind,
+        string expectedTitle,
+        string expectedMessage,
+        string expectedRecovery,
+        string expectedDiagnostic,
+        bool expectedWarning)
+    {
+        const string privatePath = @"C:\private\model.xml";
+        PromptFailure? failure = string.IsNullOrEmpty(supportCode)
+            ? null
+            : new PromptFailure(supportCode, privatePath, privatePath);
+        OpenVinoRouteInspectionResult result = new(
+            outcome,
+            HandoffLease: null,
+            failure,
+            Configuration: null);
+
+        OpenVinoInspectionPresentationDisposition disposition =
+            OpenVinoInspectionPresentationPolicy.Create(result);
+
+        Assert.AreEqual(expectedKind, disposition.Kind);
+        Assert.AreEqual(expectedTitle, disposition.Title);
+        Assert.AreEqual(expectedMessage, disposition.Message);
+        Assert.AreEqual(expectedRecovery, disposition.RecoveryAction);
+        Assert.AreEqual(expectedDiagnostic, disposition.DiagnosticCode);
+        Assert.AreEqual(expectedWarning, disposition.IsWarning);
+        Assert.IsFalse(disposition.ToString().Contains(
+            privatePath,
+            StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    [DataRow(OpenVinoRouteInspectionOutcome.Ready)]
+    [DataRow(OpenVinoRouteInspectionOutcome.ReadyWithWarnings)]
+    public void HeadlessPresentationPolicyRejectsReadyOutcome(
+        OpenVinoRouteInspectionOutcome outcome)
+    {
+        OpenVinoRouteInspectionResult result = new(
+            outcome,
+            HandoffLease: null,
+            Failure: null,
+            Configuration: null);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            OpenVinoInspectionPresentationPolicy.Create(result));
+    }
+
+    [TestMethod]
+    public void LivePageCallsHeadlessPresentationPolicy()
+    {
+        string repository = FindRepositoryRoot();
+        string source = File.ReadAllText(Path.Combine(
+            repository,
+            "IBM Granite with TurboQuant (Intel)",
+            "Features",
+            "ModelInspection",
+            "ModelInspectionPage.OpenVino.cs"));
+        StringAssert.Contains(source,
+            "OpenVinoInspectionPresentationPolicy.Create(result)");
+    }
+
     private static OpenVinoRouteService Service(FakeWorkerClient worker) => new(
         new OpenVinoStaticPackageInspector(),
         new OpenVinoInspectionHandoffFactory(),
         worker,
         new UnusedChannelFactory());
+
+    private static InspectionCompletedEvent Completed(StartInspectionCommand command) => new(
+        command.InspectionRunId,
+        command.PackageManifestDigest,
+        command.ModelSha256,
+        command.ModelLengthBytes,
+        true,
+        true,
+        true,
+        BuildEvidence());
+
+    private static void AssertNoCapability(OpenVinoRouteInspectionResult result)
+    {
+        Assert.IsNull(result.Handoff);
+        Assert.IsNull(result.HandoffLease);
+        Assert.IsNull(result.Configuration);
+        Assert.IsNull(result.ConversionOffer);
+    }
 
     private static OpenVinoBuildEvidence BuildEvidence() => new(
         "2026.3.0-22451-8a17657b995-releases/2026/3",
@@ -171,10 +610,19 @@ public sealed class OpenVinoRouteServiceTests
         "2026.3.0.0-703-183c6f25cda",
         new string('a', 64));
 
-    private sealed class FakeWorkerClient(
-        Func<StartInspectionCommand, IOpenVinoEvent> inspect) :
-        IOpenVinoWorkerClient
+    private sealed class FakeWorkerClient : IOpenVinoWorkerClient
     {
+        private readonly Func<StartInspectionCommand, CancellationToken,
+            Task<IOpenVinoEvent>> inspect;
+
+        internal FakeWorkerClient(Func<StartInspectionCommand, IOpenVinoEvent> inspect)
+            : this((command, _) => Task.FromResult(inspect(command)))
+        {
+        }
+
+        internal FakeWorkerClient(Func<StartInspectionCommand, CancellationToken,
+            Task<IOpenVinoEvent>> inspect) => this.inspect = inspect;
+
         internal int InspectCount { get; private set; }
 
         public Task<IOpenVinoEvent> InspectAsync(
@@ -182,7 +630,7 @@ public sealed class OpenVinoRouteServiceTests
             CancellationToken cancellationToken)
         {
             InspectCount++;
-            return Task.FromResult(inspect(command));
+            return inspect(command, cancellationToken);
         }
 
         public Task<OpenVinoConversation> StartSessionAsync(

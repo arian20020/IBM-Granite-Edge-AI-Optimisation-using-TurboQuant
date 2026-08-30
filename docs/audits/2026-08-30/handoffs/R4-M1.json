@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "workerId": "M1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "baseCommit": "282a7690edd9bfbb48dbb324d09e76a7a154652e",
+  "baseTree": "812c22ea640633c5e8835266b902fb802728eea9",
+  "branch": "audit/ucl-m1-model-inspection-remediation-r4-1",
+  "implementationSubjectCommit": "ca913c68eb62fdd70f1c408fd74e7b9afb66a546",
+  "implementationSubjectTree": "f83793dbea0a6a5f3a8e8ca343526eff9a947b9b",
+  "worktreeCleanAtHandoff": true,
+  "completedAtUtc": "2026-08-30T16:11:18Z",
+  "report": {
+    "path": "docs/audits/2026-08-30/M1-model-inspection-r4.md",
+    "sha256": "6d7b5b259e797d6784f49f3cb6e627e3bdbcec06590f45006238fe41d365b7fd",
+    "bytes": 28328
+  },
+  "transport": "remote",
+  "remoteRef": "refs/remotes/origin/audit/ucl-m1-model-inspection-remediation-r4-1",
+  "bundle": null,
+  "evidenceManifest": {
+    "path": "docs/audits/2026-08-30/evidence/M1-model-inspection-r4.json",
+    "sha256": "c8fc9187fee7f17c0e5f80684526e2cae0260799b6907cbd46fdec11ba0c9b14",
+    "bytes": 6782,
+    "evidenceSubjectCommit": "ca913c68eb62fdd70f1c408fd74e7b9afb66a546",
+    "evidenceSubjectTree": "f83793dbea0a6a5f3a8e8ca343526eff9a947b9b"
+  },
+  "testTotals": {
+    "discovered": 2585,
+    "executed": 2585,
+    "passed": 2577,
+    "failed": 1,
+    "skipped": 7
+  },
+  "nativeDisposition": "blocked"
+}

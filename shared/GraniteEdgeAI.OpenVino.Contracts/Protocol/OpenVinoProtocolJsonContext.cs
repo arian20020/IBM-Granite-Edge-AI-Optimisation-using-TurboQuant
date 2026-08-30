@@ -31,7 +31,6 @@ namespace GraniteEdgeAI.OpenVino.Contracts;
 [JsonSerializable(typeof(SessionCompletedEvent))]
 [JsonSerializable(typeof(SessionFailedEvent))]
 [JsonSerializable(typeof(SessionCancelledEvent))]
-[JsonSerializable(typeof(ModelInspectionHandoffV2))]
 [JsonSerializable(typeof(OpenVinoBuildEvidence))]
 [JsonSerializable(typeof(TurboQuantBuildEvidence))]
 internal sealed partial class OpenVinoProtocolJsonContext : JsonSerializerContext

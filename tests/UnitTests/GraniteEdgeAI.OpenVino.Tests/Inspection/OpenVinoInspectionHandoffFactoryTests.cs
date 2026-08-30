@@ -1,6 +1,8 @@
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.OpenVino.Contracts;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SharedHandoff = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
+using SharedOutcome = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOutcomeV2;
 
 namespace GraniteEdgeAI.OpenVino.Tests.Inspection;
 
@@ -59,36 +61,55 @@ public sealed class OpenVinoInspectionHandoffFactoryTests
         OpenVinoStaticPackageInspectionResult staticResult = StaticResult();
         OpenVinoNativeValidationEvidence native = NativeEvidence() with { Outcome = outcome };
 
-        ModelInspectionHandoffV2 handoff = new OpenVinoInspectionHandoffFactory().Create(staticResult, native, RunId);
+        SharedHandoff handoff = new OpenVinoInspectionHandoffFactory().Create(staticResult, native, RunId);
         byte[] payload = handoff.ToCanonicalUtf8Json();
 
-        Assert.AreEqual(ModelInspectionHandoffV2.RequiredSchemaVersion, handoff.SchemaVersion);
+        Assert.AreEqual(SharedHandoff.RequiredSchemaVersion, handoff.SchemaVersion);
         Assert.AreEqual(RunId, handoff.ModelInspectionRunId);
-        Assert.AreEqual(outcome, handoff.Outcome);
+        Assert.AreEqual(
+            outcome == ModelInspectionOutcome.Ready
+                ? SharedOutcome.Ready
+                : SharedOutcome.ReadyWithWarnings,
+            handoff.Outcome);
         Assert.AreEqual(ModelDigest, handoff.ModelSha256);
         Assert.AreEqual(88L, handoff.ModelLengthBytes);
         Assert.IsTrue(IsUuidV4(handoff.ModelInspectionHandoffId));
-        Assert.IsTrue(payload.Length <= ModelInspectionHandoffV2.MaximumCanonicalUtf8Bytes);
+        Assert.IsTrue(payload.Length <= SharedHandoff.MaximumCanonicalUtf8Bytes);
         CollectionAssert.AreEqual(
             HandoffFieldNames,
             System.Text.Json.JsonDocument.Parse(payload).RootElement.EnumerateObject().Select(static property => property.Name).ToArray());
         string expectedCanonical = $"{{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"{handoff.ModelInspectionHandoffId:D}\",\"modelInspectionRunId\":\"{RunId:D}\",\"outcome\":\"{outcome}\",\"modelSha256\":\"{ModelDigest}\",\"modelLengthBytes\":88}}";
         Assert.AreEqual(expectedCanonical, System.Text.Encoding.UTF8.GetString(payload));
         Assert.IsFalse(System.Text.Encoding.UTF8.GetString(payload).Contains("manifest", StringComparison.OrdinalIgnoreCase));
-        Assert.AreEqual(handoff, ModelInspectionHandoffV2.Parse(payload));
+        Assert.AreEqual(handoff, SharedHandoff.Parse(payload));
     }
 
     [TestMethod]
     public void EachIssueUsesAFreshNonzeroLowercaseUuidV4()
     {
         OpenVinoInspectionHandoffFactory factory = new();
-        ModelInspectionHandoffV2 first = factory.Create(StaticResult(), NativeEvidence(), RunId);
-        ModelInspectionHandoffV2 second = factory.Create(StaticResult(), NativeEvidence(), RunId);
+        SharedHandoff first = factory.Create(StaticResult(), NativeEvidence(), RunId);
+        SharedHandoff second = factory.Create(StaticResult(), NativeEvidence(), RunId);
 
         Assert.AreNotEqual(first.ModelInspectionHandoffId, second.ModelInspectionHandoffId);
         Assert.IsTrue(IsUuidV4(first.ModelInspectionHandoffId));
         Assert.IsTrue(IsUuidV4(second.ModelInspectionHandoffId));
         Assert.AreEqual(first.ModelInspectionHandoffId.ToString("D"), first.ModelInspectionHandoffId.ToString("D").ToLowerInvariant());
+    }
+
+    [TestMethod]
+    public void OpenVinoAdapterEmitsTheSharedCanonicalHandoffBytes()
+    {
+        SharedHandoff openVino =
+            new OpenVinoInspectionHandoffFactory().Create(
+                StaticResult(),
+                NativeEvidence(),
+                RunId);
+        Assert.AreEqual(typeof(SharedHandoff), openVino.GetType(),
+            "The OpenVINO adapter must return the shared canonical handoff type.");
+        Assert.AreEqual(
+            SharedHandoff.Parse(openVino.ToCanonicalUtf8Json()),
+            openVino);
     }
 
     [TestMethod]
@@ -154,4 +175,5 @@ public sealed class OpenVinoInspectionHandoffFactoryTests
         string text = value.ToString("D");
         return value != Guid.Empty && text[14] == '4' && text[19] is '8' or '9' or 'a' or 'b';
     }
+
 }

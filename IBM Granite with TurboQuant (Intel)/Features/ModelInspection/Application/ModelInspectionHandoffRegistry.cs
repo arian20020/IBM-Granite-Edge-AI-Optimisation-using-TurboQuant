@@ -104,7 +104,9 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
 
             entries.Add(
                 candidate!.ModelInspectionHandoffId,
-                new Entry(candidate));
+                new Entry(
+                    candidate,
+                    ModelInspectionProjectionFactory.CreateGgufHandle(candidate)));
             handoff = candidate;
             return true;
         }
@@ -136,7 +138,11 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
                 return false;
             }
 
-            entries.Add(handoff.ModelInspectionHandoffId, new Entry(handoff));
+            entries.Add(
+                handoff.ModelInspectionHandoffId,
+                new Entry(
+                    handoff,
+                    ModelInspectionProjectionFactory.CreateGgufHandle(handoff)));
             return true;
         }
     }
@@ -241,7 +247,32 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
             prior.Invalidate();
             entries.Add(
                 replacement.ModelInspectionHandoffId,
-                new Entry(replacement));
+                new Entry(
+                    replacement,
+                    ModelInspectionProjectionFactory.CreateGgufHandle(replacement)));
+            return true;
+        }
+    }
+
+    internal bool TryGetProjection(
+        Guid modelInspectionHandoffId,
+        out ModelInspectionProjectionHandle? projection)
+    {
+        lock (gate)
+        {
+            projection = null;
+            if (disposed ||
+                !entries.TryGetValue(modelInspectionHandoffId, out Entry? entry) ||
+                entry.State is ModelInspectionHandoffLifecycleState.Invalidated ||
+                entry.Projection is null ||
+                entry.Projection.Projection.ModelInspectionHandoff
+                    .ModelInspectionHandoffId !=
+                    modelInspectionHandoffId)
+            {
+                return false;
+            }
+
+            projection = entry.Projection;
             return true;
         }
     }
@@ -352,12 +383,17 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
 
     private sealed class Entry
     {
-        internal Entry(ModelInspectionHandoff handoff)
+        internal Entry(
+            ModelInspectionHandoff handoff,
+            ModelInspectionProjectionHandle projection)
         {
             Handoff = handoff;
+            Projection = projection;
         }
 
         internal ModelInspectionHandoff Handoff { get; }
+
+        internal ModelInspectionProjectionHandle? Projection { get; private set; }
 
         internal ModelInspectionHandoffLifecycleState State { get; set; } =
             ModelInspectionHandoffLifecycleState.Issued;
@@ -374,6 +410,7 @@ internal sealed class ModelInspectionHandoffRegistry : IDisposable
             ProductHardwareRunId = Guid.Empty;
             ClaimToken = Guid.Empty;
             HardwareStarted = false;
+            Projection = null;
         }
     }
 }

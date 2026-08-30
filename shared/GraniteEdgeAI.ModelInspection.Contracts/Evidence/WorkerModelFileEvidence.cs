@@ -37,10 +37,9 @@ public sealed record WorkerModelFileEvidence
                 StringComparison.Ordinal),
             nameof(FileName),
             "must contain only the final file name");
-        WorkerProtocolValidation.Require(
-            !string.IsNullOrWhiteSpace(CanonicalPathSha256),
-            nameof(CanonicalPathSha256),
-            "must not be empty");
+        WorkerProtocolValidation.RequireHexDigest(
+            CanonicalPathSha256,
+            nameof(CanonicalPathSha256));
         WorkerProtocolValidation.Require(
             LengthBefore > 0 && LengthAfter > 0,
             nameof(LengthBefore),
@@ -51,14 +50,12 @@ public sealed record WorkerModelFileEvidence
         WorkerProtocolValidation.RequireUtcTimestamp(
             LastWriteTimeAfterUtc,
             nameof(LastWriteTimeAfterUtc));
-        WorkerProtocolValidation.Require(
-            !string.IsNullOrWhiteSpace(Sha256Before),
-            nameof(Sha256Before),
-            "must not be empty");
-        WorkerProtocolValidation.Require(
-            !string.IsNullOrWhiteSpace(Sha256After),
-            nameof(Sha256After),
-            "must not be empty");
+        WorkerProtocolValidation.RequireHexDigest(
+            Sha256Before,
+            nameof(Sha256Before));
+        WorkerProtocolValidation.RequireHexDigest(
+            Sha256After,
+            nameof(Sha256After));
 
         if (IntegrityPreserved)
         {

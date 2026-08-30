@@ -72,24 +72,17 @@ public sealed partial class RuntimeDependencyPolicyTests
     }
 
     [TestMethod]
-    public void WinUiApplicationProject_DoesNotReferenceExperimentalRuntimePackages()
+    public void WinUiApplicationProject_DoesNotDirectlyReferenceLlamaSharpPackages()
     {
         XDocument application = LoadProject(ApplicationProjectPath());
         string[] includes = ReadAllIncludes(application);
-        string[] forbiddenFragments =
-        {
-            "LLamaSharp",
-            "TurboQuant"
-        };
 
-        foreach (string fragment in forbiddenFragments)
-        {
-            Assert.IsFalse(
-                includes.Any(include => include.Contains(
-                    fragment,
-                    StringComparison.OrdinalIgnoreCase)),
-                $"WinUI application must not reference {fragment} during feasibility work.");
-        }
+        Assert.IsFalse(
+            includes.Any(include => include.Contains(
+                "LLamaSharp",
+                StringComparison.OrdinalIgnoreCase)),
+            "The WinUI application must consume Model Inspection through its " +
+            "owned runtime/worker boundary, not direct LLamaSharp packages.");
     }
 
     [TestMethod]

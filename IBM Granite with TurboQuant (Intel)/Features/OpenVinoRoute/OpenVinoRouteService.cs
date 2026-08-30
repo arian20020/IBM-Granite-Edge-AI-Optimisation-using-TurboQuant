@@ -6,6 +6,9 @@ using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
+using GraniteEdgeAI.Features.ModelInspection.Handoff;
+using SharedProjection = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionProjectionV2;
+using ModelInspectionHandoffV2 = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute;
 
@@ -68,13 +71,17 @@ public sealed class OpenVinoRouteHandoffLease : IDisposable, IPromptRouteActivat
 
     internal OpenVinoRouteHandoffLease(
         ModelInspectionHandoffV2 handoff,
+        SharedProjection projection,
         OpenVinoRouteLeasePayload payload)
     {
         Handoff = handoff ?? throw new ArgumentNullException(nameof(handoff));
+        Projection = projection ?? throw new ArgumentNullException(nameof(projection));
         this.payload = payload ?? throw new ArgumentNullException(nameof(payload));
     }
 
     public ModelInspectionHandoffV2 Handoff { get; }
+
+    internal SharedProjection Projection { get; }
 
     public PromptRouteKind Kind => PromptRouteKind.OpenVino;
 
@@ -246,6 +253,18 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 OpenVinoPromptAdapter.MapFailure(failure.SupportCode),
                 Configuration: null);
         }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            OpenVinoSupportCode code = OpenVinoSupportCode.OperationCancelled;
+            OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(code);
+            stateMachine.TryCompleteInspection(operationId, outcome);
+            return new OpenVinoRouteInspectionResult(
+                outcome,
+                HandoffLease: null,
+                OpenVinoPromptAdapter.MapFailure(code),
+                Configuration: null);
+        }
 
         if (terminal is InspectionFailedEvent failed)
         {
@@ -262,13 +281,27 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         if (terminal is not InspectionCompletedEvent completed)
         {
             OpenVinoSupportCode code = OpenVinoSupportCode.RuntimeProtocolFailed;
+            OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(code);
             stateMachine.TryCompleteInspection(
                 operationId,
-                OpenVinoRouteInspectionOutcome.Invalid);
+                outcome);
             return new OpenVinoRouteInspectionResult(
-                OpenVinoRouteInspectionOutcome.Invalid,
+                outcome,
                 HandoffLease: null,
                 OpenVinoPromptAdapter.MapFailure(code),
+                Configuration: null);
+        }
+
+        OpenVinoSupportCode? completedEvidenceFailure =
+            ValidateCompletedEvidence(completed, inspectionRunId, evidence);
+        if (completedEvidenceFailure is OpenVinoSupportCode failureCode)
+        {
+            OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(failureCode);
+            stateMachine.TryCompleteInspection(operationId, outcome);
+            return new OpenVinoRouteInspectionResult(
+                outcome,
+                HandoffLease: null,
+                OpenVinoPromptAdapter.MapFailure(failureCode),
                 Configuration: null);
         }
 
@@ -290,6 +323,8 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             staticResult,
             nativeEvidence,
             inspectionRunId);
+        SharedProjection projection =
+            ModelInspectionProjectionFactory.CreateOpenVino(handoff);
         if (!stateMachine.TryCompleteInspection(operationId, readyOutcome))
         {
             throw new InvalidOperationException(
@@ -298,6 +333,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
 
         OpenVinoRouteHandoffLease lease = new(
             handoff,
+            projection,
             new OpenVinoRouteLeasePayload(
                 serviceIdentity,
                 stateMachine,
@@ -335,6 +371,13 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         ModelInspectionHandoffV2 handoff = handoffLease.Handoff;
         ArgumentNullException.ThrowIfNull(handoff);
         handoff.Validate();
+        SharedProjection projection = handoffLease.Projection;
+        projection.Validate();
+        if (!ProjectionMatchesHandoff(projection, handoff))
+        {
+            throw new InvalidOperationException(
+                "The schema-v2 projection does not match the issued handoff.");
+        }
         ArgumentNullException.ThrowIfNull(eventSink);
         ArgumentNullException.ThrowIfNull(runtimeOptions);
         runtimeOptions.Validate();
@@ -400,6 +443,95 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         OpenVinoSupportCode.ModelTaskUnsupported or
         OpenVinoSupportCode.TokenizerUnsupported =>
             OpenVinoRouteInspectionOutcome.Unsupported,
-        _ => OpenVinoRouteInspectionOutcome.Invalid
+        OpenVinoSupportCode.RuntimeDependencyMissing or
+        OpenVinoSupportCode.RuntimeDeviceUnavailable =>
+            OpenVinoRouteInspectionOutcome.DependencyUnavailable,
+        OpenVinoSupportCode.OperationCancelled =>
+            OpenVinoRouteInspectionOutcome.Cancelled,
+        OpenVinoSupportCode.RuntimeTimedOut =>
+            OpenVinoRouteInspectionOutcome.TimedOut,
+        OpenVinoSupportCode.PackageChanged =>
+            OpenVinoRouteInspectionOutcome.StaleEvidence,
+        OpenVinoSupportCode.PackageUnsafePath or
+        OpenVinoSupportCode.PackageUnreadable or
+        OpenVinoSupportCode.RuntimeIntegrityFailed or
+        OpenVinoSupportCode.RuntimeLoadFailed or
+        OpenVinoSupportCode.RuntimeDeviceMismatch or
+        OpenVinoSupportCode.RuntimeContextExceeded or
+        OpenVinoSupportCode.RuntimeProtocolFailed or
+        OpenVinoSupportCode.ConversionPreflightFailed or
+        OpenVinoSupportCode.ConversionFailed or
+        OpenVinoSupportCode.ConversionOutputInvalid or
+        OpenVinoSupportCode.ConversionPublishFailed or
+        OpenVinoSupportCode.OptimizationUnsupported or
+        OpenVinoSupportCode.TurboQuantUnavailable or
+        OpenVinoSupportCode.TurboQuantActivationUnverified =>
+            OpenVinoRouteInspectionOutcome.InvalidEvidence,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(supportCode),
+            supportCode,
+            "Unknown OpenVINO support code.")
     };
+
+    private static OpenVinoSupportCode? ValidateCompletedEvidence(
+        InspectionCompletedEvent completed,
+        Guid inspectionRunId,
+        OpenVinoStaticPackageEvidence expected)
+    {
+        try
+        {
+            completed.Validate();
+        }
+        catch (OpenVinoProtocolException)
+        {
+            return OpenVinoSupportCode.RuntimeProtocolFailed;
+        }
+
+        return completed.InspectionRunId != inspectionRunId ||
+            !string.Equals(
+                completed.PackageManifestDigest,
+                expected.PackageManifestDigest,
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                completed.ModelSha256,
+                expected.ModelSha256,
+                StringComparison.Ordinal) ||
+            completed.ModelLengthBytes != expected.ModelLengthBytes
+                ? OpenVinoSupportCode.PackageChanged
+                : null;
+    }
+
+    private static bool ProjectionMatchesHandoff(
+        SharedProjection projection,
+        ModelInspectionHandoffV2 handoff) =>
+        projection.SchemaVersion == handoff.SchemaVersion &&
+        projection.ModelSource.Route ==
+            GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionRoute.OpenVino &&
+        projection.ModelInspectionResult.Route ==
+            GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionRoute.OpenVino &&
+        projection.ModelInspectionHandoff.SchemaVersion == handoff.SchemaVersion &&
+        projection.ModelInspectionHandoff.ModelInspectionHandoffId ==
+            handoff.ModelInspectionHandoffId &&
+        projection.ModelInspectionResult.ModelInspectionRunId ==
+            handoff.ModelInspectionRunId &&
+        projection.ModelInspectionHandoff.ModelInspectionRunId ==
+            handoff.ModelInspectionRunId &&
+        projection.ModelInspectionResult.Outcome == handoff.Outcome &&
+        projection.ModelInspectionHandoff.Outcome == handoff.Outcome &&
+        string.Equals(
+            projection.ModelSource.ModelSha256,
+            handoff.ModelSha256,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            projection.ModelInspectionResult.ModelSha256,
+            handoff.ModelSha256,
+            StringComparison.Ordinal) &&
+        string.Equals(
+            projection.ModelInspectionHandoff.ModelSha256,
+            handoff.ModelSha256,
+            StringComparison.Ordinal) &&
+        projection.ModelSource.ModelLengthBytes == handoff.ModelLengthBytes &&
+        projection.ModelInspectionResult.ModelLengthBytes == handoff.ModelLengthBytes &&
+        projection.ModelInspectionHandoff.ModelLengthBytes == handoff.ModelLengthBytes;
+
 }

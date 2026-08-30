@@ -4,6 +4,8 @@ using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Reflection;
 using System.Text;
+using SharedHandoff = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
+using SharedOutcome = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOutcomeV2;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -130,6 +132,23 @@ public sealed class ModelInspectionHandoffTests
     }
 
     [TestMethod]
+    public void Codec_EmitsTheSharedCanonicalHandoffBytes()
+    {
+        ModelInspectionHandoff handoff = CreateHandoff();
+        var shared = new SharedHandoff(
+            2,
+            HandoffId,
+            ModelRunId,
+            SharedOutcome.Ready,
+            Sha256,
+            4_096);
+
+        CollectionAssert.AreEqual(
+            shared.ToCanonicalUtf8Json(),
+            ModelInspectionHandoffCodec.Serialize(handoff));
+    }
+
+    [TestMethod]
     [DataRow("{}")]
     [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"11111111-1111-4111-8111-111111111111\",\"modelInspectionRunId\":\"22222222-2222-4222-8222-222222222222\",\"outcome\":\"Ready\",\"modelSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"modelLengthBytes\":4096,\"path\":\"C:\\\\Private\\\\model.gguf\"}")]
     [DataRow("{\"schemaVersion\":2,\"schemaVersion\":2,\"modelInspectionHandoffId\":\"11111111-1111-4111-8111-111111111111\",\"modelInspectionRunId\":\"22222222-2222-4222-8222-222222222222\",\"outcome\":\"Ready\",\"modelSha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"modelLengthBytes\":4096}")]
@@ -214,4 +233,5 @@ public sealed class ModelInspectionHandoffTests
             ModelInspectionOutcome.Ready,
             Sha256,
             4_096);
+
 }

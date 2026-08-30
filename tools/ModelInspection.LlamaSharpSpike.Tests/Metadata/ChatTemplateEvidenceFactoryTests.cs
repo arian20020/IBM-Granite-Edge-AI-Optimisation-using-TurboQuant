@@ -24,8 +24,6 @@ public sealed class ChatTemplateEvidenceFactoryTests
     }
 
     [TestMethod]
-    [DataRow("")]
-    [DataRow("   ")]
     [DataRow("{% for message in messages %}{{ message.content }}{% endfor %}")]
     [DataRow("{{ 'こんにちは' }}")]
     public void Create_WhenKeyExists_RecordsExactLengthAndStableHash(
@@ -45,6 +43,24 @@ public sealed class ChatTemplateEvidenceFactoryTests
                     SHA256.HashData(Encoding.UTF8.GetBytes(template)))
                 .ToLowerInvariant(),
             result.Sha256);
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("   ")]
+    [DataRow("\t\r\n")]
+    public void Create_WhenTemplateHasNoContent_ReturnsNotPresent(
+        string template)
+    {
+        ChatTemplateEvidence result = ChatTemplateEvidenceFactory.Create(
+            new Dictionary<string, string>
+            {
+                ["tokenizer.chat_template"] = template
+            });
+
+        Assert.IsFalse(result.Present);
+        Assert.IsNull(result.LengthCharacters);
+        Assert.IsNull(result.Sha256);
     }
 
     [TestMethod]

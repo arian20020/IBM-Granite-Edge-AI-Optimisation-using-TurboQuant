@@ -22,7 +22,12 @@ IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/GgufQuickScan
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/ModelQuickScanResult.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/QuickScan/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelImport/README.md
-IBM Granite with TurboQuant (Intel)/Features/ModelImport/SourceModelInspectionRequestedEventArgs.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/HardwareInspectionRequestedEventArgs.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionHandoff.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionHandoffCodec.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionHandoffProjector.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelInspectionHandoffRegistry.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Application/ModelSourceCustodyRegistry.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Classification/IModelInspectionClassifier.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Classification/ModelInspectionClassifier.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Classification/README.md
@@ -44,6 +49,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInsp
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ModelInspectionTokenizerEvidence.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Contracts/ValidatedQuickScanSnapshot.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/EqualHeightStackPanel.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionActionCard.xaml
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionActionCard.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Controls/InspectionContentCard.xaml
@@ -84,6 +90,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runti
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureSession.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/DebugFixtures/Runtime/ModelInspectionFixtureSessionEvidence.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ManifestVerifyingInspectionWorkerClient.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionProjectionFactory.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/ModelInspectionWorkerComposition.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/Infrastructure/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ModelInspectionPage.OpenVino.cs
@@ -155,10 +162,16 @@ IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStage
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/README.md
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/DebugFixtures/OnboardingShellPage.FixtureGallery.cs
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.ModelSourceCustody.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingStage.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/README.md
+IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Inspection/ModelInspectionProjectionFactory.OpenVino.cs
+IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/OpenVinoActivationOutcomePolicy.cs
+IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/OpenVinoInspectionPresentationPolicy.cs
+IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/OpenVinoRouteService.cs
+IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/OpenVinoRouteStateMachine.cs
 IBM Granite with TurboQuant (Intel)/Features/README.md
 IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj
 IBM Granite with TurboQuant (Intel)/MainWindow.xaml
@@ -168,6 +181,15 @@ docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md
 docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md
 docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md
 docs/architecture/decisions/README.md
+docs/audits/2026-08-28/M1-model-inspection-remediation-r2.md
+docs/audits/2026-08-28/M1-model-inspection-remediation-r3.md
+docs/audits/2026-08-28/evidence/M1-model-inspection-evidence-r3.json
+docs/audits/2026-08-28/evidence/M1-model-inspection-evidence-v1.json
+docs/audits/2026-08-28/proposals/M1-R3-shared-project-fixture-boundary.diff
+docs/audits/2026-08-28/schemas/10-EVIDENCE-MANIFEST-SCHEMA.json
+docs/audits/2026-08-28/schemas/10-HANDOFF-RECEIPT-SCHEMA.json
+docs/audits/2026-08-30/M1-model-inspection-r4.md
+docs/audits/2026-08-30/evidence/M1-model-inspection-r4.json
 docs/development/Model-Import-Quick-Scan-Current-State.md
 docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md
 docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md
@@ -193,6 +215,10 @@ docs/superpowers/plans/2026-08-09-model-inspection-figma-fidelity-and-motion.md
 docs/superpowers/plans/2026-08-10-model-inspection-fixture-catalog-and-debug-gallery.md
 docs/superpowers/plans/2026-08-14-model-inspection-progress-and-visual-polish.md
 docs/superpowers/plans/2026-08-16-model-inspection-hardware-visual-alignment.md
+docs/superpowers/plans/2026-08-20-model-inspection-common-hardware-template.md
+docs/superpowers/plans/2026-08-20-model-inspection-native-spacing-polish.md
+docs/superpowers/plans/2026-08-29-m1-r3-model-inspection-closure.md
+docs/superpowers/plans/2026-08-30-m1-r4-model-inspection-closure.md
 docs/superpowers/specs/2026-07-30-embedded-model-download-card-responsive-indicator-design.md
 docs/superpowers/specs/2026-08-03-feature-architecture-readmes-design.md
 docs/superpowers/specs/2026-08-04-core-runtime-progress-and-backend-gates-design.md
@@ -207,6 +233,10 @@ docs/superpowers/specs/2026-08-09-model-inspection-figma-fidelity-and-motion-des
 docs/superpowers/specs/2026-08-10-model-inspection-fixture-catalog-and-debug-gallery-design.md
 docs/superpowers/specs/2026-08-14-model-inspection-progress-and-visual-polish-design.md
 docs/superpowers/specs/2026-08-16-model-inspection-hardware-visual-alignment-design.md
+docs/superpowers/specs/2026-08-20-model-inspection-common-hardware-template-design.md
+docs/superpowers/specs/2026-08-20-model-inspection-native-spacing-polish-design.md
+docs/superpowers/specs/2026-08-29-m1-r3-model-inspection-closure-design.md
+docs/superpowers/specs/2026-08-30-m1-r4-model-inspection-closure-design.md
 docs/testing/LLamaSharp-Runtime-Test-Coverage-Matrix.md
 docs/testing/Model-Inspection-Test-Completeness-Matrix.md
 docs/testing/evidence/2026-08-04-llamasharp-tier1-verification.md
@@ -220,6 +250,7 @@ docs/testing/evidence/README.md
 docs/testing/runbooks/LLamaSharp-Trusted-Real-Model-Runbook.md
 docs/ux/screenshots/model-inspection/reference/README.md
 docs/ux/screenshots/model-inspection/reference/model-inspection-complete-ordered-board-v2.svg
+docs/ux/visual-oracles/model-inspection-balanced-full-approval-v3.html
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/BoundedStandardErrorCollector.cs
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj
 infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/IInspectionWorkerClient.cs
@@ -294,10 +325,12 @@ runtime/README.md
 scripts/model-inspection/Generate-ModelInspectionFixtureReport.ps1
 scripts/model-inspection/Invoke-ModelInspectionProgressPolishGate.ps1
 scripts/model-inspection/New-ModelInspectionWorkerManifest.ps1
+scripts/model-inspection/Test-M1R3AuditEvidence.ps1
 scripts/model-inspection/Test-ModelInspectionFixtureReleaseIsolation.ps1
 scripts/model-inspection/Test-ModelInspectionVisualArtifactPrivacy.ps1
 scripts/model-inspection/Test-ModelInspectionWorkerManifest.ps1
 scripts/model-inspection/Verify-ModelInspectionCleanupInventory.ps1
+shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/ModelInspectionProjectionV2.cs
 shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerChatTemplateEvidence.cs
 shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerInspectionEvidence.cs
 shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/WorkerModelConfigurationEvidence.cs
@@ -342,6 +375,7 @@ shared/GraniteEdgeAI.ModelInspection.Transport/BoundedUtf8LineWriter.cs
 shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj
 shared/GraniteEdgeAI.ModelInspection.Transport/ProtocolStreamErrorKind.cs
 shared/GraniteEdgeAI.ModelInspection.Transport/ProtocolStreamException.cs
+shared/GraniteEdgeAI.OpenVino.Contracts/Inspection/OpenVinoPackageInspection.cs
 shared/README.md
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/BuildWorkflowContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/CleanupInventoryContractTests.cs
@@ -351,6 +385,9 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate2ProjectGr
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate4PackagingContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Gate5ApplicationBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/GraniteEdgeAI.ModelInspection.Contracts.Tests.csproj
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/M1R3AuditEvidenceContractTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/M1R3DebugFixtureRootContractTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/M1R3PackageClosureContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureBuildBoundaryContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureCatalogueContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureJsonContractTests.cs
@@ -362,12 +399,16 @@ tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectio
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureValidationContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureWorkflowContractTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionVisualSourceContractTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/ModelInspectionProjectionV2Tests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerCommandSequenceValidatorTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerEvidenceValidationTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerMessageSequenceValidatorTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolJsonTests.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Protocol/WorkerProtocolTests.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Support/EvaluatedMsBuildItems.cs
+tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/Support/ProductionDebugFixtureInventory.cs
 tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/TestJson.cs
+tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/ProtocolJsonTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests.csproj
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/ProductionWorkerNativeCompletionTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/ProductionWorkerPackagingTests.cs
@@ -452,6 +493,8 @@ tests/TestFixtures/ModelInspectionScenarios/model-inspection-fixture-coverage-po
 tests/TestFixtures/ModelInspectionScenarios/model-inspection-fixture.schema.json
 tests/TestFixtures/README.md
 tests/TestFixtures/fixture-manifest.json
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Handoff.Tests/GraniteEdgeAI.ModelInspection.Handoff.Tests.csproj
+tests/UnitTests/GraniteEdgeAI.ModelInspection.Handoff.Tests/ModelInspectionHandoffProjectionTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineConcurrencyTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/BoundedUtf8LineTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.Transport.Tests/GraniteEdgeAI.ModelInspection.Transport.Tests.csproj
@@ -478,17 +521,37 @@ tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerFailureAc
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerHandshakeValidatorTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerInstallationLayoutTests.cs
 tests/UnitTests/GraniteEdgeAI.ModelInspection.WorkerClient.Tests/WorkerPolicyDiagnosticPrivacyTests.cs
+tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/Conversion/OpenVinoConversionTypedOutcomeTests.cs
+tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/Inspection/OpenVinoInspectionHandoffFactoryTests.cs
+tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/OpenVinoActivationOutcomePolicyTests.cs
+tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/OpenVinoRouteServiceTests.cs
+tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/OpenVinoRouteStateMachineTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/ChatAccessibilityTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/ChatPageTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/Controls/ChatComposerTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/HardwareInspectionCompletionNavigationTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/HardwareInspectionPageTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/HardwareInspection/HardwareInspectionPresentationContractTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/CurrentModelLaunchHandoffTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/GgufCompatibilityInputProjectorTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelHardwareCompatibility/OptimizationSelectionHandoffTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ImportModelCardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ModelImportPageStateMachineTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/FileImport/ModelFilePickerTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelDownload/ModelDownloadCardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportNavigationRequestTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportOperationLifecycleTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportPageCompositionTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportSourceModelDispatchTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelInspectionRequestFactoryTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/OpenVinoModelImportIntegrationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/GgufQuickScannerTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/QuickScan/ModelQuickScanResultTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Selection/ModelImportOwnershipContractTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Classification/ModelInspectionClassifierTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Contracts/ModelInspectionHandoffRegistryTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Contracts/ModelInspectionHandoffTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Contracts/ModelInspectionProjectionFactoryTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionActionCardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentCardTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Controls/InspectionContentTemplateSelectorTests.cs
@@ -513,6 +576,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspection
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionExecutionResultAdditionalTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageLayoutTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelInspectionPageNavigationTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ModelSourceCustodyRegistryTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Models/InspectionContentCardPresentationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/OpenVinoPackagedUiEndToEndTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/OpenVinoPromptSurfaceTests.cs
@@ -533,6 +597,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/WorkerR
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Runtime/WorkerResultMapperTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Services/ModelInspectionServiceTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ViewModels/DelegateCommandTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ViewModels/ModelInspectionHardwareActionTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ViewModels/ModelInspectionViewModelTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/ViewModels/ModelInspectionViewSnapshotTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/ModelInspectionAccessibilityTests.cs
@@ -541,8 +606,12 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/ModelIns
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/PixelDiff.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/RenderedFrame.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/WinUiRenderHost.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationSourceResolverTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/OnboardingStageIndicatorTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingCompatibilityNavigationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingEntryPointTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingFolderInspectionNavigationTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingHardwareInspectionNavigationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingModelInspectionNavigationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingShellPageTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/GraniteEdgeAI.UnitTests.csproj

@@ -18,6 +18,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.System;
 using Windows.UI.Core;
+using ModelInspectionHandoffV2 = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
 
 namespace GraniteEdgeAI.Features.ModelInspection;
 
@@ -149,16 +150,6 @@ public sealed partial class ModelInspectionPage
                 ApplyOpenVinoCancelledPresentation();
             }
         }
-        catch (Exception)
-        {
-            if (IsCurrentOpenVinoLifetime(lifetime))
-            {
-                ApplyOpenVinoFailurePresentation(
-                    "runtime_load_failed",
-                    "The OpenVINO runtime could not load the model package.",
-                    "Choose the package again or retry loading.");
-            }
-        }
         finally
         {
             handoffLease?.Dispose();
@@ -261,7 +252,7 @@ public sealed partial class ModelInspectionPage
         ModelInspectionHandoffV2 source = result.Handoff
             ?? throw new InvalidOperationException("A ready OpenVINO result requires a handoff.");
         ModelOutcome outcome = source.Outcome ==
-            GraniteEdgeAI.OpenVino.Contracts.ModelInspectionOutcome.Ready
+            GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOutcomeV2.Ready
                 ? ModelOutcome.Ready
                 : ModelOutcome.ReadyWithWarnings;
         _openVinoHardwareHandoff = new ModelInspectionHandoff(
@@ -400,18 +391,32 @@ public sealed partial class ModelInspectionPage
 
     internal async Task<bool> ActivateOpenVinoChatAsync(
         CancellationToken cancellationToken) =>
-        await ActivateOpenVinoChatFromDirectoryAsync(
-            _openVinoDirectoryPath, cancellationToken);
+        (await ActivateOpenVinoChatWithResultAsync(cancellationToken)).IsActivated;
 
     internal async Task<bool> ActivateOpenVinoChatFromDirectoryAsync(
         string? packageDirectory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        (await ActivateOpenVinoChatFromDirectoryWithResultAsync(
+            packageDirectory,
+            cancellationToken)).IsActivated;
+
+    internal Task<OpenVinoChatActivationResult> ActivateOpenVinoChatWithResultAsync(
+        CancellationToken cancellationToken) =>
+        ActivateOpenVinoChatFromDirectoryWithResultAsync(
+            _openVinoDirectoryPath,
+            cancellationToken);
+
+    internal async Task<OpenVinoChatActivationResult>
+        ActivateOpenVinoChatFromDirectoryWithResultAsync(
+            string? packageDirectory,
+            CancellationToken cancellationToken)
     {
         if (_openVinoRouteService is null
             || _promptRouteRegistry is null
             || string.IsNullOrWhiteSpace(packageDirectory))
         {
-            return false;
+            return OpenVinoActivationOutcomePolicy.FromSupportCode(
+                OpenVinoSupportCode.RuntimeDependencyMissing);
         }
         OpenVinoRouteHandoffLease? lease = null;
         try
@@ -420,11 +425,15 @@ public sealed partial class ModelInspectionPage
                 await _openVinoRouteService.InspectAsync(
                     packageDirectory, cancellationToken);
             lease = inspection.HandoffLease;
-            if (lease is null || inspection.Outcome is not (
-                    OpenVinoRouteInspectionOutcome.Ready or
-                    OpenVinoRouteInspectionOutcome.ReadyWithWarnings))
+            if (inspection.Outcome is not (OpenVinoRouteInspectionOutcome.Ready or
+                OpenVinoRouteInspectionOutcome.ReadyWithWarnings))
             {
-                return false;
+                return OpenVinoActivationOutcomePolicy.FromInspection(inspection);
+            }
+            if (lease is null)
+            {
+                return OpenVinoActivationOutcomePolicy.FromSupportCode(
+                    OpenVinoSupportCode.RuntimeProtocolFailed);
             }
             long lifetime = _openVinoLifetime;
             List<PromptEvent> buffered = [];
@@ -447,6 +456,12 @@ public sealed partial class ModelInspectionPage
                     },
                     cancellationToken);
             lease = null;
+            if (!IsCurrentOpenVinoLifetime(lifetime))
+            {
+                await activation.Session.DisposeAsync();
+                return OpenVinoActivationOutcomePolicy.FromSupportCode(
+                    OpenVinoSupportCode.OperationCancelled);
+            }
             _promptSession = activation.Session;
             _promptPresenter = new PromptSessionPresenter(activation.Presentation);
             lock (eventGate)
@@ -461,11 +476,17 @@ public sealed partial class ModelInspectionPage
             SetPromptSurfaceVisible(true);
             ApplyPromptSurfaceState(_promptPresenter.State);
             AnnouncePromptStatus("OpenVINO local chat is ready.");
-            return IsCurrentOpenVinoLifetime(lifetime);
+            return OpenVinoActivationOutcomePolicy.Activated(inspection.Outcome);
         }
-        catch
+        catch (OperationCanceledException)
         {
-            return false;
+            return OpenVinoActivationOutcomePolicy.FromSupportCode(
+                OpenVinoSupportCode.OperationCancelled);
+        }
+        catch (OpenVinoRouteWorkerFailureException failure)
+        {
+            return OpenVinoActivationOutcomePolicy.FromSupportCode(
+                failure.SupportCode);
         }
         finally
         {
@@ -476,56 +497,73 @@ public sealed partial class ModelInspectionPage
     private void ApplyOpenVinoNonReadyPresentation(
         OpenVinoRouteInspectionResult result)
     {
-        (InspectionOutcomePresentationKind kind, InspectionContentCardMode mode,
-            string title) = result.Outcome switch
+        OpenVinoInspectionPresentationDisposition disposition =
+            OpenVinoInspectionPresentationPolicy.Create(result);
+        if (disposition.Kind == OpenVinoInspectionPresentationKind.Cancelled)
         {
-            OpenVinoRouteInspectionOutcome.ConversionRequired =>
+            ApplyOpenVinoCancelledPresentation();
+            return;
+        }
+
+        (InspectionOutcomePresentationKind kind, InspectionContentCardMode mode) =
+            disposition.Kind switch
+        {
+            OpenVinoInspectionPresentationKind.ConversionRequired =>
                 (InspectionOutcomePresentationKind.ConversionRequired,
-                    InspectionContentCardMode.ConversionRequired,
-                    "Conversion required"),
-            OpenVinoRouteInspectionOutcome.IncompletePackage =>
+                    InspectionContentCardMode.ConversionRequired),
+            OpenVinoInspectionPresentationKind.IncompletePackage =>
                 (InspectionOutcomePresentationKind.IncompletePackage,
-                    InspectionContentCardMode.IncompletePackage,
-                    "Incomplete package"),
-            OpenVinoRouteInspectionOutcome.Unsupported =>
+                    InspectionContentCardMode.IncompletePackage),
+            OpenVinoInspectionPresentationKind.Unsupported =>
                 (InspectionOutcomePresentationKind.Unsupported,
-                    InspectionContentCardMode.Unsupported,
-                    "Unsupported package"),
-            _ =>
+                    InspectionContentCardMode.Unsupported),
+            OpenVinoInspectionPresentationKind.OperationalFailure =>
+                (InspectionOutcomePresentationKind.OperationalFailure,
+                    InspectionContentCardMode.OperationalFailure),
+            OpenVinoInspectionPresentationKind.Invalid =>
                 (InspectionOutcomePresentationKind.Invalid,
-                    InspectionContentCardMode.Invalid,
-                    "Invalid package")
+                    InspectionContentCardMode.Invalid),
+            OpenVinoInspectionPresentationKind.Cancelled =>
+                throw new InvalidOperationException(
+                    "Cancelled OpenVINO presentation must use its established state."),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(disposition),
+                disposition.Kind,
+                "Unknown OpenVINO presentation disposition.")
         };
-        bool conversion = result.Outcome ==
-            OpenVinoRouteInspectionOutcome.ConversionRequired;
-        string message = result.Failure?.Message ?? (conversion
-            ? "This supported Granite source must be converted before local prompting."
-            : "The selected package cannot continue to local prompting.");
+        bool conversion = disposition.Kind ==
+            OpenVinoInspectionPresentationKind.ConversionRequired;
+        InspectionOutcomeTone tone = disposition.IsWarning
+            ? InspectionOutcomeTone.Warning
+            : InspectionOutcomeTone.Error;
+        InspectionStatusGlyphKind glyphKind = disposition.IsWarning
+            ? InspectionStatusGlyphKind.Warning
+            : InspectionStatusGlyphKind.Error;
+        InspectionContentStatus diagnosticStatus = disposition.IsWarning
+            ? InspectionContentStatus.Warning
+            : InspectionContentStatus.Error;
         InspectionOutcomeCardControl.Presentation = new InspectionOutcomePresentation
         {
             Kind = kind,
-            Tone = conversion ? InspectionOutcomeTone.Warning : InspectionOutcomeTone.Error,
-            GlyphKind = conversion ? InspectionStatusGlyphKind.Warning : InspectionStatusGlyphKind.Error,
-            Title = title,
-            Message = message,
-            AutomationName = $"OpenVINO inspection. {title}. {message}"
+            Tone = tone,
+            GlyphKind = glyphKind,
+            Title = disposition.Title,
+            Message = disposition.Message,
+            AutomationName = $"OpenVINO inspection. {disposition.Title}. " +
+                disposition.Message
         };
         InspectionContentCardControl.Presentation = new InspectionContentCardPresentation
         {
             Mode = mode,
-            SectionTitle = title,
-            SupportingText = result.Failure?.RecoveryAction ??
-                "Choose another model package.",
+            SectionTitle = disposition.Title,
+            SupportingText = disposition.RecoveryAction,
             SupportingTextVisibility = Visibility.Visible,
-            DiagnosticCode = result.Failure?.SupportCode ??
-                (conversion ? "conversion_required" : "package_invalid"),
+            DiagnosticCode = disposition.DiagnosticCode,
             DiagnosticCodeVisibility = Visibility.Visible,
-            DiagnosticStatus = conversion
-                ? InspectionContentStatus.Warning
-                : InspectionContentStatus.Error
+            DiagnosticStatus = diagnosticStatus
         };
         if (conversion) ApplyOpenVinoConversionAction();
-        else ApplyChooseAnotherAction(title);
+        else ApplyChooseAnotherAction(disposition.Title);
         SetPromptSurfaceVisible(false);
         SetPromptControlsEnabled(send: false, stop: false, cancel: false);
     }
@@ -637,12 +675,20 @@ public sealed partial class ModelInspectionPage
             OpenVinoRouteInspectionResult inspection = await _openVinoRouteService!
                 .InspectAsync(converted.PublishedDirectory, cancellationToken);
             OpenVinoRouteHandoffLease? lease = inspection.HandoffLease;
+            OpenVinoConversionOffer? conversionOffer = inspection.ConversionOffer;
             try
             {
                 if (inspection.Outcome is not (OpenVinoRouteInspectionOutcome.Ready or
-                    OpenVinoRouteInspectionOutcome.ReadyWithWarnings) || lease is null)
+                    OpenVinoRouteInspectionOutcome.ReadyWithWarnings))
                 {
-                    ApplyOpenVinoConversionFailure(OpenVinoSupportCode.ConversionOutputInvalid);
+                    ApplyOpenVinoConversionFailure(
+                        OpenVinoActivationOutcomePolicy.GetConversionFailureCode(inspection));
+                    return;
+                }
+                if (lease is null)
+                {
+                    ApplyOpenVinoConversionFailure(
+                        OpenVinoSupportCode.RuntimeProtocolFailed);
                     return;
                 }
                 _openVinoDirectoryPath = converted.PublishedDirectory;
@@ -653,17 +699,13 @@ public sealed partial class ModelInspectionPage
             finally
             {
                 lease?.Dispose();
+                conversionOffer?.Dispose();
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             if (IsCurrentOpenVinoLifetime(lifetime))
                 ApplyOpenVinoConversionFailure(OpenVinoSupportCode.OperationCancelled);
-        }
-        catch (Exception)
-        {
-            if (IsCurrentOpenVinoLifetime(lifetime))
-                ApplyOpenVinoConversionFailure(OpenVinoSupportCode.ConversionFailed);
         }
         finally
         {
