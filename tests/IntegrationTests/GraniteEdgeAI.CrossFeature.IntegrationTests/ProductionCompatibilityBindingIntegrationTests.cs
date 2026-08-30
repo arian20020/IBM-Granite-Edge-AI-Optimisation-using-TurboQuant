@@ -48,6 +48,22 @@ public sealed class ProductionCompatibilityBindingIntegrationTests
                     identity == "hardware" ? OtherDigest : Digest));
     }
 
+    [TestMethod]
+    public void StaleMemoryObservationCannotIssuePlanningOrExecutionAuthority()
+    {
+        DateTimeOffset now = new(2026, 8, 28, 12, 0, 0, TimeSpan.Zero);
+        CompatibilityEvaluation evaluation = CompatibilityEngine.EvaluateProduction(
+            CreateInput(now - CompatibilityEngine.FreshResourceMaximumAge
+                - TimeSpan.FromTicks(1)),
+            new FixedTimeProvider(now));
+
+        Assert.AreEqual(CompatibilityScreenState.NotEstablished, evaluation.Screen.State);
+        Assert.IsFalse(evaluation.Screen.ContinueEnabled);
+        Assert.IsNull(evaluation.PlanningSession);
+        Assert.IsNull(evaluation.CurrentConfiguration);
+        Assert.IsNull(evaluation.MachineMemory);
+    }
+
     private static CompatibilityProductionInput CreateInput(
         DateTimeOffset observedAtUtc,
         string bindingModelDigest = Digest,

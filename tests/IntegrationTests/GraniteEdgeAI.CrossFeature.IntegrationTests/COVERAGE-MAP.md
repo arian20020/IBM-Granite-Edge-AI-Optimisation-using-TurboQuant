@@ -1,27 +1,34 @@
-# T1 Cross-Feature Coverage Map
+# T1 R4 cross-feature coverage map
 
-| ID | Contract boundary | Planned executable evidence |
-|---|---|---|
-| T1-ING-01 | Picker/drop/download classification | The real picker normalizer and Explorer drop handler feed the same path-private classifier for GGUF files and OpenVINO folders; incomplete packages fail closed. |
-| T1-SHELL-01 | Shell and Chat composition | Characterize exactly one application onboarding-shell composition and collapse the onboarding stage/footer surface at ReadyToChat. |
-| T1-MI-01 | Model Inspection v2 handoff | Independently assert the exact six-field canonical encoding, byte-identical GGUF/OpenVINO projection, mutation rejection, claim, rollback and reissue lifecycle. |
-| T1-MI-02 | Model Inspection package/fixture boundary | The affected owner project is executed in full; its existing `DurableBoardAndBlockedReferences_AreExcludedFromAppAndTestPackages` regression remains RED on the unresolved Hardware probe item expression, alongside explicit fixture-boundary failures. |
-| T1-HW-01 | Hardware-to-compatibility projection | Run the production compatibility input/evaluator, reject a current Hardware digest mutation, and keep installed, available, reserve and executable budget as four distinct values. |
-| T1-COMP-01 | Compatibility outcomes | Parameterize GGUF/OpenVINO current-fit/direct Chat, optional safe alternative, required optimisation, and no-safe-configuration semantics while retaining route-type assertions. |
-| T1-PLAN-01 | Preference-to-plan resolution | Cover Automatic and every visible manual band, monotonic selection, capability admission and the exact v3 configuration digest. |
-| T1-EXEC-01 | Execution binding | Route the exact selected plan through the real journey coordinator to a recording executor; reject payload/identity drift and mint new retry authority. |
-| T1-OUT-01 | Persistent output identity | Register and reinspect successful output; require identical digest and length for Chat and export. |
-| T1-OV-01 | Runtime-only OpenVINO output | Preserve exact plan configuration and reject downloadable-model representation. |
-| T1-OV-02 | OpenVINO result consumer | RED: require Chat to consume the exact result-bound configuration and reject `LastPublishedDirectory` as authority. |
-| T1-FAIL-01 | Failure publication | Cross-feature cancellation/failure results publish no success and the real output registry rejects a second terminal result for an admitted plan. Route worker suites own timeout, crash, malformed/oversized protocol output and cleanup mapping; E1 owns packaged process-residue acceptance. |
-| T1-REC-01 | Restart/recovery | Retain only identity-bound allowed state and reject stale operations after restart. |
-| T1-PARITY-01 | Route parity | Share product-level outcome semantics while retaining route-specific formats and configuration. |
-| T1-DL-01 | Recommended download lifecycle | RED: the real download button has neither a command nor click handler. Native cancellation, bounds, integrity and retry acceptance is assigned to E1 because no download service boundary exists at this base. |
-| T1-EXP-01 | Verified export lifecycle | Managed contracts prove runtime-only exclusion and exact verified persistent digest/length selection. Native picker/filesystem cancellation, bounds, post-write digest mismatch and partial cleanup are assigned to E1 because the base has no export-service seam. |
-| T1-ENV-01 | Quantizer child environment | Characterize the fixed allowlist, parent PATH/secret exclusion and disabled diagnostics variables. |
-| T1-GGUF-01 | GGUF Chat lifetime | Characterize the fixed stop/disposal ordering while generation is active. |
-| T1-UI-01 | Native UI and external I/O acceptance | Requires E1 native WinUI/UI Automation: disabled-action keyboard/automation reachability plus download/export cancellation, retry, filesystem/network bounds, post-write integrity and cleanup cannot be truthfully exercised by this managed host at a base with no callable download/export service seam. |
-| T1-PRIV-01 | Privacy canaries | Exclude paths, usernames, raw worker output, credentials and provider/model payloads from every cross-feature handoff. |
-| T1-BOUND-01 | Canonical/property boundaries | Independently cover encodings, digests, integer/unit limits, preference edges, monotonicity and invalid combinations. |
+Owner for every row is **T1 (cross-feature managed integration)**. Tests link real production contracts where a callable seam exists. Source/composition tests are explicitly **composition fitness**, not native/runtime proof.
 
-Characterization tests may begin green only when the production behavior is already present; each such test is identified in the audit report. Missing behavior receives a failing test against the authoritative base and no production fix from T1. E1 allocations are limited to behavior that requires the packaged WinUI application, native worker process, network transfer, picker, or destination filesystem; managed contract boundaries remain executable here or in the named affected owner suite.
+| ID | Behavior | Evidence layer | Native follow-up |
+|---|---|---|---|
+| T1-ING-01 | Picker/drop converge on one classifier; GGUF, OpenVINO package, and source-conversion intent retain path-private route identity. | Managed behavioral. | E1 exercises native picker/drop UI. |
+| T1-JOURNEY-01 | Exact inspected SHA/length survives handoff, Hardware/Compatibility binding, plan, result, and publication for both route vocabularies. | Managed behavioral. | E1 proves packaged journeys and real artifacts. |
+| T1-MI-01 | Schema-v2 exact six fields, route equivalence, claim/reissue, and hostile path/filename/free-text/order/digest rejection. | Managed behavioral. | E1 retains native worker acceptance. |
+| T1-HW-01 | Installed/available/reserve/budget stay independent; 8/16/32 GiB use 10% available-memory reserve, 512 MiB floor, no second allowance. | Managed behavioral, table-driven. | Intel-native observation/performance remains H1/E1. |
+| T1-HW-02 | Absent policy/incoherent bounds fail closed; stale availability issues no authority. | Managed behavioral with explicit clock. | Native freshness remains H1/E1. |
+| T1-COMP-01 | GGUF/OpenVINO current-fit, safe alternative, required optimization, and no-safe outcomes retain route formats. | Managed behavioral. | E1 exercises packaged presentation/workers. |
+| T1-PLAN-01 | Every preference resolves admitted candidates; plan/result preserve format, configuration, model/hardware/capability/provenance. | Managed behavioral. | Native execution remains E1. |
+| T1-TQ-01 | TurboQuant cannot use released OpenVINO capability without exact TurboQuant build identity. | Managed behavioral. | E1 owns real activation/performance. |
+| T1-EXEC-01 | Coordinator forwards the exact plan; drift fails closed; retry mints authority. | Managed behavioral. | E1 owns worker execution. |
+| T1-LIFE-01 | Wrong-generation/retired events are suppressed; failures publish nothing; leases are exclusive; unsealed/orphan/stale output is removed/rejected without sleeps. | Managed behavioral, deterministic seams. | E1 checks process residue. |
+| T1-OUT-01 | Restart opens only identity-bound verified output; Chat/export lookup has identical path/digest/length. | Managed behavioral. | Native destination filesystem remains E1. |
+| T1-OUT-02 | Require `CreateChatTargetAsync(state.Result, token)` and `ExportPersistentAsync(state.Result, destination, maximumBytes, token)`; forbid runtime-only/stale/wrong/restarted export and `LastPublishedDirectory`. | **Intentional RED; composition fitness because exact seam is absent.** | E1 proves native Chat/export after integration. |
+| T1-OV-01 | Source conversion intent cannot masquerade as inspected OpenVINO and must compose conversion plus inspection. | Classification behavioral; missing composition shares T1-OUT-02 RED. | E1 executes converter/inspection. |
+| T1-DL-01 | Exact five IBM pins (Q2_K/Q3_K_M/Q4_K_M/Q5_K_M/Q8_0), official repo/revision/file/length/hash, cancel/resume/restart, verified-only publication and `SubmitInputAsync` convergence. | **Intentional RED; composition fitness because download service is absent.** | E1 owns network/native lifecycle; this is not native proof. |
+| T1-UI-01 | Light shell/Chat footer, Enter vs Shift+Enter, and empty/generating action guards. | Compile/source-linked composition fitness. | E1 owns UIA, disabled invocation, scaling, High Contrast. |
+| T1-PRIV-01 | Reject path/free-text canaries; omit proxies/secrets/raw output; require private TEMP/TMP and no parent PATH/secrets. | Managed behavioral; TEMP/TMP is intentional RED. | E1 validates packaged ACLs/process environment. |
+
+## C0 intentional RED list
+
+The complete managed run should fail only these five unique methods until owning production work integrates:
+
+1. `RecommendedModelDownloadActionIsFunctionallyWired` — missing download action, exact catalogue, resumable verified service and coordinator.
+2. `OpenVinoChatConsumesExactResultBoundConfiguration` — missing result-bound Chat/export and conversion-plus-inspection; current `LastPublishedDirectory` authority.
+3. `QuantizerChildEnvironmentIsAllowlistedAndDiagnosticsDisabled` — parent TEMP/TMP is still copied.
+4. `TerminalSuccessWithSubstitutedJourneyIdentityIsSuppressed` — reducer accepts substituted model/Hardware bindings (Q1 reconciliation).
+5. `RetiringUnsealedLeaseLeavesNoStagedOutputOrPublication` — retiring an unsealed lease leaves an orphan staging directory.
+
+All other additions are expected GREEN. Test names are unique. Native UIA/scaling, Intel hardware/performance, real workers/models/network/filesystem remain E1/H1 and are not claimed here.

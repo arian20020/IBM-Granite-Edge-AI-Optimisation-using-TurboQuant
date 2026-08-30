@@ -104,6 +104,26 @@ public sealed class PersistentOutputRecoveryIntegrationTests
         Assert.AreEqual(1, registry.AdmittedCount);
     }
 
+    [TestMethod]
+    public async Task RetiringUnsealedLeaseLeavesNoStagedOutputOrPublication()
+    {
+        using var fixture = new OutputFixture();
+        OptimizationExecutionPlan plan = fixture.Plan();
+        var registry = new OptimizationOutputRegistry(
+            fixture.StagingRoot, fixture.CommittedRoot);
+        using (OptimizationOutputLease lease = registry.CreateLease(plan, 31))
+        {
+            await using FileStream output = lease.CreateFileForWrite("model.gguf");
+            await output.WriteAsync("late-output"u8.ToArray());
+        }
+
+        Assert.AreEqual(0, registry.AdmittedCount);
+        Assert.AreEqual(0, Directory.EnumerateFileSystemEntries(
+            fixture.StagingRoot, "*", SearchOption.AllDirectories).Count());
+        Assert.AreEqual(0, Directory.EnumerateFileSystemEntries(
+            fixture.CommittedRoot, "*", SearchOption.AllDirectories).Count());
+    }
+
     private sealed class OutputFixture : IDisposable
     {
         private readonly string _root = Path.Combine(

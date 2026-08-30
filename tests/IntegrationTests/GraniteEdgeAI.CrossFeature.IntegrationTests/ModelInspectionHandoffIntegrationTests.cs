@@ -1,6 +1,7 @@
 using System.Text;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using OpenVinoHandoff = GraniteEdgeAI.OpenVino.Contracts.ModelInspectionHandoffV2;
 using OpenVinoOutcome = GraniteEdgeAI.OpenVino.Contracts.ModelInspectionOutcome;
 
@@ -62,6 +63,8 @@ public sealed class ModelInspectionHandoffIntegrationTests
     [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096,\"path\":\"C:\\\\Users\\\\private\\\\model.gguf\"}")]
     [DataRow("{\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096}")]
     [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\",\"modelLengthBytes\":4096}")]
+    [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096,\"fileName\":\"..\\\\hostile.gguf\"}")]
+    [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096,\"providerOutput\":\"raw model output canary\"}")]
     public void V2HandoffRejectsPathOrderAndDigestMutations(string hostileJson)
     {
         Assert.IsFalse(ModelInspectionHandoffCodec.TryDeserialize(
@@ -103,6 +106,33 @@ public sealed class ModelInspectionHandoffIntegrationTests
         Assert.AreEqual(
             ModelInspectionHandoffLifecycleState.Issued,
             registry.GetState(replacement.ModelInspectionHandoffId));
+    }
+
+    [TestMethod]
+    public void ExactInspectedIdentitySurvivesPlanningAndTerminalPublication()
+    {
+        ModelInspectionHandoff handoff = new(
+            ModelInspectionHandoff.CurrentSchemaVersion,
+            HandoffId,
+            ModelRunId,
+            ModelInspectionOutcome.Ready,
+            CrossFeaturePlanFixture.ModelDigest,
+            checked((long)(4 * CrossFeaturePlanFixture.GiB)));
+        OptimizationExecutionPlan plan = CrossFeaturePlanFixture.Issue();
+        OptimizationExecutionResult result = OptimizationExecutionResult.Succeeded(
+            plan,
+            "identity-continuous-output",
+            new string('8', 64),
+            4096,
+            sourceUnchanged: true,
+            DateTimeOffset.UnixEpoch);
+
+        Assert.AreEqual(handoff.ModelSha256, plan.Binding.ModelSha256);
+        Assert.AreEqual((ulong)handoff.ModelLengthBytes,
+            plan.Binding.ModelLengthBytes);
+        Assert.AreEqual(plan.Binding.ModelSha256, result.SourceSha256);
+        Assert.AreEqual(plan.ConfigurationSha256, result.ConfigurationSha256);
+        Assert.AreEqual(plan.OptimizationPlanId, result.OptimizationPlanId);
     }
 
     private static ModelInspectionHandoff Create(Guid handoffId) => new(

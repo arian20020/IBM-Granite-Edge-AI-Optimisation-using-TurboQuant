@@ -1,5 +1,6 @@
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.OpenVino;
 
 namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
@@ -22,6 +23,68 @@ public sealed class PlanAndExecutionIntegrationTests
         Assert.AreNotEqual(first.OptimizationPlanId, second.OptimizationPlanId);
         StringAssert.Matches(first.ConfigurationSha256, new("^[0-9a-f]{64}$"));
         Assert.IsTrue(first.MatchesExecutionPayload(first.ExecutionPayload));
+    }
+
+    [TestMethod]
+    public void PlanAndResultPreserveExactFormatConfigurationAndProvenanceIdentity()
+    {
+        OptimizationExecutionPlan plan = CrossFeaturePlanFixture.Issue();
+        OpenVinoExecutionPayload payload = plan.ExecutionPayload.OpenVino!;
+        OptimizationExecutionResult result = OptimizationExecutionResult.Succeeded(
+            plan,
+            "persistent-openvino-output",
+            new string('8', 64),
+            4096,
+            sourceUnchanged: true,
+            DateTimeOffset.UnixEpoch);
+
+        Assert.AreEqual(OpenVinoWeightPrecision.Fp16, payload.SourceWeightPrecision);
+        Assert.AreEqual(OpenVinoWeightPrecision.EightBit, payload.TargetWeightPrecision);
+        Assert.AreEqual("ov-int8", payload.EvidenceId);
+        Assert.AreEqual(plan.ConfigurationSha256, result.ConfigurationSha256);
+        Assert.AreEqual(plan.Binding.ModelSha256, result.SourceSha256);
+        Assert.AreEqual(plan.OptimizationPlanId, result.OptimizationPlanId);
+        Assert.IsTrue(plan.MatchesExecutionPayload(plan.ExecutionPayload));
+        Assert.AreEqual(
+            plan.CapabilitySnapshot.CapabilitySnapshotSha256,
+            plan.Candidate.AdmissionProof!.CapabilitySnapshotSha256);
+    }
+
+    [TestMethod]
+    public void TurboQuantConfigurationCannotBeAdmittedWithoutExactBuildCapability()
+    {
+        OptimizationExecutionPlan ordinary = CrossFeaturePlanFixture.Issue();
+        OpenVinoBuildIdentity build = ordinary.ExecutionPayload.OpenVino!.BuildIdentity;
+        var admitted = OpenVinoAdmittedConfiguration.Create(
+            "ov-turboquant-tbq4",
+            DeviceRouteId.Cpu,
+            OpenVinoWeightFormat.Original,
+            OpenVinoKvCacheFormat.TurboQuantTbq4,
+            OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Disabled,
+            1,
+            512,
+            8192,
+            SupportLevel.Experimental,
+            requiresEvidence: true);
+        OpenVinoExecutionAuthority releasedAuthority =
+            OpenVinoExecutionAuthority.Create(
+                admitted.EvidenceId,
+                "openvino.standard.cpu.original.default.v1",
+                OpenVinoWeightPrecision.Fp16,
+                build,
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["openvino"] = "2026.3.0"
+                },
+                compiledCacheIsDisposable: true,
+                turboQuantBuild: null);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            OpenVinoCapabilityPayload.Create(
+                "2026.3.0",
+                [admitted],
+                [releasedAuthority]));
     }
 
     [TestMethod]

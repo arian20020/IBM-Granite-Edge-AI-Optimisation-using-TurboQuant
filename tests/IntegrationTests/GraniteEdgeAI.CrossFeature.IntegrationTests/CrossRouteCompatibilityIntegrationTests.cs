@@ -113,6 +113,42 @@ public sealed class CrossRouteCompatibilityIntegrationTests
             memory.SafeModelBudgetBytes);
     }
 
+    [TestMethod]
+    [DataRow(8, 858993460UL, 7730941132UL)]
+    [DataRow(16, 1717986919UL, 15461882265UL)]
+    [DataRow(32, 3435973837UL, 30923764531UL)]
+    public void ProportionalReserveUsesAvailableMemoryWithoutASecondFixedAllowance(
+        int availableGiB,
+        ulong expectedReserve,
+        ulong expectedBudget)
+    {
+        ByteCount available = ByteCount.FromBytes((ulong)availableGiB * GiB);
+        SafetyPolicy policy = SafetyPolicy.ProportionalV2();
+
+        ByteCount reserve = policy.AvailableMemoryReserveFor(available);
+        Assert.IsTrue(available.TrySubtract(reserve, out ByteCount budget));
+
+        Assert.AreEqual(expectedReserve, reserve.Bytes);
+        Assert.AreEqual(expectedBudget, budget.Bytes);
+        Assert.AreEqual(0UL, policy.OsAllowance.Bytes);
+        Assert.AreEqual(0UL, policy.OperationalReserve.Bytes);
+    }
+
+    [TestMethod]
+    public void ProportionalReserveAppliesFloorAndCoherentBudgetBounds()
+    {
+        SafetyPolicy policy = SafetyPolicy.ProportionalV2();
+        ByteCount reserve = policy.AvailableMemoryReserveFor(ByteCount.Zero);
+
+        Assert.AreEqual(GiB / 2, reserve.Bytes);
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityMachineMemory.Create(GiB, GiB / 4, GiB / 2, 0));
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CompatibilityMachineMemory.Create(GiB, GiB, GiB / 2, GiB));
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            SafetyPolicy.Absent().AvailableMemoryReserveFor(ByteCount.FromBytes(GiB)));
+    }
+
     private static RouteConfiguration Configuration(int route, bool baseline) =>
         route == 0
             ? GgufRouteConfiguration.Create(
