@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "workerId": "T1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "baseCommit": "c2db11dedcd2bb6e7345e4c8f4b93da928d0af1f",
+  "baseTree": "839bc873180839f3d3cb7fdd922f59bb204a3886",
+  "branch": "test/ucl-t1-cross-feature-remediation-r3",
+  "implementationSubjectCommit": "3b5f6eecaf6af4fea985be7549c43e8bff0fb5e7",
+  "implementationSubjectTree": "62db4f2b0f6bbd1e3a8a4e6b5946003bf43f144b",
+  "worktreeCleanAtHandoff": true,
+  "completedAtUtc": "2026-08-30T05:26:19Z",
+  "report": {
+    "path": "docs/audits/2026-08-30/T1-cross-feature-integration-r3.md",
+    "sha256": "94bcdce23b306b7600d5f87040e815132873b7c4b8a336334588d0e54aa21b4d",
+    "bytes": 8230
+  },
+  "transport": "remote",
+  "remoteRef": "refs/remotes/origin/test/ucl-t1-cross-feature-remediation-r3",
+  "bundle": null,
+  "evidenceManifest": null,
+  "testTotals": {
+    "discovered": 2169,
+    "executed": 2169,
+    "passed": 2135,
+    "failed": 27,
+    "skipped": 7
+  },
+  "nativeDisposition": "blocked"
+}
