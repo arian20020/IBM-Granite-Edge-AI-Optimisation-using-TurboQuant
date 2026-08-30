@@ -272,6 +272,81 @@ public sealed class TrustedToolEnvironmentPolicyTests
     }
 
     [TestMethod]
+    public void OperationEnvironmentRejectsNamedStreamOnDirectory()
+    {
+        TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        string operationDirectory = operation.Variables["TEMP"];
+        string child = Directory.CreateDirectory(
+            Path.Combine(operationDirectory, "child")).FullName;
+        File.WriteAllText(child + ":private", "named-stream");
+        try
+        {
+            operation.Dispose();
+
+            Assert.IsFalse(operation.CleanupSucceeded);
+            Assert.IsTrue(Directory.Exists(child));
+        }
+        finally
+        {
+            operation.Dispose();
+            if (Directory.Exists(operationDirectory))
+            {
+                Directory.Delete(operationDirectory, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void OperationEnvironmentRejectsEntrySwappedBeforeCustodyOpen()
+    {
+        TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.Create(ValidParent());
+        string operationDirectory = operation.Variables["TEMP"];
+        string entry = Path.Combine(operationDirectory, "payload.tmp");
+        string displaced = Path.Combine(Path.GetTempPath(),
+            "geai-s1-displaced-" + Guid.NewGuid().ToString("N") + ".tmp");
+        File.WriteAllText(entry, "original");
+        bool swapped = false;
+        try
+        {
+            using IDisposable hook =
+                TrustedToolOperationEnvironment.InstallBeforeEntryCustodyOpenForTests(
+                    candidate =>
+                    {
+                        if (swapped || !string.Equals(
+                                candidate,
+                                entry,
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            return;
+                        }
+
+                        File.Move(entry, displaced);
+                        File.WriteAllText(entry, "replacement");
+                        swapped = true;
+                    });
+
+            operation.Dispose();
+
+            Assert.IsTrue(swapped);
+            Assert.IsFalse(operation.CleanupSucceeded);
+            Assert.IsTrue(File.Exists(entry));
+            Assert.IsTrue(File.Exists(displaced));
+        }
+        finally
+        {
+            operation.Dispose();
+            if (Directory.Exists(operationDirectory))
+            {
+                Directory.Delete(operationDirectory, recursive: true);
+            }
+
+            File.Delete(displaced);
+        }
+    }
+
+    [TestMethod]
     public void OperationEnvironmentFailsClosedBeyondMaximumCleanupDepth()
     {
         TrustedToolOperationEnvironment operation =

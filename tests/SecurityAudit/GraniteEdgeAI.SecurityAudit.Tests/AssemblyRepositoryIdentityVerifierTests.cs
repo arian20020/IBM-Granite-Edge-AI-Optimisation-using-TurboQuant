@@ -37,4 +37,12 @@ public sealed class AssemblyRepositoryIdentityVerifierTests
             File.Delete(copy);
         }
     }
+
+    [TestMethod]
+    public void SameShortAttributeNameOutsideFrameworkNamespaceIsRejected()
+    {
+        Assert.IsFalse(AssemblyRepositoryIdentityVerifier.HasExactSubject(
+            typeof(Hostile.FixtureMarker).Assembly.Location,
+            new string('a', 40)));
+    }
 }

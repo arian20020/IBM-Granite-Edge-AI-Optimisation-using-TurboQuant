@@ -10,26 +10,20 @@ public sealed class BoundedCleanupCoordinatorTests
     {
         using var source = new CancellationTokenSource();
         source.Cancel();
-        CleanupOutcome outcome = new([
-            new CleanupFailureFact(
-                OwnedCleanupStage.ProcessTree,
-                CleanupFailureKind.Timeout),
-            new CleanupFailureFact(
-                OwnedCleanupStage.OperationEnvironment,
-                CleanupFailureKind.Access)]);
+        foreach (OwnedCleanupStage stage in Enum.GetValues<OwnedCleanupStage>())
+        {
+            CleanupFailureFact fact = new(stage, CleanupFailureKind.Timeout);
+            CleanupOutcome outcome = new([fact]);
 
-        var cancellation = (OperationCanceledException)
-            CleanupIntegrityException.PreserveCancellation(
-                outcome.Failures,
-                new OperationCanceledException(source.Token));
+            var cancellation = (OperationCanceledException)
+                CleanupIntegrityException.PreserveCancellation(
+                    outcome.Failures,
+                    new OperationCanceledException(source.Token));
 
-        Assert.AreEqual(source.Token, cancellation.CancellationToken);
-        var integrity = (CleanupIntegrityException)cancellation.InnerException!;
-        Assert.AreEqual(2, integrity.Failures.Count);
-        Assert.AreEqual(OwnedCleanupStage.ProcessTree, integrity.Failures[0].Stage);
-        Assert.AreEqual(
-            OwnedCleanupStage.OperationEnvironment,
-            integrity.Failures[1].Stage);
+            Assert.AreEqual(source.Token, cancellation.CancellationToken);
+            var integrity = (CleanupIntegrityException)cancellation.InnerException!;
+            CollectionAssert.AreEqual(new[] { fact }, integrity.Failures.ToArray());
+        }
     }
 
     [TestMethod]

@@ -13,6 +13,7 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
     private const int MaximumDepth = 16;
     private const ulong MaximumBytes = 64UL * 1024 * 1024;
     private static readonly TimeSpan MaximumCleanupDuration = TimeSpan.FromSeconds(2);
+    private static readonly AsyncLocal<Action<string>?> BeforeEntryCustodyOpen = new();
     private const uint FileFlagBackupSemantics = 0x02000000;
     private const uint FileFlagOpenReparsePoint = 0x00200000;
     private const uint DeleteAccess = 0x00010000;
@@ -37,6 +38,15 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
     public IReadOnlyDictionary<string, string> Variables { get; }
 
     public bool CleanupSucceeded { get; private set; }
+
+    internal static IDisposable InstallBeforeEntryCustodyOpenForTests(
+        Action<string> callback)
+    {
+        ArgumentNullException.ThrowIfNull(callback);
+        Action<string>? previous = BeforeEntryCustodyOpen.Value;
+        BeforeEntryCustodyOpen.Value = callback;
+        return new CallbackScope(previous);
+    }
 
     public static TrustedToolOperationEnvironment CreateCurrent(bool includeDotnetRoots)
     {
@@ -357,8 +367,15 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
                 return false;
             }
 
+            if (!TryReadEntryIdentity(entry, out FileIdentity expectedIdentity))
+            {
+                return false;
+            }
+
+            BeforeEntryCustodyOpen.Value?.Invoke(entry);
             using SafeFileHandle child = OpenEntryCustody(entry);
             if (!GetFileInformationByHandle(child, out ByHandleFileInformation information)
+                || FileIdentity.From(information) != expectedIdentity
                 || (information.FileAttributes & FileAttributes.ReparsePoint) != 0
                 || !string.Equals(
                     NormalizePath(GetFinalPath(child)),
@@ -370,8 +387,7 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
 
             ulong entryBytes = ((ulong)information.FileSizeHigh << 32) |
                 information.FileSizeLow;
-            if ((information.FileAttributes & FileAttributes.Directory) == 0 &&
-                !HasOnlyDefaultDataStream(entry))
+            if (!HasOnlyDefaultDataStream(entry))
             {
                 return false;
             }
@@ -422,6 +438,27 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
         }
 
         return handle;
+    }
+
+    private static bool TryReadEntryIdentity(string entry, out FileIdentity identity)
+    {
+        using SafeFileHandle handle = CreateFile(
+            entry,
+            FileReadAttributes,
+            FileShare.Read | FileShare.Write | FileShare.Delete,
+            IntPtr.Zero,
+            FileMode.Open,
+            FileFlagBackupSemantics | FileFlagOpenReparsePoint,
+            IntPtr.Zero);
+        if (handle.IsInvalid ||
+            !GetFileInformationByHandle(handle, out ByHandleFileInformation information))
+        {
+            identity = default;
+            return false;
+        }
+
+        identity = FileIdentity.From(information);
+        return true;
     }
 
     private static bool HasOnlyDefaultDataStream(string path)
@@ -559,6 +596,29 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
         public uint NumberOfLinks;
         public uint FileIndexHigh;
         public uint FileIndexLow;
+    }
+
+    private readonly record struct FileIdentity(
+        uint VolumeSerialNumber,
+        uint FileIndexHigh,
+        uint FileIndexLow)
+    {
+        internal static FileIdentity From(ByHandleFileInformation information) =>
+            new(
+                information.VolumeSerialNumber,
+                information.FileIndexHigh,
+                information.FileIndexLow);
+    }
+
+    private sealed class CallbackScope(Action<string>? previous) : IDisposable
+    {
+        private Action<string>? _previous = previous;
+
+        public void Dispose()
+        {
+            Action<string>? restore = Interlocked.Exchange(ref _previous, null);
+            BeforeEntryCustodyOpen.Value = restore;
+        }
     }
 
     private static InvalidOperationException Failure(bool? partialCleanupSucceeded = null) =>

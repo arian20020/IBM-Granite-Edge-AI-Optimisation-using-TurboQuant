@@ -10,6 +10,7 @@ param(
     [string]$Configuration = 'Release',
     [string]$Platform = 'x64',
     [string]$RuntimeIdentifier = 'win-x64',
+    [string]$ApprovedMembershipPolicyFile,
     [Parameter(Mandatory = $true)][string]$PreviousClosureFile,
     [string]$ActualPackageFile,
     [string[]]$Blocker = @()
@@ -17,6 +18,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+if ([string]::IsNullOrWhiteSpace($ApprovedMembershipPolicyFile)) {
+    $ApprovedMembershipPolicyFile = Join-Path $PSScriptRoot 'S1PackageApprovedPaths.txt'
+}
 
 function Assert-CanonicalGitIdentity([string]$Name, [string]$Value) {
     if ($Value -cnotmatch '^[0-9a-f]{40}$') {
@@ -56,42 +60,6 @@ function Assert-NoPrivateContent([string]$Path) {
     }
 }
 
-function Get-AllowlistReason([string]$TargetPath) {
-    if ($TargetPath.EndsWith('.runtimeconfig.json', [StringComparison]::OrdinalIgnoreCase)) {
-        return 'managed-runtime-configuration'
-    }
-    if ($TargetPath.EndsWith('.deps.json', [StringComparison]::OrdinalIgnoreCase)) {
-        return 'managed-dependency-closure'
-    }
-    $extension = [IO.Path]::GetExtension($TargetPath).ToLowerInvariant()
-    switch ($extension) {
-        '.exe' { return 'explicitly-approved-runtime-executable' }
-        '.dll' {
-            $filename = [IO.Path]::GetFileName($TargetPath)
-            if ($filename.StartsWith('GraniteEdgeAI.', [StringComparison]::Ordinal) -or
-                $filename -eq 'IBM Granite with TurboQuant (Intel).dll') {
-                return 'first-party-managed-assembly'
-            }
-            return 'explicitly-approved-third-party-runtime-library'
-        }
-        '.winmd' { return 'approved-runtime-metadata' }
-        '.json' { return 'runtime-or-closure-configuration' }
-        '.xbf' { return 'compiled-production-ui' }
-        '.pri' { return 'compiled-production-resources' }
-        '.xml' { return 'package-or-runtime-metadata' }
-        '.manifest' { return 'package-or-runtime-manifest' }
-        '.png' { return 'approved-application-asset' }
-        '.ico' { return 'approved-application-asset' }
-        '.svg' { return 'approved-application-asset' }
-        '.ttf' { return 'approved-application-font' }
-        '.md' { return 'approved-bundled-license-or-font-documentation' }
-        '.txt' { return 'approved-bundled-license-or-font-documentation' }
-        '.dat' { return 'approved-runtime-data' }
-        '.bin' { return 'approved-runtime-data' }
-        default { throw "Evaluated package member has no approved classification." }
-    }
-}
-
 Assert-CanonicalGitIdentity 'ImplementationSubjectCommit' $ImplementationSubjectCommit
 Assert-CanonicalGitIdentity 'ImplementationSubjectTree' $ImplementationSubjectTree
 Assert-CanonicalGitIdentity 'BaseCommit' $BaseCommit
@@ -103,15 +71,29 @@ if (-not (Test-Path -LiteralPath $EvaluatedMembershipFile -PathType Leaf)) {
     throw 'The evaluated AppX membership input is unavailable.'
 }
 if (-not (Test-Path -LiteralPath $PreviousClosureFile -PathType Leaf)) {
-    throw 'The explicit prior package allowlist is unavailable.'
+    throw 'The prior package closure used for difference reporting is unavailable.'
 }
 $previous = Get-Content -LiteralPath $PreviousClosureFile -Raw | ConvertFrom-Json
 $previousPaths = @($previous.entries | ForEach-Object { [string]$_.path })
-$approvedPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-foreach ($approvedPath in $previousPaths) {
-    if (-not $approvedPaths.Add($approvedPath)) {
-        throw 'The explicit prior package allowlist contains a duplicate path.'
+if (-not (Test-Path -LiteralPath $ApprovedMembershipPolicyFile -PathType Leaf)) {
+    throw 'The reviewed package membership policy is unavailable.'
+}
+$approvedPaths = [Collections.Generic.Dictionary[string,string]]::new(
+    [StringComparer]::Ordinal)
+foreach ($policyLine in [IO.File]::ReadAllLines(
+    (Resolve-Path -LiteralPath $ApprovedMembershipPolicyFile))) {
+    if ([string]::IsNullOrWhiteSpace($policyLine) -or $policyLine.StartsWith('#')) {
+        continue
     }
+    $policyParts = $policyLine.Split('|', 2)
+    if ($policyParts.Count -ne 2 -or
+        [string]::IsNullOrWhiteSpace($policyParts[0]) -or
+        $policyParts[0] -cne $policyParts[0].Replace('\', '/').TrimStart('/') -or
+        [string]::IsNullOrWhiteSpace($policyParts[1]) -or
+        $approvedPaths.ContainsKey($policyParts[0])) {
+        throw 'The reviewed package membership policy is malformed or duplicated.'
+    }
+    $approvedPaths.Add($policyParts[0], $policyParts[1])
 }
 
 $forbidden = '(?i)(^|/)(debugfixtures?|tests?|evidence|models?|credentials?|secrets?|tokens?|proxies?)(/|$)|\.pdb$|\.appxrecipe$|\.build\.appxrecipe$|\.trx$|\.dmp$|\.dump$'
@@ -128,7 +110,7 @@ foreach ($line in [IO.File]::ReadAllLines((Resolve-Path -LiteralPath $EvaluatedM
         $target.Contains('$(') -or
         $target.Split('/') -contains '..' -or
         $target -match $forbidden -or
-        -not $approvedPaths.Contains($target) -or
+        -not $approvedPaths.ContainsKey($target) -or
         -not $seen.Add($target)) {
         throw 'Evaluated package membership failed closed policy.'
     }
@@ -142,7 +124,7 @@ foreach ($line in [IO.File]::ReadAllLines((Resolve-Path -LiteralPath $EvaluatedM
         path = $target
         bytes = [long]$file.Length
         sha256 = Get-Sha256 $source
-        allowlistReason = Get-AllowlistReason $target
+        allowlistReason = $approvedPaths[$target]
     })
 }
 if ($entries.Count -eq 0) { throw 'Evaluated AppX membership was empty.' }

@@ -1,5 +1,7 @@
 namespace GraniteEdgeAI.ModelInspection.WorkerClient;
 
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
+
 /// <summary>
 /// Preserves the earliest authoritative WorkerClient failure and records a
 /// small bounded list of later exception types without retaining messages,
@@ -11,6 +13,7 @@ internal sealed class WorkerFailureAccumulator
     private readonly object _sync = new();
     private readonly List<string> _secondaryDiagnostics = [];
     private WorkerClientFailure? _primaryFailure;
+    private WorkerClientPolicyException? _cleanupIntegrityCause;
 
     internal WorkerClientFailure? PrimaryFailure
     {
@@ -32,6 +35,17 @@ internal sealed class WorkerFailureAccumulator
                 // Return an owned snapshot so later cleanup races cannot mutate
                 // a result that has already crossed the client boundary.
                 return Array.AsReadOnly(_secondaryDiagnostics.ToArray());
+            }
+        }
+    }
+
+    internal WorkerClientPolicyException? CleanupIntegrityCause
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _cleanupIntegrityCause;
             }
         }
     }
@@ -67,6 +81,26 @@ internal sealed class WorkerFailureAccumulator
             // Exception type is useful for engineering diagnosis but does not
             // carry the untrusted or sensitive text held in Exception.Message.
             _secondaryDiagnostics.Add(error.GetType().Name);
+        }
+    }
+
+    internal void RetainCleanupIntegrity(WorkerClientPolicyException error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        Exception? current = error;
+        for (int depth = 0; current is not null && depth < 8; depth++)
+        {
+            if (current is CleanupIntegrityException)
+            {
+                lock (_sync)
+                {
+                    _cleanupIntegrityCause ??= error;
+                }
+
+                return;
+            }
+
+            current = current.InnerException;
         }
     }
 }

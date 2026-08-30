@@ -219,6 +219,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
         }
         catch (WorkerClientPolicyException error)
         {
+            failures.RetainCleanupIntegrity(error);
             WorkerClientFailure policyFailure = error.Failure;
             if (policyFailure.Code == WorkerClientFailureCodes.WorkerProtocolInvalid &&
                 session is not null &&
@@ -287,6 +288,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                     }
                     catch (WorkerClientPolicyException error)
                     {
+                        failures.RetainCleanupIntegrity(error);
                         if (!failures.TrySetPrimary(error.Failure))
                         {
                             failures.AddSecondary(error);
@@ -340,6 +342,7 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
                 }
                 catch (WorkerClientPolicyException error)
                 {
+                    failures.RetainCleanupIntegrity(error);
                     if (!failures.TrySetPrimary(error.Failure))
                     {
                         failures.AddSecondary(error);
@@ -369,7 +372,8 @@ public sealed class InspectionWorkerClient : IInspectionWorkerClient
             {
                 throw new OperationCanceledException(
                     "The Model Inspection operation was cancelled and cleanup integrity failed.",
-                    new WorkerClientPolicyException(cleanupFailure),
+                    failures.CleanupIntegrityCause ??
+                        new WorkerClientPolicyException(cleanupFailure),
                     cancellationToken);
             }
 

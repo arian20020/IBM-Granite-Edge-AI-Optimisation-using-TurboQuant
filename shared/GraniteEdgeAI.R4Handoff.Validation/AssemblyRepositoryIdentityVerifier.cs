@@ -57,27 +57,35 @@ public static class AssemblyRepositoryIdentityVerifier
         MetadataReader metadata,
         EntityHandle constructor)
     {
-        EntityHandle parent = constructor.Kind switch
+        if (constructor.Kind != HandleKind.MemberReference)
         {
-            HandleKind.MemberReference =>
-                metadata.GetMemberReference((MemberReferenceHandle)constructor).Parent,
-            HandleKind.MethodDefinition =>
-                metadata.GetMethodDefinition((MethodDefinitionHandle)constructor)
-                    .GetDeclaringType(),
-            _ => default,
-        };
+            return false;
+        }
 
-        string? name = parent.Kind switch
+        MemberReference member = metadata.GetMemberReference(
+            (MemberReferenceHandle)constructor);
+        if (member.Parent.Kind != HandleKind.TypeReference ||
+            !string.Equals(metadata.GetString(member.Name), ".ctor", StringComparison.Ordinal))
         {
-            HandleKind.TypeReference => metadata.GetString(
-                metadata.GetTypeReference((TypeReferenceHandle)parent).Name),
-            HandleKind.TypeDefinition => metadata.GetString(
-                metadata.GetTypeDefinition((TypeDefinitionHandle)parent).Name),
-            _ => null,
-        };
-        return string.Equals(
-            name,
-            "AssemblyInformationalVersionAttribute",
-            StringComparison.Ordinal);
+            return false;
+        }
+
+        TypeReference type = metadata.GetTypeReference((TypeReferenceHandle)member.Parent);
+        if (!string.Equals(
+                metadata.GetString(type.Namespace),
+                "System.Reflection",
+                StringComparison.Ordinal) ||
+            !string.Equals(
+                metadata.GetString(type.Name),
+                "AssemblyInformationalVersionAttribute",
+                StringComparison.Ordinal) ||
+            type.ResolutionScope.Kind != HandleKind.AssemblyReference)
+        {
+            return false;
+        }
+
+        string scope = metadata.GetString(metadata.GetAssemblyReference(
+            (AssemblyReferenceHandle)type.ResolutionScope).Name);
+        return scope is "System.Runtime" or "mscorlib" or "System.Private.CoreLib";
     }
 }
