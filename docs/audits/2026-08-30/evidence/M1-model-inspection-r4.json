@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 2,
+  "workerId": "M1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "044e65bd48ddc02e56d1ba3678235869cba8a059",
+  "evidenceSubjectTree": "f1d8c0dff5edd481a092e6f4f11f374199f21e0f",
+  "createdAtUtc": "2026-08-30T06:41:48Z",
+  "route": [
+    "shared",
+    "gguf",
+    "openvino"
+  ],
+  "evidenceStatus": "mixed",
+  "report": {
+    "path": "docs/audits/2026-08-30/M1-model-inspection-r4.md",
+    "sha256": "cf65deb2b7b696ff0a3e182e8f3613bb79e7233242e611951ba44cf442d4a306",
+    "bytes": 10075
+  },
+  "inputs": [
+    {
+      "kind": "canonicalSchemaAuthority",
+      "id": "model-inspection-schema-v2-six-field-authority",
+      "sha256": "d75b6bc524fc535273c6ebece379865b1302ab9d01720ca14964a4b2270e722b",
+      "bytes": 19588,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "routeSpecificInspection",
+      "id": "live-gguf-registry-projection-factory",
+      "sha256": "b94d1a559c0f94133f75d3598dc82f095af883eb9fadb855d77b422322a5873d",
+      "bytes": 1887,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "routeSpecificInspection",
+      "id": "live-openvino-typed-inspection-service",
+      "sha256": "8323bc1769fb8c5f65430abff424f23edfd4f98d701f7f1766ddb6990e86f4a2",
+      "bytes": 22624,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "modelInspectionHandoff",
+      "id": "gguf-canonical-handoff-adapter",
+      "sha256": "274a6b0460becd8f2ec4282c15a89ae1712daf36ae9206361f7bfa420d634816",
+      "bytes": 2643,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "modelInspectionResult",
+      "id": "openvino-typed-activation-outcome-policy",
+      "sha256": "ab792a375224ad6caa70bc26c7e685d4d390ad93e6e774243095eab13aa917f7",
+      "bytes": 6025,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {
+      "id": "MODEL-INSPECTION-CONTRACTS",
+      "exitCode": 1,
+      "discovered": 428,
+      "executed": 428,
+      "passed": 427,
+      "failed": 1,
+      "skipped": 0,
+      "disposition": "mixed"
+    },
+    {
+      "id": "MODEL-INSPECTION-TRANSPORT",
+      "exitCode": 0,
+      "discovered": 27,
+      "executed": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER",
+      "exitCode": 0,
+      "discovered": 78,
+      "executed": 78,
+      "passed": 78,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER-CLIENT",
+      "exitCode": 1,
+      "discovered": 119,
+      "executed": 119,
+      "passed": 92,
+      "failed": 27,
+      "skipped": 0,
+      "disposition": "mixed"
+    },
+    {
+      "id": "MODEL-INSPECTION-WORKER-PROCESS",
+      "exitCode": 0,
+      "discovered": 8,
+      "executed": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "MODEL-HARDWARE-COMPATIBILITY",
+      "exitCode": 0,
+      "discovered": 1050,
+      "executed": 1050,
+      "passed": 1050,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "HARDWARE-FOUNDATION-CONSUMERS",
+      "exitCode": 0,
+      "discovered": 202,
+      "executed": 202,
+      "passed": 202,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "LLAMASHARP-DETERMINISTIC",
+      "exitCode": 0,
+      "discovered": 191,
+      "executed": 191,
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "GGUF-LIVE-HANDOFF-PROJECTION",
+      "exitCode": 0,
+      "discovered": 2,
+      "executed": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "OPENVINO-MANAGED-ROUTE",
+      "exitCode": 0,
+      "discovered": 480,
+      "executed": 480,
+      "passed": 473,
+      "failed": 0,
+      "skipped": 7,
+      "disposition": "mixed"
+    },
+    {
+      "id": "DEBUG-X64-APPLICATION-BUILD",
+      "exitCode": 1,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "blocked"
+    },
+    {
+      "id": "DEBUG-X64-PACKAGED-TEST-BUILD",
+      "exitCode": 1,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "blocked"
+    },
+    {
+      "id": "SOURCE-PRIVACY-INVENTORY-GATES",
+      "exitCode": 0,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "C0-FIXTURE-PROPOSAL-APPLY-CHECK",
+      "exitCode": 0,
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    }
+  ],
+  "blockers": [
+    "The shared application project still admits 28 prohibited Model Optimization fixture items across the evaluated production contexts; C0 must consume the apply-checkable proposal.",
+    "Executable trust policy rejects the generated Model Inspection WorkerClient fixture before 27 process-backed cases can start a session.",
+    "Seven OpenVINO package-closure cases require approved converter or official-worker stage roots that were not supplied on this development machine.",
+    "Debug x64 app and packaged-test builds stop at an existing non-M1 GgufRuntime.Capabilities reference error, so no exact executable or file-13 screenshots are available."
+  ],
+  "nonClaims": [
+    "No Intel-native GGUF or OpenVINO execution, performance, quality, signed-package, App Control, installed-layout, or end-to-end acceptance is claimed.",
+    "No application launch, visual fidelity, scaling, screenshot, or both-route user-journey pass is claimed because the exact subject did not produce an executable.",
+    "No failed, skipped, blocked, structural, build-only, fixture, or mock-only row is represented as native or user-facing success.",
+    "No model path, filename, prompt, model bytes, free-form model metadata, user or machine identity, or provider response is evidence output."
+  ]
+}
