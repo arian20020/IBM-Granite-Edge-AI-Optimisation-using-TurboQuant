@@ -12,8 +12,8 @@
   "completedAtUtc": "2026-08-30T16:05:01Z",
   "report": {
     "path": "docs/audits/2026-08-30/T1-cross-feature-integration-r4-1.md",
-    "sha256": "57279434876f1eb4b74d60719af9ffd6b51c47291b75e3188a00c245bdca2493",
-    "bytes": 22829
+    "sha256": "cf6dacd10770fd4f6977173293f46fc14be385e90feb737f79c7bbc3d0d7d16d",
+    "bytes": 26084
   },
   "transport": "remote",
   "remoteRef": "refs/remotes/origin/test/ucl-t1-cross-feature-remediation-r4-1",

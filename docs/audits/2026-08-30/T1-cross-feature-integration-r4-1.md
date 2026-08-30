@@ -164,15 +164,30 @@ The T1 project was built Release with 0 warnings/errors. Valid discovery was:
 dotnet test tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests.csproj -c Release --no-build --list-tests
 ```
 
-It discovered 111 tests. An earlier `-- --list-tests` attempt was invalid for this runner and executed zero; it is explicitly rejected as evidence and was replaced by the command above. The full/focused runs used `dotnet test ... -c Release --no-build --logger "trx;LogFileName=..." --results-directory ...`, with non-zero filters first proven against discovery. Filters selected the memory, download/exact-result, and compile-boundary classes recorded in the ledger.
+It discovered 111 tests. An earlier `-- --list-tests` attempt was invalid for this runner and executed zero; it is explicitly rejected as evidence and was replaced by the command above. The exact full and focused invocations were:
+
+```powershell
+dotnet test tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests.csproj -c Release --no-build --logger "trx;LogFileName=R41-T1-crossfeature.trx" --results-directory TestResults/R41-T1-final-crossfeature
+dotnet test tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests.csproj -c Release --no-build --filter "Name~ProportionalReserveIsBoundedByAvailabilityAndBudgetNeverNegative|Name=ZeroAvailableMemoryProjectsAnEstablishedZeroBudgetWithoutThrowing|Name=InstalledMemoryAloneCannotChangeAnAvailableMemoryReserve|Name=MachineMemoryRejectsIncoherentBudgets" --logger "trx;LogFileName=R41-T1-memory.trx" --results-directory TestResults/R41-T1-final-memory
+dotnet test tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests.csproj -c Release --no-build --filter "Name=DownloadedSourceFolderPublishesConversionIntentWithoutPath|Name=OpenVinoChatAndExportSourceCompositionRequiresExactResultAndLifecycleToken|Name~PickerAndExplorerDropUseTheSamePathPrivatePipeline|Name=PublishedGgufIdentityIsReusedByChatAndExportAfterRestart|Name=PublishedGgufLookupRejectsNonExactResultAuthority|Name=RecommendedModelDownloadActionIsFunctionallyWired|Name=RuntimeOnlyOpenVinoSuccessCannotMasqueradeAsDownloadableModel" --logger "trx;LogFileName=R41-T1-download-exact.trx" --results-directory TestResults/R41-T1-final-download-exact
+dotnet test tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests.csproj -c Release --no-build --filter "FullyQualifiedName~GraniteEdgeAI.CrossFeature.IntegrationTests.CompileLinkIntegrityTests" --logger "trx;LogFileName=R41-T1-compile-boundary.trx" --results-directory TestResults/R41-T1-final-compile-boundary
+```
 
 Compatibility, Model Inspection, OpenVINO, and GGUF owner projects were restored and built Release, then executed using the supported Microsoft.Testing.Platform path:
 
 ```powershell
-dotnet vstest <exact Release test assembly DLL> --Logger:"trx;LogFileName=<name>.trx" --ResultsDirectory:<directory>
+dotnet vstest tests/UnitTests/GraniteEdgeAI.ModelHardwareCompatibility.Tests/bin/Release/net8.0/GraniteEdgeAI.ModelHardwareCompatibility.Tests.dll --Logger:"trx;LogFileName=compat.trx" --ResultsDirectory:TestResults/R41-T1-final-compat
+dotnet vstest tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/bin/Release/net8.0/GraniteEdgeAI.ModelInspection.Contracts.Tests.dll --Logger:"trx;LogFileName=micontracts.trx" --ResultsDirectory:TestResults/R41-T1-final-micontracts
+dotnet vstest tests/ContractTests/GraniteEdgeAI.OpenVino.Contracts.Tests/bin/Release/net8.0/GraniteEdgeAI.OpenVino.Contracts.Tests.dll --Logger:"trx;LogFileName=ovcontracts.trx" --ResultsDirectory:TestResults/R41-T1-final-ovcontracts
+dotnet vstest tests/UnitTests/GraniteEdgeAI.OpenVino.WorkerClient.Tests/bin/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.OpenVino.WorkerClient.Tests.dll --Logger:"trx;LogFileName=ovclient.trx" --ResultsDirectory:TestResults/R41-T1-final-ovclient
+dotnet vstest tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/bin/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.OpenVino.Tests.dll --Logger:"trx;LogFileName=ovtests.trx" --ResultsDirectory:TestResults/R41-T1-final-ovtests
+dotnet vstest tests/ContractTests/GraniteEdgeAI.GgufQuantization.Contracts.Tests/bin/Release/net8.0/GraniteEdgeAI.GgufQuantization.Contracts.Tests.dll --Logger:"trx;LogFileName=gqcontracts.trx" --ResultsDirectory:TestResults/R41-T1-final-gqcontracts
+dotnet vstest tests/UnitTests/GraniteEdgeAI.GgufQuantization.WorkerClient.Tests/bin/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.GgufQuantization.WorkerClient.Tests.dll --Logger:"trx;LogFileName=gqclient.trx" --ResultsDirectory:TestResults/R41-T1-final-gqclient
+dotnet vstest tests/ContractTests/GraniteEdgeAI.GgufRuntime.Contracts.Tests/bin/Release/net8.0/GraniteEdgeAI.GgufRuntime.Contracts.Tests.dll --Logger:"trx;LogFileName=grcontracts.trx" --ResultsDirectory:TestResults/R41-T1-final-grcontracts
+dotnet vstest tests/UnitTests/GraniteEdgeAI.GgufRuntime.WorkerClient.Tests/bin/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.GgufRuntime.WorkerClient.Tests.dll --Logger:"trx;LogFileName=grclient.trx" --ResultsDirectory:TestResults/R41-T1-final-grclient
 ```
 
-Using `dotnet test` for the compatibility project was a rejected preliminary invocation because the repository's Microsoft.Testing.Platform configuration does not accept the VSTest project path; the supported DLL invocation produced 1050/1050. Exact project/assembly identities are the nine projects named in the ledger: `GraniteEdgeAI.ModelHardwareCompatibility.Tests`, `GraniteEdgeAI.ModelInspection.Contracts.Tests`, `GraniteEdgeAI.OpenVino.Contracts.Tests`, `GraniteEdgeAI.OpenVino.WorkerClient.Tests`, `GraniteEdgeAI.OpenVino.Tests`, `GraniteEdgeAI.GgufQuantization.Contracts.Tests`, `GraniteEdgeAI.GgufQuantization.WorkerClient.Tests`, `GraniteEdgeAI.GgufRuntime.Contracts.Tests`, and `GraniteEdgeAI.GgufRuntime.WorkerClient.Tests`.
+Using `dotnet test` for the compatibility project was a rejected preliminary invocation because the repository's Microsoft.Testing.Platform configuration does not accept the VSTest project path; the supported DLL invocation produced 1050/1050.
 
 Both managed app builds used the exact app project, `Platform=x64`, `RuntimeIdentifier=win-x64`, `--no-restore`, and package generation disabled; only unavailable producer requirements were explicitly disabled for the managed build:
 
