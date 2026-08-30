@@ -19,6 +19,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
     private readonly string modelId;
     private readonly string profileId;
     private readonly object operationSync = new();
+    private readonly object failureSync = new();
     private readonly CancellationTokenSource lifetimeCancellation = new();
     private readonly HashSet<Task> activeOperations = [];
     private readonly List<Exception> operationFailures = [];
@@ -193,7 +194,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
             failures.Add(exception);
         }
 
-        lock (operationSync)
+        lock (failureSync)
         {
             failures.AddRange(operationFailures);
         }
@@ -337,7 +338,7 @@ internal sealed class ChatDemoController : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            lock (operationSync)
+            lock (failureSync)
             {
                 operationFailures.Add(exception);
             }
