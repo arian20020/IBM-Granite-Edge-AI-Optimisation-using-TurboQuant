@@ -476,103 +476,73 @@ public sealed partial class ModelInspectionPage
     private void ApplyOpenVinoNonReadyPresentation(
         OpenVinoRouteInspectionResult result)
     {
-        if (result.Outcome == OpenVinoRouteInspectionOutcome.Cancelled)
+        OpenVinoInspectionPresentationDisposition disposition =
+            OpenVinoInspectionPresentationPolicy.Create(result);
+        if (disposition.Kind == OpenVinoInspectionPresentationKind.Cancelled)
         {
             ApplyOpenVinoCancelledPresentation();
             return;
         }
 
-        (InspectionOutcomePresentationKind kind, InspectionContentCardMode mode,
-            string title, InspectionOutcomeTone tone,
-            InspectionStatusGlyphKind glyphKind,
-            InspectionContentStatus diagnosticStatus) = result.Outcome switch
+        (InspectionOutcomePresentationKind kind, InspectionContentCardMode mode) =
+            disposition.Kind switch
         {
-            OpenVinoRouteInspectionOutcome.ConversionRequired =>
+            OpenVinoInspectionPresentationKind.ConversionRequired =>
                 (InspectionOutcomePresentationKind.ConversionRequired,
-                    InspectionContentCardMode.ConversionRequired,
-                    "Conversion required",
-                    InspectionOutcomeTone.Warning,
-                    InspectionStatusGlyphKind.Warning,
-                    InspectionContentStatus.Warning),
-            OpenVinoRouteInspectionOutcome.IncompletePackage =>
+                    InspectionContentCardMode.ConversionRequired),
+            OpenVinoInspectionPresentationKind.IncompletePackage =>
                 (InspectionOutcomePresentationKind.IncompletePackage,
-                    InspectionContentCardMode.IncompletePackage,
-                    "Incomplete package",
-                    InspectionOutcomeTone.Error,
-                    InspectionStatusGlyphKind.Error,
-                    InspectionContentStatus.Error),
-            OpenVinoRouteInspectionOutcome.Unsupported =>
+                    InspectionContentCardMode.IncompletePackage),
+            OpenVinoInspectionPresentationKind.Unsupported =>
                 (InspectionOutcomePresentationKind.Unsupported,
-                    InspectionContentCardMode.Unsupported,
-                    "Unsupported package",
-                    InspectionOutcomeTone.Error,
-                    InspectionStatusGlyphKind.Error,
-                    InspectionContentStatus.Error),
-            OpenVinoRouteInspectionOutcome.DependencyUnavailable =>
+                    InspectionContentCardMode.Unsupported),
+            OpenVinoInspectionPresentationKind.OperationalFailure =>
                 (InspectionOutcomePresentationKind.OperationalFailure,
-                    InspectionContentCardMode.OperationalFailure,
-                    "OpenVINO unavailable",
-                    InspectionOutcomeTone.Error,
-                    InspectionStatusGlyphKind.Error,
-                    InspectionContentStatus.Error),
-            OpenVinoRouteInspectionOutcome.TimedOut =>
-                (InspectionOutcomePresentationKind.OperationalFailure,
-                    InspectionContentCardMode.OperationalFailure,
-                    "Inspection timed out",
-                    InspectionOutcomeTone.Error,
-                    InspectionStatusGlyphKind.Error,
-                    InspectionContentStatus.Error),
-            OpenVinoRouteInspectionOutcome.InvalidEvidence =>
+                    InspectionContentCardMode.OperationalFailure),
+            OpenVinoInspectionPresentationKind.Invalid =>
                 (InspectionOutcomePresentationKind.Invalid,
-                    InspectionContentCardMode.Invalid,
-                    "Invalid evidence",
-                    InspectionOutcomeTone.Error,
-                    InspectionStatusGlyphKind.Error,
-                    InspectionContentStatus.Error),
-            OpenVinoRouteInspectionOutcome.StaleEvidence =>
-                (InspectionOutcomePresentationKind.Invalid,
-                    InspectionContentCardMode.Invalid,
-                    "Package changed",
-                    InspectionOutcomeTone.Error,
-                    InspectionStatusGlyphKind.Error,
-                    InspectionContentStatus.Error),
-            OpenVinoRouteInspectionOutcome.Ready or
-            OpenVinoRouteInspectionOutcome.ReadyWithWarnings =>
+                    InspectionContentCardMode.Invalid),
+            OpenVinoInspectionPresentationKind.Cancelled =>
                 throw new InvalidOperationException(
-                    "A ready OpenVINO result cannot use non-ready presentation."),
+                    "Cancelled OpenVINO presentation must use its established state."),
             _ => throw new ArgumentOutOfRangeException(
-                nameof(result),
-                result.Outcome,
-                "Unknown OpenVINO inspection outcome.")
+                nameof(disposition),
+                disposition.Kind,
+                "Unknown OpenVINO presentation disposition.")
         };
-        bool conversion = result.Outcome ==
-            OpenVinoRouteInspectionOutcome.ConversionRequired;
-        string message = result.Failure?.Message ?? (conversion
-            ? "This supported Granite source must be converted before local prompting."
-            : "The selected package cannot continue to local prompting.");
+        bool conversion = disposition.Kind ==
+            OpenVinoInspectionPresentationKind.ConversionRequired;
+        InspectionOutcomeTone tone = disposition.IsWarning
+            ? InspectionOutcomeTone.Warning
+            : InspectionOutcomeTone.Error;
+        InspectionStatusGlyphKind glyphKind = disposition.IsWarning
+            ? InspectionStatusGlyphKind.Warning
+            : InspectionStatusGlyphKind.Error;
+        InspectionContentStatus diagnosticStatus = disposition.IsWarning
+            ? InspectionContentStatus.Warning
+            : InspectionContentStatus.Error;
         InspectionOutcomeCardControl.Presentation = new InspectionOutcomePresentation
         {
             Kind = kind,
             Tone = tone,
             GlyphKind = glyphKind,
-            Title = title,
-            Message = message,
-            AutomationName = $"OpenVINO inspection. {title}. {message}"
+            Title = disposition.Title,
+            Message = disposition.Message,
+            AutomationName = $"OpenVINO inspection. {disposition.Title}. " +
+                disposition.Message
         };
         InspectionContentCardControl.Presentation = new InspectionContentCardPresentation
         {
             Mode = mode,
-            SectionTitle = title,
-            SupportingText = result.Failure?.RecoveryAction ??
-                "Choose another model package.",
+            SectionTitle = disposition.Title,
+            SupportingText = disposition.RecoveryAction,
             SupportingTextVisibility = Visibility.Visible,
-            DiagnosticCode = result.Failure?.SupportCode ??
-                (conversion ? "conversion_required" : "package_invalid"),
+            DiagnosticCode = disposition.DiagnosticCode,
             DiagnosticCodeVisibility = Visibility.Visible,
             DiagnosticStatus = diagnosticStatus
         };
         if (conversion) ApplyOpenVinoConversionAction();
-        else ApplyChooseAnotherAction(title);
+        else ApplyChooseAnotherAction(disposition.Title);
         SetPromptSurfaceVisible(false);
         SetPromptControlsEnabled(send: false, stop: false, cancel: false);
     }

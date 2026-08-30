@@ -387,7 +387,113 @@ public sealed class OpenVinoRouteServiceTests
     }
 
     [TestMethod]
-    public void LivePageConsumerNamesEveryTypedInspectionOutcome()
+    [DataRow(OpenVinoRouteInspectionOutcome.ConversionRequired, "",
+        OpenVinoInspectionPresentationKind.ConversionRequired,
+        "Conversion required",
+        "This supported Granite source must be converted before local prompting.",
+        "Choose another model package.",
+        "conversion_required", true)]
+    [DataRow(OpenVinoRouteInspectionOutcome.IncompletePackage,
+        "package_missing_resource",
+        OpenVinoInspectionPresentationKind.IncompletePackage,
+        "Incomplete package",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "package_missing_resource", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.Unsupported,
+        "model_architecture_unsupported",
+        OpenVinoInspectionPresentationKind.Unsupported,
+        "Unsupported package",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "model_architecture_unsupported", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.DependencyUnavailable,
+        "runtime_dependency_missing",
+        OpenVinoInspectionPresentationKind.OperationalFailure,
+        "OpenVINO unavailable",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "runtime_dependency_missing", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.Cancelled,
+        "operation_cancelled",
+        OpenVinoInspectionPresentationKind.Cancelled,
+        "Inspection cancelled",
+        "The local OpenVINO operation was cancelled.",
+        "Start inspection again when ready.",
+        "operation_cancelled", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.TimedOut,
+        "runtime_timed_out",
+        OpenVinoInspectionPresentationKind.OperationalFailure,
+        "Inspection timed out",
+        "The local OpenVINO operation exceeded its time limit.",
+        "Retry the operation.",
+        "runtime_timed_out", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.InvalidEvidence,
+        "runtime_protocol_failed",
+        OpenVinoInspectionPresentationKind.Invalid,
+        "Invalid evidence",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "runtime_protocol_failed", false)]
+    [DataRow(OpenVinoRouteInspectionOutcome.StaleEvidence,
+        "package_changed",
+        OpenVinoInspectionPresentationKind.Invalid,
+        "Package changed",
+        "The local OpenVINO operation could not continue.",
+        "Close the session and retry from model inspection.",
+        "package_changed", false)]
+    public void HeadlessPresentationPolicyProducesBoundedDisposition(
+        OpenVinoRouteInspectionOutcome outcome,
+        string supportCode,
+        OpenVinoInspectionPresentationKind expectedKind,
+        string expectedTitle,
+        string expectedMessage,
+        string expectedRecovery,
+        string expectedDiagnostic,
+        bool expectedWarning)
+    {
+        const string privatePath = @"C:\private\model.xml";
+        PromptFailure? failure = string.IsNullOrEmpty(supportCode)
+            ? null
+            : new PromptFailure(supportCode, privatePath, privatePath);
+        OpenVinoRouteInspectionResult result = new(
+            outcome,
+            HandoffLease: null,
+            failure,
+            Configuration: null);
+
+        OpenVinoInspectionPresentationDisposition disposition =
+            OpenVinoInspectionPresentationPolicy.Create(result);
+
+        Assert.AreEqual(expectedKind, disposition.Kind);
+        Assert.AreEqual(expectedTitle, disposition.Title);
+        Assert.AreEqual(expectedMessage, disposition.Message);
+        Assert.AreEqual(expectedRecovery, disposition.RecoveryAction);
+        Assert.AreEqual(expectedDiagnostic, disposition.DiagnosticCode);
+        Assert.AreEqual(expectedWarning, disposition.IsWarning);
+        Assert.IsFalse(disposition.ToString().Contains(
+            privatePath,
+            StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    [DataRow(OpenVinoRouteInspectionOutcome.Ready)]
+    [DataRow(OpenVinoRouteInspectionOutcome.ReadyWithWarnings)]
+    public void HeadlessPresentationPolicyRejectsReadyOutcome(
+        OpenVinoRouteInspectionOutcome outcome)
+    {
+        OpenVinoRouteInspectionResult result = new(
+            outcome,
+            HandoffLease: null,
+            Failure: null,
+            Configuration: null);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            OpenVinoInspectionPresentationPolicy.Create(result));
+    }
+
+    [TestMethod]
+    public void LivePageCallsHeadlessPresentationPolicy()
     {
         string repository = FindRepositoryRoot();
         string source = File.ReadAllText(Path.Combine(
@@ -396,78 +502,8 @@ public sealed class OpenVinoRouteServiceTests
             "Features",
             "ModelInspection",
             "ModelInspectionPage.OpenVino.cs"));
-        int methodStart = source.IndexOf(
-            "private void ApplyOpenVinoNonReadyPresentation",
-            StringComparison.Ordinal);
-        int methodEnd = source.IndexOf(
-            "private void ApplyOpenVinoConversionAction",
-            methodStart,
-            StringComparison.Ordinal);
-        Assert.IsGreaterThanOrEqualTo(0, methodStart);
-        Assert.IsGreaterThan(methodStart, methodEnd);
-        string consumer = source[methodStart..methodEnd];
-
-        foreach (string outcome in Enum.GetNames<OpenVinoRouteInspectionOutcome>())
-        {
-            StringAssert.Contains(
-                consumer,
-                $"OpenVinoRouteInspectionOutcome.{outcome}",
-                $"The live page consumer does not explicitly handle {outcome}.");
-        }
-
-        StringAssert.Contains(
-            consumer,
-            "ApplyOpenVinoCancelledPresentation();",
-            "Cancelled results must reuse the established cancellation presentation.");
-        AssertPresentationMapping(
-            consumer,
-            OpenVinoRouteInspectionOutcome.DependencyUnavailable,
-            "InspectionOutcomePresentationKind.OperationalFailure",
-            "InspectionContentCardMode.OperationalFailure",
-            "OpenVINO unavailable");
-        AssertPresentationMapping(
-            consumer,
-            OpenVinoRouteInspectionOutcome.TimedOut,
-            "InspectionOutcomePresentationKind.OperationalFailure",
-            "InspectionContentCardMode.OperationalFailure",
-            "Inspection timed out");
-        AssertPresentationMapping(
-            consumer,
-            OpenVinoRouteInspectionOutcome.InvalidEvidence,
-            "InspectionOutcomePresentationKind.Invalid",
-            "InspectionContentCardMode.Invalid",
-            "Invalid evidence");
-        AssertPresentationMapping(
-            consumer,
-            OpenVinoRouteInspectionOutcome.StaleEvidence,
-            "InspectionOutcomePresentationKind.Invalid",
-            "InspectionContentCardMode.Invalid",
-            "Package changed");
-    }
-
-    private static void AssertPresentationMapping(
-        string consumer,
-        OpenVinoRouteInspectionOutcome outcome,
-        string expectedKind,
-        string expectedMode,
-        string expectedTitle)
-    {
-        int armStart = consumer.IndexOf(
-            $"OpenVinoRouteInspectionOutcome.{outcome} =>",
-            StringComparison.Ordinal);
-        Assert.IsGreaterThanOrEqualTo(0, armStart);
-        int armEnd = consumer.IndexOf(
-            "OpenVinoRouteInspectionOutcome.",
-            armStart + 1,
-            StringComparison.Ordinal);
-        if (armEnd < 0)
-        {
-            armEnd = consumer.Length;
-        }
-        string arm = consumer[armStart..armEnd];
-        StringAssert.Contains(arm, expectedKind);
-        StringAssert.Contains(arm, expectedMode);
-        StringAssert.Contains(arm, $"\"{expectedTitle}\"");
+        StringAssert.Contains(source,
+            "OpenVinoInspectionPresentationPolicy.Create(result)");
     }
 
     private static OpenVinoRouteService Service(FakeWorkerClient worker) => new(
