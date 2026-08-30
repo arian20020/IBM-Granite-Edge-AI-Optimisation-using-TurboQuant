@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Diagnostics;
 
 namespace GraniteEdgeAI.Features.ModelImport.Selection;
 
@@ -11,6 +12,7 @@ internal sealed class ModelSelectionOperation : IDisposable
     private bool completed;
     private bool disposed;
     private bool cancellationDisposed;
+    private Task cancellationQuiescence = Task.CompletedTask;
 
     internal ModelSelectionOperationId Id { get; } = ModelSelectionOperationId.CreateNew();
 
@@ -26,7 +28,7 @@ internal sealed class ModelSelectionOperation : IDisposable
             }
 
             retired = true;
-            cancellation.Cancel();
+            RequestCancellation();
         }
     }
 
@@ -52,11 +54,23 @@ internal sealed class ModelSelectionOperation : IDisposable
             if (!retired)
             {
                 retired = true;
-                cancellation.Cancel();
+                RequestCancellation();
             }
 
             DisposeCancellationSourceWhenQuiescent();
         }
+    }
+
+    private void RequestCancellation()
+    {
+        try { cancellationQuiescence = ObserveCancellationAsync(cancellation.CancelAsync()); }
+        catch (Exception exception) { Trace.TraceWarning("Model-selection cancellation observed {0}.", exception.GetType().Name); }
+    }
+
+    private static async Task ObserveCancellationAsync(Task cancellation)
+    {
+        try { await cancellation.ConfigureAwait(false); }
+        catch (Exception exception) { Trace.TraceWarning("Model-selection cancellation observed {0}.", exception.GetType().Name); }
     }
 
     private void DisposeCancellationSourceWhenQuiescent()
@@ -64,7 +78,13 @@ internal sealed class ModelSelectionOperation : IDisposable
         if (completed && disposed && !cancellationDisposed)
         {
             cancellationDisposed = true;
-            cancellation.Dispose();
+            _ = DisposeAfterCancellationAsync();
         }
+    }
+
+    private async Task DisposeAfterCancellationAsync()
+    {
+        await cancellationQuiescence.ConfigureAwait(false);
+        cancellation.Dispose();
     }
 }

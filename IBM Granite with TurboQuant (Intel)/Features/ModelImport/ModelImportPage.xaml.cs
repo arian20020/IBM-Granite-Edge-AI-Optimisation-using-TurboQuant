@@ -5,6 +5,7 @@ using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.Selection;
+using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -38,6 +39,16 @@ namespace GraniteEdgeAI.Features.ModelImport
         private readonly Action<ModelQuickScanFailureDiagnostic>
             _recordScanFailure;
         private readonly ModelImportDropHandler _dropHandler;
+        private readonly ModelDownloadCoordinator _modelDownloadCoordinator;
+        private readonly bool _ownsModelDownloadCoordinator;
+        private ModelDownloadOperationId? _automaticDownloadSubmission;
+        private ModelDownloadOperationId? _automaticInspectionOperation;
+        private ModelInspectionRequest? _automaticInspectionRequest;
+        private Task _automaticDownloadHandoffTask = Task.CompletedTask;
+        private readonly TimeSpan _automaticHandoffRetirementTimeout;
+        private readonly object _navigationRetirementLock = new();
+        private Task? _navigationRetirementTask;
+        private int _isRetired;
 
         // Identifies the scan whose result is currently allowed to update the page.
         private CancellationTokenSource? _scanCancellationTokenSource;
@@ -71,7 +82,9 @@ namespace GraniteEdgeAI.Features.ModelImport
             Action<ModelQuickScanFailureDiagnostic>? recordScanFailure = null,
             IModelSelectionClassifier? classifier = null,
             IDownloadedModelFinder? downloadedModelFinder = null,
-            Func<Task<ModelSelectionInput?>>? pickOpenVinoInputAsync = null)
+            Func<Task<ModelSelectionInput?>>? pickOpenVinoInputAsync = null,
+            ModelDownloadCoordinator? modelDownloadCoordinator = null,
+            TimeSpan? automaticHandoffRetirementTimeout = null)
         {
             InitializeComponent();
 
@@ -98,6 +111,14 @@ namespace GraniteEdgeAI.Features.ModelImport
             _downloadedModelFinder = downloadedModelFinder ?? new BoundedDownloadedModelFinder();
             _dropHandler = new ModelImportDropHandler(
                 new ModelSelectionInputNormalizer());
+            _ownsModelDownloadCoordinator = modelDownloadCoordinator is null;
+            _modelDownloadCoordinator = modelDownloadCoordinator ?? ModelDownloadComposition.CreateDefault();
+            _automaticHandoffRetirementTimeout = automaticHandoffRetirementTimeout ?? TimeSpan.FromSeconds(5);
+            if (_automaticHandoffRetirementTimeout <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(automaticHandoffRetirementTimeout));
+            _modelDownloadCoordinator.VerifiedModelAvailable += ModelDownloadCoordinator_VerifiedModelAvailable;
+            RecommendedModelDownloadCard.Attach(_modelDownloadCoordinator);
+            Loaded += ModelImportPage_Loaded;
         }
 
         private static Func<Task<ModelSelectionInput?>> AdaptOpenVinoPathPicker(
@@ -125,14 +146,24 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         /// Raised when the user requests full inspection of the validated model.
         internal event EventHandler<ModelInspectionRequestedEventArgs>? ModelInspectionRequested;
+        internal event EventHandler<VerifiedDownloadInspectionReadyEventArgs>? VerifiedDownloadInspectionReady;
         internal event EventHandler<OpenVinoInspectionRequestedEventArgs>? OpenVinoInspectionRequested;
         internal event EventHandler<SourceModelConversionRequestedEventArgs>? SourceModelConversionRequested;
 
         internal async Task BrowseFilesAsync()
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
+            RetireAutomaticDownloadHandoff();
             ModelFormatSelection selectedFormat =
                 await _selectModelFormatAsync();
 
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             if (selectedFormat == ModelFormatSelection.OpenVino)
             {
                 await PickOpenVinoFolderAsync();
@@ -145,7 +176,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             }
 
             string? selectedPath = await _pickGgufPathAsync();
-            if (selectedPath is null)
+            if (selectedPath is null || Volatile.Read(ref _isRetired) != 0)
             {
                 return;
             }
@@ -390,6 +421,10 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private async Task PickOpenVinoFolderAsync()
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
             ModelSelectionInput? input;
             if (_pickOpenVinoInputAsync is not null)
             {
@@ -402,7 +437,7 @@ namespace GraniteEdgeAI.Features.ModelImport
                     new ModelSelectionInputNormalizer());
             }
 
-            if (input is not null)
+            if (input is not null && Volatile.Read(ref _isRetired) == 0)
             {
                 await SubmitInputAsync(input);
             }
@@ -422,12 +457,170 @@ namespace GraniteEdgeAI.Features.ModelImport
 
         private async void ModelDropTarget_Drop(object sender, DragEventArgs e)
         {
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
+            RetireAutomaticDownloadHandoff();
             ImportModelCardControl.ClearDragValidation();
             await _dropHandler.HandleDropAsync(
                 e,
-                SubmitInputAsync,
+                SubmitDroppedInputAsync,
                 RejectDroppedSelectionAsync,
                 CancellationToken.None);
+        }
+
+        internal Task SubmitDroppedInputAsync(ModelSelectionInput input)
+        {
+            RetireAutomaticDownloadHandoff();
+            return SubmitInputAsync(input);
+        }
+
+        private void ModelDownloadCoordinator_VerifiedModelAvailable(
+            object? sender,
+            VerifiedModelAvailableEventArgs e)
+        {
+            lock (_navigationRetirementLock)
+            {
+                if (Volatile.Read(ref _isRetired) != 0)
+                {
+                    return;
+                }
+                var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                _automaticDownloadHandoffTask = Task.WhenAll(
+                    _automaticDownloadHandoffTask,
+                    completion.Task);
+                _ = RunVerifiedDownloadHandoffAsync(e, completion);
+            }
+        }
+
+        private async Task RunVerifiedDownloadHandoffAsync(
+            VerifiedModelAvailableEventArgs e,
+            TaskCompletionSource completion)
+        {
+            try
+            {
+                await CompleteVerifiedDownloadHandoffAsync(e);
+                completion.TrySetResult();
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+        }
+
+        private async Task CompleteVerifiedDownloadHandoffAsync(VerifiedModelAvailableEventArgs e)
+        {
+            if (!_modelDownloadCoordinator.TryClaimVerifiedModel(e.OperationId, out VerifiedDownloadedModel? model) ||
+                model is null)
+            {
+                return;
+            }
+
+            lock (_navigationRetirementLock)
+            {
+                if (Volatile.Read(ref _isRetired) != 0 ||
+                    !_modelDownloadCoordinator.IsAutomaticHandoffAuthorized(e.OperationId))
+                    return;
+                _automaticDownloadSubmission = e.OperationId;
+            }
+            await SubmitInputAsync(new ModelSelectionInput(
+                model.LocalPath,
+                model.DisplayName,
+                isFolder: false));
+
+            if (Volatile.Read(ref _isRetired) == 0 &&
+                _automaticDownloadSubmission == e.OperationId &&
+                _modelDownloadCoordinator.IsAutomaticHandoffAuthorized(e.OperationId) &&
+                HasValidatedModel &&
+                CurrentRoute == ModelSelectionRoute.Gguf)
+            {
+                string? selectedPath = SelectedModelPath;
+                ModelQuickScanResult? scan = ValidatedScanResult;
+                if (!string.IsNullOrWhiteSpace(selectedPath) && scan is not null
+                    && ModelInspectionRequestFactory.TryCreate(selectedPath, scan, out ModelInspectionRequest? request)
+                    && request is not null)
+                {
+                    lock (_navigationRetirementLock)
+                    {
+                        if (Volatile.Read(ref _isRetired) != 0 ||
+                            _automaticDownloadSubmission != e.OperationId ||
+                            !_modelDownloadCoordinator.IsAutomaticHandoffAuthorized(e.OperationId))
+                            return;
+                        _automaticInspectionOperation = e.OperationId;
+                        _automaticInspectionRequest = request;
+                        PublishVerifiedDownloadInspectionReady(
+                            new VerifiedDownloadInspectionReadyEventArgs(e.OperationId, e.DisplayName));
+                    }
+                }
+            }
+        }
+
+        // C0 claims this capability directly from the still-live import page and installs it
+        // into Model Inspection without placing the path-bearing request in an event or Frame parameter.
+        internal bool TryClaimVerifiedDownloadInspection(
+            ModelDownloadOperationId operationId,
+            out ModelInspectionRequest? request)
+        {
+            lock (_navigationRetirementLock)
+            {
+                if (Volatile.Read(ref _isRetired) == 0
+                    && _modelDownloadCoordinator.IsAutomaticHandoffAuthorized(operationId)
+                    && _automaticInspectionOperation == operationId
+                    && _automaticInspectionRequest is not null)
+                {
+                    request = _automaticInspectionRequest;
+                    _automaticInspectionOperation = null;
+                    _automaticInspectionRequest = null;
+                    return true;
+                }
+                request = null;
+                return false;
+            }
+        }
+
+        private void PublishVerifiedDownloadInspectionReady(VerifiedDownloadInspectionReadyEventArgs eventArguments)
+        {
+            Delegate[] handlers = VerifiedDownloadInspectionReady?.GetInvocationList() ?? [];
+            foreach (Delegate candidate in handlers)
+                try { ((EventHandler<VerifiedDownloadInspectionReadyEventArgs>)candidate)(this, eventArguments); }
+                catch (Exception exception)
+                {
+                    Trace.TraceWarning("A verified-download ready observer failed with {0}.", exception.GetType().Name);
+                }
+        }
+
+        private async void ModelImportPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            Loaded -= ModelImportPage_Loaded;
+            if (Volatile.Read(ref _isRetired) != 0)
+            {
+                return;
+            }
+            try
+            {
+                await _modelDownloadCoordinator.RecoverAsync(CancellationToken.None);
+            }
+            catch (InvalidOperationException)
+            {
+                // A user-started operation won the race with startup recovery.
+            }
+            catch (OperationCanceledException)
+            {
+                // Page lifetime cancellation leaves any durable partial available for a later resume.
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Startup recovery is best-effort. The normal card remains available for an explicit retry.
+            }
+        }
+
+        private void RetireAutomaticDownloadHandoff()
+        {
+            _automaticDownloadSubmission = null;
+            _automaticInspectionOperation = null;
+            _automaticInspectionRequest = null;
+            _modelDownloadCoordinator.RetireAutomaticHandoff();
         }
 
         // Task 5 delivers only a safe diagnostic for rejected native drops.

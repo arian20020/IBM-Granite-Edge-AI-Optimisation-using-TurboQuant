@@ -2,10 +2,10 @@ using System.Collections.Generic;
 
 namespace GraniteEdgeAI.Features.GgufRuntime.Attachments;
 
-internal sealed record KnowledgeAttachment(string Path)
+public sealed record KnowledgeAttachment(string Path)
 {
-    internal string FileName => System.IO.Path.GetFileName(Path);
-    internal string StateText => "Not indexed";
+    public string FileName => System.IO.Path.GetFileName(Path);
+    public string StateText => "Not indexed";
 }
 
 internal sealed record KnowledgeFileCandidate(string? Path, long SizeInBytes, bool IsAccessible);

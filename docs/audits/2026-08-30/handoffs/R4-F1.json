@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "workerId": "F1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "baseCommit": "414ad9f97e5cc27e6b710f82d70b985aa14f3507",
+  "baseTree": "8209912d1ace72665b596c13ba4c461444e99665",
+  "branch": "audit/ucl-f1-frontend-download-remediation-r4-1",
+  "implementationSubjectCommit": "69057dc7f5bf5849e12bb48e5924ae9fad1fa6db",
+  "implementationSubjectTree": "9a8b27ca01ff26137cde1892a3211cb67ea0a2f1",
+  "worktreeCleanAtHandoff": true,
+  "completedAtUtc": "2026-08-30T19:32:16Z",
+  "report": {
+    "path": "docs/audits/2026-08-30/F1-frontend-download-r4-1.md",
+    "sha256": "272d384d631a9c916e9c3dee92b591060c7cce65e72b82b653ef05277ef8ae68",
+    "bytes": 19686
+  },
+  "transport": "remote",
+  "remoteRef": "refs/remotes/origin/audit/ucl-f1-frontend-download-remediation-r4-1",
+  "bundle": null,
+  "evidenceManifest": null,
+  "testTotals": {
+    "discovered": 197,
+    "executed": 197,
+    "passed": 197,
+    "failed": 0,
+    "skipped": 0
+  },
+  "nativeDisposition": "blocked"
+}

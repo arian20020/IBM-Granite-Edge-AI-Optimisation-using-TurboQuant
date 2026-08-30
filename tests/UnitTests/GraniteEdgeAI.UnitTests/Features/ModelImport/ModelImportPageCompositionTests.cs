@@ -3,6 +3,7 @@ using GraniteEdgeAI.Features.ModelImport.DownloadedModels;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.ModelDownload;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -127,6 +128,59 @@ public sealed class ModelImportPageCompositionTests
         Assert.AreEqual(0, results.Items.Count);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task PickerCompletionAfterNavigationRetirement_CannotRestoreSelection()
+    {
+        var pickerStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePicker = new TaskCompletionSource<string?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            async () =>
+            {
+                pickerStarted.TrySetResult();
+                return await releasePicker.Task;
+            },
+            (_, _, _) => Task.FromResult(ModelQuickScanResult.CreateSuccess(
+                "Granite",
+                "granite",
+                "3B",
+                "Q4_K_M",
+                4,
+                4096,
+                3,
+                DateTimeOffset.UnixEpoch)),
+            classifier: new AcceptedGgufClassifier());
+        Task browsing = page.BrowseFilesAsync();
+        await pickerStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        page.RetireSelectionForNavigation();
+        releasePicker.TrySetResult(@"C:\private\late.gguf");
+        await browsing.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.IsFalse(page.HasValidatedModel);
+        Assert.IsNull(page.SelectedModelPath);
+        Assert.IsNull(page.CurrentRoute);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task RetireForNavigationAsync_ReturnsOneStableTaskAndDisablesDownloadActions()
+    {
+        var page = new ModelImportPage();
+        var card = (ModelDownloadCard)page.FindName("RecommendedModelDownloadCard");
+        var download = (Button)card.FindName("DownloadModelButton");
+
+        Task first = page.RetireForNavigationAsync();
+        Task second = page.RetireForNavigationAsync();
+        await first;
+
+        Assert.AreSame(first, second);
+        Assert.IsFalse(download.IsEnabled);
+    }
+
     private static ModelImportPage CreatePage(IDownloadedModelFinder finder) => new(
         () => Task.FromResult(ModelFormatSelection.None),
         () => Task.FromResult<string?>(null),
@@ -148,5 +202,17 @@ public sealed class ModelImportPageCompositionTests
             Task.FromResult(new DownloadedModelSearchResult(_displayNames));
 
         public void ClearResults() { }
+    }
+
+    private sealed class AcceptedGgufClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(
+            ModelSelectionOperationId id,
+            ModelSelectionInput input,
+            CancellationToken token) =>
+            Task.FromResult(ModelSelectionResult.Accepted(
+                id,
+                ModelSelectionRoute.Gguf,
+                input.DisplayName));
     }
 }

@@ -11,11 +11,6 @@
 
     <Grid
         x:Name="CardLayoutRoot">
-        <!--
-            TODO(THEMING):
-            Move repeated colours, spacing and corner radii into shared theme resources.
-            This will eventually support consistent styling and dark mode.
-        -->
         <Border
             Padding="20"
             Background="#F9FAFB"
@@ -27,16 +22,6 @@
             <StackPanel
                 Spacing="8">
 
-                <!--
-                    TODO(MODEL DATA):
-                    The values below are temporary development seed data.
-                    
-                    Planned data flow:
-                    ModelSeedData or ModelCatalogService
-                    → ModelImportViewModel.SelectedModel
-                    → ModelCard.Model
-                    → these TextBlock bindings.
-                -->
                 <Grid
                     x:Name="ModelHeaderGrid"
                     ColumnSpacing="12">
@@ -197,6 +182,7 @@
                         Future source: the selected artifact's quantization metadata.
                     -->
                     <TextBlock
+                        x:Name="QuantizationValueText"
                         Grid.Row="1"
                         Grid.Column="1"
                         FontSize="14"
@@ -358,14 +344,62 @@
 
                 </StackPanel>
 
-                <!--
-                    TODO(DOWNLOAD WORKFLOW):
-                    This button is currently visual only.
-                    
-                    It will later bind to a download command supplied by
-                    ModelImportViewModel. The command will pass the selected
-                    ModelProfile to ModelDownloadService.
-                -->
+                <StackPanel
+                    x:Name="DownloadStatusRegion"
+                    Margin="0,4,0,0"
+                    Spacing="6"
+                    Visibility="Collapsed"
+                    AutomationProperties.LiveSetting="Polite">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ProgressRing
+                            x:Name="DownloadActivityRing"
+                            Width="18"
+                            Height="18"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="#2563EB"
+                            IsActive="False"
+                            Visibility="Collapsed" />
+                        <TextBlock
+                            x:Name="DownloadStatusText"
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Foreground="#374151"
+                            TextWrapping="WrapWholeWords" />
+                    </Grid>
+                    <ProgressBar
+                        x:Name="DownloadProgressBar"
+                        Height="6"
+                        HorizontalAlignment="Stretch"
+                        Maximum="100"
+                        Minimum="0" />
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            x:Name="DownloadProgressText"
+                            Grid.Column="0"
+                            FontSize="12"
+                            Foreground="#6B7280" />
+                        <Button
+                            x:Name="DiscardDownloadButton"
+                            Grid.Column="1"
+                            Padding="8,2"
+                            AutomationProperties.Name="Discard partial model download"
+                            Click="DiscardDownloadButton_Click"
+                            Content="Discard"
+                            Visibility="Collapsed" />
+                    </Grid>
+                </StackPanel>
+
                 <Button
                     x:Name="DownloadModelButton"
                     Height="48"
@@ -377,17 +411,13 @@
                     Background="#2563EB"
                     BorderBrush="#2563EB"
                     BorderThickness="1"
+                    Click="DownloadModelButton_Click"
                     Content="Download selected model"
                     CornerRadius="12"
                     FontWeight="SemiBold"
                     Foreground="White"
                     UseSystemFocusVisuals="True">
 
-                    <!--
-                        TODO(THEMING):
-                        Move these repeated button colours into shared resources
-                        so BrowseModelButton and DownloadModelButton use one style.
-                    -->
                     <Button.Resources>
 
                         <!--  Normal state.  -->
