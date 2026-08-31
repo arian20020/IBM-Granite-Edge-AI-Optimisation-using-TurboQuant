@@ -60,6 +60,22 @@ public sealed class E1EndToEndRunnerInvocationTests
     }
 
     [TestMethod]
+    public void Structurally_invalid_candidate_asset_or_producer_manifest_fails_before_build_or_lock()
+    {
+        foreach (string mutation in new[] { "candidate-extra", "asset-duplicate", "producer-ledger" })
+        {
+            using RunnerFixture fixture = RunnerFixture.Create();
+            fixture.ApplyManifestMutation(mutation);
+
+            ProcessResult result = fixture.RunNativeExact();
+
+            Assert.AreNotEqual(0, result.ExitCode, $"Malformed manifest unexpectedly passed: {mutation}");
+            Assert.IsFalse(File.Exists(fixture.DotNetLog));
+            Assert.IsFalse(Directory.Exists(fixture.LockPath));
+        }
+    }
+
+    [TestMethod]
     public void Complete_exact_arguments_invoke_authoritative_preflight_and_post_evaluator()
     {
         using RunnerFixture fixture = RunnerFixture.Create();
@@ -99,17 +115,24 @@ public sealed class E1EndToEndRunnerInvocationTests
             _implementationCommit = Git(repositoryRoot, "rev-parse", "HEAD");
             _implementationTree = Git(repositoryRoot, "show", "-s", "--format=%T", "HEAD");
             CandidateManifest = Path.Combine(directory.Path, "candidate.json");
-            File.WriteAllText(CandidateManifest, JsonSerializer.Serialize(new
+            string executable = Path.Combine(directory.Path, "fixture.exe");
+            File.WriteAllBytes(executable, [42]);
+            string executableSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(executable))).ToLowerInvariant();
+            File.WriteAllText(CandidateManifest, JsonSerializer.Serialize(new Dictionary<string, object?>
             {
-                schemaVersion = 1,
-                sourceCommit = CandidateCommit,
-                sourceTree = CandidateTree,
-                packageFamilyName = "fixture",
-                applicationId = "App",
-                executablePath = Path.Combine(directory.Path, "fixture.exe"),
-                executableSha256 = new string('a', 64),
-                executableBytes = 1,
+                ["schemaVersion"] = 1, ["sourceCommit"] = CandidateCommit, ["sourceTree"] = CandidateTree,
+                ["packageFamilyName"] = "fixture.package", ["applicationId"] = "App",
+                ["executablePath"] = executable, ["executableSha256"] = executableSha256, ["executableBytes"] = 1,
             }));
+            AssetManifest = Path.Combine(directory.Path, "assets.json");
+            File.WriteAllText(AssetManifest, JsonSerializer.Serialize(new Dictionary<string, object?>
+            {
+                ["schemaVersion"] = 1,
+                ["assets"] = new object[] { new Dictionary<string, object?> { ["id"] = "asset", ["route"] = "gguf", ["sha256"] = new string('a', 64), ["bytes"] = 1 } },
+            }));
+            H1Manifest = WriteProducer("H1", ["hardwareSnapshot", "availableMemory", "safetyBudget"]);
+            M1Manifest = WriteProducer("M1", ["modelSource", "modelInspectionResult", "modelInspectionHandoff"]);
+            Q1Manifest = WriteProducer("Q1", ["optimizationPlan", "executionResult", "chatTarget", "exportTarget"]);
             DotNetLog = Path.Combine(directory.Path, "dotnet.log");
             VsTestLog = Path.Combine(directory.Path, "vstest.log");
             EnvironmentLog = Path.Combine(directory.Path, "environment.log");
@@ -124,6 +147,10 @@ public sealed class E1EndToEndRunnerInvocationTests
         internal string VsTestLog { get; }
         internal string VsTestPath { get; }
         internal string LockPath { get; }
+        internal string AssetManifest { get; }
+        internal string H1Manifest { get; }
+        internal string M1Manifest { get; }
+        internal string Q1Manifest { get; }
         internal string EnvironmentLog { get; }
         internal string ImplementationCommit => _implementationCommit;
         internal string ImplementationTree => _implementationTree;
@@ -157,9 +184,74 @@ public sealed class E1EndToEndRunnerInvocationTests
             foreach (string[] mutation in mutations)
             {
                 int index = arguments.IndexOf(mutation[0]);
-                arguments[index + 1] = mutation[1];
+                if (index >= 0) arguments[index + 1] = mutation[1];
+                else { arguments.Add(mutation[0]); arguments.Add(mutation[1]); }
             }
             return Run(arguments.ToArray());
+        }
+
+        internal ProcessResult RunNativeExact() => RunExact(
+            ["-Stage", "Smoke"], ["-AssetManifest", AssetManifest], ["-H1Manifest", H1Manifest],
+            ["-M1Manifest", M1Manifest], ["-Q1Manifest", Q1Manifest]);
+
+        internal void ApplyManifestMutation(string mutation)
+        {
+            if (mutation == "candidate-extra")
+            {
+                Dictionary<string, object?> candidate = JsonSerializer.Deserialize<Dictionary<string, object?>>(File.ReadAllText(CandidateManifest))!;
+                candidate["unexpected"] = true;
+                File.WriteAllText(CandidateManifest, JsonSerializer.Serialize(candidate));
+                return;
+            }
+            if (mutation == "asset-duplicate")
+            {
+                File.WriteAllText(AssetManifest, JsonSerializer.Serialize(new Dictionary<string, object?>
+                {
+                    ["schemaVersion"] = 1,
+                    ["assets"] = new object[]
+                    {
+                        new Dictionary<string, object?> { ["id"] = "duplicate", ["route"] = "gguf", ["sha256"] = new string('a', 64), ["bytes"] = 1 },
+                        new Dictionary<string, object?> { ["id"] = "duplicate", ["route"] = "openvino", ["sha256"] = new string('b', 64), ["bytes"] = 1 },
+                    },
+                }));
+                return;
+            }
+            if (mutation == "producer-ledger")
+            {
+                Dictionary<string, object?> producer = JsonSerializer.Deserialize<Dictionary<string, object?>>(File.ReadAllText(H1Manifest))!;
+                producer.Remove("commands");
+                File.WriteAllText(H1Manifest, JsonSerializer.Serialize(producer));
+                return;
+            }
+            throw new ArgumentOutOfRangeException(nameof(mutation));
+        }
+
+        private string WriteProducer(string worker, string[] kinds)
+        {
+            string report = Path.Combine(_directory.Path, $"{worker}-report.md");
+            File.WriteAllText(report, "evidence");
+            string path = Path.Combine(_directory.Path, $"{worker}.json");
+            object[] items = kinds.Select(kind => (object)new Dictionary<string, object?>
+            {
+                ["kind"] = kind, ["id"] = $"{worker}-{kind}", ["evidenceGrade"] = "verified",
+            }).ToArray();
+            var producer = new Dictionary<string, object?>
+            {
+                ["schemaVersion"] = 2, ["workerId"] = worker,
+                ["frozenSourceCommit"] = "4748fe04f19afdf6b27c4c12502b84db325e7294",
+                ["evidenceSubjectCommit"] = CandidateCommit, ["evidenceSubjectTree"] = CandidateTree,
+                ["createdAtUtc"] = "2026-08-31T20:00:00Z", ["route"] = new[] { "shared" }, ["evidenceStatus"] = "passed",
+                ["report"] = new Dictionary<string, object?> { ["path"] = Path.GetFileName(report), ["sha256"] = new string('a', 64), ["bytes"] = 8 },
+                ["inputs"] = items, ["outputs"] = items,
+                ["commands"] = new object[] { new Dictionary<string, object?>
+                {
+                    ["id"] = "GREEN", ["exitCode"] = 0, ["discovered"] = 1, ["executed"] = 1,
+                    ["passed"] = 1, ["failed"] = 0, ["skipped"] = 0, ["disposition"] = "passed",
+                } },
+                ["blockers"] = Array.Empty<string>(), ["nonClaims"] = new[] { "none" },
+            };
+            File.WriteAllText(path, JsonSerializer.Serialize(producer));
+            return path;
         }
 
         internal ProcessResult Run(params string[] arguments)

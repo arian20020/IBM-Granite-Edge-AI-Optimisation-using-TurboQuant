@@ -44,6 +44,15 @@ function Invoke-CheckedGit([string[]] $Arguments) {
     return ($output -join "`n").Trim()
 }
 
+function Assert-ExactJsonProperties([object] $Value, [string[]] $Required, [string[]] $Optional, [string] $Name) {
+    $actual = @($Value.PSObject.Properties.Name)
+    $allowed = @($Required) + @($Optional)
+    if (@($actual | Where-Object { $_ -notin $allowed }).Count -gt 0 -or
+        @($Required | Where-Object { $_ -notin $actual }).Count -gt 0) {
+        throw "Blocked: $Name has missing or unexpected properties."
+    }
+}
+
 if ($CandidateCommit -ne $issuedCandidateCommit -or $CandidateTree -ne $issuedCandidateTree) {
     throw 'Candidate commit/tree must equal the immutable E1 v2 issued candidate.'
 }
@@ -76,7 +85,22 @@ if ($candidateClosureBlob -ne $workingClosureBlob) { throw 'R3 closure manifest 
 
 $candidateManifestPath = (Resolve-Path -LiteralPath $CandidateManifest).Path
 $candidateRecord = Get-Content -Raw -LiteralPath $candidateManifestPath | ConvertFrom-Json
-if ($candidateRecord.sourceCommit -ne $CandidateCommit -or $candidateRecord.sourceTree -ne $CandidateTree) { throw 'The candidate manifest is not bound to the immutable issued candidate commit/tree.' }
+Assert-ExactJsonProperties $candidateRecord @('schemaVersion', 'sourceCommit', 'sourceTree', 'packageFamilyName', 'applicationId', 'executablePath', 'executableSha256', 'executableBytes') @() 'candidate manifest'
+if ($candidateRecord.schemaVersion -ne 1 -or
+    $candidateRecord.sourceCommit -ne $CandidateCommit -or $candidateRecord.sourceTree -ne $CandidateTree -or
+    [string]$candidateRecord.packageFamilyName -notmatch '^[A-Za-z0-9._-]{3,255}$' -or
+    [string]$candidateRecord.applicationId -notmatch '^[A-Za-z0-9._-]{1,255}$' -or
+    -not [IO.Path]::IsPathRooted([string]$candidateRecord.executablePath) -or
+    [string]$candidateRecord.executableSha256 -notmatch '^[0-9a-f]{64}$' -or
+    [long]$candidateRecord.executableBytes -le 0) {
+    throw 'The candidate manifest schema or immutable identity is invalid.'
+}
+$candidateExecutable = Get-Item -LiteralPath ([string]$candidateRecord.executablePath) -ErrorAction Stop
+if ($candidateExecutable.PSIsContainer -or $candidateExecutable.Length -ne [long]$candidateRecord.executableBytes -or
+    ($candidateExecutable.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+    (Get-FileHash -Algorithm SHA256 -LiteralPath $candidateExecutable.FullName).Hash.ToLowerInvariant() -ne $candidateRecord.executableSha256) {
+    throw 'The candidate manifest executable hash, bytes, or file type is invalid.'
+}
 
 $env:GRANITE_E2E_REPOSITORY_ROOT = $repositoryRoot
 $env:GRANITE_E2E_CANDIDATE_COMMIT = $CandidateCommit
@@ -124,25 +148,53 @@ if ($Stage -in @('Smoke', 'Failure', 'Acceptance', 'All')) {
         }
     }
     $asset = Get-Content -Raw -LiteralPath $env:GRANITE_E2E_ASSET_MANIFEST | ConvertFrom-Json
+    Assert-ExactJsonProperties $asset @('schemaVersion', 'assets') @() 'asset manifest'
     if ($asset.schemaVersion -ne 1 -or -not $asset.assets -or @($asset.assets).Count -eq 0) {
         throw 'Blocked: asset manifest schema or asset inventory is invalid.'
     }
+    $assetIds = @{}
     foreach ($assetRow in @($asset.assets)) {
-        if ($assetRow.route -notin @('gguf', 'openvino') -or
+        Assert-ExactJsonProperties $assetRow @('id', 'route', 'sha256', 'bytes') @() 'asset row'
+        if ([string]::IsNullOrWhiteSpace([string]$assetRow.id) -or $assetIds.ContainsKey([string]$assetRow.id) -or
+            $assetRow.route -notin @('gguf', 'openvino') -or
             [string]$assetRow.sha256 -notmatch '^[0-9a-f]{64}$' -or [long]$assetRow.bytes -lt 0) {
-            throw 'Blocked: asset manifest contains an invalid route, digest, or byte count.'
+            throw 'Blocked: asset manifest contains a duplicate id or invalid route, digest, or byte count.'
         }
+        $assetIds[[string]$assetRow.id] = $true
+    }
+    $requiredProducerKinds = @{
+        H1 = @('hardwareSnapshot', 'availableMemory', 'safetyBudget')
+        M1 = @('modelSource', 'modelInspectionResult', 'modelInspectionHandoff')
+        Q1 = @('optimizationPlan', 'executionResult', 'chatTarget', 'exportTarget')
     }
     foreach ($worker in @('H1', 'M1', 'Q1')) {
         $manifestVariable = "GRANITE_E2E_${worker}_MANIFEST"
         $producer = Get-Content -Raw -LiteralPath ([Environment]::GetEnvironmentVariable($manifestVariable)) | ConvertFrom-Json
-        if ($producer.workerId -ne $worker -or $producer.frozenSourceCommit -ne $requiredCommit -or
+        Assert-ExactJsonProperties $producer @('schemaVersion', 'workerId', 'frozenSourceCommit', 'evidenceSubjectCommit', 'evidenceSubjectTree', 'createdAtUtc', 'route', 'evidenceStatus', 'report', 'inputs', 'outputs', 'commands', 'blockers', 'nonClaims') @() "$worker producer manifest"
+        if ($producer.schemaVersion -ne 2 -or $producer.workerId -ne $worker -or $producer.frozenSourceCommit -ne $requiredCommit -or
             [string]$producer.evidenceSubjectCommit -notmatch '^[0-9a-f]{40}$' -or
             [string]$producer.evidenceSubjectTree -notmatch '^[0-9a-f]{40}$' -or
+            @($producer.inputs).Count -eq 0 -or @($producer.outputs).Count -eq 0 -or @($producer.commands).Count -eq 0 -or
             (Invoke-CheckedGit @('rev-parse', "$($producer.evidenceSubjectCommit)^{tree}")) -ne $producer.evidenceSubjectTree) {
             throw "Blocked: $worker producer evidence identity is invalid."
         }
         [void](Invoke-CheckedGit @('merge-base', '--is-ancestor', [string]$producer.evidenceSubjectCommit, $CandidateCommit))
+        $producerKinds = @(@($producer.inputs) + @($producer.outputs) | ForEach-Object { [string]$_.kind })
+        foreach ($requiredKind in $requiredProducerKinds[$worker]) {
+            if ($requiredKind -notin $producerKinds) { throw "Blocked: $worker producer evidence is missing kind '$requiredKind'." }
+        }
+        foreach ($command in @($producer.commands)) {
+            Assert-ExactJsonProperties $command @('id', 'exitCode', 'discovered', 'executed', 'passed', 'failed', 'skipped', 'disposition') @('resultSha256') "$worker command"
+            $discovered = [long]$command.discovered
+            $executed = [long]$command.executed
+            $passed = [long]$command.passed
+            $failed = [long]$command.failed
+            $skipped = [long]$command.skipped
+            if ($discovered -lt 0 -or $executed -lt 0 -or $passed -lt 0 -or $failed -lt 0 -or $skipped -lt 0 -or
+                $discovered -ne $executed -or $executed -ne ($passed + $failed + $skipped)) {
+                throw "Blocked: $worker producer command arithmetic is invalid."
+            }
+        }
     }
 }
 
