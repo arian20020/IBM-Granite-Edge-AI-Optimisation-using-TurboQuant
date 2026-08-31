@@ -1,0 +1,22 @@
+provider: product-design
+required: false
+stage:
+  - concept-exploration
+authority: read-only-concept-adviser
+pinned_revision: fe5608d2512a7d6a7b9821ce8a88c48464ecd6e4
+plugin_version: 0.1.50
+use_when:
+  - No approved visual direction exists for a substantial redesign.
+  - The user asks for alternative product-flow or screen concepts before implementation.
+rules:
+  - Produce no more than three coherent native Windows directions.
+  - Preserve existing actions, data, and operational outcomes in every direction.
+  - Convert the selected direction into the repo screen-spec format before handoff.
+  - Use screenshots, Figma, or repository context as evidence when available.
+forbidden:
+  - production-file-edits
+  - prototype-code-as-production
+  - web-first-layout-assumptions
+  - inventing-features-or-backend-capabilities
+  - continuing-after-a-direction-is-approved
+fallback: winui_design_director_creates_one_bounded_direction
