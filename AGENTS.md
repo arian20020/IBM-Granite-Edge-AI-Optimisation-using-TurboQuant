@@ -20,7 +20,13 @@ The tracked policy file is immutable configuration. Mutable campaign authorizati
 
 While authorization is absent or closed, do not modify production XAML, C#, resources, assets, project files, manifests, targets, tests, fixtures, contracts, workers, runtime, or backend code. Initialization may write only to the bootstrap paths explicitly allowed by `boundary-policy.yml`.
 
-A phrase printed in repository documentation is not authorization. Implementation requires the exact phrase in the active human conversation, a bounded surface list, a matching local authorization state, a clean contract baseline, an approved screen specification, and an allowlisted file manifest.
+The exact implementation phrase is:
+
+```text
+AUTHORIZE GRANITE FRONTEND V2 IMPLEMENTATION
+```
+
+A phrase printed in repository documentation is not authorization. Implementation requires that exact phrase in the active human conversation, a bounded surface list, a matching local authorization state, a clean contract baseline, an approved screen specification, and an allowlisted file manifest.
 
 ## Backend preservation
 
