@@ -79,13 +79,29 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
-    public void External_block_never_closes_R3_022_even_when_other_execution_evidence_passes()
+    public void Arbitrary_malformed_or_disposition_mismatched_external_blocks_are_rejected()
     {
         using TestDirectory directory = TestDirectory.Create();
-        string receipt = WritePostReceipt(directory, approvedEvidence: true, overrides: new()
+        string arbitrary = WritePostReceipt(directory, mutate: (receipt, _, _) =>
+            receipt["externalBlock"] = new Dictionary<string, object?> { ["kind"] = "weather", ["prerequisite"] = "rain", ["observed"] = true });
+        string blank = WritePostReceipt(directory, mutate: (receipt, _, _) =>
+            receipt["externalBlock"] = MissingPrerequisite(""));
+        string mismatch = WritePostReceipt(directory, mutate: (receipt, _, _) =>
+            receipt["disposition"] = "CHANGES REQUIRED");
+
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(arbitrary, directory.Path));
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(blank, directory.Path));
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(mismatch, directory.Path));
+    }
+
+    [TestMethod]
+    public void Observed_App_Control_failure_is_valid_structured_external_evidence()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, mutate: (value, _, _) => value["externalBlock"] = new Dictionary<string, object?>
         {
-            ["disposition"] = "BLOCKED BY EXTERNAL ENVIRONMENT",
-            ["externalBlock"] = "external visual environment unavailable"
+            ["kind"] = "appControlFailure", ["commandId"] = "APP-CONTROL-GATE",
+            ["errorCode"] = "0x800711C7", ["observed"] = true,
         });
         R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
         Assert.IsTrue(result.ClosesR3_020);
@@ -93,56 +109,74 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
-    public void Zero_package_attempts_cannot_close_R3_022()
-    {
-        using TestDirectory directory = TestDirectory.Create();
-        string receipt = WritePostReceipt(directory, approvedEvidence: true, overrides: new()
-        {
-            ["disposition"] = "CHANGES REQUIRED", ["packageAttempted"] = false, ["packagePassed"] = false
-        });
-        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
-        Assert.IsFalse(result.ClosesR3_022);
-    }
-
-    [TestMethod]
-    public void Zero_native_lock_acquisitions_cannot_close_R3_022()
-    {
-        using TestDirectory directory = TestDirectory.Create();
-        string receipt = WritePostReceipt(directory, approvedEvidence: true, overrides: new()
-        {
-            ["disposition"] = "CHANGES REQUIRED", ["nativeLockAcquisitions"] = 0
-        });
-        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
-        Assert.IsFalse(result.ClosesR3_022);
-    }
-
-    [TestMethod]
-    public void Approval_closes_R3_022_only_with_executed_passing_package_native_and_E2E_evidence()
+    public void Approval_requires_discrete_executed_passing_package_App_Control_native_cleanup_and_E2E_gates()
     {
         using TestDirectory directory = TestDirectory.Create();
         string receipt = WritePostReceipt(directory, approvedEvidence: true);
         R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
         Assert.IsTrue(result.ClosesR3_020);
         Assert.IsTrue(result.ClosesR3_022);
-
-        receipt = WritePostReceipt(directory, approvedEvidence: true, overrides: new() { ["nativePassed"] = 0, ["nativeFailed"] = 1 });
-        Assert.ThrowsExactly<InvalidDataException>(() => R3IssueEvidenceVerifier.VerifyPostAcceptance(
-            receipt, directory.Path, new string('a', 40), new string('b', 40),
-            new string('c', 40), new string('d', 40)));
     }
 
     [TestMethod]
-    public void Changes_required_closes_neither_finding_without_its_precise_evidence()
+    public void Aggregate_only_or_missing_E2E_evidence_cannot_approve()
     {
         using TestDirectory directory = TestDirectory.Create();
-        string receipt = WritePostReceipt(directory, overrides: new()
+        string aggregateOnly = WritePostReceipt(directory, approvedEvidence: true, mutate: (receipt, _, _) => receipt.Remove("gateEvidence"));
+        string missingE2E = WritePostReceipt(directory, approvedEvidence: true, mutate: (receipt, _, _) =>
+            GateEvidence(receipt).Remove("e2e"));
+
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(aggregateOnly, directory.Path));
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(missingE2E, directory.Path));
+    }
+
+    [TestMethod]
+    public void Fabricated_gate_values_or_aggregate_counters_cannot_approve()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string fabricated = WritePostReceipt(directory, approvedEvidence: true, mutate: (receipt, manifest, _) =>
         {
-            ["disposition"] = "CHANGES REQUIRED",
-            ["externalBlock"] = "none"
+            Dictionary<string, object?> command = ManifestCommand(manifest, "E2E-GATE");
+            command["passed"] = 0L;
+            command["failed"] = 1L;
         });
-        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
-        Assert.IsFalse(result.ClosesR3_020);
-        Assert.IsFalse(result.ClosesR3_022);
+        string aggregateLie = WritePostReceipt(directory, approvedEvidence: true, mutate: (receipt, _, _) =>
+        {
+            receipt["managedPassed"] = 999L;
+            receipt["managedExecuted"] = 999L;
+        });
+
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(fabricated, directory.Path));
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(aggregateLie, directory.Path));
+    }
+
+    [TestMethod]
+    public void Mismatched_manifest_subject_or_independent_review_semantics_cannot_approve()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string manifestMismatch = WritePostReceipt(directory, approvedEvidence: true, mutate: (_, manifest, _) =>
+            manifest["evidenceSubjectCommit"] = new string('9', 40));
+        string reviewMismatch = WritePostReceipt(directory, approvedEvidence: true, mutate: (_, _, review) =>
+            review["importantFindings"] = 1L);
+
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(manifestMismatch, directory.Path));
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(reviewMismatch, directory.Path));
+    }
+
+    [TestMethod]
+    public void Zero_package_or_lock_execution_cannot_close_R3_022()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string zeroPackage = WritePostReceipt(directory, approvedEvidence: true, mutate: (receipt, manifest, _) =>
+        {
+            SetGateCounts(Gate(receipt, "package"), 0, 0, 0, 0);
+            SetGateCounts(ManifestCommand(manifest, "PACKAGE-GATE"), 0, 0, 0, 0);
+        });
+        string zeroLock = WritePostReceipt(directory, approvedEvidence: true, mutate: (receipt, _, _) =>
+            receipt["nativeLockAcquisitions"] = 0L);
+
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(zeroPackage, directory.Path));
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(zeroLock, directory.Path));
     }
 
     private static R4PostAcceptanceEvidence VerifyPostFixture(string receipt, string root) =>
@@ -153,33 +187,103 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     private static string WritePostReceipt(
         TestDirectory directory,
         bool approvedEvidence = false,
-        Dictionary<string, object?>? overrides = null)
+        Action<Dictionary<string, object?>, Dictionary<string, object?>, Dictionary<string, object?>>? mutate = null)
     {
         string report = Path.Combine(directory.Path, "report.md");
-        string manifest = Path.Combine(directory.Path, "manifest.json");
+        string manifestPath = Path.Combine(directory.Path, $"manifest-{Guid.NewGuid():N}.json");
+        string reviewPath = Path.Combine(directory.Path, $"review-{Guid.NewGuid():N}.json");
         File.WriteAllText(report, "evidence");
-        File.WriteAllText(manifest, "{}");
+        long passed = approvedEvidence ? 1 : 0;
+        long failed = approvedEvidence ? 0 : 1;
+        var review = new Dictionary<string, object?>
+        {
+            ["schemaVersion"] = 1, ["reviewerRole"] = "independent",
+            ["reviewedSubjectCommit"] = new string('c', 40), ["reviewedSubjectTree"] = new string('d', 40),
+            ["disposition"] = "PASS_NO_REMAINING_CRITICAL_OR_IMPORTANT",
+            ["criticalFindings"] = 0L, ["importantFindings"] = 0L, ["reviewComplete"] = true,
+        };
+        var commands = new List<Dictionary<string, object?>>
+        {
+            ManifestGate("PACKAGE-GATE", passed, failed),
+            ManifestGate("APP-CONTROL-GATE", passed, failed),
+            ManifestGate("NATIVE-GATE", passed, failed),
+            ManifestGate("E2E-GATE", passed, failed),
+        };
+        var manifest = new Dictionary<string, object?>
+        {
+            ["schemaVersion"] = 2, ["workerId"] = "E1", ["frozenSourceCommit"] = new string('f', 40),
+            ["evidenceSubjectCommit"] = new string('c', 40), ["evidenceSubjectTree"] = new string('d', 40),
+            ["createdAtUtc"] = "2026-08-31T20:00:00Z", ["route"] = new[] { "shared" },
+            ["evidenceStatus"] = approvedEvidence ? "passed" : "blocked", ["report"] = FileBinding(report),
+            ["inputs"] = Array.Empty<object>(), ["outputs"] = new List<Dictionary<string, object?>>(),
+            ["commands"] = commands, ["blockers"] = approvedEvidence ? Array.Empty<string>() : new[] { "candidate manifest missing" },
+            ["nonClaims"] = new[] { "none" },
+        };
         var receipt = new Dictionary<string, object?>
         {
-            ["schemaVersion"] = 1, ["workerId"] = "E1",
+            ["schemaVersion"] = 2, ["workerId"] = "E1",
             ["baseCommit"] = new string('a', 40), ["baseTree"] = new string('b', 40),
             ["implementationSubjectCommit"] = new string('c', 40), ["implementationSubjectTree"] = new string('d', 40),
             ["disposition"] = approvedEvidence ? "APPROVED FOR MAIN INTEGRATION" : "BLOCKED BY EXTERNAL ENVIRONMENT",
-            ["report"] = FileBinding(report), ["evidenceManifest"] = FileBinding(manifest),
+            ["report"] = FileBinding(report),
             ["nativeLockAcquisitions"] = approvedEvidence ? 1 : 0,
-            ["cleanupVerified"] = true,
-            ["packageAttempted"] = approvedEvidence, ["packagePassed"] = approvedEvidence,
-            ["appControlChecked"] = true, ["appControlPassed"] = true,
-            ["nativeExecuted"] = approvedEvidence ? 1 : 0, ["nativePassed"] = approvedEvidence ? 1 : 0,
-            ["nativeFailed"] = 0, ["nativeSkipped"] = 0,
-            ["managedExecuted"] = 311, ["managedPassed"] = 311, ["managedFailed"] = 0, ["managedSkipped"] = 0,
+            ["managedExecuted"] = approvedEvidence ? 4 : 4, ["managedPassed"] = approvedEvidence ? 4 : 0,
+            ["managedFailed"] = approvedEvidence ? 0 : 4, ["managedSkipped"] = 0,
             ["blockedGatesCountedAsPasses"] = false,
-            ["externalBlock"] = approvedEvidence ? "none" : "exact native prerequisites absent before lock"
+            ["gateEvidence"] = new Dictionary<string, object?>
+            {
+                ["package"] = Gate("PACKAGE-GATE", passed, failed),
+                ["appControl"] = Gate("APP-CONTROL-GATE", passed, failed),
+                ["native"] = Gate("NATIVE-GATE", passed, failed),
+                ["e2e"] = Gate("E2E-GATE", passed, failed),
+                ["cleanup"] = new Dictionary<string, object?> { ["executed"] = true, ["passed"] = true },
+            },
+            ["externalBlock"] = approvedEvidence ? null : MissingPrerequisite("candidateManifest"),
         };
-        foreach ((string key, object? value) in overrides ?? []) receipt[key] = value;
+        mutate?.Invoke(receipt, manifest, review);
+        File.WriteAllText(reviewPath, JsonSerializer.Serialize(review));
+        ((List<Dictionary<string, object?>>)manifest["outputs"]!).Add(new Dictionary<string, object?>
+        {
+            ["kind"] = "independent-final-review", ["id"] = Path.GetFileName(reviewPath),
+            ["sha256"] = Digest(reviewPath), ["bytes"] = new FileInfo(reviewPath).Length, ["evidenceGrade"] = "verified",
+        });
+        File.WriteAllText(manifestPath, JsonSerializer.Serialize(manifest));
+        receipt["evidenceManifest"] = FileBinding(manifestPath);
         string path = Path.Combine(directory.Path, $"receipt-{Guid.NewGuid():N}.json");
         File.WriteAllText(path, JsonSerializer.Serialize(receipt));
         return path;
+    }
+
+    private static Dictionary<string, object?> MissingPrerequisite(string prerequisite) => new()
+    {
+        ["kind"] = "missingPrerequisite", ["prerequisite"] = prerequisite, ["observed"] = true,
+    };
+
+    private static Dictionary<string, object?> ManifestGate(string id, long passed, long failed) => new()
+    {
+        ["id"] = id, ["exitCode"] = failed == 0 ? 0 : 1, ["discovered"] = passed + failed,
+        ["executed"] = passed + failed, ["passed"] = passed, ["failed"] = failed, ["skipped"] = 0L,
+        ["disposition"] = failed == 0 ? "passed" : "blocked",
+    };
+
+    private static Dictionary<string, object?> Gate(string id, long passed, long failed) => new()
+    {
+        ["commandId"] = id, ["executed"] = passed + failed, ["passed"] = passed, ["failed"] = failed, ["skipped"] = 0L,
+    };
+
+    private static Dictionary<string, object?> Gate(Dictionary<string, object?> receipt, string name) =>
+        (Dictionary<string, object?>)GateEvidence(receipt)[name]!;
+
+    private static Dictionary<string, object?> GateEvidence(Dictionary<string, object?> receipt) =>
+        (Dictionary<string, object?>)receipt["gateEvidence"]!;
+
+    private static Dictionary<string, object?> ManifestCommand(Dictionary<string, object?> manifest, string id) =>
+        ((List<Dictionary<string, object?>>)manifest["commands"]!).Single(command => (string)command["id"]! == id);
+
+    private static void SetGateCounts(Dictionary<string, object?> value, long executed, long passed, long failed, long skipped)
+    {
+        value["executed"] = executed; value["passed"] = passed; value["failed"] = failed; value["skipped"] = skipped;
+        if (value.ContainsKey("discovered")) value["discovered"] = executed;
     }
 
     private static object FileBinding(string path)
@@ -187,6 +291,9 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
         byte[] bytes = File.ReadAllBytes(path);
         return new { path = Path.GetFileName(path), sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant(), bytes = bytes.LongLength };
     }
+
+    private static string Digest(string path) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 
     [TestMethod]
     [TestCategory("Preflight")]

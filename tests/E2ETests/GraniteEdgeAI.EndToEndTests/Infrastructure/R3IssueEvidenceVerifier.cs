@@ -146,21 +146,19 @@ internal static class R3IssueEvidenceVerifier
         JsonElement root = document.RootElement;
         JsonContract.RequireOnly(root, "schemaVersion", "workerId", "baseCommit", "baseTree",
             "implementationSubjectCommit", "implementationSubjectTree", "disposition", "report",
-            "evidenceManifest", "nativeLockAcquisitions", "cleanupVerified", "packageAttempted",
-            "packagePassed", "appControlChecked", "appControlPassed", "nativeExecuted", "nativePassed",
-            "nativeFailed", "nativeSkipped", "managedExecuted", "managedPassed", "managedFailed", "managedSkipped",
-            "blockedGatesCountedAsPasses", "externalBlock");
-        if (JsonContract.RequiredInt64(root, "schemaVersion") != 1
+            "evidenceManifest", "nativeLockAcquisitions", "managedExecuted", "managedPassed",
+            "managedFailed", "managedSkipped", "blockedGatesCountedAsPasses", "gateEvidence", "externalBlock");
+        if (JsonContract.RequiredInt64(root, "schemaVersion") != 2
             || JsonContract.RequiredString(root, "workerId") != "E1")
         {
-            throw new InvalidDataException("Post-acceptance evidence is not an E1 schema-v1 receipt.");
+            throw new InvalidDataException("Post-acceptance evidence is not an E1 schema-v2 receipt.");
         }
         RequireExactObject(root, "baseCommit", expectedBaseCommit);
         RequireExactObject(root, "baseTree", expectedBaseTree);
         RequireExactObject(root, "implementationSubjectCommit", expectedSubjectCommit);
         RequireExactObject(root, "implementationSubjectTree", expectedSubjectTree);
-        VerifyFileBinding(RequiredObject(root, "report"), evidenceRoot);
-        VerifyFileBinding(RequiredObject(root, "evidenceManifest"), evidenceRoot);
+        string reportPath = VerifyFileBinding(RequiredObject(root, "report"), evidenceRoot);
+        string manifestPath = VerifyFileBinding(RequiredObject(root, "evidenceManifest"), evidenceRoot);
 
         string disposition = JsonContract.RequiredString(root, "disposition");
         if (disposition is not ("APPROVED FOR MAIN INTEGRATION" or "CHANGES REQUIRED" or "BLOCKED BY EXTERNAL ENVIRONMENT"))
@@ -171,47 +169,233 @@ internal static class R3IssueEvidenceVerifier
         long passed = JsonContract.RequiredInt64(root, "managedPassed");
         long failed = JsonContract.RequiredInt64(root, "managedFailed");
         long skipped = JsonContract.RequiredInt64(root, "managedSkipped");
-        long nativeExecuted = JsonContract.RequiredInt64(root, "nativeExecuted");
-        long nativePassed = JsonContract.RequiredInt64(root, "nativePassed");
-        long nativeFailed = JsonContract.RequiredInt64(root, "nativeFailed");
-        long nativeSkipped = JsonContract.RequiredInt64(root, "nativeSkipped");
         if (executed <= 0 || passed < 0 || failed < 0 || skipped < 0 || executed != passed + failed + skipped
-            || nativeExecuted < 0 || nativePassed < 0 || nativeFailed < 0 || nativeSkipped < 0
-            || nativeExecuted != nativePassed + nativeFailed + nativeSkipped
             || RequiredBoolean(root, "blockedGatesCountedAsPasses"))
         {
             throw new InvalidDataException("Post-acceptance execution arithmetic is invalid.");
         }
-        bool packageAttempted = RequiredBoolean(root, "packageAttempted");
-        bool packagePassed = RequiredBoolean(root, "packagePassed");
-        bool appControlChecked = RequiredBoolean(root, "appControlChecked");
-        bool appControlPassed = RequiredBoolean(root, "appControlPassed");
-        bool cleanupVerified = RequiredBoolean(root, "cleanupVerified");
         long lockAcquisitions = JsonContract.RequiredInt64(root, "nativeLockAcquisitions");
-        if (lockAcquisitions < 0 || packagePassed && !packageAttempted || appControlPassed && !appControlChecked)
+        if (lockAcquisitions < 0)
         {
             throw new InvalidDataException("Post-acceptance gate evidence is inconsistent.");
         }
-        string externalBlock = JsonContract.RequiredString(root, "externalBlock");
-        bool hasExternalBlock = !string.Equals(externalBlock, "none", StringComparison.Ordinal);
-        bool closesR3_020 = nativeExecuted > 0 || hasExternalBlock;
-        bool closesR3_022 = !hasExternalBlock
-            && packageAttempted && packagePassed
-            && appControlChecked && appControlPassed
-            && lockAcquisitions > 0
-            && nativeExecuted > 0 && nativeFailed == 0 && nativeSkipped == 0
-            && failed == 0 && skipped == 0
-            && cleanupVerified;
-        if (disposition == "BLOCKED BY EXTERNAL ENVIRONMENT" && !hasExternalBlock)
+
+        using JsonDocument manifestDocument = JsonContract.Open(manifestPath);
+        ManifestEvidence manifest = ParseManifest(
+            manifestDocument.RootElement, evidenceRoot, reportPath, expectedSubjectCommit, expectedSubjectTree);
+        JsonElement gates = RequiredObject(root, "gateEvidence");
+        JsonContract.RequireOnly(gates, "package", "appControl", "native", "e2e", "cleanup");
+        GateEvidence package = ParseGate(gates, "package", manifest.Commands);
+        GateEvidence appControl = ParseGate(gates, "appControl", manifest.Commands);
+        GateEvidence native = ParseGate(gates, "native", manifest.Commands);
+        GateEvidence e2e = ParseGate(gates, "e2e", manifest.Commands);
+        if (new[] { package.CommandId, appControl.CommandId, native.CommandId, e2e.CommandId }.Distinct(StringComparer.Ordinal).Count() != 4)
         {
-            throw new InvalidDataException("External-block disposition requires precise external evidence.");
+            throw new InvalidDataException("Post-acceptance gates require discrete command evidence.");
         }
+        JsonElement cleanup = RequiredObject(gates, "cleanup");
+        JsonContract.RequireOnly(cleanup, "executed", "passed");
+        bool cleanupExecuted = RequiredBoolean(cleanup, "executed");
+        bool cleanupPassed = RequiredBoolean(cleanup, "passed");
+        if (cleanupPassed && !cleanupExecuted)
+        {
+            throw new InvalidDataException("Cleanup cannot pass without execution.");
+        }
+        long gateExecuted = package.Executed + appControl.Executed + native.Executed + e2e.Executed;
+        long gatePassed = package.Passed + appControl.Passed + native.Passed + e2e.Passed;
+        long gateFailed = package.Failed + appControl.Failed + native.Failed + e2e.Failed;
+        long gateSkipped = package.Skipped + appControl.Skipped + native.Skipped + e2e.Skipped;
+        if (executed != gateExecuted || passed != gatePassed || failed != gateFailed || skipped != gateSkipped)
+        {
+            throw new InvalidDataException("Managed counters must exactly reconcile the discrete gate evidence.");
+        }
+
+        bool hasExternalBlock = ParseExternalBlock(root, disposition, manifest.Commands);
+        bool closesR3_020 = native.Executed > 0 || hasExternalBlock;
+        bool packagePass = package.IsPassing;
+        bool appControlPass = appControl.IsPassing;
+        bool nativePass = native.IsPassing;
+        bool e2ePass = e2e.IsPassing;
+        bool closesR3_022 = !hasExternalBlock
+            && packagePass && appControlPass
+            && lockAcquisitions > 0
+            && nativePass && e2ePass
+            && cleanupExecuted && cleanupPassed;
         if (disposition == "APPROVED FOR MAIN INTEGRATION"
-            && (!closesR3_020 || !closesR3_022 || hasExternalBlock))
+            && (!closesR3_020 || !closesR3_022 || hasExternalBlock || manifest.Status != "passed"))
         {
             throw new InvalidDataException("Approval requires all package, App Control, native, cleanup and E2E evidence to execute and pass.");
         }
         return new R4PostAcceptanceEvidence(disposition, closesR3_020, closesR3_022);
+    }
+
+    private static ManifestEvidence ParseManifest(
+        JsonElement root,
+        string evidenceRoot,
+        string expectedReportPath,
+        string expectedSubjectCommit,
+        string expectedSubjectTree)
+    {
+        JsonContract.RequireOnly(root, "schemaVersion", "workerId", "frozenSourceCommit", "evidenceSubjectCommit",
+            "evidenceSubjectTree", "createdAtUtc", "route", "evidenceStatus", "report", "inputs", "outputs",
+            "commands", "blockers", "nonClaims");
+        if (JsonContract.RequiredInt64(root, "schemaVersion") != 2 || JsonContract.RequiredString(root, "workerId") != "E1")
+        {
+            throw new InvalidDataException("Bound evidence manifest is not E1 schema v2.");
+        }
+        RequireExactObject(root, "evidenceSubjectCommit", expectedSubjectCommit);
+        RequireExactObject(root, "evidenceSubjectTree", expectedSubjectTree);
+        string manifestReportPath = VerifyFileBinding(RequiredObject(root, "report"), evidenceRoot);
+        if (!manifestReportPath.Equals(expectedReportPath, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("Receipt and manifest do not bind the same report.");
+        }
+        string status = JsonContract.RequiredString(root, "evidenceStatus");
+        if (status is not ("passed" or "failed" or "blocked" or "mixed"))
+        {
+            throw new InvalidDataException("Evidence manifest status is invalid.");
+        }
+        Dictionary<string, GateEvidence> commands = [];
+        foreach (JsonElement command in RequiredArray(root, "commands").EnumerateArray())
+        {
+            JsonContract.RequireOnly(command, "id", "exitCode", "discovered", "executed", "passed", "failed", "skipped", "disposition", "resultSha256");
+            string id = JsonContract.RequiredString(command, "id");
+            long discovered = JsonContract.RequiredInt64(command, "discovered");
+            long commandExecuted = JsonContract.RequiredInt64(command, "executed");
+            long commandPassed = JsonContract.RequiredInt64(command, "passed");
+            long commandFailed = JsonContract.RequiredInt64(command, "failed");
+            long commandSkipped = JsonContract.RequiredInt64(command, "skipped");
+            string commandDisposition = JsonContract.RequiredString(command, "disposition");
+            long exitCode = JsonContract.RequiredInt64(command, "exitCode");
+            if (discovered < 0 || commandExecuted < 0 || commandPassed < 0 || commandFailed < 0 || commandSkipped < 0
+                || discovered != commandExecuted || commandExecuted != commandPassed + commandFailed + commandSkipped
+                || !commands.TryAdd(id, new GateEvidence(id, commandExecuted, commandPassed, commandFailed, commandSkipped, exitCode, commandDisposition)))
+            {
+                throw new InvalidDataException("Evidence manifest command arithmetic or identity is invalid.");
+            }
+        }
+        JsonElement reviewItem = RequiredArray(root, "outputs").EnumerateArray().SingleOrDefault(item =>
+            item.TryGetProperty("kind", out JsonElement kind) && kind.ValueKind == JsonValueKind.String
+            && kind.GetString() == "independent-final-review");
+        if (reviewItem.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException("Evidence manifest requires one durable independent review.");
+        }
+        VerifyIndependentReview(reviewItem, evidenceRoot, expectedSubjectCommit, expectedSubjectTree);
+        return new ManifestEvidence(status, commands);
+    }
+
+    private static GateEvidence ParseGate(JsonElement gates, string name, IReadOnlyDictionary<string, GateEvidence> commands)
+    {
+        JsonElement gate = RequiredObject(gates, name);
+        JsonContract.RequireOnly(gate, "commandId", "executed", "passed", "failed", "skipped");
+        string id = JsonContract.RequiredString(gate, "commandId");
+        if (!commands.TryGetValue(id, out GateEvidence? command))
+        {
+            throw new InvalidDataException($"Gate '{name}' references missing manifest command '{id}'.");
+        }
+        long executed = JsonContract.RequiredInt64(gate, "executed");
+        long passed = JsonContract.RequiredInt64(gate, "passed");
+        long failed = JsonContract.RequiredInt64(gate, "failed");
+        long skipped = JsonContract.RequiredInt64(gate, "skipped");
+        if (executed < 0 || passed < 0 || failed < 0 || skipped < 0 || executed != passed + failed + skipped
+            || executed != command.Executed || passed != command.Passed || failed != command.Failed || skipped != command.Skipped)
+        {
+            throw new InvalidDataException($"Gate '{name}' differs from its candidate-bound manifest command.");
+        }
+        return command;
+    }
+
+    private static bool ParseExternalBlock(
+        JsonElement root,
+        string disposition,
+        IReadOnlyDictionary<string, GateEvidence> commands)
+    {
+        JsonElement block = root.GetProperty("externalBlock");
+        if (block.ValueKind == JsonValueKind.Null)
+        {
+            if (disposition == "BLOCKED BY EXTERNAL ENVIRONMENT")
+            {
+                throw new InvalidDataException("External-block disposition requires structured external evidence.");
+            }
+            return false;
+        }
+        if (block.ValueKind != JsonValueKind.Object || disposition != "BLOCKED BY EXTERNAL ENVIRONMENT")
+        {
+            throw new InvalidDataException("Structured external evidence requires the external-block disposition.");
+        }
+        string kind = JsonContract.RequiredString(block, "kind");
+        if (kind == "missingPrerequisite")
+        {
+            JsonContract.RequireOnly(block, "kind", "prerequisite", "observed");
+            string prerequisite = JsonContract.RequiredString(block, "prerequisite");
+            HashSet<string> allowed = new(StringComparer.Ordinal)
+            {
+                "candidateManifest", "assetManifest", "h1NativeManifest", "m1NativeManifest",
+                "q1NativeManifest", "openVinoStageManifest", "ggufStageManifest", "predecessorNativeReceipt",
+            };
+            if (!RequiredBoolean(block, "observed") || !allowed.Contains(prerequisite))
+            {
+                throw new InvalidDataException("Missing-prerequisite block is not an allowed observed prerequisite.");
+            }
+            return true;
+        }
+        if (kind == "appControlFailure")
+        {
+            JsonContract.RequireOnly(block, "kind", "commandId", "errorCode", "observed");
+            string commandId = JsonContract.RequiredString(block, "commandId");
+            string errorCode = JsonContract.RequiredString(block, "errorCode");
+            if (!RequiredBoolean(block, "observed") || errorCode != "0x800711C7"
+                || !commands.TryGetValue(commandId, out GateEvidence? command)
+                || command.Failed <= 0 || command.Disposition is not ("blocked" or "failed"))
+            {
+                throw new InvalidDataException("App Control block is not tied to an observed failed manifest command.");
+            }
+            return true;
+        }
+        throw new InvalidDataException("External block kind is not allowed.");
+    }
+
+    private static void VerifyIndependentReview(
+        JsonElement item,
+        string evidenceRoot,
+        string expectedSubjectCommit,
+        string expectedSubjectTree)
+    {
+        JsonContract.RequireOnly(item, "kind", "id", "sha256", "bytes", "evidenceGrade");
+        if (JsonContract.RequiredString(item, "evidenceGrade") != "verified")
+        {
+            throw new InvalidDataException("Independent review is not verified evidence.");
+        }
+        string id = RequireRepositoryPathValue(JsonContract.RequiredString(item, "id"));
+        string direct = Path.Combine(evidenceRoot, id);
+        string audit = Path.Combine(evidenceRoot, "docs", "audits", "2026-08-30", "evidence", id);
+        string reviewPath = File.Exists(direct) ? direct : audit;
+        VerifyBoundFile(reviewPath, item);
+        using JsonDocument reviewDocument = JsonContract.Open(reviewPath);
+        JsonElement review = reviewDocument.RootElement;
+        JsonContract.RequireOnly(review, "schemaVersion", "reviewerRole", "reviewedSubjectCommit", "reviewedSubjectTree",
+            "disposition", "criticalFindings", "importantFindings", "reviewComplete");
+        if (JsonContract.RequiredInt64(review, "schemaVersion") != 1
+            || JsonContract.RequiredString(review, "reviewerRole") != "independent"
+            || JsonContract.RequiredString(review, "reviewedSubjectCommit") != expectedSubjectCommit
+            || JsonContract.RequiredString(review, "reviewedSubjectTree") != expectedSubjectTree
+            || JsonContract.RequiredString(review, "disposition") != "PASS_NO_REMAINING_CRITICAL_OR_IMPORTANT"
+            || JsonContract.RequiredInt64(review, "criticalFindings") != 0
+            || JsonContract.RequiredInt64(review, "importantFindings") != 0
+            || !RequiredBoolean(review, "reviewComplete"))
+        {
+            throw new InvalidDataException("Independent review semantics do not permit approval or final return.");
+        }
+    }
+
+    private sealed record ManifestEvidence(string Status, IReadOnlyDictionary<string, GateEvidence> Commands);
+
+    private sealed record GateEvidence(
+        string CommandId, long Executed, long Passed, long Failed, long Skipped, long ExitCode, string Disposition)
+    {
+        internal bool IsPassing => Executed > 0 && Passed == Executed && Failed == 0 && Skipped == 0
+            && ExitCode == 0 && Disposition == "passed";
     }
 
     private static void RequireExactObject(JsonElement root, string name, string expected)
@@ -223,7 +407,7 @@ internal static class R3IssueEvidenceVerifier
         }
     }
 
-    private static void VerifyFileBinding(JsonElement binding, string evidenceRoot)
+    private static string VerifyFileBinding(JsonElement binding, string evidenceRoot)
     {
         JsonContract.RequireOnly(binding, "path", "sha256", "bytes");
         string relative = RequireRepositoryPathValue(JsonContract.RequiredString(binding, "path"));
@@ -232,6 +416,16 @@ internal static class R3IssueEvidenceVerifier
         if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
         {
             throw new InvalidDataException("Post-acceptance file binding is absent or escaping.");
+        }
+        VerifyBoundFile(path, binding);
+        return path;
+    }
+
+    private static void VerifyBoundFile(string path, JsonElement binding)
+    {
+        if (!File.Exists(path))
+        {
+            throw new InvalidDataException("Post-acceptance bound file is absent.");
         }
         byte[] bytes = File.ReadAllBytes(path);
         string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();

@@ -1,14 +1,26 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)] [string] $CandidateManifest,
-    [ValidateSet('List', 'Deterministic', 'Smoke', 'Failure', 'Acceptance', 'All')] [string] $Stage = 'List',
+    [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string] $CandidateManifest,
+    [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string] $IntegrationCandidateRemote,
+    [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string] $IntegrationCandidateRemoteRef,
+    [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string] $R3ClosureManifest,
+    [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string] $R3ClosureRelativePath,
+    [Parameter(Mandatory = $true)] [ValidatePattern('^[0-9a-f]{40}$')] [string] $CandidateCommit,
+    [Parameter(Mandatory = $true)] [ValidatePattern('^[0-9a-f]{40}$')] [string] $CandidateTree,
+    [Parameter(Mandatory = $true)] [ValidatePattern('^[0-9a-f]{40}$')] [string] $ImplementationCommit,
+    [Parameter(Mandatory = $true)] [ValidatePattern('^[0-9a-f]{40}$')] [string] $ImplementationTree,
+    [ValidateSet('List', 'Evidence', 'Deterministic', 'Smoke', 'Failure', 'Acceptance', 'All')] [string] $Stage = 'List',
     [string] $AssetManifest,
     [string] $H1Manifest,
     [string] $M1Manifest,
     [string] $Q1Manifest,
-    [string] $DotNetHostPath = $env:DOTNET_HOST_PATH
+    [string] $DotNetHostPath = $env:DOTNET_HOST_PATH,
+    [string] $EvidenceTestAssembly,
+    [string] $VSTestPath,
+    [string] $NativeLockPath = 'C:\UCL-AUDIT-NATIVE.lock'
 )
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $repositoryRoot = (Resolve-Path (Join-Path $projectRoot '..\..\..')).Path
@@ -20,27 +32,77 @@ $dotnet = if ($DotNetHostPath) {
 if (-not (Test-Path -LiteralPath $dotnet -PathType Leaf)) { throw 'The x64 dotnet host is unavailable.' }
 $requiredCommit = '4748fe04f19afdf6b27c4c12502b84db325e7294'
 $requiredTree = 'fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91'
-if ((& git -C $repositoryRoot rev-parse "$requiredCommit^{tree}").Trim() -ne $requiredTree) { throw 'E1 frozen source tree mismatch.' }
-& git -C $repositoryRoot merge-base --is-ancestor $requiredCommit HEAD
-if ($LASTEXITCODE -ne 0) { throw 'E1 branch does not preserve the frozen source ancestry.' }
-$candidateCommit = (& git -C $repositoryRoot rev-parse HEAD).Trim()
-$candidateTree = (& git -C $repositoryRoot rev-parse 'HEAD^{tree}').Trim()
-$env:GRANITE_E2E_CANDIDATE_COMMIT = $candidateCommit
-$env:GRANITE_E2E_CANDIDATE_TREE = $candidateTree
+$issuedCandidateCommit = 'b5d2cd34c57368efb9b122cddf16c2ffa2d3895e'
+$issuedCandidateTree = 'a3e4d82095caa9688f30d2463fa5971c788fd33f'
+
+function Invoke-CheckedGit([string[]] $Arguments) {
+    $output = @(& git -C $repositoryRoot @Arguments 2>&1 | ForEach-Object { "$_" })
+    if ($LASTEXITCODE -ne 0) { throw "Git validation failed: git $($Arguments -join ' ')" }
+    return ($output -join "`n").Trim()
+}
+
+if ($CandidateCommit -ne $issuedCandidateCommit -or $CandidateTree -ne $issuedCandidateTree) {
+    throw 'Candidate commit/tree must equal the immutable E1 v2 issued candidate.'
+}
+if ((Invoke-CheckedGit @('rev-parse', "$requiredCommit^{tree}")) -ne $requiredTree) { throw 'E1 frozen source tree mismatch.' }
+if ((Invoke-CheckedGit @('rev-parse', "$CandidateCommit^{tree}")) -ne $CandidateTree) { throw 'Issued candidate commit/tree mismatch.' }
+if ((Invoke-CheckedGit @('rev-parse', "$ImplementationCommit^{tree}")) -ne $ImplementationTree) { throw 'Implementation subject commit/tree mismatch.' }
+[void](Invoke-CheckedGit @('merge-base', '--is-ancestor', $requiredCommit, $CandidateCommit))
+[void](Invoke-CheckedGit @('merge-base', '--is-ancestor', $CandidateCommit, $ImplementationCommit))
+[void](Invoke-CheckedGit @('merge-base', '--is-ancestor', $ImplementationCommit, 'HEAD'))
+$advertised = Invoke-CheckedGit @('ls-remote', '--exit-code', $IntegrationCandidateRemote, $IntegrationCandidateRemoteRef)
+$advertisedCommit = ($advertised -split '\s+')[0]
+if ($advertisedCommit -ne $CandidateCommit) { throw 'Issued candidate remote ref does not advertise the exact candidate commit.' }
+
+if ([IO.Path]::IsPathRooted($R3ClosureRelativePath) -or
+    $R3ClosureRelativePath.Contains('\') -or
+    @($R3ClosureRelativePath.Split('/') | Where-Object { $_ -in @('', '.', '..') }).Count -gt 0) {
+    throw 'R3 closure relative path is not canonical repository-relative syntax.'
+}
+$closurePath = (Resolve-Path -LiteralPath $R3ClosureManifest).Path
+$expectedClosurePath = [IO.Path]::GetFullPath((Join-Path $repositoryRoot $R3ClosureRelativePath.Replace('/', [IO.Path]::DirectorySeparatorChar)))
+if (-not $closurePath.Equals($expectedClosurePath, [StringComparison]::OrdinalIgnoreCase)) { throw 'R3 closure manifest path/relative-path relationship is invalid.' }
+$candidateClosureSpec = '{0}:{1}' -f $CandidateCommit, $R3ClosureRelativePath
+$candidateClosureBlob = Invoke-CheckedGit @('rev-parse', $candidateClosureSpec)
+$workingClosureBlob = Invoke-CheckedGit @('hash-object', '--', $closurePath)
+if ($candidateClosureBlob -ne $workingClosureBlob) { throw 'R3 closure manifest differs from the immutable candidate blob.' }
+
+$candidateManifestPath = (Resolve-Path -LiteralPath $CandidateManifest).Path
+$candidateRecord = Get-Content -Raw -LiteralPath $candidateManifestPath | ConvertFrom-Json
+if ($candidateRecord.sourceCommit -ne $CandidateCommit -or $candidateRecord.sourceTree -ne $CandidateTree) { throw 'The candidate manifest is not bound to the immutable issued candidate commit/tree.' }
+
+$env:GRANITE_E2E_REPOSITORY_ROOT = $repositoryRoot
+$env:GRANITE_E2E_CANDIDATE_COMMIT = $CandidateCommit
+$env:GRANITE_E2E_CANDIDATE_TREE = $CandidateTree
 $env:GRANITE_E2E_CANDIDATE_REMOTE = $IntegrationCandidateRemote
 $env:GRANITE_E2E_CANDIDATE_REMOTE_REF = $IntegrationCandidateRemoteRef
-$env:GRANITE_E2E_R3_CLOSURE_MANIFEST = (Resolve-Path -LiteralPath $R3ClosureManifest).Path
+$env:GRANITE_E2E_R3_CLOSURE_MANIFEST = $closurePath
 $env:GRANITE_E2E_R3_CLOSURE_RELATIVE_PATH = $R3ClosureRelativePath
+$env:GRANITE_E2E_IMPLEMENTATION_COMMIT = $ImplementationCommit
+$env:GRANITE_E2E_IMPLEMENTATION_TREE = $ImplementationTree
 
-$env:GRANITE_E2E_CANDIDATE_MANIFEST = (Resolve-Path -LiteralPath $CandidateManifest).Path
-$candidateRecord = Get-Content -Raw -LiteralPath $env:GRANITE_E2E_CANDIDATE_MANIFEST | ConvertFrom-Json
-if ($candidateRecord.sourceCommit -ne $candidateCommit -or $candidateRecord.sourceTree -ne $candidateTree) {
-    throw 'The candidate manifest is not bound to the exact integrated branch tip/tree.'
-}
+$env:GRANITE_E2E_CANDIDATE_MANIFEST = $candidateManifestPath
 if ($AssetManifest) { $env:GRANITE_E2E_ASSET_MANIFEST = (Resolve-Path -LiteralPath $AssetManifest).Path }
 if ($H1Manifest) { $env:GRANITE_E2E_H1_MANIFEST = (Resolve-Path -LiteralPath $H1Manifest).Path }
 if ($M1Manifest) { $env:GRANITE_E2E_M1_MANIFEST = (Resolve-Path -LiteralPath $M1Manifest).Path }
 if ($Q1Manifest) { $env:GRANITE_E2E_Q1_MANIFEST = (Resolve-Path -LiteralPath $Q1Manifest).Path }
+
+if ($Stage -eq 'Evidence') {
+    if (-not $EvidenceTestAssembly -or -not $VSTestPath) { throw 'Evidence stage requires explicit candidate-bound EvidenceTestAssembly and VSTestPath inputs.' }
+    $assemblyPath = (Resolve-Path -LiteralPath $EvidenceTestAssembly).Path
+    $vstestExecutable = (Resolve-Path -LiteralPath $VSTestPath).Path
+    $repositoryPrefix = $repositoryRoot.TrimEnd('\') + '\'
+    if (-not $assemblyPath.StartsWith($repositoryPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Evidence test assembly must be inside the validated repository.' }
+    $productVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($assemblyPath).ProductVersion
+    if (-not $productVersion -or $productVersion.IndexOf($ImplementationCommit, [StringComparison]::Ordinal) -lt 0) { throw 'Evidence test assembly is not bound to the implementation subject commit.' }
+    $evidenceResultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260830\E1-Evidence'
+    New-Item -ItemType Directory -Force -Path $evidenceResultRoot | Out-Null
+    foreach ($category in @('Preflight', 'PostAcceptance')) {
+        & $vstestExecutable $assemblyPath /Platform:x64 "/TestCaseFilter:TestCategory=$category" "/Logger:trx;LogFileName=E1-$category.trx" "/ResultsDirectory:$evidenceResultRoot"
+        if ($LASTEXITCODE -ne 0) { throw "Authoritative $category evaluator failed with exit code $LASTEXITCODE." }
+    }
+    return
+}
 
 $resultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260829\E1'
 New-Item -ItemType Directory -Force -Path $resultRoot | Out-Null
@@ -110,7 +172,7 @@ foreach ($worker in @('H1', 'M1', 'Q1', 'F1')) {
     }
 }
 
-$lockPath = 'C:\UCL-AUDIT-NATIVE.lock'
+$lockPath = $NativeLockPath
 try {
     New-Item -ItemType Directory -Path $lockPath -ErrorAction Stop | Out-Null
 } catch {
