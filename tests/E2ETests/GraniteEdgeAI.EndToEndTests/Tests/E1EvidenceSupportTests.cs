@@ -305,8 +305,8 @@ public sealed class E1EvidenceSupportTests
         File.WriteAllText(audit, "audit\n");
         string evidenceRoot = Path.Combine(directory.Path, "docs", "audits", "2026-08-30", "evidence");
         Directory.CreateDirectory(evidenceRoot);
-        File.WriteAllText(Path.Combine(evidenceRoot, "E1-r4-external-block-observation-v3.json"), "{}\n");
-        File.WriteAllText(Path.Combine(evidenceRoot, "E1-r4-independent-final-review-v5.json"), "{}\n");
+        File.WriteAllText(Path.Combine(evidenceRoot, "E1-r4-external-block-observation-v4.json"), "{}\n");
+        File.WriteAllText(Path.Combine(evidenceRoot, "E1-r4-independent-final-review-v6.json"), "{}\n");
         Git(directory.Path, "add", ".");
         Git(directory.Path, "commit", "-m", "audit");
 
@@ -318,7 +318,7 @@ public sealed class E1EvidenceSupportTests
         ProcessResult allowedResult = PowerShell(allowed, directory.Path);
         Assert.AreEqual(0, allowedResult.ExitCode, allowedResult.Output);
 
-        string superseded = Path.Combine(evidenceRoot, "E1-r4-external-block-observation-v2.json");
+        string superseded = Path.Combine(evidenceRoot, "E1-r4-external-block-observation-v3.json");
         File.WriteAllText(superseded, "{}\n");
         ProcessResult supersededResult = PowerShell(allowed, directory.Path);
         Assert.AreNotEqual(0, supersededResult.ExitCode, supersededResult.Output);
