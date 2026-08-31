@@ -9,8 +9,10 @@ A task is a **frontend task** when it concerns WinUI 3, XAML, C# view code, visu
 Before acting on a frontend task:
 
 1. Read `docs/frontend-worker/GRANITE-NATIVE-FRONTEND-WORKER-V2-MASTER-PROMPT.md` in full.
-2. Invoke the repo-local `granite-native-frontend-master` skill.
-3. Read `.frontend-worker/v2/implementation-lock.yml`, `boundary-policy.yml`, `provider-lock.json`, and `tooling-lock.json`.
+2. Read `.frontend-worker/v2/implementation-lock.yml`, `boundary-policy.yml`, `provider-lock.json`, and `tooling-lock.json`.
+3. Check whether the repo-local `granite-native-frontend-master` skill is discoverable.
+   - If it is discoverable, invoke it before continuing.
+   - If it is not discoverable, remain in initialization-only mode, run `pwsh -File scripts/Initialize-GraniteNativeFrontendWorkerV2.ps1 -Install`, then stop and require a fresh Codex session from the repository root.
 4. Read the local runtime authorization state from the path declared by `implementation-lock.yml`. If that state file does not exist, implementation is closed.
 5. Use the repo-local Granite custom agents and provider authority order defined by the canonical master prompt.
 
