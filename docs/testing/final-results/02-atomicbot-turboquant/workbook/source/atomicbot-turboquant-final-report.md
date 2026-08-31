@@ -1,0 +1,401 @@
+# AtomicBot TurboQuant Final Test Report
+
+| Document control | Value |
+| --- | --- |
+| Route ID | atomicbot-turboquant |
+| Revision | R1 |
+| Generated date | 2026-07-17 |
+| Evidence IDs | atomicbot-0d0e0a9272639e1c, atomicbot-1bf6d02f2d931a4b, atomicbot-2c104a7f446f7360, atomicbot-a222b42f344b6376, atomicbot-c7333ff5faf191f9, atomicbot-edd597640bd970c5 |
+
+## 1. Title and document control
+
+AtomicBot TurboQuant llama.cpp; WB-02 v1.7; unified publication revision R1. Markdown is canonical.
+
+## 2. Technical summary
+
+All 19 controlled runtime configurations passed. One repository test remained blocked by Windows Device Guard; that setup block is not a runtime failure. Evidence establishes runtime activation, memory reduction, and observed device placement, with explicit limitations.
+
+## 3. Key findings and decision-relevant evidence
+
+TurboQuant reduced measured KV allocation in matched cases. Quality was response- and backend-dependent and does not support a precision-ordered or unconditional recommendation.
+
+### KF-01 — Decision-relevant result summary
+
+| Test | Decode tok/s | TTFT ms | Peak WS MiB | CPU mean % | GPU mean % | Quality /10 |
+| --- | --- | --- | --- | --- | --- | --- |
+| AB-01 | 37.500 | 72.314 | 926.988 | 64.51 | 0.00 | 6.225 |
+| AB-02 | 30.800 | 77.017 | 906.898 | 63.66 | 0.00 | 5.392 |
+| AB-03 | 15.900 | 143.190 | 3659.074 | 63.90 | 0.00 | 6.392 |
+| AB-KV3-F16-4K | 15.100 | 161.621 | 3819.336 | 63.40 | 0.00 | 6.392 |
+| AB-04 | 15.900 | 155.285 | 3669.191 | 64.94 | 0.00 | 6.725 |
+| AB-05 | 11.800 | 148.400 | 3670.609 | 64.71 | 0.00 | 6.842 |
+| AB-06 | 11.800 | 138.507 | 3624.723 | 65.00 | 0.00 | 5.950 |
+| AB-07 | 13.100 | 140.418 | 3589.137 | 65.45 | 0.00 | 0.700 |
+| AB-08F | 6.800 | 366.771 | 8916.195 | 65.07 | 0.00 | 5.692 |
+| AB-KV8-F16-4K | 8.370 | 350.377 | 9236.535 | 65.15 | 0.00 | 5.692 |
+| AB-08Q | 6.800 | 341.672 | 8936.547 | 64.95 | 0.00 | 6.692 |
+| AB-09 | 5.900 | 278.364 | 8767.629 | 65.36 | 0.00 | 5.967 |
+| AB-10 | 5.900 | 304.354 | 8721.734 | 65.30 | 0.00 | 6.675 |
+| AB-11 | 14.000 | 177.658 | 2905.742 | 64.43 | 25.74 | 6.725 |
+| AB-12 | 9.600 | 179.577 | 2707.188 | 65.30 | 25.71 | 6.225 |
+| AB-13 | 7.600 | 438.734 | 4542.570 | 2.17 | 92.44 | 7.225 |
+| AB-14 | 6.000 | 540.764 | 6075.352 | 65.41 | 26.00 | 8.358 |
+| AB-15 | 5.400 | 514.448 | 5869.441 | 65.14 | 24.94 | 7.508 |
+| AB-15M | 4.190 | 687.208 | 10456.277 | 2.08 | 95.72 | 6.675 |
+
+## 4. Repository, branch, commit, build, hardware, and software identity
+
+Repository https://github.com/AtomicBot-ai/atomic-llama-cpp-turboquant; detached commit 519f0c594a8e31467d2e2f2cf17054c9e7e11536. Hardware and software identities are preserved in system JSON. Historically uncollected fields are `Not collected`.
+
+## 5. Objectives, scope, test matrix, and execution sequence
+
+WB-02 v1.7 controls the exact 19-row ladder. The publication normalizes existing evidence and does not rerun inference.
+
+### SC-01 — Controlled runtime matrix
+
+| Test | Model | Weights | Cache | Backend | Status |
+| --- | --- | --- | --- | --- | --- |
+| AB-01 | gemma-3-1b-diagnostic | q4_k_m | f16 | cpu | Passed |
+| AB-02 | gemma-3-1b-diagnostic | q4_k_m | turbo3 | cpu | Passed |
+| AB-03 | granite-4.1-3b | q4_k_m | f16 | cpu | Passed |
+| AB-KV3-F16-4K | granite-4.1-3b | q4_k_m | f16 | cpu | Passed |
+| AB-04 | granite-4.1-3b | q4_k_m | q8_0 | cpu | Passed |
+| AB-05 | granite-4.1-3b | q4_k_m | turbo4 | cpu | Passed |
+| AB-06 | granite-4.1-3b | q4_k_m | turbo3 | cpu | Passed |
+| AB-07 | granite-4.1-3b | q4_k_m | turbo2 | cpu | Passed |
+| AB-08F | granite-4.1-8b | q4_k_m | f16 | cpu | Passed |
+| AB-KV8-F16-4K | granite-4.1-8b | q4_k_m | f16 | cpu | Passed |
+| AB-08Q | granite-4.1-8b | q4_k_m | q8_0 | cpu | Passed |
+| AB-09 | granite-4.1-8b | q4_k_m | turbo4 | cpu | Passed |
+| AB-10 | granite-4.1-8b | q4_k_m | turbo3 | cpu | Passed |
+| AB-11 | granite-4.1-3b | q4_k_m | f16 | vulkan | Passed |
+| AB-12 | granite-4.1-3b | q4_k_m | turbo3 | vulkan | Passed |
+| AB-13 | granite-4.1-3b | q4_k_m | turbo3 | vulkan | Passed |
+| AB-14 | granite-4.1-8b | q4_k_m | q8_0 | vulkan | Passed |
+| AB-15 | granite-4.1-8b | q4_k_m | turbo3 | vulkan | Passed |
+| AB-15M | granite-4.1-8b | q4_k_m | turbo3 | vulkan | Passed |
+
+## 6. Model, weight, cache-format, and backend availability
+
+### AV-01 — Model/cache/backend availability
+
+| Test | Model | Weights | Cache | Backend | Status |
+| --- | --- | --- | --- | --- | --- |
+| AB-01 | gemma-3-1b-diagnostic | q4_k_m | f16 | cpu | Passed |
+| AB-02 | gemma-3-1b-diagnostic | q4_k_m | turbo3 | cpu | Passed |
+| AB-03 | granite-4.1-3b | q4_k_m | f16 | cpu | Passed |
+| AB-KV3-F16-4K | granite-4.1-3b | q4_k_m | f16 | cpu | Passed |
+| AB-04 | granite-4.1-3b | q4_k_m | q8_0 | cpu | Passed |
+| AB-05 | granite-4.1-3b | q4_k_m | turbo4 | cpu | Passed |
+| AB-06 | granite-4.1-3b | q4_k_m | turbo3 | cpu | Passed |
+| AB-07 | granite-4.1-3b | q4_k_m | turbo2 | cpu | Passed |
+| AB-08F | granite-4.1-8b | q4_k_m | f16 | cpu | Passed |
+| AB-KV8-F16-4K | granite-4.1-8b | q4_k_m | f16 | cpu | Passed |
+| AB-08Q | granite-4.1-8b | q4_k_m | q8_0 | cpu | Passed |
+| AB-09 | granite-4.1-8b | q4_k_m | turbo4 | cpu | Passed |
+| AB-10 | granite-4.1-8b | q4_k_m | turbo3 | cpu | Passed |
+| AB-11 | granite-4.1-3b | q4_k_m | f16 | vulkan | Passed |
+| AB-12 | granite-4.1-3b | q4_k_m | turbo3 | vulkan | Passed |
+| AB-13 | granite-4.1-3b | q4_k_m | turbo3 | vulkan | Passed |
+| AB-14 | granite-4.1-8b | q4_k_m | q8_0 | vulkan | Passed |
+| AB-15 | granite-4.1-8b | q4_k_m | turbo3 | vulkan | Passed |
+| AB-15M | granite-4.1-8b | q4_k_m | turbo3 | vulkan | Passed |
+
+## 7. Complete attempt accounting
+
+### AC-01 — Complete runtime attempt accounting
+
+| Test | Attempt | Status | Reason |
+| --- | --- | --- | --- |
+| AB-01 | AB-01--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-02 | AB-02--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-03 | AB-03--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-KV3-F16-4K | AB-KV3-F16-4K--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-04 | AB-04--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-05 | AB-05--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-06 | AB-06--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-07 | AB-07--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-08F | AB-08F--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-KV8-F16-4K | AB-KV8-F16-4K--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-08Q | AB-08Q--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-09 | AB-09--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-10 | AB-10--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-11 | AB-11--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-12 | AB-12--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-13 | AB-13--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-14 | AB-14--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-15 | AB-15--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+| AB-15M | AB-15M--attempt-001 | Passed | Pilot, excluded warm-up and three measured repetitions passed. |
+
+> Note: Runtime: 19 Passed, 0 Blocked. Setup: one Device Guard block/partial and one unsupported TurboQuant-specific SYCL item are reported separately.
+
+## 8. Performance results and repetition detail
+
+Performance and utilization derive from exactly three validated registered repetitions per configuration. Utilization remains attached to each run in the canonical validation metadata.
+
+### PF-01 — Validated aggregate performance
+
+| Test | Decode tok/s | TTFT ms | Peak WS MiB | CPU mean % | GPU mean % | Quality /10 |
+| --- | --- | --- | --- | --- | --- | --- |
+| AB-01 | 37.500 | 72.314 | 926.988 | 64.51 | 0.00 | 6.225 |
+| AB-02 | 30.800 | 77.017 | 906.898 | 63.66 | 0.00 | 5.392 |
+| AB-03 | 15.900 | 143.190 | 3659.074 | 63.90 | 0.00 | 6.392 |
+| AB-KV3-F16-4K | 15.100 | 161.621 | 3819.336 | 63.40 | 0.00 | 6.392 |
+| AB-04 | 15.900 | 155.285 | 3669.191 | 64.94 | 0.00 | 6.725 |
+| AB-05 | 11.800 | 148.400 | 3670.609 | 64.71 | 0.00 | 6.842 |
+| AB-06 | 11.800 | 138.507 | 3624.723 | 65.00 | 0.00 | 5.950 |
+| AB-07 | 13.100 | 140.418 | 3589.137 | 65.45 | 0.00 | 0.700 |
+| AB-08F | 6.800 | 366.771 | 8916.195 | 65.07 | 0.00 | 5.692 |
+| AB-KV8-F16-4K | 8.370 | 350.377 | 9236.535 | 65.15 | 0.00 | 5.692 |
+| AB-08Q | 6.800 | 341.672 | 8936.547 | 64.95 | 0.00 | 6.692 |
+| AB-09 | 5.900 | 278.364 | 8767.629 | 65.36 | 0.00 | 5.967 |
+| AB-10 | 5.900 | 304.354 | 8721.734 | 65.30 | 0.00 | 6.675 |
+| AB-11 | 14.000 | 177.658 | 2905.742 | 64.43 | 25.74 | 6.725 |
+| AB-12 | 9.600 | 179.577 | 2707.188 | 65.30 | 25.71 | 6.225 |
+| AB-13 | 7.600 | 438.734 | 4542.570 | 2.17 | 92.44 | 7.225 |
+| AB-14 | 6.000 | 540.764 | 6075.352 | 65.41 | 26.00 | 8.358 |
+| AB-15 | 5.400 | 514.448 | 5869.441 | 65.14 | 24.94 | 7.508 |
+| AB-15M | 4.190 | 687.208 | 10456.277 | 2.08 | 95.72 | 6.675 |
+
+## 9. Quality methodology and results
+
+Quality is a limited/provisional six-prompt historical regression screen. It is not directly comparable with OpenVINO: prompts, calibration, adjudication, and campaign conditions differ. Calibration: Not collected.
+
+### QL-01 — Preserved historical prompt means
+
+| Test | Mean /10 | Method boundary |
+| --- | --- | --- |
+| AB-01 | 6.225 | Limited/provisional; no OpenVINO ranking |
+| AB-02 | 5.392 | Limited/provisional; no OpenVINO ranking |
+| AB-03 | 6.392 | Limited/provisional; no OpenVINO ranking |
+| AB-KV3-F16-4K | 6.392 | Limited/provisional; no OpenVINO ranking |
+| AB-04 | 6.725 | Limited/provisional; no OpenVINO ranking |
+| AB-05 | 6.842 | Limited/provisional; no OpenVINO ranking |
+| AB-06 | 5.950 | Limited/provisional; no OpenVINO ranking |
+| AB-07 | 0.700 | Limited/provisional; no OpenVINO ranking |
+| AB-08F | 5.692 | Limited/provisional; no OpenVINO ranking |
+| AB-KV8-F16-4K | 5.692 | Limited/provisional; no OpenVINO ranking |
+| AB-08Q | 6.692 | Limited/provisional; no OpenVINO ranking |
+| AB-09 | 5.967 | Limited/provisional; no OpenVINO ranking |
+| AB-10 | 6.675 | Limited/provisional; no OpenVINO ranking |
+| AB-11 | 6.725 | Limited/provisional; no OpenVINO ranking |
+| AB-12 | 6.225 | Limited/provisional; no OpenVINO ranking |
+| AB-13 | 7.225 | Limited/provisional; no OpenVINO ranking |
+| AB-14 | 8.358 | Limited/provisional; no OpenVINO ranking |
+| AB-15 | 7.508 | Limited/provisional; no OpenVINO ranking |
+| AB-15M | 6.675 | Limited/provisional; no OpenVINO ranking |
+
+## 10. Device/backend use and fallback verification
+
+CPU, Vulkan-hybrid, and Vulkan-native placement were observed. Partial Vulkan rows intentionally retained CPU KV; this is not silent fallback. Exact per-run CPU/GPU observations are preserved.
+
+## 11. Failures, blocks, deviations, and recovery attempts
+
+Device Guard blocked one repository executable. Historical memory gates and quality timeouts/safety blocks remain visible as scoped nonterminal deviations and were not converted into runtime failures.
+
+## 12. Limitations, uncertainty, robustness checks, and claim boundaries
+
+The historical Evidence Index includes superseded quality-tree rows; only exact joined current measurement tuples substantiate canonical measurements. Quality is provisional, P1-P6 is not a general benchmark, and no direct OpenVINO score comparison is permitted.
+
+> Note: Missing historical fields remain `Not collected`, never zero.
+
+## 13. Reproduction guidance
+
+Use reproduction/commands.md to regenerate normalized artifacts, render DOCX, export PDF through the owned Word process, finalize receipts, and rerun focused validation. It does not rerun benchmarks.
+
+## 14. Evidence index and hashes
+
+Each admitted source has a repository-relative path and SHA-256. Stale unjoined index rows are a recorded source-control limitation.
+
+### EV-01 — Admitted evidence
+
+| Evidence ID | Role | SHA-256 | Repository-relative path |
+| --- | --- | --- | --- |
+| EVID-00aacf23b28a78f3b4cb | indexed-utilization-measurement | a41e2738df42723e2a5f818c581bf3c39707e480312cd34202ec82cda16227b8 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-15M/sample-2/utilization-samples.csv |
+| EVID-18be949bb5e1bf81201e | indexed-utilization-measurement | 1e4d828f1893a854a5640d6b57c31074154557826f40e3965aa5ee01eff1ac4c | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-KV8-F16-4K/sample-2/utilization-samples.csv |
+| EVID-1b5d1d29897495b6c299 | indexed-utilization-measurement | 9e763126989afcd92a81bec8332756b5732eca06fd74cc59f6bbcb9f91fa0a6d | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-15/sample-3/utilization-samples.csv |
+| EVID-2aaaf7ac319b5669b987 | indexed-utilization-measurement | 157c2d10ae60df4f0e65fffdc16c94e1ca4f82bdaf73cd004040e4ee10b65180 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-07/sample-1/utilization-samples.csv |
+| EVID-2ff1479273ed7b5a05e2 | indexed-utilization-measurement | 658e328d85a3830b266ec2269eb8790628b81a0b678025afa518f9d5e548996a | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-08Q/sample-2/utilization-samples.csv |
+| EVID-31f24bf0eb4821290fce | indexed-utilization-measurement | 870582238432ae82f9b6a69e134b6a48932e7e669bed12ba60d8252759072570 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-04/sample-1/utilization-samples.csv |
+| EVID-3382d3ef7ea06f1a7a52 | indexed-utilization-measurement | 117ba3042e2903c4c5c27f2f4e31e9d4080ca7422346023560189c1092c3ac34 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-06/sample-1/utilization-samples.csv |
+| EVID-34f5fdef9ec609afb3c6 | indexed-utilization-measurement | 45632d8dfd23854ae362de95532c0d65ec6a5b8508a674cf7d83d2238434f1b2 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-01/sample-1/utilization-samples.csv |
+| EVID-35506717fa8f706ba6b9 | indexed-utilization-measurement | 9bcd7a432af5149550ea38381e20b0ead457f274f70548a81fb35a68bd125f98 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-KV3-F16-4K/sample-2/utilization-samples.csv |
+| EVID-43ddaeac46382db021c0 | indexed-utilization-measurement | 8d0327b6d7e61b4b139d2dda8be4a96265d04256c26b88a94d41abc14e9b923d | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-03/sample-1/utilization-samples.csv |
+| EVID-45db26ec3f6616dc6913 | indexed-utilization-measurement | 7bc3a15b0fa40c1d01ff475c8227cb73d981aaf83ba334832bcc3aa11be8b133 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-09/sample-1/utilization-samples.csv |
+| EVID-46901e38af2eaa4f2813 | indexed-utilization-measurement | 444ffdfc49823b351bb261c425f15c7e97eef5bf57b623614ad2b1a5fda0be93 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-11/sample-2/utilization-samples.csv |
+| EVID-47de4e1b31325b0ee43e | indexed-utilization-measurement | 8805c88b4c3bb546d0e547097f2fa1035c378093093eec34a55b3eab25a21115 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-15M/sample-1/utilization-samples.csv |
+| EVID-4f346806f246152437a9 | indexed-utilization-measurement | 5f4cbd3a0f4d2d388e5b472d4c54ba50d0d66831953fdf4cb7a111d7213c1ac8 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-04/sample-3/utilization-samples.csv |
+| EVID-625077f743e3810b543e | indexed-utilization-measurement | eb6b709add42e342bc63074ae8da83d2694f27c5f017efcdef36ac0e1588da70 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-11/sample-1/utilization-samples.csv |
+| EVID-62c516ef063b12d6f6f1 | indexed-utilization-measurement | 58eecae1f20a29ea6322cdc969e02fddd4da76d91ae4e1498fbda5d1465f79b6 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-09/sample-2/utilization-samples.csv |
+| EVID-6866e746d187bbee0ac6 | indexed-utilization-measurement | e169466c72effbe03547e263b071cef3eeefd88a619f0a9f185821410a688c87 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-05/sample-3/utilization-samples.csv |
+| EVID-69787a9facbcd5de813b | indexed-utilization-measurement | 15530d2886dcf2f8e6a165bc2959984d5238c882b54d624b1375912ee6fc553b | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-06/sample-3/utilization-samples.csv |
+| EVID-6c032ed4cc277ccec758 | indexed-utilization-measurement | 6e95fdb38585b5d39183ff1ae8844aa8493378bb5f913be6c5716b87d0306ed7 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-08F/sample-3/utilization-samples.csv |
+| EVID-759c545f82837ae106dd | indexed-utilization-measurement | e0e2008381ca843f63901c1356b60d18f1e3b1ebf647016c88b75fb46d999c94 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-05/sample-1/utilization-samples.csv |
+| EVID-793ca72fd9a7b13b2e0a | indexed-utilization-measurement | a6d8459f5d9c571c81421482411092f1370aa110168a8c08943db778408baccc | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-08F/sample-2/utilization-samples.csv |
+| EVID-79c091063ef0c73a9d5e | indexed-utilization-measurement | fe14c5bbb195ba49317950a82eb36c69378a5edee1f0f831900d436b57c87219 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-10/sample-2/utilization-samples.csv |
+| EVID-96472d9159b64f3d0f65 | indexed-utilization-measurement | 514dc7169783672aec83b88ffa10f409250cd7984a555a0d387c2f1528fe3776 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-03/sample-2/utilization-samples.csv |
+| EVID-96f24ae10a918198f7c9 | indexed-utilization-measurement | edd0f52c644be97f9eb2f4048391db5cf153402393f13a3d8fe4d6c6aa8c246d | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-09/sample-3/utilization-samples.csv |
+| EVID-9ba79bb02872443abcd8 | indexed-utilization-measurement | bcb4ada634dda669a982e000057a6054d4c5fd01924df35d31fbdd6f01305936 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-KV8-F16-4K/sample-1/utilization-samples.csv |
+| EVID-9e206b7341caf6ef1e4b | indexed-utilization-measurement | 21f7f6663dc3d3dc45e464154925abdaaecbb1917780e4e5a39f42eaf10b951f | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-01/sample-2/utilization-samples.csv |
+| EVID-a247b3a1bf624cb0be6d | indexed-utilization-measurement | c6dc09fae3a83f95edc7c14ddd07cf56f75217e8f38877dad3438da66368ee11 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-02/sample-3/utilization-samples.csv |
+| EVID-a3c4b3b14df707019272 | indexed-utilization-measurement | b66e327cd8dfa0c1dfc36ce043ddd0632b83e8cdf8b32985dbda5def41611afa | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-08Q/sample-1/utilization-samples.csv |
+| EVID-a5764619cf1da59a8e0a | indexed-utilization-measurement | 5be0b6817f53afb89bc319363d896bdf8f1cf3069ee77e40054591f4e66da713 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-10/sample-3/utilization-samples.csv |
+| EVID-a57b801e7fed30c80667 | indexed-utilization-measurement | 0118390c1f85f3b9e1b0c4e2c03bf3332882a80000eca7f79ad042395e186499 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-13/sample-3/utilization-samples.csv |
+| EVID-a97823e1897bccf9e8d7 | indexed-utilization-measurement | 3c92ffd70180461f3ffd0910362ca7a50359b51143aefb7b031b53bc633714ab | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-15/sample-1/utilization-samples.csv |
+| EVID-ad382ddac7cef76295f2 | indexed-utilization-measurement | 4a9419693b4fd324f8b706ac1ab58cf5a2a5afe0fb4bf8893c4b6b8ce8bf6ecc | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-14/sample-2/utilization-samples.csv |
+| EVID-ad925037c820d6075e67 | indexed-utilization-measurement | fd1d034a69e7aa43d87f5d4ad81cf285707702b664b9afeb465fa64d8cd478c5 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-10/sample-1/utilization-samples.csv |
+| EVID-ae1c042bc2ea20c2ac2e | indexed-utilization-measurement | b12bb2e11b252067da3b2a4d630773b61b093fd0576b702d65e05d47c3640924 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-08Q/sample-3/utilization-samples.csv |
+| EVID-b35f15053b83eb16c61a | indexed-utilization-measurement | a0d547fe9fc0754408ef2b0bc59762f6e367afa6fb1e4a92bdd5630b72d7718f | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-15M/sample-3/utilization-samples.csv |
+| EVID-b48b06f7e232e9507627 | indexed-utilization-measurement | 64c711153b18300fe867fdaf4ff85fd50a052e58ed8504becddd864293835687 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-08F/sample-1/utilization-samples.csv |
+| EVID-b900dc6046ab8890a097 | indexed-utilization-measurement | a972cd3b5e30a4f25c016e7321c82b5603e75acfd5ba64e57721dc9cf1d357ef | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-KV3-F16-4K/sample-3/utilization-samples.csv |
+| EVID-b9c202e5b3cd54802118 | indexed-utilization-measurement | 41d640e21c4227af908ebd7d827765c5d415958c7357c00679eee9e75e6b6e3b | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-11/sample-3/utilization-samples.csv |
+| EVID-c1e4b60a6837abf99a6b | indexed-utilization-measurement | bed6e0a6c6672ff4a319c72cd15ffe54615c69c9642fe521ad50abb470a68f4e | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-13/sample-1/utilization-samples.csv |
+| EVID-c319f022f6c4cdbd1711 | indexed-utilization-measurement | 59d02fc75ee20bdb7b7ffe7955752649fbda2e3ca1c4bc5da4fc5a56a55ad16e | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-15/sample-2/utilization-samples.csv |
+| EVID-c6c3c604c452251f4dfc | indexed-utilization-measurement | 0a31abb4eb2fa8402d4ffb0921293a25d7193ce97169eb88835554ea579c5003 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-14/sample-3/utilization-samples.csv |
+| EVID-cac81abd5a4fa1b8f2f9 | indexed-utilization-measurement | 9e10c4780daf2cfe81f9b949bf1c2c088f6db55a1a2e2239856c7fbc45ffb3ff | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-13/sample-2/utilization-samples.csv |
+| EVID-d23210a9c54336b88a56 | indexed-utilization-measurement | 61e9a1d9827b50d21e92dd106c256bd8a496d21f587678bd4904d44b0810ca77 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-07/sample-2/utilization-samples.csv |
+| EVID-d2af2834cb1723571844 | indexed-utilization-measurement | 41721eba3ee8e5f0fe65a3fbcbd85a8a23d05ceb01e01f263ffdf538e6822a18 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-02/sample-2/utilization-samples.csv |
+| EVID-d2e75891fe506a3d775f | indexed-utilization-measurement | 5f2a5202aa31609cafd104616aedb55552af4463ab0375dae72581bc7f61d445 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-03/sample-3/utilization-samples.csv |
+| EVID-dbded501d8152f537c56 | indexed-utilization-measurement | 7a7026c587a20004d77e065b2ec4c46a7866abd584e92039ca77c9c48ade787e | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-05/sample-2/utilization-samples.csv |
+| EVID-dff602af13743c1775d5 | indexed-utilization-measurement | 22def542fe4fd4dabb85a213eb2eda734a27a65ef76967d255bac7127317ec4b | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-07/sample-3/utilization-samples.csv |
+| EVID-e08341064813060e9c40 | indexed-utilization-measurement | 3334a59a55de78cb4b4b5e190145aa44bf2b405f3f49d67485a5194626abc14a | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-02/sample-1/utilization-samples.csv |
+| EVID-e0bc789317b1973f74b1 | indexed-utilization-measurement | 95610c2c9b6a14c0fff8d39b9e7f0c861b9bd4c8d3ba106080bc49fd5fb6ca28 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-01/sample-3/utilization-samples.csv |
+| EVID-e126b1db323e238494df | indexed-utilization-measurement | 34334ddecedef83995163f8780d2554671a97fdd75063922f4252eb5817808ae | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-12/sample-1/utilization-samples.csv |
+| EVID-e1d5edcc34b6df5a42c0 | indexed-utilization-measurement | 50c4200b7113d397f494a2c89dbe753780eab207625bd5ae4876aa8d8d74cf6a | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-04/sample-2/utilization-samples.csv |
+| EVID-e76dbcf7433ecb002ef5 | indexed-utilization-measurement | 772ce9d42e1589c759f46fd03db178c4c3771c68d3473e2143c4a467c881bbed | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-14/sample-1/utilization-samples.csv |
+| EVID-ee35228c1040c4f08483 | indexed-utilization-measurement | 9144db4721f4a7c85b80b5a31da88dd54e661a61406c6448c34d0406fc3b1d8b | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-12/sample-3/utilization-samples.csv |
+| EVID-efec9b2fed630bc079ad | indexed-utilization-measurement | 1a76d4859df269f92873f72debc558f26704961ce5173a941aa7e7cab8fb0efa | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-KV3-F16-4K/sample-1/utilization-samples.csv |
+| EVID-f4dd8ae8e6ed98fb5c52 | indexed-utilization-measurement | bc8590643998b9d728baffae436dab4851d2b1b89b9f91dd24acb5967f7eb9de | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-12/sample-2/utilization-samples.csv |
+| EVID-f7b55e6294fb67f15ea7 | indexed-utilization-measurement | f52426ad22abd1d5b03655e82223cbaa907c227ac892838b0d4e54fd6bcefe36 | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-06/sample-2/utilization-samples.csv |
+| EVID-f8af396a3d2346487378 | indexed-utilization-measurement | 9f2691d71cec76a2d335be9b9bda409244f91ef6ab0e6fdc2d5abd0cc7c07d6a | experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1/AB-KV8-F16-4K/sample-3/utilization-samples.csv |
+| atomicbot-090b69c956b6ee32 | perplexity-summary | 090b69c956b6ee32e679567e5d89ab42330b20a25627554aea621a24706a507f | experiments/raw-results/atomicbot-turboquant/2026-07-16/acquisition/results/AtomicBot_Perplexity_Summary.json |
+| atomicbot-0d0e0a9272639e1c | test-run-register | 0d0e0a9272639e1cebccf5ef59d7f7ddad53378524abd6a8c15762255992a539 | docs/testing/Test-Run-Register.csv |
+| atomicbot-175d58cb2e63e262 | failure-register | 175d58cb2e63e26209f1379ee127b4163070ac6661e989e2a29b62a5bec19784 | docs/testing/Failure-Register.csv |
+| atomicbot-1bf6d02f2d931a4b | evidence-index | 1bf6d02f2d931a4bcfce91b4a93d696d1a66b86e0b5ce0e7f81e8d950e8e8bb2 | docs/testing/Evidence-Index.csv |
+| atomicbot-2c104a7f446f7360 | performance-register | 2c104a7f446f7360d7a366b1eeaba887f4a719a087e07f82b51602aa6202b58d | docs/testing/Performance-Measurement-Register.csv |
+| atomicbot-380883e7920541ed | revision-register | 380883e7920541ed2b59889a40fad29626b5b0e3b9d06fdfbfe280ee1e945f64 | docs/testing/Workbook-Revision-Register.csv |
+| atomicbot-714c338abd8495c0 | model-manifest | 714c338abd8495c0a725df0c2eb02a738c08845611551a4f52ebee02f329ad3f | experiments/raw-results/atomicbot-turboquant/2026-07-16/acquisition/results/AtomicBot_Model_Manifest.json |
+| atomicbot-7c6bbfd833d30218 | quality-adjudication | 7c6bbfd833d30218445cf8ebe2dbafb9fea7560563cb3461eff6dc55747c1e30 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/quality-adjudications.json |
+| atomicbot-7f9f199e9656751f | master-summary | 7f9f199e9656751fdd8ddafdbdaadc6f132557effd75cfe30e1487739df3cb71 | experiments/raw-results/atomicbot-turboquant/2026-07-16/acquisition/results/AtomicBot_Master_Summary.json |
+| atomicbot-84f761a6f791fde3 | environment-manifest | 84f761a6f791fde36703bdf0fab2518ecd6f25b3dd9ab2c5845ec55a6ad1d7c9 | experiments/raw-results/atomicbot-turboquant/2026-07-16/acquisition/results/AtomicBot_Environment_Manifest.json |
+| atomicbot-a222b42f344b6376 | controlled-workbook-markdown | a222b42f344b637611972b1738a318d05d6b80eb802ecf1342585d9a8152ff6c | docs/testing/workbooks/text-templates/02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1.md |
+| atomicbot-c7333ff5faf191f9 | quality-summary | c7333ff5faf191f9ddb9993c158d943a41d0d640b8c8d61055a4cdbe6c2e1ff9 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/quality-summary.json |
+| atomicbot-edd597640bd970c5 | failure-log | edd597640bd970c5108a072960064870026641fe339b31dae44dbacacb34db6c | experiments/raw-results/atomicbot-turboquant/2026-07-16/acquisition/results/AtomicBot_Failure_Log.json |
+| atomicbot-quality-05afbf651b75f4e5 | quality-prompt-output | 05afbf651b75f4e59e641759e99f1c99f89e1a00fc6b4b23735260f88c2a3e32 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P4.json |
+| atomicbot-quality-0725e0c7b396e7e7 | quality-prompt-output | 0725e0c7b396e7e785caba7abdaef3c17e0ea71057177c963b2362900ea271a7 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P6.json |
+| atomicbot-quality-09c2f43ff5c88d99 | quality-prompt-output | 09c2f43ff5c88d990b5d67ddb82230ba507d705415a68063e89260de29c32418 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P1.json |
+| atomicbot-quality-0b6829cb39e45f97 | quality-prompt-output | 0b6829cb39e45f97bb22f4fb8d883519296d8dbf6efe66ffb17206b38c0b88ce | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P2.json |
+| atomicbot-quality-0d6b08c77077b65f | quality-prompt-output | 0d6b08c77077b65f4270405499b20be64b5c04066f36692973c1f6bc06109037 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P6.json |
+| atomicbot-quality-0e55be212c3efcb4 | quality-prompt-output | 0e55be212c3efcb4224a8edb462a0ee137a718d60af7b74b6b8f1c5a99dcd7fe | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P3.json |
+| atomicbot-quality-14d39071d182a5e8 | quality-prompt-output | 14d39071d182a5e8d4faea9e9bdbd5b2b6326a71ae53682e88aee6e4668035f5 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P6.json |
+| atomicbot-quality-14e7ecf5cc03c223 | quality-prompt-output | 14e7ecf5cc03c223da9c2e216d24b6d66703f824aa6ee336c970bee85583be1b | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P6.json |
+| atomicbot-quality-18ca1f5e682153d4 | quality-prompt-output | 18ca1f5e682153d4c09c3c65d9f936e567ad01aac10013da9f1d393b4e5c8b6a | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P5.json |
+| atomicbot-quality-1dd497dc7ec4526b | quality-prompt-output | 1dd497dc7ec4526bece8a1c9d033d906945ce7f6cb60c463487a69569065853f | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P5.json |
+| atomicbot-quality-20a031897467b6bd | quality-prompt-output | 20a031897467b6bdf5f69bd987da55733bced3c47bdb3d845cad1c280ada6cfe | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P3.json |
+| atomicbot-quality-210dbcca15c31790 | quality-prompt-output | 210dbcca15c317903fbf880e84530936800b9c5f328fbb537ca7b0db133045f7 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P1.json |
+| atomicbot-quality-2239fa0e6ff046d1 | quality-prompt-output | 2239fa0e6ff046d15478af4f25d6efbefadf5225583fa31310846832882cda02 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P3.json |
+| atomicbot-quality-2551168492a1a927 | quality-prompt-output | 2551168492a1a927a5355ba8111ff1b101cb216589fdbe8c2f38ee1fd79cd713 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P4.json |
+| atomicbot-quality-2643f225aac9de2a | quality-prompt-output | 2643f225aac9de2a3030f4b61e04e2b836e740a6bafbe43bb0a8b07acd7dc40b | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P5.json |
+| atomicbot-quality-28d25ffa3fcff8ca | quality-prompt-output | 28d25ffa3fcff8ca92209f989d472312100d862c82db3c77c094ad32905ba814 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P3.json |
+| atomicbot-quality-29b5c7c6c9cb5ee8 | quality-prompt-output | 29b5c7c6c9cb5ee88d65c1d931a56bcd2b3e932a7bb191d605801a74f5c94e52 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P3.json |
+| atomicbot-quality-2d6006177a6ae9ef | quality-prompt-output | 2d6006177a6ae9ef239905d8f461d74e65436ba3705df9dacaff5ddd68b08e79 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P4.json |
+| atomicbot-quality-31a06ef15928138b | quality-prompt-output | 31a06ef15928138b84e3e210ad7ebfe1d3ac0620e78993ca917f55008d5ccfad | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P6.json |
+| atomicbot-quality-33d62be118c78b24 | quality-prompt-output | 33d62be118c78b24c8ff04aa3eb1fded1b55960332debbfb0f1b67bbb211fc06 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P1.json |
+| atomicbot-quality-36de68faf06ce484 | quality-prompt-output | 36de68faf06ce484f8014067c8c034425fcce3fdf99b53e505343374110137c8 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P4.json |
+| atomicbot-quality-3754507ee4a9a02e | quality-prompt-output | 3754507ee4a9a02eface7f5bd9eef4cbc8bfc893eebf1632c494af958e473a86 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P3.json |
+| atomicbot-quality-37de321634ca9d71 | quality-prompt-output | 37de321634ca9d7177a58ab78341d8758d8993f91e58f90a99d91b30c5054247 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P2.json |
+| atomicbot-quality-383e670b1d0a7a5b | quality-prompt-output | 383e670b1d0a7a5b3a772f6dd582c866787a44fb9d96a05a6dcdc3454f496660 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P4.json |
+| atomicbot-quality-38d734f4f0abab93 | quality-prompt-output | 38d734f4f0abab9340b5d6a10063c85d0c7754ffbadf8e225196f0c7cacb1426 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P4.json |
+| atomicbot-quality-397c0b1243a3dfde | quality-prompt-output | 397c0b1243a3dfdeff9fc7c60cb7c7bae9eee49e8aaecd7ec06edadd00ff4475 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P1.json |
+| atomicbot-quality-3fb01d03908f38d2 | quality-prompt-output | 3fb01d03908f38d24cff6cc2652e88d2b301f43bec48184a9e2a4f8e3e597b5a | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P4.json |
+| atomicbot-quality-444119025a13af63 | quality-prompt-output | 444119025a13af630b72b78c509b451686876b8d46b418227caff41b1b851724 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P2.json |
+| atomicbot-quality-44f1c904be912890 | quality-prompt-output | 44f1c904be912890b1c7e7ee4ce3ffb5eea59bbae6547739f2a57009dfedd236 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P6.json |
+| atomicbot-quality-47615130ee574a62 | quality-prompt-output | 47615130ee574a62a34cffe003286796981337b5bebf0065e0ceb215589e34a1 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P4.json |
+| atomicbot-quality-4e0edd4921afcb55 | quality-prompt-output | 4e0edd4921afcb55d73cd10289ea9255ac7a363b3d060435c1b7f2b5777fe63d | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P4.json |
+| atomicbot-quality-505ce27d4b11253c | quality-prompt-output | 505ce27d4b11253c506f210f68d9f852688ae1d831a7c7a46f215a20c141ec4c | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P5.json |
+| atomicbot-quality-5130fe49bb1a2cb3 | quality-prompt-output | 5130fe49bb1a2cb303b614be58f3e68f367c0c0086ba77415be05825c92deb93 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P3.json |
+| atomicbot-quality-537f7098da8fcc28 | quality-prompt-output | 537f7098da8fcc28bd1f7403146812bfa0eb66fa631d64be68ed5a80725b9cb3 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P3.json |
+| atomicbot-quality-57bf8d8681aa6d34 | quality-prompt-output | 57bf8d8681aa6d340c8d0746d9738aa39c35fceeaabd569d36da89dc647d39dc | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P1.json |
+| atomicbot-quality-5a5157e298af3bb1 | quality-prompt-output | 5a5157e298af3bb1b8fea1b9263331d1afe878291e595911543ad972b2509295 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P3.json |
+| atomicbot-quality-5d1c064f072a60d4 | quality-prompt-output | 5d1c064f072a60d49d7423d7ae2e986e4090a352a34211e735cbe77ddc456fd9 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P1.json |
+| atomicbot-quality-5f58f76492f6531e | quality-prompt-output | 5f58f76492f6531ed92745d6a0ec3924988fbf38eaf48781d0bca8ae2bfa4e73 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P2.json |
+| atomicbot-quality-63ff2e6ed5717966 | quality-prompt-output | 63ff2e6ed5717966b5b1983448e1be1dbf5d0a2aafe7d0dde7c24d35d6a5e0bd | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P2.json |
+| atomicbot-quality-64032a10b29f06ab | quality-prompt-output | 64032a10b29f06ab4852ba966bc7c3dc5ef8a12f498bd6d89ebbe0eeefa6e9ac | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P3.json |
+| atomicbot-quality-6574a6ea771ff72b | quality-prompt-output | 6574a6ea771ff72b545db0af854376dc5981cd2903d34f004c55d14d9e2e3948 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P5.json |
+| atomicbot-quality-67da36ea8eddd034 | quality-prompt-output | 67da36ea8eddd03421ee4e6f5b43feef1d68c285179c02a854af27265e95d6a9 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P5.json |
+| atomicbot-quality-6972ead6a7d4dff1 | quality-prompt-output | 6972ead6a7d4dff16884aad207f6454f87a5c680ca2027fdcf148c3a1e69da1f | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P6.json |
+| atomicbot-quality-6b0af34c02c847c1 | quality-prompt-output | 6b0af34c02c847c1a868aa22529114c01d6bb28c14c53c757363d0ec98050bb4 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P4.json |
+| atomicbot-quality-6d52edbfeb0cf584 | quality-prompt-output | 6d52edbfeb0cf58423e1e18e75883fddb31500f59b93ad7fc0739bafc927b13e | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P1.json |
+| atomicbot-quality-71653238cbd5db7f | quality-prompt-output | 71653238cbd5db7ff3a8a7c538e511cc8ed8101ae2aee9098b5eabe060773cfd | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P1.json |
+| atomicbot-quality-718ada29131a118f | quality-prompt-output | 718ada29131a118f976d8b4913129b8bab83acccb0403c2534aaaee5109c39ff | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P1.json |
+| atomicbot-quality-73bcf11f91c64838 | quality-prompt-output | 73bcf11f91c64838e8d981d182498f90a8483b2b341c0d1b5fc1e55750ae2705 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P1.json |
+| atomicbot-quality-74ca16dd2d235131 | quality-prompt-output | 74ca16dd2d2351311ee5fd8990dd1fd3b1b322cfc0a2d4f4143c798e5e38b8bb | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P6.json |
+| atomicbot-quality-78306ba88dbefc69 | quality-prompt-output | 78306ba88dbefc69d980064ad7e0a58dd4a951a641ae996b6e177a63d9ba9819 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P2.json |
+| atomicbot-quality-78812e68f8366496 | quality-prompt-output | 78812e68f8366496576ced10d7a266a225b362eece8e5532bcaa8dfe51d6e6ca | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P6.json |
+| atomicbot-quality-790572ca55f2ecb2 | quality-prompt-output | 790572ca55f2ecb23c202914fec6fd3a2831e246452b7e3675829cc3f09bb43d | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P3.json |
+| atomicbot-quality-79846161c2cfcc9a | quality-prompt-output | 79846161c2cfcc9a81198974a1d39ad6c46e31e41cb029c4c880fb37612c5b86 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P5.json |
+| atomicbot-quality-8121afc08a594384 | quality-prompt-output | 8121afc08a594384f54a25a78b76b0dad205e8c63120fd8b4f55717a5007f307 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P1.json |
+| atomicbot-quality-853c8e91d1ea9d03 | quality-prompt-output | 853c8e91d1ea9d038f8405d5483a82d2bf59db2f37ecfd846fa97a6f194fcbbf | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P1.json |
+| atomicbot-quality-87dbb59dd48a68ba | quality-prompt-output | 87dbb59dd48a68bad621fccb969d40b4867dbee4d2d3adc1b44f78dfa82e1e8d | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P4.json |
+| atomicbot-quality-89f79c981f6661e1 | quality-prompt-output | 89f79c981f6661e179692ecf60201d6f15a3862cb7796d4ec923acd6e446b3e4 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P5.json |
+| atomicbot-quality-8c87a029e9cd7fc5 | quality-prompt-output | 8c87a029e9cd7fc585a4ec4683b7d817440d069e9a78e4b18d274b757ff6938c | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P2.json |
+| atomicbot-quality-8d1822b6114407b4 | quality-prompt-output | 8d1822b6114407b418c63761b01dfbae7ef567893f1a73bb87d56131507a408a | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P1.json |
+| atomicbot-quality-8ef9fd0153211ea9 | quality-prompt-output | 8ef9fd0153211ea945760c1405bb317a5ec960132b3e9f8b837207ea7749a346 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P1.json |
+| atomicbot-quality-90423aea78367f0f | quality-prompt-output | 90423aea78367f0fa2217dfe2b482debaf8c843def779d0efc3ff9dd4771d2d7 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P6.json |
+| atomicbot-quality-9587c647bb3d150f | quality-prompt-output | 9587c647bb3d150f92c701482a83b2a34a3fa728f5f9fd3bfd03bece3f6a4540 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P4.json |
+| atomicbot-quality-9833a319fc68b253 | quality-prompt-output | 9833a319fc68b253eabebddfc2889ee59c7a8e0ba2ebc984e21e13178390b311 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P6.json |
+| atomicbot-quality-9fcecfff9221cac7 | quality-prompt-output | 9fcecfff9221cac7de782d5f8013d279ed06eef633d26365e7b2a2f78c5ce80c | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P6.json |
+| atomicbot-quality-a1ed9a09a36b8ab4 | quality-prompt-output | a1ed9a09a36b8ab48d6103ca5b7d9632d34893db164843fbf13859968c00f244 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P2.json |
+| atomicbot-quality-a24573d6b2f95199 | quality-prompt-output | a24573d6b2f95199998675f2ac913a58b249df9328159d6a2e8acbf626e54e71 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P4.json |
+| atomicbot-quality-a25327c38e67dee0 | quality-prompt-output | a25327c38e67dee069ae429a9520dbe0b3f7675a08dc07f36f3aa37597bb423d | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P3.json |
+| atomicbot-quality-a9d7bcf25dc9ec58 | quality-prompt-output | a9d7bcf25dc9ec58ae5feb06b31c0f9299db12a1c148e4bab3d4516e347745b6 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P5.json |
+| atomicbot-quality-aa5d6d06458737d0 | quality-prompt-output | aa5d6d06458737d0c5c62335cdac0f4657e08754351548b65f9e188494359c00 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P6.json |
+| atomicbot-quality-ab236cf98aaa8ca9 | quality-prompt-output | ab236cf98aaa8ca94db56fafe17e1646fce774719b0d8e9dd35fb69a111f7e91 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P3.json |
+| atomicbot-quality-b0b4d0b6feb4e742 | quality-prompt-output | b0b4d0b6feb4e742c02b74253541a62b675a7e8381bf6f9b5135bfe54172924c | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P2.json |
+| atomicbot-quality-b124dee3c300851b | quality-prompt-output | b124dee3c300851b24b175ac882d096779018c095c756706e8d9ee9b2061a26e | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P2.json |
+| atomicbot-quality-bcc07ccbbe4c3935 | quality-prompt-output | bcc07ccbbe4c393535606010a66781af9e40eda063a90f8df0e81a454330599d | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P1.json |
+| atomicbot-quality-c6b5cf7d4ca2b956 | quality-prompt-output | c6b5cf7d4ca2b9569ce8a45ab58ea89eac4f632f4e0fc587cad99bb05b942251 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P2.json |
+| atomicbot-quality-c6fe8f3a3243b68b | quality-prompt-output | c6fe8f3a3243b68b7d7393877a3b2101104803c0e01f603bc15e506ca65ccad8 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P5.json |
+| atomicbot-quality-c74ab3d148f03944 | quality-prompt-output | c74ab3d148f03944996ec5051e8a42f2fb9881ad70c00c1196c450394f8a4bba | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P5.json |
+| atomicbot-quality-c9a44471a063ecca | quality-prompt-output | c9a44471a063ecca68f3588df79eccbd356a0e0fcd1d94eb9ffdc8adcc6dca48 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P2.json |
+| atomicbot-quality-c9eae786d8a76c34 | quality-prompt-output | c9eae786d8a76c3438b9b396157d5f76611ffef8b3b5ab59523712289e1a3dcc | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P6.json |
+| atomicbot-quality-cd5adb9714c99bc6 | quality-prompt-output | cd5adb9714c99bc6212de7024ec77dbdbe6ddf95669e3f256a8e5b00935fb34c | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P1.json |
+| atomicbot-quality-cdb5dc8bf4208b12 | quality-prompt-output | cdb5dc8bf4208b1224d6ca3a2fd6663ba1297f9deeb5a52a11ce8188988ffff0 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P4.json |
+| atomicbot-quality-cebb743f7a1bf1d2 | quality-prompt-output | cebb743f7a1bf1d213b27e8fec3f1c9da5b8cbb7f7663063492a3a6d71eb9a64 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P3.json |
+| atomicbot-quality-cf3fb737e26b6f92 | quality-prompt-output | cf3fb737e26b6f929b508014e1bceafb735eb0a2087827cd20b82a38c96a4353 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P6.json |
+| atomicbot-quality-d25f02d2da9110a5 | quality-prompt-output | d25f02d2da9110a588e93ead4fd883f176e0bf30f91232973742abfb66e3df11 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P6.json |
+| atomicbot-quality-d29dae84f22981df | quality-prompt-output | d29dae84f22981df8de7d108ed6823593f192f3094c3e43c6f350bea02664bb6 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P6.json |
+| atomicbot-quality-d2b3ffd6bb8c6e68 | quality-prompt-output | d2b3ffd6bb8c6e6803d7897ab8f0daa0104d91507af1cf02f579d00a06002989 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P5.json |
+| atomicbot-quality-d40b292d40f0d3db | quality-prompt-output | d40b292d40f0d3dbb0b6106edad9732b78da703799bd23aedfa68fba3fb8bd6c | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P6.json |
+| atomicbot-quality-d584d51e3d734317 | quality-prompt-output | d584d51e3d7343176adb2164b262d2844cf961cb3ed08764da60b6d1cc3e6f7a | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P5.json |
+| atomicbot-quality-db7b85851ca0b5ac | quality-prompt-output | db7b85851ca0b5ac9f80f82ac274f70dc419ade704cab6b7e6815fd6fe4f1fbe | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P3.json |
+| atomicbot-quality-dd057999f193c25e | quality-prompt-output | dd057999f193c25e53eaa77ee9f43cbeed7d7023bb2dc72881f0559f7a5c3012 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P5.json |
+| atomicbot-quality-deac54778f443cb7 | quality-prompt-output | deac54778f443cb75c68ab6bff611ab152ff9d61643b3b5b29a67bc8ef519dda | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P5.json |
+| atomicbot-quality-e1567b53c39cdba6 | quality-prompt-output | e1567b53c39cdba6656d72313acab60da448c7a9f46bc50dbecc703a10ce1d2e | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P5.json |
+| atomicbot-quality-e2544d6869e55fae | quality-prompt-output | e2544d6869e55fae670aadd3c03d95610f5a4ba2c0be6c53520c5ca37c97ea92 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P2.json |
+| atomicbot-quality-e45e4d33a8976db5 | quality-prompt-output | e45e4d33a8976db5a691ca6f89c7015bf25f15e0337649464455945e2aac0c72 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P6.json |
+| atomicbot-quality-e4826b680ae462ca | quality-prompt-output | e4826b680ae462caa8f6dc90efa1d4bd320671301f3d090a601443c268056ec3 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P1.json |
+| atomicbot-quality-e4c092a9890f93be | quality-prompt-output | e4c092a9890f93bea6d90c0f3b7ea76a3ffc11cbdd7cb382a5a7443e96563951 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P5.json |
+| atomicbot-quality-e51e1191e52bb320 | quality-prompt-output | e51e1191e52bb32025602f80ef9deec6471fd154b2f1b8a8f709fcfe6d8cef26 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P4.json |
+| atomicbot-quality-e5424508c7c907be | quality-prompt-output | e5424508c7c907be38564d497e6c17615a64a6e0603360133a989080dfed5cff | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P3.json |
+| atomicbot-quality-e630a5f4840270a3 | quality-prompt-output | e630a5f4840270a3d726b6dacb5762f4150709d0e0b537fd147c08433bf295c6 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P5.json |
+| atomicbot-quality-e65ccfb374721a20 | quality-prompt-output | e65ccfb374721a209e73f7cdafc3c32bb286d0cfc04613d5a0d32b1d39c81afe | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P2.json |
+| atomicbot-quality-e6e914ce10a5fb32 | quality-prompt-output | e6e914ce10a5fb32d069dafa24d751a4fda1d5260626288f115404cbf5252c24 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P2.json |
+| atomicbot-quality-e728c5721cce42a4 | quality-prompt-output | e728c5721cce42a445c45a8624b7c5eeb3a5f4ad81541dd61bfd4554052aabfa | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P4.json |
+| atomicbot-quality-e88ff0356a438248 | quality-prompt-output | e88ff0356a43824853a4155d933b6e4a440083dc244293f89d16b80279730093 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P3.json |
+| atomicbot-quality-e8b43f069a64acb2 | quality-prompt-output | e8b43f069a64acb20d69e991bd9d593e2cdc0b561be37d87c17b05fb9723b11f | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P1.json |
+| atomicbot-quality-e8bdc231406fa0f3 | quality-prompt-output | e8bdc231406fa0f3a7d7c61c4261ebca965ca952cfd524e29e4004306ac6df2f | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P4.json |
+| atomicbot-quality-ecdc981fc265c117 | quality-prompt-output | ecdc981fc265c117953a07068c0d31d6b77f8c382cbc34fb10a5b8d4f24857ad | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P3.json |
+| atomicbot-quality-f01400a460e6abc2 | quality-prompt-output | f01400a460e6abc2e65c954160ef81f628c610ad963ba58c1e7384891d60111c | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P4.json |
+| atomicbot-quality-f0f9cc8e8debc974 | quality-prompt-output | f0f9cc8e8debc974446a840a5eb7328b83cca172d72f0dc190a66042f9db1caf | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P1.json |
+| atomicbot-quality-f16e93ad1c86e79d | quality-prompt-output | f16e93ad1c86e79dc657d0059ee3561765030ddced0afa9dfe3c1de38f91f655 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P4.json |
+| atomicbot-quality-f1c6748ba96ca7c4 | quality-prompt-output | f1c6748ba96ca7c46732a9be5f80694b286ccec01f5ef56bb3dcc81abd2deb42 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P3.json |
+| atomicbot-quality-f460de778cb9b15d | quality-prompt-output | f460de778cb9b15d93df9ef88dd358d215f1771b8c66a02691dcdd6a95e1a14e | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P2.json |
+| atomicbot-quality-f5f5ca4789b2be16 | quality-prompt-output | f5f5ca4789b2be162d670bd6605a207300694cb4c131d5fd9df169a4e5fbbb44 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P5.json |
+| atomicbot-quality-f67598ab015767a4 | quality-prompt-output | f67598ab015767a4a05431f07e7090035066eb9da3db132239f77e2a9b6bd89b | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P2.json |
+| atomicbot-quality-f9b932de3a4786ed | quality-prompt-output | f9b932de3a4786ed32046e0382dd2688c30ea5f21247f6b9774291ca2edb1564 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P2.json |
+| atomicbot-quality-fad9bcf69a3fe4d6 | quality-prompt-output | fad9bcf69a3fe4d6ed6b5d90b5c5b02a525602a9053c2f008eb13d54eae95cf5 | experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P2.json |
+
+## 15. Revision history
+
+R1 (2026-07-17): initial unified evidence-bound publication from WB-02 v1.7. Generated DOCX/PDF are derivatives.

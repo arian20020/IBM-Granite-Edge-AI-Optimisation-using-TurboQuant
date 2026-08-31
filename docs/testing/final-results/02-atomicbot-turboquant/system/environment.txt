@@ -1,0 +1,2 @@
+Historical controlled environment. See hardware.json/software.json.
+NPU and unsupported historical fields: Not collected

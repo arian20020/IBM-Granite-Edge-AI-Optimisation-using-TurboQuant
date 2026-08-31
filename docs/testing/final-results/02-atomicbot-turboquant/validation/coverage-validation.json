@@ -1,0 +1,15 @@
+{
+  "attempt_count": 19,
+  "measurement_count": 57,
+  "quality_count": 114,
+  "runtime_status_counts": {
+    "blocked": 0,
+    "passed": 19
+  },
+  "setup_status_counts": {
+    "blocked": 1,
+    "passed": 6,
+    "unsupported": 1
+  },
+  "valid": true
+}

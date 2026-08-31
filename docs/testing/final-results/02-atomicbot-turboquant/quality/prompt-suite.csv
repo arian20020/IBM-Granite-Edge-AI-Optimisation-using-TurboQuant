@@ -1,0 +1,7 @@
+prompt_id,scope,method,comparability
+P1,all 19 runtime configurations,historical frozen prompt; exact prompt text retained in source harness,No direct OpenVINO comparison
+P2,all 19 runtime configurations,historical frozen prompt; exact prompt text retained in source harness,No direct OpenVINO comparison
+P3,all 19 runtime configurations,historical frozen prompt; exact prompt text retained in source harness,No direct OpenVINO comparison
+P4,all 19 runtime configurations,historical frozen prompt; exact prompt text retained in source harness,No direct OpenVINO comparison
+P5,all 19 runtime configurations,historical frozen prompt; exact prompt text retained in source harness,No direct OpenVINO comparison
+P6,all 19 runtime configurations,historical frozen prompt; exact prompt text retained in source harness,No direct OpenVINO comparison

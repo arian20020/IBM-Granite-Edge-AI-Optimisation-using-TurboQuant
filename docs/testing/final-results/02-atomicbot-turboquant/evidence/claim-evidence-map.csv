@@ -1,0 +1,4 @@
+claim_id,claim,test_case_ids,evidence_ids
+AB-CLAIM-RUNTIME,All 19 controlled runtime configurations passed,"[""AB-01"", ""AB-02"", ""AB-03"", ""AB-KV3-F16-4K"", ""AB-04"", ""AB-05"", ""AB-06"", ""AB-07"", ""AB-08F"", ""AB-KV8-F16-4K"", ""AB-08Q"", ""AB-09"", ""AB-10"", ""AB-11"", ""AB-12"", ""AB-13"", ""AB-14"", ""AB-15"", ""AB-15M""]","[""atomicbot-0d0e0a9272639e1c"", ""atomicbot-2c104a7f446f7360""]"
+AB-CLAIM-QUALITY,Quality is limited/provisional and not directly OpenVINO-comparable,"[""AB-01"", ""AB-02"", ""AB-03"", ""AB-KV3-F16-4K"", ""AB-04"", ""AB-05"", ""AB-06"", ""AB-07"", ""AB-08F"", ""AB-KV8-F16-4K"", ""AB-08Q"", ""AB-09"", ""AB-10"", ""AB-11"", ""AB-12"", ""AB-13"", ""AB-14"", ""AB-15"", ""AB-15M""]","[""atomicbot-7c6bbfd833d30218"", ""atomicbot-c7333ff5faf191f9""]"
+AB-CLAIM-SETUP,One repository test remained Device Guard blocked,[],"[""atomicbot-175d58cb2e63e262"", ""atomicbot-edd597640bd970c5""]"

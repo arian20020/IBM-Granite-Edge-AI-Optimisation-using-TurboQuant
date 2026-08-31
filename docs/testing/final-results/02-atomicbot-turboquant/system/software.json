@@ -1,0 +1,58 @@
+{
+  "reporting_interpreter": "Python 3.11 portable",
+  "tools": {
+    "cl": {
+      "argv": [
+        "cl.exe"
+      ],
+      "exit_code": 0,
+      "stderr": "Microsoft (R) C/C++ Optimizing Compiler Version 19.51.36248 for x64\r\nCopyright (C) Microsoft Corporation.  All rights reserved.",
+      "stdout": "usage: cl [ option... ] filename... [ /link linkoption... ]"
+    },
+    "cmake": {
+      "argv": [
+        "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "cmake version 4.3.1-msvc1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+    },
+    "ctest": {
+      "argv": [
+        "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\ctest.exe",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "ctest version 4.3.1-msvc1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+    },
+    "git": {
+      "argv": [
+        "git",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "git version 2.53.0.windows.3"
+    },
+    "ninja": {
+      "argv": [
+        "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "1.13.2"
+    },
+    "python": {
+      "argv": [
+        "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "Python 3.11.9"
+    }
+  }
+}

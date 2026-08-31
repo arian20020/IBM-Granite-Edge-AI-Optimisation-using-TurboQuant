@@ -1,0 +1,20 @@
+ID,Model,KV cache,Execution,Context,Purpose / limitation,Status
+AB-01,Gemma 3 1B diagnostic,F16,CPU,1K,Fork baseline - TurboQuant off,Pass
+AB-02,Gemma 3 1B diagnostic,turbo3,CPU,1K,Prove TurboQuant switch activates,Pass
+AB-03,Granite 4.1 3B,F16,CPU,2K,High-quality 3B fork baseline,Pass
+AB-KV3-F16-4K,Granite 4.1 3B,F16,CPU,4K,Supplemental matched 3B F16 allocation baseline,Pass
+AB-04,Granite 4.1 3B,Q8_0,CPU,4K,Conventional compressed 3B baseline,Pass
+AB-05,Granite 4.1 3B,turbo4,CPU,4K,Conservative 3B TurboQuant,Pass
+AB-06,Granite 4.1 3B,turbo3,CPU,4K,Main 3B TurboQuant candidate,Pass
+AB-07,Granite 4.1 3B,turbo2,CPU,4K,Aggressive 3B TurboQuant,Pass
+AB-08F,Granite 4.1 8B,F16,CPU,2K,8B high-quality fork baseline,Pass
+AB-KV8-F16-4K,Granite 4.1 8B,F16,CPU,4K,Supplemental matched 8B F16 allocation baseline; guarded by memory gate,Pass - controlled bypass
+AB-08Q,Granite 4.1 8B,Q8_0,CPU,4K,8B matched conventional baseline,Pass after isolated rerun
+AB-09,Granite 4.1 8B,turbo4,CPU,4K,8B conservative TurboQuant,Pass
+AB-10,Granite 4.1 8B,turbo3,CPU,4K,8B main TurboQuant,Pass
+AB-11,Granite 4.1 3B,F16,Vulkan partial (ngl=1),4K,3B partial Vulkan baseline,Pass
+AB-12,Granite 4.1 3B,turbo3,Vulkan partial (ngl=1),4K,3B partial Vulkan TurboQuant and fallback check,Pass; hybrid
+AB-13,Granite 4.1 3B,turbo3,Vulkan full/max (ngl=999),4K,3B maximum/full Vulkan TurboQuant,Pass; 41/41 layers
+AB-14,Granite 4.1 8B,Q8_0,Vulkan partial (ngl=1),4K,8B safe partial Vulkan baseline,Pass; hybrid
+AB-15,Granite 4.1 8B,turbo3,Vulkan partial (ngl=1),4K,8B safe partial Vulkan TurboQuant,Pass; hybrid
+AB-15M,Granite 4.1 8B,turbo3,Vulkan full/max (ngl=999),4K,Conditional 8B maximum Vulkan TurboQuant,Pass - controlled bypass; 41/41 layers

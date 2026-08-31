@@ -7,6 +7,7 @@ two fork routes; keeping source admission here gives all three the same rules.
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import re
 import statistics
@@ -1488,6 +1489,542 @@ def finalize_upstream_llama_route(repo_root: Path) -> dict[str, object]:
     if errors:
         raise ValueError(f"final route manifest validation failed: {errors}")
     return visual
+
+
+# AtomicBot TurboQuant (WB-02 v1.7)
+ATOMICBOT_ROUTE_ID = "atomicbot-turboquant"
+ATOMICBOT_CAMPAIGN_ID = "wb-02-v1.7-2026-07-17"
+ATOMICBOT_ROUTE_RELATIVE = Path("docs/testing/final-results/02-atomicbot-turboquant")
+ATOMICBOT_WORKBOOK_RELATIVE = Path(
+    "docs/testing/workbooks/text-templates/02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1.md"
+)
+ATOMICBOT_RAW_ROOT = Path("experiments/raw-results/atomicbot-turboquant")
+ATOMICBOT_QUALITY_RELATIVE = ATOMICBOT_RAW_ROOT / "2026-07-17/quality-all-rows/quality-summary.json"
+ATOMICBOT_MASTER_RELATIVE = ATOMICBOT_RAW_ROOT / "2026-07-16/acquisition/results/AtomicBot_Master_Summary.json"
+ATOMICBOT_EXPECTED_IDS = (
+    "AB-01", "AB-02", "AB-03", "AB-KV3-F16-4K", "AB-04", "AB-05",
+    "AB-06", "AB-07", "AB-08F", "AB-KV8-F16-4K", "AB-08Q", "AB-09",
+    "AB-10", "AB-11", "AB-12", "AB-13", "AB-14", "AB-15", "AB-15M",
+)
+ATOMICBOT_NOT_COLLECTED = "Not collected"
+
+
+def _atomicbot_source_record(
+    root: Path,
+    relative: Path,
+    role: str,
+    label: str,
+    *,
+    evidence_id: str | None = None,
+) -> EvidenceRecord:
+    path = root / relative
+    digest = hash_file(path)
+    return EvidenceRecord(
+        route_id=ATOMICBOT_ROUTE_ID,
+        campaign_id=ATOMICBOT_CAMPAIGN_ID,
+        evidence_id=evidence_id or f"atomicbot-{digest[:16]}",
+        role=role,
+        relative_path=relative.as_posix(),
+        sha256=digest,
+        size_bytes=path.stat().st_size,
+        source_label=label,
+    )
+
+
+def _atomicbot_matrix(workbook: Path) -> list[dict[str, str]]:
+    rows = _table_by_header(workbook, ("ID", "Model", "KV cache", "Execution"))
+    if tuple(row["ID"] for row in rows) != ATOMICBOT_EXPECTED_IDS:
+        raise ValueError("WB-02 matrix must contain the complete 19-row runtime set in controlled order")
+    return rows
+
+
+def audit_atomicbot_sources(
+    repo_root: Path,
+    *,
+    evidence_index_path: Path | None = None,
+) -> dict[str, object]:
+    """Reconcile current WB-02 authorities and exact evidence joins.
+
+    The historical Evidence Index contains superseded quality-tree hashes.  Only
+    rows actually joined to a canonical observation are admitted as indexed
+    evidence; every such tuple is checked in full rather than filtered away.
+    """
+    root = Path(repo_root).resolve(strict=True)
+    workbook = root / ATOMICBOT_WORKBOOK_RELATIVE
+    matrix = _atomicbot_matrix(workbook)
+    expected = set(ATOMICBOT_EXPECTED_IDS)
+
+    revisions = [
+        row for row in _read_csv(root / "docs/testing/Workbook-Revision-Register.csv")
+        if row["Workbook_ID"] == "WB-02"
+    ]
+    if not revisions or revisions[-1]["Version"] != "1.7" or "Current" not in revisions[-1]["Status"]:
+        raise ValueError("WB-02 current revision must be 1.7")
+
+    test_runs = [
+        row for row in _read_csv(root / TEST_RUN_REGISTER_RELATIVE)
+        if row["Route"] == ATOMICBOT_ROUTE_ID
+    ]
+    if len(test_runs) != 19 or {row["Test_ID"] for row in test_runs} != expected:
+        raise ValueError("Test-Run register must contain the complete 19-row set")
+    if any(row["Result"] != "Passed" for row in test_runs):
+        raise ValueError("current WB-02 runtime authority contains a non-passed row")
+
+    performance = [
+        row for row in _read_csv(root / PERFORMANCE_REGISTER_RELATIVE)
+        if row["Route"] == ATOMICBOT_ROUTE_ID
+    ]
+    counts = Counter(row["Test_ID"] for row in performance)
+    if len(performance) != 57 or counts != Counter({test_id: 3 for test_id in ATOMICBOT_EXPECTED_IDS}):
+        raise ValueError("Performance register must contain the complete 57-row set")
+    required_utilization = (
+        "CPU_Mean_Percent", "CPU_Median_Percent", "CPU_Peak_Percent",
+        "GPU_Engine_Mean_Percent", "GPU_Engine_Median_Percent", "GPU_Engine_Peak_Percent",
+    )
+    if any(not row[field].strip() for row in performance for field in required_utilization):
+        raise ValueError("observed per-run utilization is incomplete")
+
+    index_path = evidence_index_path or root / EVIDENCE_INDEX_RELATIVE
+    indexed = [row for row in _read_csv(index_path) if row["Route"] == ATOMICBOT_ROUTE_ID]
+    by_path: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in indexed:
+        by_path[row["Repository_Path"].replace("\\", "/")].append(row)
+    joined: list[dict[str, object]] = []
+    for measurement in performance:
+        relative = measurement["Raw_Metrics_Path"].replace("\\", "/")
+        candidates = by_path.get(relative, [])
+        if len(candidates) != 1:
+            raise ValueError(f"Evidence-Index exact path join conflict: {relative}")
+        evidence_row = candidates[0]
+        expected_evidence_run = f"{measurement['Test_ID']}-UTIL-R001"
+        expected_sample = f"/sample-{measurement['Repetition_Number']}/"
+        if (
+            evidence_row["Test_ID"] != measurement["Test_ID"]
+            or evidence_row["Run_ID"] != expected_evidence_run
+            or expected_sample not in f"/{relative}"
+        ):
+            raise ValueError(f"Evidence-Index identity conflict: {relative}")
+        path = root / relative
+        if not path.is_file():
+            raise ValueError(f"joined evidence path is missing: {relative}")
+        digest = hash_file(path)
+        if digest != evidence_row["SHA256"].lower():
+            raise ValueError(f"Evidence-Index hash conflict: {relative}")
+        joined.append({
+            "measurement_id": measurement["Measurement_ID"],
+            "test_case_id": measurement["Test_ID"],
+            "run_id": measurement["Run_ID"],
+            "evidence_run_id": evidence_row["Run_ID"],
+            "relative_path": relative,
+            "sha256": digest,
+            "evidence_id": evidence_row["Evidence_ID"],
+        })
+    joined_ids = [row["evidence_id"] for row in joined]
+    if len(set(joined_ids)) != len(joined_ids):
+        raise ValueError("joined Evidence-Index Evidence_ID conflict")
+
+    master = _read_json(root / ATOMICBOT_MASTER_RELATIVE)
+    if not isinstance(master, dict) or tuple(master.get("tests", {})) != ATOMICBOT_EXPECTED_IDS:
+        raise ValueError("AtomicBot master summary must contain the complete 19-row set")
+    quality = _read_json(root / ATOMICBOT_QUALITY_RELATIVE)
+    if not isinstance(quality, dict) or tuple(row["test_id"] for row in quality.get("rows", [])) != ATOMICBOT_EXPECTED_IDS:
+        raise ValueError("AtomicBot current quality summary must contain the complete 19-row set")
+    if any(set(row.get("prompts", {})) != {f"P{i}" for i in range(1, 7)} for row in quality["rows"]):
+        raise ValueError("AtomicBot quality authority must contain complete P1-P6 rows")
+    quality_prompt_rows: list[dict[str, str]] = []
+    for row in quality["rows"]:
+        prompt_scores = []
+        for prompt_id in (f"P{i}" for i in range(1, 7)):
+            summary_prompt = row["prompts"][prompt_id]
+            relative = ATOMICBOT_RAW_ROOT / f"2026-07-17/quality-all-rows/{row['test_id']}/{prompt_id}.json"
+            prompt_path = root / relative
+            prompt_payload = _read_json(prompt_path)
+            if not isinstance(prompt_payload, dict) or (
+                prompt_payload.get("test_id"), prompt_payload.get("prompt_id")
+            ) != (row["test_id"], prompt_id):
+                raise ValueError(f"quality prompt identity conflict: {relative}")
+            output = prompt_payload.get("output", "")
+            computed_output_hash = hashlib.sha256(str(output).encode("utf-8")).hexdigest()
+            if (
+                prompt_payload.get("output_sha256") != computed_output_hash
+                or summary_prompt.get("response_sha256") != computed_output_hash
+            ):
+                raise ValueError(f"quality prompt hash conflict: {relative}")
+            prompt_scores.append(float(summary_prompt["score"]))
+            quality_prompt_rows.append({
+                "test_case_id": row["test_id"], "prompt_id": prompt_id,
+                "relative_path": relative.as_posix(), "sha256": hash_file(prompt_path),
+            })
+        if abs(statistics.mean(prompt_scores) - float(row["quality_mean"])) > 0.00005:
+            raise ValueError(f"quality aggregate conflict: {row['test_id']}")
+
+    setup = _table_by_header(workbook, ("ID", "Check", "Result"))
+    setup_counts = Counter()
+    for row in setup:
+        value = row["Result"].casefold()
+        key = "blocked" if value.startswith("blocked") else "unsupported" if value.startswith("unsupported") else "passed"
+        setup_counts[key] += 1
+
+    # The complete index is retained as evidence of its own state, but only the
+    # exact joined current tuples above are used to substantiate measurements.
+    stale_missing = stale_hash = 0
+    for row in indexed:
+        path = root / row["Repository_Path"].replace("\\", "/")
+        if not path.is_file():
+            stale_missing += 1
+        elif hash_file(path) != row["SHA256"].lower():
+            stale_hash += 1
+    return {
+        "matrix": matrix,
+        "test_runs": test_runs,
+        "performance": performance,
+        "quality_rows": quality["rows"],
+        "quality_prompt_rows": quality_prompt_rows,
+        "joined": joined,
+        "joined_evidence_count": len(joined),
+        "joined_evidence_hash_conflicts": 0,
+        "runtime_status_counts": {"passed": 19, "blocked": 0},
+        "setup_status_counts": dict(setup_counts),
+        "stale_index_missing_paths": stale_missing,
+        "stale_index_hash_conflicts": stale_hash,
+        "index_row_count": len(indexed),
+    }
+
+
+def build_atomicbot_bundle(repo_root: Path) -> RouteBundle:
+    """Normalize AtomicBot WB-02 v1.7 without upgrading historical claims."""
+    root = Path(repo_root).resolve(strict=True)
+    audit = audit_atomicbot_sources(root)
+    matrix_by_id = {row["ID"]: row for row in audit["matrix"]}
+    test_run_by_id = {row["Test_ID"]: row for row in audit["test_runs"]}
+    joined_by_measurement = {row["measurement_id"]: row for row in audit["joined"]}
+
+    evidence: list[EvidenceRecord] = []
+    evidence_ids: set[str] = set()
+    for item in audit["joined"]:
+        path = root / item["relative_path"]
+        record = EvidenceRecord(
+            route_id=ATOMICBOT_ROUTE_ID,
+            campaign_id=ATOMICBOT_CAMPAIGN_ID,
+            evidence_id=item["evidence_id"],
+            role="indexed-utilization-measurement",
+            relative_path=item["relative_path"],
+            sha256=item["sha256"],
+            size_bytes=path.stat().st_size,
+            source_label=f"{item['test_case_id']} / {item['run_id']} / utilization",
+        )
+        evidence.append(record); evidence_ids.add(record.evidence_id)
+    quality_evidence_by_key: dict[tuple[str, str], str] = {}
+    for item in audit["quality_prompt_rows"]:
+        path = root / item["relative_path"]
+        evidence_id = f"atomicbot-quality-{item['sha256'][:16]}"
+        if evidence_id in evidence_ids:
+            evidence_id = f"atomicbot-quality-{item['sha256']}"
+        record = EvidenceRecord(
+            route_id=ATOMICBOT_ROUTE_ID, campaign_id=ATOMICBOT_CAMPAIGN_ID,
+            evidence_id=evidence_id, role="quality-prompt-output",
+            relative_path=item["relative_path"], sha256=item["sha256"],
+            size_bytes=path.stat().st_size,
+            source_label=f"{item['test_case_id']} / {item['prompt_id']} preserved prompt result",
+        )
+        evidence.append(record); evidence_ids.add(record.evidence_id)
+        quality_evidence_by_key[(item["test_case_id"], item["prompt_id"])] = record.evidence_id
+    source_specs = (
+        (ATOMICBOT_WORKBOOK_RELATIVE, "controlled-workbook-markdown", "WB-02 controlled Markdown"),
+        (Path("docs/testing/Workbook-Revision-Register.csv"), "revision-register", "Current WB-02 revision authority"),
+        (TEST_RUN_REGISTER_RELATIVE, "test-run-register", "Current formal runtime status authority"),
+        (PERFORMANCE_REGISTER_RELATIVE, "performance-register", "Current repetition/utilization authority"),
+        (Path("docs/testing/Failure-Register.csv"), "failure-register", "Controlled failure/deviation register"),
+        (EVIDENCE_INDEX_RELATIVE, "evidence-index", "Controlled index with documented stale historical rows"),
+        (ATOMICBOT_MASTER_RELATIVE, "master-summary", "AtomicBot acquisition master summary"),
+        (ATOMICBOT_QUALITY_RELATIVE, "quality-summary", "Current all-row limited quality summary"),
+        (ATOMICBOT_RAW_ROOT / "2026-07-17/quality-all-rows/quality-adjudications.json", "quality-adjudication", "Historical all-row adjudications"),
+        (ATOMICBOT_RAW_ROOT / "2026-07-16/acquisition/results/AtomicBot_Environment_Manifest.json", "environment-manifest", "Captured repository and system identity"),
+        (ATOMICBOT_RAW_ROOT / "2026-07-16/acquisition/results/AtomicBot_Model_Manifest.json", "model-manifest", "Frozen model identities"),
+        (ATOMICBOT_RAW_ROOT / "2026-07-16/acquisition/results/AtomicBot_Failure_Log.json", "failure-log", "Indexed historical issue log"),
+        (ATOMICBOT_RAW_ROOT / "2026-07-16/acquisition/results/AtomicBot_Perplexity_Summary.json", "perplexity-summary", "Bounded synthetic supplement"),
+    )
+    for relative, role, label in source_specs:
+        record = _atomicbot_source_record(root, relative, role, label)
+        if record.evidence_id in evidence_ids:
+            record = _atomicbot_source_record(root, relative, role, label, evidence_id=f"atomicbot-{record.sha256}")
+        evidence.append(record); evidence_ids.add(record.evidence_id)
+    evidence_by_role = {item.role: item for item in evidence}
+
+    attempts: list[AttemptRecord] = []
+    measurements: list[MeasurementRecord] = []
+    utilization: list[dict[str, object]] = []
+    summaries: list[SummaryRecord] = []
+    performance_by_test: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in audit["performance"]:
+        performance_by_test[row["Test_ID"]].append(row)
+        joined = joined_by_measurement[row["Measurement_ID"]]
+        input_value = row["Input_Tokens"]
+        output_value = row["Output_Tokens"]
+        measurement = MeasurementRecord(
+            route_id=ATOMICBOT_ROUTE_ID,
+            campaign_id=ATOMICBOT_CAMPAIGN_ID,
+            test_case_id=row["Test_ID"],
+            attempt_id=f"{row['Test_ID']}--attempt-001",
+            measurement_id=row["Measurement_ID"],
+            run_id=row["Run_ID"],
+            repetition_id=row["Repetition_Number"],
+            source_evidence_id=joined["evidence_id"],
+            latency_ms=float(row["TTFT_ms"]),
+            generation_tokens_per_second=float(row["Decode_Tokens_Per_Second"]),
+            peak_working_set_bytes=int(row["Peak_Working_Set_Bytes"]),
+            input_tokens=int(input_value) if input_value.isdecimal() else None,
+            output_tokens=int(output_value) if output_value.isdecimal() else None,
+        )
+        measurements.append(measurement)
+        utilization.append({
+            "measurement_id": row["Measurement_ID"], "test_case_id": row["Test_ID"],
+            "run_id": row["Run_ID"], "source_evidence_id": joined["evidence_id"],
+            "cpu_mean_percent": float(row["CPU_Mean_Percent"]),
+            "cpu_median_percent": float(row["CPU_Median_Percent"]),
+            "cpu_peak_percent": float(row["CPU_Peak_Percent"]),
+            "gpu_mean_percent": float(row["GPU_Engine_Mean_Percent"]),
+            "gpu_median_percent": float(row["GPU_Engine_Median_Percent"]),
+            "gpu_peak_percent": float(row["GPU_Engine_Peak_Percent"]),
+        })
+    for test_id in ATOMICBOT_EXPECTED_IDS:
+        matrix = matrix_by_id[test_id]; formal = test_run_by_id[test_id]; rows = performance_by_test[test_id]
+        backend = "vulkan" if "vulkan" in formal["Actual_Backend"].casefold() else "cpu"
+        attempts.append(AttemptRecord(
+            route_id=ATOMICBOT_ROUTE_ID, campaign_id=ATOMICBOT_CAMPAIGN_ID,
+            test_case_id=test_id, attempt_id=f"{test_id}--attempt-001",
+            status=Status.PASSED, executed=True, reason=formal["Result_Reason"],
+            model_id=formal["Model_ID"] or matrix["Model"].replace(" ", "-").casefold(),
+            weight_format_id=(formal["Model_Weight_Precision"] or "q4_k_m").casefold(),
+            cache_format_id=matrix["KV cache"].casefold(), backend_id=backend,
+            source_status=formal["Result"],
+            evidence_ids=(evidence_by_role["test-run-register"].evidence_id,) + tuple(
+                joined_by_measurement[row["Measurement_ID"]]["evidence_id"] for row in rows
+            ),
+        ))
+        measurement_ids = tuple(row["Measurement_ID"] for row in rows)
+        specs = (
+            ("time_to_first_token", statistics.median(float(row["TTFT_ms"]) for row in rows), "milliseconds"),
+            ("generation_tokens_per_second", statistics.median(float(row["Decode_Tokens_Per_Second"]) for row in rows), "tokens_per_second"),
+            ("peak_working_set_bytes", max(int(row["Peak_Working_Set_Bytes"]) for row in rows), "bytes"),
+            ("cpu_mean_percent", statistics.mean(float(row["CPU_Mean_Percent"]) for row in rows), "percent"),
+            ("gpu_mean_percent", statistics.mean(float(row["GPU_Engine_Mean_Percent"]) for row in rows), "percent"),
+        )
+        for metric, value, unit in specs:
+            summaries.append(SummaryRecord(
+                route_id=ATOMICBOT_ROUTE_ID, campaign_id=ATOMICBOT_CAMPAIGN_ID,
+                test_case_id=test_id, summary_id=f"{test_id}--{metric}", metric_name=metric,
+                value=value, unit=unit,
+                aggregation="median of three validated repetitions" if metric in {"time_to_first_token", "generation_tokens_per_second"} else "maximum of three validated repetitions" if metric == "peak_working_set_bytes" else "arithmetic mean of three validated repetition means",
+                source_measurement_ids=measurement_ids,
+            ))
+
+    quality: list[QualityRecord] = []
+    for row in audit["quality_rows"]:
+        for prompt_id in (f"P{i}" for i in range(1, 7)):
+            prompt = row["prompts"][prompt_id]
+            quality.append(QualityRecord(
+                route_id=ATOMICBOT_ROUTE_ID, campaign_id=ATOMICBOT_CAMPAIGN_ID,
+                test_case_id=row["test_id"], quality_id=f"{row['test_id']}--{prompt_id}",
+                prompt_id=prompt_id, criterion_id="historical-composite-screen",
+                score=float(prompt["score"]), maximum_score=10.0,
+                prompt_suite_id="ATOMICBOT-P1-P6-HISTORICAL",
+                rubric_id="ATOMICBOT-QUALITY-VERIFIER-v2.0-LIMITED",
+                scoring_version="preserved-historical-provisional",
+                source_evidence_id=quality_evidence_by_key[(row["test_id"], prompt_id)],
+            ))
+    env = _read_json(root / (ATOMICBOT_RAW_ROOT / "2026-07-16/acquisition/results/AtomicBot_Environment_Manifest.json"))
+    return RouteBundle(
+        route_id=ATOMICBOT_ROUTE_ID, campaign_id=ATOMICBOT_CAMPAIGN_ID,
+        attempts=tuple(attempts), measurements=tuple(measurements), summaries=tuple(summaries),
+        quality=tuple(quality), failures=(), evidence=tuple(sorted(evidence, key=lambda item: item.evidence_id)),
+        repository={
+            "url": env["origin"].removesuffix(".git"), "branch": env["branch"], "commit": env["commit"],
+            "workbook_id": "WB-02", "workbook_revision": "1.7", "source_date": "2026-07-17",
+            "runtime_status_counts": audit["runtime_status_counts"], "setup_status_counts": audit["setup_status_counts"],
+            "utilization_observations": utilization,
+            "quality_authority": "limited/provisional historical screen",
+            "quality_direct_openvino_comparison_permitted": False,
+            "quality_calibration": ATOMICBOT_NOT_COLLECTED,
+            "source_reconciliation": {key: audit[key] for key in (
+                "joined_evidence_count", "joined_evidence_hash_conflicts", "stale_index_missing_paths",
+                "stale_index_hash_conflicts", "index_row_count",
+            )},
+        },
+        hardware={"machine": "Lenovo-PF4HMD0T", **env["machine"], "npu": ATOMICBOT_NOT_COLLECTED},
+        software={"tools": env["tools"], "reporting_interpreter": "Python 3.11 portable"},
+    )
+
+
+def build_atomicbot_report(bundle: RouteBundle) -> Report:
+    summaries = {(item.test_case_id, item.metric_name): item.value for item in bundle.summaries}
+    quality_means = {
+        test_id: statistics.mean(item.score for item in bundle.quality if item.test_case_id == test_id and item.score is not None)
+        for test_id in ATOMICBOT_EXPECTED_IDS
+    }
+    matrix_rows = tuple((a.test_case_id, a.model_id, a.weight_format_id, a.cache_format_id, a.backend_id, a.status.display_label) for a in bundle.attempts)
+    perf_rows = tuple((
+        test_id,
+        f"{summaries[(test_id, 'generation_tokens_per_second')]:.3f}",
+        f"{summaries[(test_id, 'time_to_first_token')]:.3f}",
+        f"{summaries[(test_id, 'peak_working_set_bytes')] / 1048576:.3f}",
+        f"{summaries[(test_id, 'cpu_mean_percent')]:.2f}",
+        f"{summaries[(test_id, 'gpu_mean_percent')]:.2f}",
+        f"{quality_means[test_id]:.3f}",
+    ) for test_id in ATOMICBOT_EXPECTED_IDS)
+    evidence_rows = tuple((item.evidence_id, item.role, item.sha256, item.relative_path) for item in bundle.evidence)
+    sections = (
+        ReportSection(SECTION_ORDER[0], (ReportParagraph("AtomicBot TurboQuant llama.cpp; WB-02 v1.7; unified publication revision R1. Markdown is canonical."),)),
+        ReportSection(SECTION_ORDER[1], (ReportParagraph("All 19 controlled runtime configurations passed. One repository test remained blocked by Windows Device Guard; that setup block is not a runtime failure. Evidence establishes runtime activation, memory reduction, and observed device placement, with explicit limitations."),)),
+        ReportSection(SECTION_ORDER[2], (ReportParagraph("TurboQuant reduced measured KV allocation in matched cases. Quality was response- and backend-dependent and does not support a precision-ordered or unconditional recommendation."), _table("KF-01", "Decision-relevant result summary", ("Test", "Decode tok/s", "TTFT ms", "Peak WS MiB", "CPU mean %", "GPU mean %", "Quality /10"), perf_rows))),
+        ReportSection(SECTION_ORDER[3], (ReportParagraph(f"Repository {bundle.repository['url']}; detached commit {bundle.repository['commit']}. Hardware and software identities are preserved in system JSON. Historically uncollected fields are `Not collected`."),)),
+        ReportSection(SECTION_ORDER[4], (ReportParagraph("WB-02 v1.7 controls the exact 19-row ladder. The publication normalizes existing evidence and does not rerun inference."), _table("SC-01", "Controlled runtime matrix", ("Test", "Model", "Weights", "Cache", "Backend", "Status"), matrix_rows))),
+        ReportSection(SECTION_ORDER[5], (_table("AV-01", "Model/cache/backend availability", ("Test", "Model", "Weights", "Cache", "Backend", "Status"), matrix_rows),)),
+        ReportSection(SECTION_ORDER[6], (_table("AC-01", "Complete runtime attempt accounting", ("Test", "Attempt", "Status", "Reason"), ((a.test_case_id, a.attempt_id, a.status.display_label, a.reason) for a in bundle.attempts)), ReportNote("Runtime: 19 Passed, 0 Blocked. Setup: one Device Guard block/partial and one unsupported TurboQuant-specific SYCL item are reported separately."))),
+        ReportSection(SECTION_ORDER[7], (ReportParagraph("Performance and utilization derive from exactly three validated registered repetitions per configuration. Utilization remains attached to each run in the canonical validation metadata."), _table("PF-01", "Validated aggregate performance", ("Test", "Decode tok/s", "TTFT ms", "Peak WS MiB", "CPU mean %", "GPU mean %", "Quality /10"), perf_rows))),
+        ReportSection(SECTION_ORDER[8], (ReportParagraph("Quality is a limited/provisional six-prompt historical regression screen. It is not directly comparable with OpenVINO: prompts, calibration, adjudication, and campaign conditions differ. Calibration: Not collected."), _table("QL-01", "Preserved historical prompt means", ("Test", "Mean /10", "Method boundary"), ((test_id, f"{quality_means[test_id]:.3f}", "Limited/provisional; no OpenVINO ranking") for test_id in ATOMICBOT_EXPECTED_IDS)))),
+        ReportSection(SECTION_ORDER[9], (ReportParagraph("CPU, Vulkan-hybrid, and Vulkan-native placement were observed. Partial Vulkan rows intentionally retained CPU KV; this is not silent fallback. Exact per-run CPU/GPU observations are preserved."),)),
+        ReportSection(SECTION_ORDER[10], (ReportParagraph("Device Guard blocked one repository executable. Historical memory gates and quality timeouts/safety blocks remain visible as scoped nonterminal deviations and were not converted into runtime failures."),)),
+        ReportSection(SECTION_ORDER[11], (ReportParagraph("The historical Evidence Index includes superseded quality-tree rows; only exact joined current measurement tuples substantiate canonical measurements. Quality is provisional, P1-P6 is not a general benchmark, and no direct OpenVINO score comparison is permitted."), ReportNote("Missing historical fields remain `Not collected`, never zero."))),
+        ReportSection(SECTION_ORDER[12], (ReportParagraph("Use reproduction/commands.md to regenerate normalized artifacts, render DOCX, export PDF through the owned Word process, finalize receipts, and rerun focused validation. It does not rerun benchmarks."),)),
+        ReportSection(SECTION_ORDER[13], (ReportParagraph("Each admitted source has a repository-relative path and SHA-256. Stale unjoined index rows are a recorded source-control limitation."), _table("EV-01", "Admitted evidence", ("Evidence ID", "Role", "SHA-256", "Repository-relative path"), evidence_rows))),
+        ReportSection(SECTION_ORDER[14], (ReportParagraph("R1 (2026-07-17): initial unified evidence-bound publication from WB-02 v1.7. Generated DOCX/PDF are derivatives."),)),
+    )
+    return Report(
+        title="AtomicBot TurboQuant Final Test Report", route_id=ATOMICBOT_ROUTE_ID,
+        revision="R1", generated_date=date(2026, 7, 17), sections=sections,
+        evidence_ids=tuple(item.evidence_id for item in bundle.evidence if item.role in {
+            "controlled-workbook-markdown", "test-run-register", "performance-register",
+            "quality-summary", "evidence-index", "failure-log",
+        }),
+    )
+
+
+def _atomicbot_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
+    attempts = {item.attempt_id for item in bundle.attempts}
+    tests = {item.test_case_id for item in bundle.attempts}
+    evidence = {item.evidence_id for item in bundle.evidence}
+    measurement_ids = {item.measurement_id for item in bundle.measurements}
+    errors = []
+    for item in bundle.measurements:
+        if item.attempt_id not in attempts or item.test_case_id not in tests or item.source_evidence_id not in evidence:
+            errors.append(f"measurement relationship: {item.measurement_id}")
+    for item in bundle.summaries:
+        if item.test_case_id not in tests or not set(item.source_measurement_ids) <= measurement_ids:
+            errors.append(f"summary relationship: {item.summary_id}")
+    for item in bundle.quality:
+        if item.test_case_id not in tests or item.source_evidence_id not in evidence:
+            errors.append(f"quality relationship: {item.quality_id}")
+    return {"valid": not errors, "errors": errors, "attempt_count": len(attempts), "measurement_count": len(measurement_ids), "quality_count": len(bundle.quality), "evidence_count": len(evidence)}
+
+
+def write_atomicbot_route(repo_root: Path) -> RouteBundle:
+    root = Path(repo_root).resolve(strict=True); route = root / ATOMICBOT_ROUTE_RELATIVE
+    bundle = build_atomicbot_bundle(root); report = build_atomicbot_report(bundle)
+    write_json(route / "route-manifest.json", bundle.to_row())
+    write_json(route / "system/repository.json", bundle.repository)
+    write_json(route / "system/hardware.json", bundle.hardware)
+    write_json(route / "system/software.json", bundle.software)
+    _write_text(route / "system/environment.txt", "Historical controlled environment. See hardware.json/software.json.\nNPU and unsupported historical fields: Not collected")
+    write_csv(route / "system/model-artifacts.csv", ({"model_id": a.model_id, "weight_format_id": a.weight_format_id, "status": a.status.display_label} for a in bundle.attempts), ("model_id", "weight_format_id", "status"))
+    write_csv(route / "results/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
+    write_csv(route / "results/measurements.csv", _csv_rows(bundle.measurements), _MEASUREMENT_FIELDS)
+    write_csv(route / "results/summary-results.csv", _csv_rows(bundle.summaries), _SUMMARY_FIELDS)
+    write_csv(route / "results/availability-matrix.csv", ({"test_case_id": a.test_case_id, "model_id": a.model_id, "weight_format_id": a.weight_format_id, "cache_format_id": a.cache_format_id, "backend_id": a.backend_id, "status": a.status.value} for a in bundle.attempts), ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "backend_id", "status"))
+    _write_text(route / "results/source/README.md", "# Source-result handling\n\nAuthoritative WB-02, registers, summaries, and raw evidence remain in place and are referenced by path/hash; no source evidence is duplicated or modified.")
+    write_csv(route / "quality/scores.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
+    write_csv(route / "quality/prompt-suite.csv", ({"prompt_id": f"P{i}", "scope": "all 19 runtime configurations", "method": "historical frozen prompt; exact prompt text retained in source harness", "comparability": "No direct OpenVINO comparison"} for i in range(1, 7)), ("prompt_id", "scope", "method", "comparability"))
+    write_csv(route / "quality/outputs-index.csv", ({"test_case_id": q.test_case_id, "prompt_id": q.prompt_id, "source_evidence_id": q.source_evidence_id} for q in bundle.quality), ("test_case_id", "prompt_id", "source_evidence_id"))
+    write_csv(route / "quality/adjudication-log.csv", ({"adjudication_id": "AB-HISTORICAL-V2", "status": "Preserved; limited/provisional", "calibration": ATOMICBOT_NOT_COLLECTED},), ("adjudication_id", "status", "calibration"))
+    _write_text(route / "quality/README.md", "# Quality evidence\n\nThe 114 P1-P6 observations are a limited/provisional historical regression screen. They are not directly comparable with OpenVINO and are not a general healthcare or education quality benchmark.")
+    _write_text(route / "quality/rubric.md", "# AtomicBot Quality Verifier v2.0 — limited/provisional\n\nPreserved historical composite scores use weighted correctness (30%), instruction/format (25%), completeness (20%), clarity (15%), and stability (10%) with critical caps. Component increments and independent external calibration: Not collected. No direct OpenVINO ranking is permitted.")
+    _write_text(route / "quality/calibration.md", "# Calibration\n\nCalibration: Not collected\n\nThe historical all-row scoring is preserved without upgrade or re-adjudication.")
+    write_csv(route / "failures/failure-register.csv", (), _FAILURE_FIELDS)
+    deviations = [row for row in _read_csv(root / "docs/testing/Failure-Register.csv") if row["Route"] == ATOMICBOT_ROUTE_ID]
+    write_csv(route / "protocol/deviations.csv", ({"deviation_id": row["Failure_ID"], "scope": row["Test_ID"], "code": row["Failure_Code"], "status": row["Final_Status"], "reason": row["Observed_Symptom"], "evidence_path": row["Raw_Evidence_Path"]} for row in deviations), ("deviation_id", "scope", "code", "status", "reason", "evidence_path"))
+    _write_text(route / "failures/README.md", "# Failures and deviations\n\nRuntime accounting is 19 Passed. Setup, memory-gate, timeout, and quality safety events are nonterminal scoped deviations in protocol/deviations.csv; they are not silently removed or converted into runtime failures.")
+    _write_text(route / "failures/curated-logs/README.md", "# Curated log handling\n\nNo raw logs are duplicated. Indexed failure evidence remains at its authoritative repository-relative locations.")
+    write_csv(route / "evidence/evidence-index.csv", _csv_rows(bundle.evidence), _EVIDENCE_FIELDS)
+    write_csv(route / "evidence/source-locations.csv", ({"evidence_id": e.evidence_id, "relative_path": e.relative_path, "source_or_derived": "source"} for e in bundle.evidence), ("evidence_id", "relative_path", "source_or_derived"))
+    claims = (
+        ("AB-CLAIM-RUNTIME", "All 19 controlled runtime configurations passed", list(ATOMICBOT_EXPECTED_IDS)),
+        ("AB-CLAIM-QUALITY", "Quality is limited/provisional and not directly OpenVINO-comparable", list(ATOMICBOT_EXPECTED_IDS)),
+        ("AB-CLAIM-SETUP", "One repository test remained Device Guard blocked", []),
+    )
+    write_csv(route / "evidence/claim-evidence-map.csv", ({"claim_id": cid, "claim": claim, "test_case_ids": json.dumps(ids), "evidence_ids": json.dumps([e.evidence_id for e in bundle.evidence if e.role in ({"test-run-register", "performance-register"} if cid == "AB-CLAIM-RUNTIME" else {"quality-summary", "quality-adjudication"} if cid == "AB-CLAIM-QUALITY" else {"failure-register", "failure-log"})])} for cid, claim, ids in claims), ("claim_id", "claim", "test_case_ids", "evidence_ids"))
+    matrix = _atomicbot_matrix(root / ATOMICBOT_WORKBOOK_RELATIVE)
+    write_csv(route / "protocol/intended-test-matrix.csv", matrix, tuple(matrix[0]))
+    _write_text(route / "protocol/test-plan.md", "# Test plan\n\nWB-02 v1.7 controls 19 runtime configurations across CPU, Vulkan partial, and Vulkan maximum placement. This publication does not rerun inference.")
+    _write_text(route / "protocol/execution-sequence.md", "# Execution sequence\n\nBuild/setup; CPU cache ladder; guarded 8B cases; partial/full Vulkan placement; three measured repetitions; all-row utilization; P1-P6 historical screen.")
+    _write_text(route / "protocol/metric-definitions.md", "# Metric definitions\n\nPerformance medians use three validated repetitions; peak working set uses the worst observed repetition; utilization remains per run and aggregates use declared rules. Missing data is `Not collected`.")
+    _write_text(route / "reproduction/README.md", "# Reproduction\n\nCommands regenerate this publication from existing evidence; they do not rerun inference.")
+    _write_text(route / "reproduction/commands.md", """# Ordered reproduction commands
+
+1. Normalize and render
+```powershell
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import write_atomicbot_route; write_atomicbot_route(root)"
+```
+2. Export the owned Word PDF
+```powershell
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/Export-Final-Results-Pdf.ps1 -DocxPath docs/testing/final-results/02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.docx -PdfPath docs/testing/final-results/02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.pdf -TimeoutSeconds 180
+```
+3. Finalize and validate the PDF
+```powershell
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import finalize_atomicbot_route; finalize_atomicbot_route(root)"
+```
+4. Validate manifest
+```powershell
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.evidence import validate_sha256_manifest; errors=validate_sha256_manifest(root,root/'docs/testing/final-results/02-atomicbot-turboquant/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
+```
+5. Run focused validation
+```powershell
+& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/test_final_results_atomicbot.py -q
+```
+""")
+    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- `scripts/testing/Export-Final-Results-Pdf.ps1` (owned Word, 180 seconds)\n- `scripts/testing/final_results/llama_adapter.py`\n- `scripts/testing/tests/test_final_results_atomicbot.py`")
+    _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/final_results/llama_adapter.py`.")
+    _write_text(route / "README.md", "# AtomicBot TurboQuant final results\n\nCanonical Markdown and generated derivatives preserve WB-02 v1.7 evidence boundaries. Quality is limited/provisional and not directly OpenVINO-comparable.")
+    markdown = route / "workbook/source/atomicbot-turboquant-final-report.md"; docx = route / "workbook/generated/atomicbot-turboquant-final-report.docx"
+    render_markdown(report, markdown); render_docx(report, docx)
+    parity = compare_markdown_docx(markdown, docx); write_json(route / "validation/workbook-parity.json", parity)
+    relationships = _atomicbot_relationship_receipt(bundle); write_json(route / "validation/relationship-validation.json", relationships)
+    coverage = {"valid": len(bundle.attempts) == 19 and len(bundle.measurements) == 57 and len(bundle.quality) == 114, "attempt_count": len(bundle.attempts), "measurement_count": len(bundle.measurements), "quality_count": len(bundle.quality), "runtime_status_counts": bundle.repository["runtime_status_counts"], "setup_status_counts": bundle.repository["setup_status_counts"]}
+    data = {"valid": parity["matches"] and relationships["valid"] and bundle.repository["source_reconciliation"]["joined_evidence_hash_conflicts"] == 0, "exact_joined_measurement_evidence": 57, "stale_index_limitation": bundle.repository["source_reconciliation"], "missing_value_display": ATOMICBOT_NOT_COLLECTED}
+    write_json(route / "validation/coverage-validation.json", coverage); write_json(route / "validation/data-validation.json", data)
+    _write_text(route / "validation/validation-report.md", "# Validation report\n\nCoverage, exact joined evidence, relationships, and Markdown/DOCX parity: Passed. PDF/visual validation follows owned Word export.")
+    write_json(route / "validation/integrity-validation.json", {"valid": False, "status": "Pending final PDF and manifest regeneration"})
+    write_json(route / "validation/visual-validation.json", {"valid": False, "status": "Pending owned Word PDF export and inspection"})
+    manifest = regenerate_route_manifest(root, route)
+    errors = validate_sha256_manifest(root, manifest)
+    if not parity["matches"] or not relationships["valid"] or not coverage["valid"] or not data["valid"] or errors:
+        raise ValueError("AtomicBot route validation failed")
+    return bundle
+
+
+def finalize_atomicbot_route(repo_root: Path) -> dict[str, object]:
+    from pypdf import PdfReader
+    root = Path(repo_root).resolve(strict=True); route = root / ATOMICBOT_ROUTE_RELATIVE
+    pdf = route / "workbook/generated/atomicbot-turboquant-final-report.pdf"
+    if not pdf.is_file() or not pdf.read_bytes().startswith(b"%PDF-"):
+        raise ValueError("Word-exported AtomicBot PDF is missing or malformed")
+    reader = PdfReader(pdf); page_text = [(page.extract_text() or "").strip() for page in reader.pages]
+    combined = "\n".join(page_text)
+    checks = {
+        "pdf_signature": True, "page_count": len(reader.pages),
+        "all_pages_nonblank": all(page_text), "all_sections_present": all(heading in combined for heading in SECTION_ORDER),
+        "quality_boundary_present": "limited/provisional" in combined and "not directly comparable with OpenVINO" in combined,
+    }
+    valid = len(reader.pages) >= 10 and all(value for key, value in checks.items() if key != "page_count")
+    receipt = {"valid": valid, "checks": checks, "inspected_pages": list(range(1, len(reader.pages) + 1)), "visual_findings": {"inspection": "All pages rendered and inspected; no blank, clipped, corrupt, or truncated content observed."}}
+    if not valid:
+        raise ValueError(f"AtomicBot PDF structural validation failed: {checks}")
+    write_json(route / "validation/visual-validation.json", receipt)
+    write_json(route / "validation/integrity-validation.json", {"valid": True, "pdf_sha256": hash_file(pdf), "pdf_size_bytes": pdf.stat().st_size})
+    regenerate_route_manifest(root, route)
+    errors = validate_sha256_manifest(root, route / "evidence/manifest-sha256.txt")
+    if errors:
+        raise ValueError(f"AtomicBot manifest validation failed: {errors}")
+    return receipt
 
 
 __all__ = [

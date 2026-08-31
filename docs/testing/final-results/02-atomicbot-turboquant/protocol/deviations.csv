@@ -1,0 +1,6 @@
+deviation_id,scope,code,status,reason,evidence_path
+FAIL-AB-UI-ASSET,AB-B02/AB-B05,UI-BUNDLE-MISSING,Resolved,Generated UI embed target lacked loading.html,experiments/raw-results/atomicbot-turboquant/2026-07-16/
+FAIL-AB-DEVICE-GUARD,AB-B04,DEVICE-GUARD-4551,Open - external policy,test-barrier.exe blocked at launch,experiments/raw-results/atomicbot-turboquant/2026-07-16/
+FAIL-AB-08Q-MEMORY,AB-08Q,MEMORY-GUARD,Resolved,Initial batch reached 470.7 MiB free,experiments/raw-results/atomicbot-turboquant/2026-07-16/
+FAIL-AB-8B-SAFETY,AB-KV8-F16-4K/AB-15M,SAFETY-GATE,Resolved by controlled bypass,Initial preventive gate blocked high-risk 8B rows,experiments/raw-results/atomicbot-turboquant/2026-07-16/
+FAIL-AB-P5-TIMEOUT,P5/AB-06,QUALITY-TIMEOUT-2400,Open,Turbo3 P5 returned no response within 2400 seconds,experiments/raw-results/atomicbot-turboquant/2026-07-16/
