@@ -15,8 +15,6 @@ param(
     [string] $M1Manifest,
     [string] $Q1Manifest,
     [string] $DotNetHostPath = $env:DOTNET_HOST_PATH,
-    [string] $EvidenceTestAssembly,
-    [string] $VSTestPath,
     [string] $NativeLockPath = 'C:\UCL-AUDIT-NATIVE.lock'
 )
 
@@ -24,6 +22,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $repositoryRoot = (Resolve-Path (Join-Path $projectRoot '..\..\..')).Path
+Import-Module (Join-Path $PSScriptRoot 'E1EvidenceSupport.psm1') -Force
 foreach ($name in @('GRANITE_E2E_ASSET_MANIFEST', 'GRANITE_E2E_H1_MANIFEST', 'GRANITE_E2E_M1_MANIFEST', 'GRANITE_E2E_Q1_MANIFEST')) {
     Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
 }
@@ -123,18 +122,35 @@ if ($M1Manifest) { $env:GRANITE_E2E_M1_MANIFEST = (Resolve-Path -LiteralPath $M1
 if ($Q1Manifest) { $env:GRANITE_E2E_Q1_MANIFEST = (Resolve-Path -LiteralPath $Q1Manifest).Path }
 
 if ($Stage -eq 'Evidence') {
-    if (-not $EvidenceTestAssembly -or -not $VSTestPath) { throw 'Evidence stage requires explicit candidate-bound EvidenceTestAssembly and VSTestPath inputs.' }
-    $assemblyPath = (Resolve-Path -LiteralPath $EvidenceTestAssembly).Path
-    $vstestExecutable = (Resolve-Path -LiteralPath $VSTestPath).Path
-    $repositoryPrefix = $repositoryRoot.TrimEnd('\') + '\'
-    if (-not $assemblyPath.StartsWith($repositoryPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Evidence test assembly must be inside the validated repository.' }
-    $productVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($assemblyPath).ProductVersion
-    if (-not $productVersion -or $productVersion.IndexOf($ImplementationCommit, [StringComparison]::Ordinal) -lt 0) { throw 'Evidence test assembly is not bound to the implementation subject commit.' }
+    Assert-E1ImplementationBoundary -RepositoryRoot $repositoryRoot -ImplementationCommit $ImplementationCommit
+    $evidenceDotNet = Join-Path $env:ProgramFiles 'dotnet\dotnet.exe'
+    $dotnetItem = Get-Item -LiteralPath $evidenceDotNet -Force -ErrorAction Stop
+    if ($dotnetItem.PSIsContainer -or ($dotnetItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+        $dotnetItem.Name -ne 'dotnet.exe') { throw 'The approved x64 dotnet host is invalid.' }
+    $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
+    $buildStartedUtc = [DateTime]::UtcNow
+    & $dotnetItem.FullName build $project --configuration Debug --arch x64 --disable-build-servers --no-incremental -m:1 "-p:SourceRevisionId=$ImplementationCommit"
+    if ($LASTEXITCODE -ne 0) { throw "E1 evidence build failed with exit code $LASTEXITCODE." }
+    $expectedOutputRoot = Join-Path $projectRoot 'bin\Debug'
+    $assemblyCandidates = @(Get-ChildItem $expectedOutputRoot -Filter 'GraniteEdgeAI.EndToEndTests.dll' -Recurse -File |
+        Where-Object { $_.FullName -match '[\\/]net8\.0-windows10\.0\.19041\.0[\\/]win-x64[\\/]' -and $_.LastWriteTimeUtc -ge $buildStartedUtc.AddSeconds(-2) })
+    if ($assemblyCandidates.Count -ne 1) { throw 'Evidence build did not produce exactly one fresh expected E1 assembly.' }
+    $assemblyPath = Assert-E1EvidenceAssembly -Path $assemblyCandidates[0].FullName -ExpectedOutputRoot $expectedOutputRoot -ImplementationCommit $ImplementationCommit -FreshSinceUtc $buildStartedUtc
+    $vstestExecutable = Get-E1TrustedVSTest
     $evidenceResultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260830\E1-Evidence'
     New-Item -ItemType Directory -Force -Path $evidenceResultRoot | Out-Null
-    foreach ($category in @('Preflight', 'PostAcceptance')) {
-        & $vstestExecutable $assemblyPath /Platform:x64 "/TestCaseFilter:TestCategory=$category" "/Logger:trx;LogFileName=E1-$category.trx" "/ResultsDirectory:$evidenceResultRoot"
-        if ($LASTEXITCODE -ne 0) { throw "Authoritative $category evaluator failed with exit code $LASTEXITCODE." }
+    $authoritative = @(
+        @('GraniteEdgeAI.EndToEndTests.Tests.R4TwoPhaseIssueEvidenceVerifierTests', 'Exact_schema_v4_candidate_closure_and_catalog_are_committed_and_pushed', 'Preflight'),
+        @('GraniteEdgeAI.EndToEndTests.Tests.R4TwoPhaseIssueEvidenceVerifierTests', 'Exact_E1_post_acceptance_evidence_is_candidate_bound_and_fail_closed', 'PostAcceptance')
+    )
+    foreach ($test in $authoritative) {
+        $trxName = "E1-$($test[2])-$([Guid]::NewGuid().ToString('N')).trx"
+        $trxPath = Join-Path $evidenceResultRoot $trxName
+        $startedUtc = [DateTime]::UtcNow
+        $arguments = New-E1AuthoritativeVSTestArguments -AssemblyPath $assemblyPath -ExpectedClass $test[0] -ExpectedMethod $test[1] -ResultsRoot $evidenceResultRoot -TrxFileName $trxName
+        & $vstestExecutable @arguments
+        if ($LASTEXITCODE -ne 0) { throw "Authoritative $($test[2]) evaluator failed with exit code $LASTEXITCODE." }
+        Assert-E1AuthoritativeTrx -Path $trxPath -ExpectedClass $test[0] -ExpectedMethod $test[1] -InvocationStartedUtc $startedUtc
     }
     return
 }
@@ -232,12 +248,7 @@ $assembly = Get-ChildItem (Join-Path $projectRoot 'bin') -Filter 'GraniteEdgeAI.
     Sort-Object LastWriteTimeUtc -Descending |
     Select-Object -First 1
 if (-not $assembly) { throw 'E1 test assembly was not produced.' }
-$vswhereCandidates = @((Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'), (Join-Path $env:ProgramFiles 'Microsoft Visual Studio\Installer\vswhere.exe'))
-$vswhere = $vswhereCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not $vswhere) { throw 'Blocked: vswhere.exe is unavailable; VSTest discovery cannot be authoritative.' }
-$visualStudio = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.TestTools.BuildTools -property installationPath).Trim()
-$vstest = Get-ChildItem $visualStudio -Filter 'vstest.console.exe' -Recurse | Select-Object -First 1
-if (-not $vstest) { throw 'Blocked: vstest.console.exe is unavailable.' }
+$vstest = Get-Item -LiteralPath (Get-E1TrustedVSTest) -Force
 $runsettings = Join-Path $repositoryRoot 'tests\runsettings\OneWorker.runsettings'
 
 $discoveryOutput = @(& $vstest.FullName $assembly.FullName /ListTests /Platform:x64 "/Settings:$runsettings" 2>&1 | ForEach-Object { "$_" })
@@ -252,7 +263,7 @@ if ($discoveredTests.Count -lt 67) {
 }
 if ($Stage -eq 'List') { return }
 
-$filters = @{ Deterministic = '(TestCategory!=NativeSmoke)&(TestCategory!=NativeFailure)&(TestCategory!=NativeAcceptance)'; Smoke = 'TestCategory=NativeSmoke'; Failure = 'TestCategory=NativeFailure'; Acceptance = 'TestCategory=NativeAcceptance'; All = '' }
+$filters = @{ Deterministic = '(TestCategory!=NativeSmoke)&(TestCategory!=NativeFailure)&(TestCategory!=NativeAcceptance)&(TestCategory!=Preflight)&(TestCategory!=PostAcceptance)&(TestCategory!=AuthoritativeIntegration)'; Smoke = 'TestCategory=NativeSmoke'; Failure = 'TestCategory=NativeFailure'; Acceptance = 'TestCategory=NativeAcceptance'; All = '' }
 $arguments = @($assembly.FullName, '/Platform:x64', "/Settings:$runsettings", "/Logger:trx;LogFileName=E1-$Stage.trx", "/ResultsDirectory:$resultRoot")
 if ($filters[$Stage]) { $arguments += "/TestCaseFilter:$($filters[$Stage])" }
 if ($Stage -eq 'Deterministic') {

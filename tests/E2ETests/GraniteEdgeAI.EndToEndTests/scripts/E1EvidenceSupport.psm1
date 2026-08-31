@@ -1,0 +1,185 @@
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+function Assert-E1RegularFile {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path,
+        [long] $MaximumBytes = 16777216
+    )
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+    if ($item.PSIsContainer -or $item.Length -le 0 -or $item.Length -gt $MaximumBytes -or
+        ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "Evidence input is not a bounded regular file: $($item.Name)"
+    }
+    return $item
+}
+
+function Assert-E1NoReparseChain {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path,
+        [Parameter(Mandatory = $true)] [string] $Boundary
+    )
+    $boundaryFull = [IO.Path]::GetFullPath($Boundary).TrimEnd('\')
+    $cursor = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Path))
+    while ($cursor -and $cursor.Length -ge $boundaryFull.Length) {
+        $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Evidence input has a reparse-point ancestor: $($item.Name)"
+        }
+        if ($cursor.Equals($boundaryFull, [StringComparison]::OrdinalIgnoreCase)) { return }
+        $parent = [IO.Directory]::GetParent($cursor)
+        if (-not $parent) { break }
+        $cursor = $parent.FullName
+    }
+    throw 'Evidence input is outside its validated boundary.'
+}
+
+function Assert-E1TrustedVSTestPath {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path,
+        [Parameter(Mandatory = $true)] [string] $InstallationRoot
+    )
+    $root = [IO.Path]::GetFullPath($InstallationRoot).TrimEnd('\')
+    $full = [IO.Path]::GetFullPath($Path)
+    if (-not $full.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase) -or
+        [IO.Path]::GetFileName($full) -ne 'vstest.console.exe' -or
+        [IO.Path]::GetExtension($full) -ne '.exe') {
+        throw 'VSTest is not the approved Visual Studio executable.'
+    }
+    [void](Assert-E1RegularFile -Path $full)
+    Assert-E1NoReparseChain -Path $full -Boundary $root
+    return $full
+}
+
+function Get-E1TrustedVSTest {
+    $candidates = @(
+        (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'),
+        (Join-Path $env:ProgramFiles 'Microsoft Visual Studio\Installer\vswhere.exe')
+    )
+    $vswhere = $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    if (-not $vswhere) { throw 'Blocked: approved vswhere.exe is unavailable.' }
+    $vswhereItem = Assert-E1RegularFile -Path $vswhere
+    if ($vswhereItem.Name -ne 'vswhere.exe') { throw 'Blocked: Visual Studio discovery executable identity is invalid.' }
+    $installation = @(& $vswhereItem.FullName -latest -products * -requires Microsoft.VisualStudio.Component.TestTools.BuildTools -property installationPath 2>&1 | ForEach-Object { "$_" })
+    if ($LASTEXITCODE -ne 0 -or $installation.Count -ne 1 -or [string]::IsNullOrWhiteSpace($installation[0])) {
+        throw 'Blocked: Visual Studio discovery failed.'
+    }
+    $rootItem = Get-Item -LiteralPath $installation[0].Trim() -Force -ErrorAction Stop
+    if (-not $rootItem.PSIsContainer -or ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Blocked: Visual Studio installation root is invalid.'
+    }
+    $expected = Join-Path $rootItem.FullName 'Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe'
+    return Assert-E1TrustedVSTestPath -Path $expected -InstallationRoot $rootItem.FullName
+}
+
+function Assert-E1EvidenceAssembly {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path,
+        [Parameter(Mandatory = $true)] [string] $ExpectedOutputRoot,
+        [Parameter(Mandatory = $true)] [ValidatePattern('^[0-9a-f]{40}$')] [string] $ImplementationCommit,
+        [Parameter(Mandatory = $true)] [DateTime] $FreshSinceUtc
+    )
+    $root = [IO.Path]::GetFullPath($ExpectedOutputRoot).TrimEnd('\')
+    $full = [IO.Path]::GetFullPath($Path)
+    if (-not $full.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase) -or
+        [IO.Path]::GetFileName($full) -ne 'GraniteEdgeAI.EndToEndTests.dll' -or
+        [IO.Path]::GetExtension($full) -ne '.dll') {
+        throw 'Evidence assembly is outside the expected repository build output.'
+    }
+    $item = Assert-E1RegularFile -Path $full
+    Assert-E1NoReparseChain -Path $full -Boundary $root
+    if ($item.LastWriteTimeUtc -lt $FreshSinceUtc.AddSeconds(-2)) { throw 'Evidence assembly is stale.' }
+    $version = [Diagnostics.FileVersionInfo]::GetVersionInfo($item.FullName).ProductVersion
+    if (-not $version -or $version.IndexOf($ImplementationCommit, [StringComparison]::Ordinal) -lt 0) {
+        throw 'Evidence assembly is not bound to the implementation subject.'
+    }
+    return $item.FullName
+}
+
+function Invoke-E1Git {
+    param([string] $RepositoryRoot, [string[]] $Arguments)
+    $output = @(& git.exe -C $RepositoryRoot @Arguments 2>&1 | ForEach-Object { "$_" })
+    if ($LASTEXITCODE -ne 0) { throw "Git subject-boundary validation failed: git $($Arguments -join ' ')" }
+    return @($output)
+}
+
+function Assert-E1ImplementationBoundary {
+    param(
+        [Parameter(Mandatory = $true)] [string] $RepositoryRoot,
+        [Parameter(Mandatory = $true)] [ValidatePattern('^[0-9a-f]{40}$')] [string] $ImplementationCommit
+    )
+    $allowed = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    @(
+        'docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md',
+        'docs/audits/2026-08-30/evidence/E1-r4-independent-acceptance-v2.json',
+        'docs/audits/2026-08-30/evidence/E1-r4-post-acceptance-v2.json',
+        'docs/audits/2026-08-30/handoffs/R4-E1.json',
+        'docs/audits/2026-08-30/evidence/E1-r4-external-block-observation-v2.json',
+        'docs/audits/2026-08-30/evidence/E1-r4-independent-final-review-v4.json'
+    ) | ForEach-Object { [void]$allowed.Add($_) }
+    [void](Invoke-E1Git -RepositoryRoot $RepositoryRoot -Arguments @('merge-base', '--is-ancestor', $ImplementationCommit, 'HEAD'))
+    $committed = Invoke-E1Git -RepositoryRoot $RepositoryRoot -Arguments @('diff', '--name-only', "$ImplementationCommit..HEAD", '--')
+    foreach ($path in @($committed | Where-Object { $_ })) {
+        if (-not $allowed.Contains($path)) { throw "Code or configuration changed after the implementation subject: $path" }
+    }
+    $status = Invoke-E1Git -RepositoryRoot $RepositoryRoot -Arguments @('status', '--porcelain=v1', '--untracked-files=all')
+    foreach ($line in @($status | Where-Object { $_ })) {
+        if ($line.Length -lt 4) { throw 'Git worktree status is malformed.' }
+        $path = $line.Substring(3)
+        if ($path.Contains(' -> ')) { throw 'Renamed worktree content is not allowed after the implementation subject.' }
+        if (-not $allowed.Contains($path)) { throw "Uncommitted code or configuration differs from the implementation subject: $path" }
+    }
+}
+
+function New-E1AuthoritativeVSTestArguments {
+    param(
+        [Parameter(Mandatory = $true)] [string] $AssemblyPath,
+        [Parameter(Mandatory = $true)] [string] $ExpectedClass,
+        [Parameter(Mandatory = $true)] [string] $ExpectedMethod,
+        [Parameter(Mandatory = $true)] [string] $ResultsRoot,
+        [Parameter(Mandatory = $true)] [ValidatePattern('^[A-Za-z0-9._-]+\.trx$')] [string] $TrxFileName
+    )
+    $fullyQualified = "$ExpectedClass.$ExpectedMethod"
+    return @(
+        $AssemblyPath,
+        '/Platform:x64',
+        "/TestCaseFilter:FullyQualifiedName=$fullyQualified",
+        "/Logger:trx;LogFileName=$TrxFileName",
+        "/ResultsDirectory:$ResultsRoot"
+    )
+}
+
+function Assert-E1AuthoritativeTrx {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path,
+        [Parameter(Mandatory = $true)] [string] $ExpectedClass,
+        [Parameter(Mandatory = $true)] [string] $ExpectedMethod,
+        [Parameter(Mandatory = $true)] [DateTime] $InvocationStartedUtc
+    )
+    $item = Assert-E1RegularFile -Path $Path
+    if ($item.LastWriteTimeUtc -lt $InvocationStartedUtc.AddSeconds(-2)) { throw 'Authoritative TRX is stale.' }
+    try { [xml]$document = Get-Content -Raw -LiteralPath $item.FullName -ErrorAction Stop }
+    catch { throw 'Authoritative TRX is unreadable or malformed.' }
+    $namespace = [Xml.XmlNamespaceManager]::new($document.NameTable)
+    $namespace.AddNamespace('t', 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010')
+    $summary = $document.SelectSingleNode('/t:TestRun/t:ResultSummary', $namespace)
+    $counters = $document.SelectSingleNode('/t:TestRun/t:ResultSummary/t:Counters', $namespace)
+    $results = @($document.SelectNodes('/t:TestRun/t:Results/t:UnitTestResult', $namespace))
+    $definitions = @($document.SelectNodes('/t:TestRun/t:TestDefinitions/t:UnitTest', $namespace))
+    if (-not $summary -or -not $counters -or $summary.outcome -ne 'Completed' -or
+        [int]$counters.total -ne 1 -or [int]$counters.executed -ne 1 -or [int]$counters.passed -ne 1 -or
+        [int]$counters.failed -ne 0 -or [int]$counters.notExecuted -ne 0 -or
+        $results.Count -ne 1 -or $definitions.Count -ne 1) {
+        throw 'Authoritative TRX arithmetic or outcome is not exactly one passing test.'
+    }
+    $result = $results[0]
+    $definition = $definitions[0]
+    $method = $definition.SelectSingleNode('t:TestMethod', $namespace)
+    if (-not $method -or $result.outcome -ne 'Passed' -or $result.testName -ne $ExpectedMethod -or
+        $definition.name -ne $ExpectedMethod -or $method.name -ne $ExpectedMethod -or
+        $method.className -ne $ExpectedClass -or $result.testId -ne $definition.id) {
+        throw 'Authoritative TRX test identity differs from the exact intended evaluator.'
+    }
+}
+
+Export-ModuleMember -Function Get-E1TrustedVSTest, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx

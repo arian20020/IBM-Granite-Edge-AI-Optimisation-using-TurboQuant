@@ -76,29 +76,42 @@ public sealed class E1EndToEndRunnerInvocationTests
     }
 
     [TestMethod]
-    public void Complete_exact_arguments_invoke_authoritative_preflight_and_post_evaluator()
+    public void Caller_supplied_evidence_executable_and_assembly_paths_are_rejected()
     {
         using RunnerFixture fixture = RunnerFixture.Create();
 
-        ProcessResult result = fixture.RunExact();
+        ProcessResult result = fixture.RunExact(
+            ["-EvidenceTestAssembly", typeof(E1EndToEndRunnerInvocationTests).Assembly.Location],
+            ["-VSTestPath", fixture.VsTestPath]);
 
-        Assert.AreEqual(0, result.ExitCode, result.Output);
-        string[] invocations = File.ReadAllLines(fixture.VsTestLog);
-        Assert.AreEqual(2, invocations.Length);
-        StringAssert.Contains(invocations[0], "/TestCaseFilter:TestCategory=Preflight");
-        StringAssert.Contains(invocations[1], "/TestCaseFilter:TestCategory=PostAcceptance");
+        Assert.AreNotEqual(0, result.ExitCode, result.Output);
+        Assert.IsFalse(File.Exists(fixture.VsTestLog));
         Assert.IsFalse(File.Exists(fixture.DotNetLog));
         Assert.IsFalse(Directory.Exists(fixture.LockPath));
-        string[] environments = File.ReadAllLines(fixture.EnvironmentLog);
-        Assert.AreEqual(2, environments.Length);
-        foreach (string environment in environments)
-        {
-            StringAssert.Contains(environment, $"candidate={CandidateCommit}/{CandidateTree}");
-            StringAssert.Contains(environment, $"implementation={fixture.ImplementationCommit}/{fixture.ImplementationTree}");
-            StringAssert.Contains(environment, "remote=origin/refs/heads/integration/ucl-r4-e1-issued-base-v2");
-            StringAssert.Contains(environment, $"root={fixture.RepositoryRoot}");
-            Assert.IsFalse(environment.Contains("stale", StringComparison.OrdinalIgnoreCase));
-        }
+    }
+
+    [TestMethod]
+    [TestCategory("AuthoritativeIntegration")]
+    public void Production_Evidence_mode_builds_and_parses_two_fresh_exact_TRX_results()
+    {
+        string implementation = RequireEnvironment("GRANITE_E1_RUNNER_IMPLEMENTATION_COMMIT");
+        string tree = RequireEnvironment("GRANITE_E1_RUNNER_IMPLEMENTATION_TREE");
+        using RunnerFixture fixture = RunnerFixture.Create();
+        string results = Path.Combine(fixture.RepositoryRoot, "TestResults", "Audit-20260830", "E1-Evidence");
+        HashSet<string> before = Directory.Exists(results)
+            ? Directory.GetFiles(results, "E1-*.trx").ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : [];
+
+        ProcessResult result = fixture.RunExact(
+            ["-ImplementationCommit", implementation],
+            ["-ImplementationTree", tree]);
+
+        Assert.AreEqual(0, result.ExitCode, result.Output);
+        string[] created = Directory.GetFiles(results, "E1-*.trx")
+            .Where(path => !before.Contains(path)).ToArray();
+        Assert.AreEqual(2, created.Length);
+        Assert.AreEqual(1, created.Count(path => Path.GetFileName(path).StartsWith("E1-Preflight-", StringComparison.Ordinal)));
+        Assert.AreEqual(1, created.Count(path => Path.GetFileName(path).StartsWith("E1-PostAcceptance-", StringComparison.Ordinal)));
     }
 
     private sealed class RunnerFixture : IDisposable
@@ -177,8 +190,6 @@ public sealed class E1EndToEndRunnerInvocationTests
                 "-ImplementationCommit", _implementationCommit,
                 "-ImplementationTree", _implementationTree,
                 "-DotNetHostPath", DotNetPath,
-                "-EvidenceTestAssembly", typeof(E1EndToEndRunnerInvocationTests).Assembly.Location,
-                "-VSTestPath", VsTestPath,
                 "-NativeLockPath", LockPath,
             };
             foreach (string[] mutation in mutations)
@@ -289,7 +300,7 @@ public sealed class E1EndToEndRunnerInvocationTests
             foreach (string argument in arguments) start.ArgumentList.Add(argument);
             using Process process = Process.Start(start) ?? throw new InvalidOperationException("PowerShell did not start.");
             string output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
-            process.WaitForExit(30_000);
+            process.WaitForExit(120_000);
             return new ProcessResult(process.ExitCode, output);
         }
 
@@ -331,4 +342,9 @@ public sealed class E1EndToEndRunnerInvocationTests
     }
 
     private sealed record ProcessResult(int ExitCode, string Output);
+
+    private static string RequireEnvironment(string name) =>
+        Environment.GetEnvironmentVariable(name) is { Length: > 0 } value
+            ? value
+            : throw new InvalidDataException($"{name} is required for the authoritative runner integration test.");
 }

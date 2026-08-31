@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using GraniteEdgeAI.EndToEndTests.Infrastructure;
 
 namespace GraniteEdgeAI.EndToEndTests.Tests;
@@ -200,10 +202,110 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
         Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(zeroLock, directory.Path));
     }
 
+    [TestMethod]
+    public void Bound_evidence_rejects_empty_oversized_inaccessible_and_reparse_files()
+    {
+        using (TestDirectory emptyDirectory = TestDirectory.Create())
+        {
+            string receipt = WritePostReceipt(emptyDirectory);
+            RebindReport(receipt, emptyDirectory.Path, []);
+            Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, emptyDirectory.Path));
+        }
+
+        using (TestDirectory oversizedDirectory = TestDirectory.Create())
+        {
+            string receipt = WritePostReceipt(oversizedDirectory);
+            RebindReport(receipt, oversizedDirectory.Path, new byte[(1024 * 1024) + 1]);
+            Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, oversizedDirectory.Path));
+        }
+
+        using (TestDirectory lockedDirectory = TestDirectory.Create())
+        {
+            string receipt = WritePostReceipt(lockedDirectory);
+            string report = Path.Combine(lockedDirectory.Path, "report.md");
+            using FileStream custody = new(report, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, lockedDirectory.Path));
+        }
+
+        using (TestDirectory reparseDirectory = TestDirectory.Create())
+        {
+            string receipt = WritePostReceipt(reparseDirectory);
+            string junction = RebindReviewThroughJunction(receipt, reparseDirectory.Path);
+            try
+            {
+                Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, reparseDirectory.Path));
+            }
+            finally
+            {
+                if (Directory.Exists(junction)) Directory.Delete(junction);
+            }
+        }
+    }
+
     private static R4PostAcceptanceEvidence VerifyPostFixture(string receipt, string root) =>
         R3IssueEvidenceVerifier.VerifyPostAcceptance(
             receipt, root, new string('a', 40), new string('b', 40),
             new string('c', 40), new string('d', 40));
+
+    private static void RebindReport(string receiptPath, string root, byte[] bytes)
+    {
+        string reportPath = Path.Combine(root, "report.md");
+        File.WriteAllBytes(reportPath, bytes);
+        JsonObject receipt = JsonNode.Parse(File.ReadAllText(receiptPath))!.AsObject();
+        string manifestName = receipt["evidenceManifest"]!["path"]!.GetValue<string>();
+        string manifestPath = Path.Combine(root, manifestName);
+        JsonObject manifest = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+        JsonObject binding = BindingNode(reportPath);
+        manifest["report"] = binding.DeepClone();
+        receipt["report"] = binding.DeepClone();
+        File.WriteAllText(manifestPath, manifest.ToJsonString());
+        receipt["evidenceManifest"] = BindingNode(manifestPath);
+        File.WriteAllText(receiptPath, receipt.ToJsonString());
+    }
+
+    private static string RebindReviewThroughJunction(string receiptPath, string root)
+    {
+        JsonObject receipt = JsonNode.Parse(File.ReadAllText(receiptPath))!.AsObject();
+        string manifestName = receipt["evidenceManifest"]!["path"]!.GetValue<string>();
+        string manifestPath = Path.Combine(root, manifestName);
+        JsonObject manifest = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+        JsonObject review = manifest["outputs"]!.AsArray().Select(node => node!.AsObject())
+            .Single(item => item["kind"]!.GetValue<string>() == "independent-final-review");
+        string reviewName = review["id"]!.GetValue<string>();
+        string target = Path.Combine(root, "review-target");
+        string junction = Path.Combine(root, "review-junction");
+        Directory.CreateDirectory(target);
+        File.Copy(Path.Combine(root, reviewName), Path.Combine(target, reviewName));
+        CreateJunction(junction, target);
+        review["id"] = $"review-junction/{reviewName}";
+        File.WriteAllText(manifestPath, manifest.ToJsonString());
+        receipt["evidenceManifest"] = BindingNode(manifestPath);
+        File.WriteAllText(receiptPath, receipt.ToJsonString());
+        return junction;
+    }
+
+    private static JsonObject BindingNode(string path)
+    {
+        byte[] bytes = File.ReadAllBytes(path);
+        return new JsonObject
+        {
+            ["path"] = Path.GetFileName(path),
+            ["sha256"] = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant(),
+            ["bytes"] = bytes.LongLength,
+        };
+    }
+
+    private static void CreateJunction(string link, string target)
+    {
+        using Process process = Process.Start(new ProcessStartInfo("powershell.exe")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            ArgumentList = { "-NoProfile", "-NonInteractive", "-Command", $"New-Item -ItemType Junction -Path '{link.Replace("'", "''")}' -Target '{target.Replace("'", "''")}' | Out-Null" },
+        }) ?? throw new InvalidOperationException("PowerShell did not start.");
+        process.WaitForExit();
+        Assert.AreEqual(0, process.ExitCode);
+    }
 
     private static string WritePostReceipt(
         TestDirectory directory,

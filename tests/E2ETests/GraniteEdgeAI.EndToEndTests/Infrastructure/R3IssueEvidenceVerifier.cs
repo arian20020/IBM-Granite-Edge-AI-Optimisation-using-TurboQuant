@@ -286,7 +286,7 @@ internal static class R3IssueEvidenceVerifier
                 throw new InvalidDataException("Bound output is not verified evidence.");
             }
             string path = ResolveOutputPath(evidenceRoot, id);
-            VerifyBoundFile(path, item);
+            VerifyBoundFile(path, item, evidenceRoot);
             if (!outputs.TryAdd(id, new BoundEvidenceArtifact(kind, id, path)))
             {
                 throw new InvalidDataException("Evidence manifest output identity is duplicated.");
@@ -473,26 +473,61 @@ internal static class R3IssueEvidenceVerifier
         string relative = RequireRepositoryPathValue(JsonContract.RequiredString(binding, "path"));
         string root = Path.GetFullPath(evidenceRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         string path = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
-        if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
+        if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException("Post-acceptance file binding is absent or escaping.");
         }
-        VerifyBoundFile(path, binding);
+        VerifyBoundFile(path, binding, evidenceRoot);
         return path;
     }
 
-    private static void VerifyBoundFile(string path, JsonElement binding)
+    private static void VerifyBoundFile(string path, JsonElement binding, string evidenceRoot)
     {
-        if (!File.Exists(path))
+        const long maximumBoundEvidenceBytes = 1024 * 1024;
+        try
         {
-            throw new InvalidDataException("Post-acceptance bound file is absent.");
+            string root = Path.GetFullPath(evidenceRoot).TrimEnd(Path.DirectorySeparatorChar);
+            string full = Path.GetFullPath(path);
+            string rootPrefix = root + Path.DirectorySeparatorChar;
+            if (!full.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException("Post-acceptance bound file is escaping.");
+            }
+            FileInfo file = new(full);
+            if (!file.Exists || file.Length <= 0 || file.Length > maximumBoundEvidenceBytes
+                || (file.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidDataException("Post-acceptance bound file violates its regular-file or size policy.");
+            }
+            DirectoryInfo? cursor = file.Directory;
+            while (cursor is not null && cursor.FullName.Length >= root.Length)
+            {
+                if ((cursor.Attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    throw new InvalidDataException("Post-acceptance bound file has a reparse-point ancestor.");
+                }
+                if (cursor.FullName.Equals(root, StringComparison.OrdinalIgnoreCase)) break;
+                cursor = cursor.Parent;
+            }
+            if (cursor is null || !cursor.FullName.Equals(root, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException("Post-acceptance bound file is outside its evidence root.");
+            }
+            using FileStream stream = new(full, FileMode.Open, FileAccess.Read, FileShare.Read);
+            string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream)).ToLowerInvariant();
+            if (JsonContract.RequiredString(binding, "sha256") != digest
+                || JsonContract.RequiredInt64(binding, "bytes") != stream.Length)
+            {
+                throw new InvalidDataException("Post-acceptance file binding differs from disk.");
+            }
         }
-        byte[] bytes = File.ReadAllBytes(path);
-        string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
-        if (JsonContract.RequiredString(binding, "sha256") != digest
-            || JsonContract.RequiredInt64(binding, "bytes") != bytes.LongLength)
+        catch (InvalidDataException)
         {
-            throw new InvalidDataException("Post-acceptance file binding differs from disk.");
+            throw;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            throw new InvalidDataException("Post-acceptance bound file is inaccessible.", error);
         }
     }
 
