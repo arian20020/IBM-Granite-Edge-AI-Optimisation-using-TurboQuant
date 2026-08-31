@@ -155,6 +155,28 @@ public sealed class HardwareInspectionPresentationContractTests
 
     [TestMethod]
     [TestCategory("Unit")]
+    public void MissingOptionalCapabilityProbe_UsesBoundedDegradedCopyAndDisablesCompatibility()
+    {
+        HardwareInspectionPresentationState state = _factory.CreateTerminal(
+            HardwareInspectionOutcome.CompletedWithWarnings,
+            hasUsableHandoff: false,
+            block3RouteRegistered: true,
+            optionalCapabilityProbeUnavailable: true);
+
+        StringAssert.Contains(state.Body, "optional hardware capability probe was unavailable");
+        StringAssert.Contains(state.Body, "Compatibility and model actions remain disabled");
+        Assert.AreEqual(1, state.UnresolvedReviewCount);
+        Assert.AreEqual(4, state.ResolvedInformationCount);
+        Assert.IsTrue(state.ReportCreated);
+        AssertAction(
+            state,
+            HardwareInspectionActionKind.ContinueToCompatibility,
+            visible: true,
+            enabled: false);
+    }
+
+    [TestMethod]
+    [TestCategory("Unit")]
     public void FailureClasses_UseExactRecoveryActionsAndNeverContinue()
     {
         HardwareInspectionPresentationState critical = _factory.CreateTerminal(

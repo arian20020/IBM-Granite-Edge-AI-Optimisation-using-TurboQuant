@@ -93,6 +93,37 @@ public sealed class HardwareInspectionRunContractTests
     }
 
     [TestMethod]
+    public void DisplayOnlyCompletedResult_PreservesFactsWithoutActionableHandoff()
+    {
+        Guid runId = Guid.NewGuid();
+        HardwareSnapshot usable = HardwareInspectionContractTests
+            .CreateUsableSnapshotForPresentation(runId);
+        HardwareSnapshot snapshot = new(
+            usable.SnapshotId,
+            usable.CapturedAtUtc,
+            usable.SchemaVersion,
+            usable.PolicyVersion,
+            usable.Processor,
+            usable.Memory,
+            usable.GraphicsAdapters,
+            usable.NeuralProcessor,
+            usable.Storage,
+            usable.OperatingSystem,
+            usable.LocalRuntime,
+            usable.Evidence,
+            HardwareSnapshotUsability.DisplayOnly);
+
+        HardwareInspectionRunResult result = HardwareInspectionRunResult.CreateCompleted(
+            runId,
+            HardwareInspectionOutcome.CompletedWithWarnings,
+            snapshot);
+
+        Assert.AreSame(snapshot, result.Snapshot);
+        Assert.AreEqual(HardwareSnapshotUsability.DisplayOnly, result.Snapshot!.Usability);
+        Assert.IsNull(result.Handoff);
+    }
+
+    [TestMethod]
     public void FailedAndCancelledResults_NeverCreateActionableHandoffs()
     {
         Guid failedId = Guid.NewGuid();

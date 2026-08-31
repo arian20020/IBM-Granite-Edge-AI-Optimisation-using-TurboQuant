@@ -22,7 +22,7 @@ public sealed class HardwareInspectionContractTests
             new[] { "Present", "NotPresent", "DetectionUnavailable" },
             Enum.GetNames<NpuDetectionState>());
         CollectionAssert.AreEqual(
-            new[] { "Usable", "DisplayOnly", "NotUsable" },
+            new[] { "Usable", "NotUsable", "DisplayOnly" },
             Enum.GetNames<HardwareSnapshotUsability>());
     }
 

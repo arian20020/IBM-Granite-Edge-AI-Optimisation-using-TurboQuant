@@ -10,8 +10,8 @@ public enum NpuDetectionState
 public enum HardwareSnapshotUsability
 {
     Usable,
-    DisplayOnly,
     NotUsable,
+    DisplayOnly,
 }
 
 public enum EvidenceSourceKind

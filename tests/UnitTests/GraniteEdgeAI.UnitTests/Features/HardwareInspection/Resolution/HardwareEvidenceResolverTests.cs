@@ -245,7 +245,7 @@ public sealed class HardwareEvidenceResolverTests
             LlmFitCommandContract.ToolId,
             LlmFitCommandContract.Version,
             HardwareResolutionTestData.Now,
-            LlmFitDiagnosticCode.SystemStartFailed);
+            LlmFitDiagnosticCode.ToolNotAvailable);
         CollectedHardwareEvidence evidence = Evidence(
             llmFit: unavailableLlmFit,
             graphics: DxgiGraphicsEvidence.Unavailable(
@@ -255,6 +255,7 @@ public sealed class HardwareEvidenceResolverTests
         HardwareEvidenceResolutionResult result = Resolver().Resolve(Guid.NewGuid(), evidence);
 
         Assert.IsTrue(result.IsResolved);
+        Assert.AreEqual(HardwareSnapshotUsability.DisplayOnly, result.Snapshot!.Usability);
         Assert.AreEqual(0, result.Snapshot!.GraphicsAdapters.Count);
         Assert.IsFalse(result.Evidence.Entries.Single(entry =>
             entry.CanonicalField == "graphics.adapters").IsResolved);

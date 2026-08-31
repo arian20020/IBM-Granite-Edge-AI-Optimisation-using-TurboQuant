@@ -19,7 +19,6 @@ public enum LlmFitGpuDetectionState
 
 public enum LlmFitDiagnosticCode
 {
-    ToolNotAvailable,
     ToolIdentityMismatch,
     CommandContractMismatch,
     VersionStartFailed,
@@ -40,6 +39,7 @@ public enum LlmFitDiagnosticCode
     RequiredCpuRamInvalid,
     GpuShapeMissing,
     GpuInconsistent,
+    ToolNotAvailable,
 }
 
 public sealed record LlmFitReportedGpu

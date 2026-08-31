@@ -80,7 +80,8 @@ public sealed class HardwareInspectionPresentationFactory
         HardwareInspectionFailureClass? failureClass = null,
         bool criticalFailureRetryable = false,
         bool hasUsableHandoff = false,
-        bool block3RouteRegistered = false)
+        bool block3RouteRegistered = false,
+        bool optionalCapabilityProbeUnavailable = false)
     {
         if (outcome == HardwareInspectionOutcome.Failed)
         {
@@ -92,7 +93,8 @@ public sealed class HardwareInspectionPresentationFactory
             return CreateFailure(failureClass.Value, criticalFailureRetryable);
         }
 
-        if (failureClass is not null || criticalFailureRetryable)
+        if (failureClass is not null || criticalFailureRetryable
+            || (optionalCapabilityProbeUnavailable && outcome != HardwareInspectionOutcome.CompletedWithWarnings))
         {
             throw new ArgumentException("Failure inputs are valid only for Failed outcomes.", nameof(failureClass));
         }
@@ -106,7 +108,8 @@ public sealed class HardwareInspectionPresentationFactory
             HardwareInspectionOutcome.CompletedWithWarnings => CreateCompleted(
                 withWarnings: true,
                 hasUsableHandoff,
-                block3RouteRegistered),
+                block3RouteRegistered,
+                optionalCapabilityProbeUnavailable),
             HardwareInspectionOutcome.Cancelled => CreateCancelled(),
             _ => throw new ArgumentOutOfRangeException(nameof(outcome)),
         };
@@ -115,7 +118,8 @@ public sealed class HardwareInspectionPresentationFactory
     private static HardwareInspectionPresentationState CreateCompleted(
         bool withWarnings,
         bool hasUsableHandoff,
-        bool block3RouteRegistered)
+        bool block3RouteRegistered,
+        bool optionalCapabilityProbeUnavailable = false)
     {
         bool canContinue = hasUsableHandoff && block3RouteRegistered;
         List<HardwareInspectionAction> actions =
@@ -129,13 +133,19 @@ public sealed class HardwareInspectionPresentationFactory
 
         if (withWarnings)
         {
+            string body = optionalCapabilityProbeUnavailable
+                ? "Core CPU, memory, graphics, and storage facts were collected, but the optional hardware capability probe was unavailable. Compatibility and model actions remain disabled until capability evidence is complete."
+                : "The neural processor check could not be confirmed. A small memory-source difference was resolved safely. The hardware report was still created.";
+            string announcement = optionalCapabilityProbeUnavailable
+                ? "Hardware inspection completed with verified core facts. Optional capability evidence is unavailable, so compatibility remains unavailable."
+                : "Hardware inspection completed with one detail to review. A hardware report was created.";
             return State(
                 HardwareInspectionPresentationKind.CompletedWithWarnings,
                 "Your computer's hardware information is ready to review.",
                 "Inspection complete · Review recommended",
                 "Your hardware information is ready",
-                "The neural processor check could not be confirmed. A small memory-source difference was resolved safely. The hardware report was still created.",
-                "Hardware inspection completed with one detail to review. A hardware report was created.",
+                body,
+                announcement,
                 "OutcomeTitle",
                 [],
                 actions,
@@ -143,7 +153,7 @@ public sealed class HardwareInspectionPresentationFactory
                 detailsAvailable: true,
                 reportCreated: true,
                 unresolvedReviewCount: 1,
-                resolvedInformationCount: 1);
+                resolvedInformationCount: optionalCapabilityProbeUnavailable ? 4 : 1);
         }
 
         return State(
