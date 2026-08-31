@@ -162,6 +162,41 @@ def test_render_docx_uses_landscape_only_beyond_the_wide_table_threshold(tmp_pat
     ]
 
 
+def test_render_docx_moves_section_heading_and_context_with_its_first_wide_table(tmp_path):
+    report = Report(
+        title="Wide section",
+        route_id="wide-section",
+        revision="R1",
+        generated_date=date(2026, 8, 31),
+        sections=(ReportSection(
+            title="Performance evidence",
+            blocks=(
+                ReportParagraph("This context belongs with the performance table."),
+                ReportTable(
+                    table_id="PF-01",
+                    title="Performance",
+                    columns=("A", "B", "C", "D", "E", "F", "G"),
+                    rows=(("1", "2", "3", "4", "5", "6", "7"),),
+                ),
+            ),
+        ),),
+    )
+    output = tmp_path / "wide-section.docx"
+
+    _renderer()(report, output)
+
+    document_xml = _word_xml(output, "word/document.xml")
+    heading = document_xml.xpath(
+        "//w:p[.//w:t[text()='Performance evidence']]", namespaces=WORD_NAMESPACE
+    )[0]
+    preceding = heading.xpath("preceding-sibling::*[1]", namespaces=WORD_NAMESPACE)[0]
+    assert preceding.xpath("self::w:p/w:pPr/w:sectPr", namespaces=WORD_NAMESPACE)
+    assert [section.orientation for section in Document(output).sections] == [
+        WD_ORIENT.PORTRAIT,
+        WD_ORIENT.LANDSCAPE,
+    ]
+
+
 def test_render_docx_styles_the_controlled_artifact_unavailable_label_neutral_grey(tmp_path):
     report = Report(
         title="Unavailable status",

@@ -283,11 +283,16 @@ def render_docx(report: Report, output: Path) -> None:
 
     landscape = False
     for section in report.sections:
-        if landscape:
+        first_table = next(
+            (block for block in section.blocks if isinstance(block, ReportTable)), None
+        )
+        section_landscape = _is_wide(first_table) if first_table is not None else False
+        if section_landscape != landscape:
             word_section = document.add_section(WD_SECTION.NEW_PAGE)
-            _configure_section(word_section, landscape=False)
-            landscape = False
+            _configure_section(word_section, landscape=section_landscape)
+            landscape = section_landscape
         _add_band_heading(document, section.title, "Heading 1", NAVY)
+        table_seen = False
         for block in section.blocks:
             if isinstance(block, ReportTable):
                 _validate_table(block)
@@ -297,8 +302,9 @@ def render_docx(report: Report, output: Path) -> None:
                     _configure_section(word_section, landscape=requested_landscape)
                     landscape = requested_landscape
                 _add_report_table(document, block)
+                table_seen = True
             else:
-                if landscape:
+                if landscape and (first_table is None or table_seen):
                     word_section = document.add_section(WD_SECTION.NEW_PAGE)
                     _configure_section(word_section, landscape=False)
                     landscape = False

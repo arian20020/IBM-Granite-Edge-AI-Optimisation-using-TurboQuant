@@ -18,6 +18,19 @@
     "commit": "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc",
     "formal_runtime_summary_count": 7,
     "historical_failure_attempt_count": 11,
+    "historical_failure_entity_hashes": {
+      "AH-F01": "d2072895581969882b5d88edd402dab376d9b675f4c611da93ce4a831c0bcc34",
+      "AH-F02": "639291d4517540af925e7e2ba94eef16da2c35fbce81a68996bded69e663ef68",
+      "AH-F03": "139d4fde2c5725dfe6778982258fbbe6248cd3354c143a90de3c281a430a45c5",
+      "AH-F04": "b131dbc2c39c3d3c9a4695e23acfac20c65144a17e64cf48b616675ff4a41ad8",
+      "AH-F05": "446d81f02ebf1e02b6d7b9e13ed6158959c384a76327ea68094c8197e2172039",
+      "AH-F06": "cb9e5a6917703b9bb24c2c45434b196677e07a1bdf03a7d0782c9f77e69c5fa0",
+      "AH-F07": "75ca006572c85b28f51eedb1ca884919045cc87a63b88a3c4ac6adfaf6026ef4",
+      "AH-F08": "5d40b14f9b7ddbd1069de6703ae2de9c7a8f0ae400a0735eb4811dfd739e61ee",
+      "AH-F09": "83baf6779ea135ada05b8c241dd53fea4d82b88414cc76c93916cf354b285b82",
+      "AH-F10": "0b28bf2b8aae83a3ba2727cbc255db1b46ba463959274416f4a3dc2681775ba3",
+      "AH-F11": "33e6a39dfde1dc7984b5ded2de992bf177cf617b380137b781e475d0805be910"
+    },
     "historical_failure_rows": [
       {
         "Code": "DEP",
@@ -130,6 +143,446 @@
         "Test ID": "AH-04/P5"
       }
     ],
+    "intended_matrix_entities": [
+      {
+        "activation_requirement": "standard-cache",
+        "backend": "cpu",
+        "cache": "f16",
+        "context": 1024,
+        "description": "Diagnostic standard CPU 1K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "standard",
+        "guard": "none",
+        "model_id": "gemma-1b-q4-k-m",
+        "model_path_env": "ANIMEHACKER_DIAGNOSTIC_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup"
+        ],
+        "status": "planned",
+        "test_id": "AH-01"
+      },
+      {
+        "activation_requirement": "runtime-or-binary-source-linked",
+        "backend": "cpu",
+        "cache": "tq3_0",
+        "context": 1024,
+        "description": "Diagnostic TQ3_0 CPU 1K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "TQ3_0",
+        "guard": "none",
+        "model_id": "gemma-1b-q4-k-m",
+        "model_path_env": "ANIMEHACKER_DIAGNOSTIC_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup"
+        ],
+        "status": "planned",
+        "test_id": "AH-02"
+      },
+      {
+        "activation_requirement": "standard-cache",
+        "backend": "cpu",
+        "cache": "f16",
+        "context": 2048,
+        "description": "Granite 3B F16 CPU 2K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "F16",
+        "guard": "none",
+        "model_id": "granite-3b-bf16",
+        "model_path_env": "GRANITE_3B_BF16_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup"
+        ],
+        "status": "planned",
+        "test_id": "AH-03"
+      },
+      {
+        "activation_requirement": "standard-cache",
+        "backend": "cpu",
+        "cache": "q8_0",
+        "context": 4096,
+        "description": "Granite 3B Q8_0 CPU 4K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "Q8_0",
+        "guard": "none",
+        "model_id": "granite-3b-bf16",
+        "model_path_env": "GRANITE_3B_BF16_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup"
+        ],
+        "status": "planned",
+        "test_id": "AH-04"
+      },
+      {
+        "activation_requirement": "runtime-or-binary-source-linked",
+        "backend": "cpu",
+        "cache": "tq3_0",
+        "context": 4096,
+        "description": "Granite 3B TQ3_0 CPU 4K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "TQ3_0",
+        "guard": "none",
+        "model_id": "granite-3b-bf16",
+        "model_path_env": "GRANITE_3B_BF16_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup"
+        ],
+        "status": "planned",
+        "test_id": "AH-05"
+      },
+      {
+        "activation_requirement": "standard-cache",
+        "backend": "cpu",
+        "cache": "f16",
+        "context": 2048,
+        "description": "Granite 8B F16 CPU 2K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "F16",
+        "guard": "memory",
+        "model_id": "granite-8b-q8-0",
+        "model_path_env": "GRANITE_8B_Q8_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup",
+          "run-alone"
+        ],
+        "status": "conditional",
+        "test_id": "AH-06"
+      },
+      {
+        "activation_requirement": "runtime-or-binary-source-linked",
+        "backend": "cpu",
+        "cache": "tq3_0",
+        "context": 4096,
+        "description": "Granite 8B TQ3_0 CPU 4K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "TQ3_0",
+        "guard": "memory",
+        "model_id": "granite-8b-q8-0",
+        "model_path_env": "GRANITE_8B_Q8_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup",
+          "run-alone"
+        ],
+        "status": "conditional",
+        "test_id": "AH-07"
+      },
+      {
+        "activation_requirement": "standard-cache",
+        "backend": "sycl-partial",
+        "cache": "f16",
+        "context": 4096,
+        "description": "Granite 3B standard controlled SYCL partial 4K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "standard",
+        "guard": "none",
+        "model_id": "granite-3b-bf16",
+        "model_path_env": "GRANITE_3B_BF16_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup",
+          "device-inventory"
+        ],
+        "status": "conditional",
+        "test_id": "AH-08"
+      },
+      {
+        "activation_requirement": "runtime-or-binary-source-linked",
+        "backend": "sycl-partial",
+        "cache": "tq3_0",
+        "context": 4096,
+        "description": "Granite 3B TQ3_0 controlled SYCL partial 4K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "TQ3_0",
+        "guard": "none",
+        "model_id": "granite-3b-bf16",
+        "model_path_env": "GRANITE_3B_BF16_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup",
+          "device-inventory"
+        ],
+        "status": "conditional",
+        "test_id": "AH-09"
+      },
+      {
+        "activation_requirement": "runtime-or-binary-source-linked",
+        "backend": "sycl-partial",
+        "cache": "tq3_0",
+        "context": 2048,
+        "description": "Granite 8B TQ3_0 controlled SYCL partial 2K",
+        "excluded_warmup": true,
+        "formal_repetitions": 3,
+        "format": "TQ3_0",
+        "guard": "memory",
+        "model_id": "granite-8b-q8-0",
+        "model_path_env": "GRANITE_8B_Q8_MODEL",
+        "phase": "runtime",
+        "quality_required": true,
+        "required_metrics": [
+          "peak_ram_mb",
+          "peak_private_bytes_mb",
+          "available_ram_min_mb",
+          "kv_mb",
+          "ttft_ms",
+          "prompt_tps",
+          "decode_tps",
+          "generation_duration_ms",
+          "cpu_mean_pct",
+          "cpu_median_pct",
+          "cpu_peak_pct",
+          "gpu_mean_pct",
+          "gpu_median_pct",
+          "gpu_peak_pct",
+          "gpu_memory_peak_mb",
+          "device_placement",
+          "cleanup_result"
+        ],
+        "safety_requirements": [
+          "pilot",
+          "ram-reserve",
+          "emergency-stop",
+          "process-tree-cleanup",
+          "device-inventory",
+          "run-alone"
+        ],
+        "status": "conditional",
+        "test_id": "AH-10"
+      }
+    ],
+    "matrix_entity_hashes": {
+      "AH-01": "38d75387ededf2c14ef5e61951c40aa41446205880b4f48c3bde2cb2daa01083",
+      "AH-02": "57c3b73d1c30e31d0cdc8f826036d232783cc86ccb5f613d24309801c8476a6b",
+      "AH-03": "27ad22b5bebb4a5efd6cd0869ee15cf7221fec6e2a566653d198493947f8571e",
+      "AH-04": "b9ba3f6dfb86f63583ee80592c8a30869f79befc8346310cbffec7481cb12459",
+      "AH-05": "d62aebeef80b40ecb12e221b1e7a19cf5c6d8b469c04146dfbcb4b9ff14fad8a",
+      "AH-06": "4be528e1aed259296b946776a48bfd1eb83af8ac16f4cdeb95a5f150cf6e7572",
+      "AH-07": "5c6c757a273bdd7070e58feaa7b3ffbc8bcf89c0b58becdedfb1dc67711392f0",
+      "AH-08": "5c867a24f3f06f30e12e48b6b6b17a208a81d480b3aaefd1f4c7fd082e37241e",
+      "AH-09": "07f59bb988abe03fff863437940f7e5a5d009097c8b36e16adf93e536f8015ad",
+      "AH-10": "2e0ecb84e2e6c61b66b241dd971d890fff4bb374ceea2249ab6d5cb4daba4f82"
+    },
     "measurement_authority": "Only summary paths explicitly included by reconciliation/state",
     "quality_adjudications": [
       {
@@ -1044,8 +1497,292 @@
         "time_to_first_token_ms": "Not collected"
       }
     ],
+    "source_authorities": [
+      {
+        "evidence_id": "animehacker-3409c4fff1f57d4b988a",
+        "relative_path": "docs/testing/workbooks/text-templates/03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.md",
+        "role": "controlled-workbook-markdown",
+        "sha256": "f4b86b1aaca43745c2a701e38c6571968596ef586e8fd775b69aa4b7983770b0"
+      },
+      {
+        "evidence_id": "animehacker-5882946c6ed7caf6ee3a",
+        "relative_path": "docs/testing/Workbook-Revision-Register.csv",
+        "role": "source-authority",
+        "sha256": "380883e7920541ed2b59889a40fad29626b5b0e3b9d06fdfbfe280ee1e945f64"
+      },
+      {
+        "evidence_id": "animehacker-ca0c684bb478b8527653",
+        "relative_path": "experiments/manifests/animehacker-tq3-0/retest-matrix.json",
+        "role": "intended-matrix",
+        "sha256": "c254679cabac29b2cb2f8c6528cf1fb371161ebfb0a11f7607bd464c3f56484c"
+      },
+      {
+        "evidence_id": "animehacker-34ab10f0a8210699f64b",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+        "role": "source-authority",
+        "sha256": "02f6dea288f1b704747ec07b0adacd2644990e645eb7fa45ff32fa71098ebc15"
+      },
+      {
+        "evidence_id": "animehacker-e73b2f1205e6c7f8d4d3",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/reconciliation-final.json",
+        "role": "source-authority",
+        "sha256": "4347b7dd353001b35bb13d5d1c304e970cae533c10b4102dd918e46731d6c28b"
+      },
+      {
+        "evidence_id": "animehacker-9088849e3d9565254d7d",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json",
+        "role": "source-authority",
+        "sha256": "b60e97f3855bda1ec0e4d9858e40d7f3c21f669735940aa6788c8c1446b01241"
+      },
+      {
+        "evidence_id": "animehacker-44a8d70b058f1c5cac52",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-vulkan/reconciliation.json",
+        "role": "source-authority",
+        "sha256": "57871c024dc5c425692ec436974ac397088a6c43192448719e13b61cbadfddda"
+      },
+      {
+        "evidence_id": "animehacker-6517f74c71a0537eb162",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/adjudication.json",
+        "role": "source-authority",
+        "sha256": "5123c0fd2016159fb2b48ea2bedfa039af30798112d18b6f52fe914322fe521b"
+      },
+      {
+        "evidence_id": "animehacker-c1863347fee0fae7618f",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/quality-adjudications.json",
+        "role": "source-authority",
+        "sha256": "4fb179143e2867023d264c5b5d73cbfe3fa5901c81338a78f5e8d41b3cdc37d9"
+      },
+      {
+        "evidence_id": "animehacker-17b6142958ab2916e9ed",
+        "relative_path": "docs/testing/Quality-Evaluation-Register.csv",
+        "role": "source-authority",
+        "sha256": "4d8e327caf025090b61c917152ba3f656209376e2365b11c40eeaf0c3236797c"
+      },
+      {
+        "evidence_id": "animehacker-d25f303e05b5147dc9ca",
+        "relative_path": "experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json",
+        "role": "source-authority",
+        "sha256": "9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f"
+      },
+      {
+        "evidence_id": "animehacker-4ee219bf5ee960cb094d",
+        "relative_path": "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
+        "role": "source-authority",
+        "sha256": "a36016f66e02c9e28f0938cf81335dc4b522e9f92b7d9bad3031f90b7ef91d90"
+      },
+      {
+        "evidence_id": "animehacker-d0a6c059ef53abfb592a",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/state.json",
+        "role": "source-authority",
+        "sha256": "25bd4e668fe6f443ec338f82d8e6db8cbb5e75dc44a10c200a52ce32003b4cbf"
+      },
+      {
+        "evidence_id": "animehacker-79e759f5588cae2c50d5",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/state.json",
+        "role": "source-authority",
+        "sha256": "6bfd0e30352e587ef1036bdee4ea5fd474cd530c50c882412e3e9cef877d9cea"
+      },
+      {
+        "evidence_id": "animehacker-061aa6eb673b5d346338",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/acquisition/repository.json",
+        "role": "source-authority",
+        "sha256": "fca040fc9fed9dcc45af8c6adbdaa297de2c7854813478f58f9e4a74958e2b64"
+      },
+      {
+        "evidence_id": "animehacker-161b128b90a01ee0e4d5",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-09-rejected-flash-env-only/summary.json",
+        "role": "source-authority",
+        "sha256": "65f7f2c93acdca1564e3e5e2831fed942087ac382f34ebaf02f234dd2d76b9f3"
+      },
+      {
+        "evidence_id": "animehacker-57d0c768549edab36e5f",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-06/pilot-emergency-stop-2048/measurement.json",
+        "role": "source-authority",
+        "sha256": "c8cdd49e6fb58b78d7eddc0662d03209776f731d32b40c4616f4ecbb0a13f148"
+      },
+      {
+        "evidence_id": "animehacker-cd9e81def3ebb64f18ec",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-07/pilot/measurement.json",
+        "role": "source-authority",
+        "sha256": "982c400d1595c085f740489a35270baea9f101d4618273305f4d458175a22358"
+      },
+      {
+        "evidence_id": "animehacker-993c82e73a1b79e1b4ee",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-10/pilot/measurement.json",
+        "role": "source-authority",
+        "sha256": "97c05b25918a3f369889353165cead9cf057c96e0233034b93bc779fc3736f5c"
+      },
+      {
+        "evidence_id": "animehacker-2c8711c6ef06a0aae448",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-01/summary.json",
+        "role": "formal-runtime-summary",
+        "sha256": "350209734d19cd68c577ea29a8d23ba77eb325490fa2b5b72c9efbf6dce11fca"
+      },
+      {
+        "evidence_id": "animehacker-7be5a350bf466da3eaaf",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-02/summary.json",
+        "role": "formal-runtime-summary",
+        "sha256": "64620e979c389a9e01db23a957af57cd3710fc59eefe44ced690386a741ef7e7"
+      },
+      {
+        "evidence_id": "animehacker-ff5d663228531b9bb284",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-03/summary.json",
+        "role": "formal-runtime-summary",
+        "sha256": "1aeca53d8eeb9c4a7a8511d7e158a66e21bed54ae548cb154ecb72fd92d8d3c8"
+      },
+      {
+        "evidence_id": "animehacker-f57e698215bd476a2ed4",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-04/summary.json",
+        "role": "formal-runtime-summary",
+        "sha256": "55730afbd1061d12a9a8edad8ab6e0dbca7f5a014a7fb11c9f5c541b5529a73a"
+      },
+      {
+        "evidence_id": "animehacker-2fdd99f74f84583010bc",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-05/summary.json",
+        "role": "formal-runtime-summary",
+        "sha256": "d10f2cf15d1cb9dd0f3a6fbbbc70f6fd868c2861806b0d9d93bb84f18027087d"
+      },
+      {
+        "evidence_id": "animehacker-9718cbe662f09c02b2f6",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/summary.json",
+        "role": "formal-runtime-summary",
+        "sha256": "fe1bf99fc5de64ecba8aef596362b1fef43e77c6e2074ef7320409ff1e853277"
+      },
+      {
+        "evidence_id": "animehacker-7fa35879b72853a189cc",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/summary.json",
+        "role": "formal-runtime-summary",
+        "sha256": "ce70725382f957501398a0425997c7a8d20909033dcfe909da69c87f95375928"
+      },
+      {
+        "evidence_id": "animehacker-4aa8f98c974e998e1399",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-01/sample-1/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "ef54e107b624967499f1b6ce001ae1d4d2396d65833186cff56b23b3b60490a7"
+      },
+      {
+        "evidence_id": "animehacker-5683b4717c7cfc33b6c0",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-01/sample-2/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "fa3589cdb8784fb0c97150b869132aa2e618c7b4618434ae8aa2494158587fdb"
+      },
+      {
+        "evidence_id": "animehacker-2ef6f5ce59734b8854a2",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-01/sample-3/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "c266390c6f87c2a862ae3ecdf12171f1e9111a54717eef98259301ff9b07fbe2"
+      },
+      {
+        "evidence_id": "animehacker-00a62adfff844adaba6b",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-02/sample-1/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "8c64e15e1b0996a7f10fa3b261d1cac629ecec4212a946e9dfd20a5dfa66b4b6"
+      },
+      {
+        "evidence_id": "animehacker-f3ade4da4ceb41168a3c",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-02/sample-2/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "a2e61cf2b3b9ca7a46ed19e7586bec72fb759e98125e9a41332288745e23b220"
+      },
+      {
+        "evidence_id": "animehacker-f49146a6eb4f727ce88a",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-02/sample-3/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "f67794c1c4c99ec2896738e153717fe7233780ec90af557823e2b6f73010aa29"
+      },
+      {
+        "evidence_id": "animehacker-de11a998480c09ab2693",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-03/sample-1/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "f6bda79102045f36d49dfda9d1806d43ac395345ce1f18a8536b1ae229d79b32"
+      },
+      {
+        "evidence_id": "animehacker-24d1d054808b4d5e8d92",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-03/sample-2/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "3dd89bea2ef6dff0164c367cbe16f96989509b5ca0a0cb47ae19ceff43a01eb4"
+      },
+      {
+        "evidence_id": "animehacker-40a5f35a78f7b237254f",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-03/sample-3/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "bbde43906bd65eea56693fda6049905ab4f7d7feb2967be3bd8cc9c9b87a5cad"
+      },
+      {
+        "evidence_id": "animehacker-e41c8f839eebccf071ec",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-04/sample-1/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "73055d73aa5f635829803b35fbbf01a31f50d9efbc15142ec7c94b0f1746e040"
+      },
+      {
+        "evidence_id": "animehacker-63fb6de330a89f70f936",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-04/sample-2/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "eb5581e5ec45f1c8da62911b0ba439bf7d1efb3bcd4c763d3940685e006b2623"
+      },
+      {
+        "evidence_id": "animehacker-5cdb66c658307b63e23b",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-04/sample-3/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "b3e33c68ce126128232cec921a387c30982d2f817f6e345e555ba2478544a995"
+      },
+      {
+        "evidence_id": "animehacker-0ea6305b728ecc39deec",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-05/sample-1/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "e88c83031bc6f9fe04200df58c7b4d85bb429fd26a2babaafbf0647b658c1a71"
+      },
+      {
+        "evidence_id": "animehacker-5e9a947b1f3e22b76ff4",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-05/sample-2/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "52bc0c48abffeac20af32a93511588e57496d4d802d394252128b8d16b329df3"
+      },
+      {
+        "evidence_id": "animehacker-3b0258fbdbad431379fc",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-05/sample-3/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "9122e16916d10926cf257b2173e6e08250a3adb9297e229595122f2cf54fd493"
+      },
+      {
+        "evidence_id": "animehacker-666cb58832ba5444ade4",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/sample-1/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "13a2e401e89eca723284c54a2a6b2ae69aac7cd1233574e6abb8b0c3f227ab75"
+      },
+      {
+        "evidence_id": "animehacker-33c8270568af46aac7f5",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/sample-2/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "2dbbd4df45432d9991d3ee36d2ee61919c20381da9a21f00fd33f6639075b532"
+      },
+      {
+        "evidence_id": "animehacker-688f9a346215fffb9acb",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/sample-3/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "2400caa62574a2f825026d01de665b6c263bdbe1ad3560e09e82c764f0753949"
+      },
+      {
+        "evidence_id": "animehacker-d90f96a6cadd555ff5d9",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/sample-1/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "35dce082d33298bebbee85f1b25cbee4cc90b00af2d82735370e676f479c61da"
+      },
+      {
+        "evidence_id": "animehacker-102fcb716f6653e9f210",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/sample-2/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "abab1bcb0bf4221f78ae7d39610d3e30ab1ae4bbac99891a721fa5da5db9185c"
+      },
+      {
+        "evidence_id": "animehacker-884ffc5e78cb3f6a697c",
+        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/sample-3/measurement.json",
+        "role": "formal-runtime-measurement",
+        "sha256": "e4227bd4cb3c761bb64569c4428ca01ad4cab47359dd0fc94af070f83316dfcf"
+      }
+    ],
     "source_reconciliation": {
-      "authority_hashes_authenticated": 9,
+      "authority_hashes_authenticated": 47,
       "cpu_repository_tests": {
         "failed": 0,
         "passed": 40,

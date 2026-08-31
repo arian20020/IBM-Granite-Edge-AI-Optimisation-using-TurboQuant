@@ -2437,6 +2437,80 @@ ANIMEHACKER_REJECTED_SUMMARIES = (
     ANIMEHACKER_RAW_RELATIVE / "runtime/AH-09/summary.json",
     ANIMEHACKER_RAW_RELATIVE / "runtime/AH-09-rejected-flash-env-only/summary.json",
 )
+ANIMEHACKER_SOURCE_AUTHORITY_HASHES = {
+    ANIMEHACKER_WORKBOOK_RELATIVE: "f4b86b1aaca43745c2a701e38c6571968596ef586e8fd775b69aa4b7983770b0",
+    Path("docs/testing/Workbook-Revision-Register.csv"): "380883e7920541ed2b59889a40fad29626b5b0e3b9d06fdfbfe280ee1e945f64",
+    ANIMEHACKER_MATRIX_RELATIVE: "c254679cabac29b2cb2f8c6528cf1fb371161ebfb0a11f7607bd464c3f56484c",
+    ANIMEHACKER_RAW_RELATIVE / "reconciliation.json": ANIMEHACKER_AUTHORITY_HASHES["reconciliation"],
+    ANIMEHACKER_RAW_RELATIVE / "build-cpu/reconciliation-final.json": ANIMEHACKER_AUTHORITY_HASHES["cpu-reconciliation"],
+    ANIMEHACKER_RAW_RELATIVE / "build-sycl/reconciliation.json": ANIMEHACKER_AUTHORITY_HASHES["sycl-reconciliation"],
+    ANIMEHACKER_RAW_RELATIVE / "build-vulkan/reconciliation.json": ANIMEHACKER_AUTHORITY_HASHES["vulkan-reconciliation"],
+    ANIMEHACKER_RAW_RELATIVE / "quality/adjudication.json": ANIMEHACKER_AUTHORITY_HASHES["quality-adjudication"],
+    ANIMEHACKER_RAW_RELATIVE / "quality-recovery/quality-adjudications.json": ANIMEHACKER_AUTHORITY_HASHES["quality-recovery-adjudication"],
+    ANIMEHACKER_QUALITY_REGISTER_RELATIVE: ANIMEHACKER_AUTHORITY_HASHES["quality-register"],
+    ANIMEHACKER_PROMPT_RELATIVE: ANIMEHACKER_AUTHORITY_HASHES["prompt-contract"],
+    ANIMEHACKER_RUBRIC_RELATIVE: ANIMEHACKER_AUTHORITY_HASHES["rubric-contract"],
+    ANIMEHACKER_RAW_RELATIVE / "runtime/state.json": "25bd4e668fe6f443ec338f82d8e6db8cbb5e75dc44a10c200a52ce32003b4cbf",
+    ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/state.json": "6bfd0e30352e587ef1036bdee4ea5fd474cd530c50c882412e3e9cef877d9cea",
+    ANIMEHACKER_RAW_RELATIVE / "acquisition/repository.json": "fca040fc9fed9dcc45af8c6adbdaa297de2c7854813478f58f9e4a74958e2b64",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-09-rejected-flash-env-only/summary.json": "65f7f2c93acdca1564e3e5e2831fed942087ac382f34ebaf02f234dd2d76b9f3",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-06/pilot-emergency-stop-2048/measurement.json": "c8cdd49e6fb58b78d7eddc0662d03209776f731d32b40c4616f4ecbb0a13f148",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-07/pilot/measurement.json": "982c400d1595c085f740489a35270baea9f101d4618273305f4d458175a22358",
+    ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/AH-10/pilot/measurement.json": "97c05b25918a3f369889353165cead9cf057c96e0233034b93bc779fc3736f5c",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-01/summary.json": "350209734d19cd68c577ea29a8d23ba77eb325490fa2b5b72c9efbf6dce11fca",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-02/summary.json": "64620e979c389a9e01db23a957af57cd3710fc59eefe44ced690386a741ef7e7",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-03/summary.json": "1aeca53d8eeb9c4a7a8511d7e158a66e21bed54ae548cb154ecb72fd92d8d3c8",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-04/summary.json": "55730afbd1061d12a9a8edad8ab6e0dbca7f5a014a7fb11c9f5c541b5529a73a",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-05/summary.json": "d10f2cf15d1cb9dd0f3a6fbbbc70f6fd868c2861806b0d9d93bb84f18027087d",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-08/summary.json": "fe1bf99fc5de64ecba8aef596362b1fef43e77c6e2074ef7320409ff1e853277",
+    ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/AH-09/summary.json": "ce70725382f957501398a0425997c7a8d20909033dcfe909da69c87f95375928",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-01/sample-1/measurement.json": "ef54e107b624967499f1b6ce001ae1d4d2396d65833186cff56b23b3b60490a7",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-01/sample-2/measurement.json": "fa3589cdb8784fb0c97150b869132aa2e618c7b4618434ae8aa2494158587fdb",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-01/sample-3/measurement.json": "c266390c6f87c2a862ae3ecdf12171f1e9111a54717eef98259301ff9b07fbe2",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-02/sample-1/measurement.json": "8c64e15e1b0996a7f10fa3b261d1cac629ecec4212a946e9dfd20a5dfa66b4b6",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-02/sample-2/measurement.json": "a2e61cf2b3b9ca7a46ed19e7586bec72fb759e98125e9a41332288745e23b220",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-02/sample-3/measurement.json": "f67794c1c4c99ec2896738e153717fe7233780ec90af557823e2b6f73010aa29",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-03/sample-1/measurement.json": "f6bda79102045f36d49dfda9d1806d43ac395345ce1f18a8536b1ae229d79b32",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-03/sample-2/measurement.json": "3dd89bea2ef6dff0164c367cbe16f96989509b5ca0a0cb47ae19ceff43a01eb4",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-03/sample-3/measurement.json": "bbde43906bd65eea56693fda6049905ab4f7d7feb2967be3bd8cc9c9b87a5cad",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-04/sample-1/measurement.json": "73055d73aa5f635829803b35fbbf01a31f50d9efbc15142ec7c94b0f1746e040",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-04/sample-2/measurement.json": "eb5581e5ec45f1c8da62911b0ba439bf7d1efb3bcd4c763d3940685e006b2623",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-04/sample-3/measurement.json": "b3e33c68ce126128232cec921a387c30982d2f817f6e345e555ba2478544a995",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-05/sample-1/measurement.json": "e88c83031bc6f9fe04200df58c7b4d85bb429fd26a2babaafbf0647b658c1a71",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-05/sample-2/measurement.json": "52bc0c48abffeac20af32a93511588e57496d4d802d394252128b8d16b329df3",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-05/sample-3/measurement.json": "9122e16916d10926cf257b2173e6e08250a3adb9297e229595122f2cf54fd493",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-08/sample-1/measurement.json": "13a2e401e89eca723284c54a2a6b2ae69aac7cd1233574e6abb8b0c3f227ab75",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-08/sample-2/measurement.json": "2dbbd4df45432d9991d3ee36d2ee61919c20381da9a21f00fd33f6639075b532",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-08/sample-3/measurement.json": "2400caa62574a2f825026d01de665b6c263bdbe1ad3560e09e82c764f0753949",
+    ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/AH-09/sample-1/measurement.json": "35dce082d33298bebbee85f1b25cbee4cc90b00af2d82735370e676f479c61da",
+    ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/AH-09/sample-2/measurement.json": "abab1bcb0bf4221f78ae7d39610d3e30ab1ae4bbac99891a721fa5da5db9185c",
+    ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/AH-09/sample-3/measurement.json": "e4227bd4cb3c761bb64569c4428ca01ad4cab47359dd0fc94af070f83316dfcf",
+}
+ANIMEHACKER_MATRIX_ENTITY_HASHES = {
+    "AH-01": "38d75387ededf2c14ef5e61951c40aa41446205880b4f48c3bde2cb2daa01083",
+    "AH-02": "57c3b73d1c30e31d0cdc8f826036d232783cc86ccb5f613d24309801c8476a6b",
+    "AH-03": "27ad22b5bebb4a5efd6cd0869ee15cf7221fec6e2a566653d198493947f8571e",
+    "AH-04": "b9ba3f6dfb86f63583ee80592c8a30869f79befc8346310cbffec7481cb12459",
+    "AH-05": "d62aebeef80b40ecb12e221b1e7a19cf5c6d8b469c04146dfbcb4b9ff14fad8a",
+    "AH-06": "4be528e1aed259296b946776a48bfd1eb83af8ac16f4cdeb95a5f150cf6e7572",
+    "AH-07": "5c6c757a273bdd7070e58feaa7b3ffbc8bcf89c0b58becdedfb1dc67711392f0",
+    "AH-08": "5c867a24f3f06f30e12e48b6b6b17a208a81d480b3aaefd1f4c7fd082e37241e",
+    "AH-09": "07f59bb988abe03fff863437940f7e5a5d009097c8b36e16adf93e536f8015ad",
+    "AH-10": "2e0ecb84e2e6c61b66b241dd971d890fff4bb374ceea2249ab6d5cb4daba4f82",
+}
+ANIMEHACKER_FAILURE_ENTITY_HASHES = {
+    "AH-F01": "d2072895581969882b5d88edd402dab376d9b675f4c611da93ce4a831c0bcc34",
+    "AH-F02": "639291d4517540af925e7e2ba94eef16da2c35fbce81a68996bded69e663ef68",
+    "AH-F03": "139d4fde2c5725dfe6778982258fbbe6248cd3354c143a90de3c281a430a45c5",
+    "AH-F04": "b131dbc2c39c3d3c9a4695e23acfac20c65144a17e64cf48b616675ff4a41ad8",
+    "AH-F05": "446d81f02ebf1e02b6d7b9e13ed6158959c384a76327ea68094c8197e2172039",
+    "AH-F06": "cb9e5a6917703b9bb24c2c45434b196677e07a1bdf03a7d0782c9f77e69c5fa0",
+    "AH-F07": "75ca006572c85b28f51eedb1ca884919045cc87a63b88a3c4ac6adfaf6026ef4",
+    "AH-F08": "5d40b14f9b7ddbd1069de6703ae2de9c7a8f0ae400a0735eb4811dfd739e61ee",
+    "AH-F09": "83baf6779ea135ada05b8c241dd53fea4d82b88414cc76c93916cf354b285b82",
+    "AH-F11": "33e6a39dfde1dc7984b5ded2de992bf177cf617b380137b781e475d0805be910",
+    "AH-F10": "0b28bf2b8aae83a3ba2727cbc255db1b46ba463959274416f4a3dc2681775ba3",
+}
 
 
 def _animehacker_evidence_id(relative: Path) -> str:
@@ -2455,6 +2529,25 @@ def _animehacker_source_record(root: Path, relative: Path, role: str, label: str
         size_bytes=path.stat().st_size,
         source_label=label,
     )
+
+
+def _animehacker_entity_hash(value: object) -> str:
+    canonical = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _animehacker_authority_role(relative: Path) -> str:
+    if relative == ANIMEHACKER_WORKBOOK_RELATIVE:
+        return "controlled-workbook-markdown"
+    if relative == ANIMEHACKER_MATRIX_RELATIVE:
+        return "intended-matrix"
+    if relative in ANIMEHACKER_FORMAL_SUMMARIES.values():
+        return "formal-runtime-summary"
+    if relative.name == "measurement.json" and "sample-" in relative.as_posix():
+        return "formal-runtime-measurement"
+    return "source-authority"
 
 
 def _animehacker_matrix(root: Path) -> list[dict[str, object]]:
@@ -2586,9 +2679,6 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
         if any(path in {item.as_posix() for item in ANIMEHACKER_REJECTED_SUMMARIES} for path in selected.values()):
             raise ValueError("rejected runtime summary cannot be selected for formal statistics")
         raise ValueError("formal runtime summary authority conflict")
-    for role, relative in authority_paths.items():
-        if hash_file(root / relative) != ANIMEHACKER_AUTHORITY_HASHES[role]:
-            raise ValueError(f"{role} authority hash conflict")
     summaries = {
         test_id: _animehacker_validate_summary(root / relative, test_id)
         for test_id, relative in ANIMEHACKER_FORMAL_SUMMARIES.items()
@@ -2662,6 +2752,29 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
         "AH-F07", "AH-F08", "AH-F09", "AH-F11", "AH-F10",
     ) or any(not row["Resolved?"].startswith("Yes") for row in failures):
         raise ValueError("historical failure ledger conflict")
+
+    authenticated_authorities: list[dict[str, str]] = []
+    for relative, expected_hash in ANIMEHACKER_SOURCE_AUTHORITY_HASHES.items():
+        actual_hash = hash_file(root / relative)
+        role = _animehacker_authority_role(relative)
+        if actual_hash != expected_hash:
+            raise ValueError(f"{role} authority hash conflict: {relative.as_posix()}")
+        authenticated_authorities.append({
+            "relative_path": relative.as_posix(),
+            "role": role,
+            "sha256": expected_hash,
+            "evidence_id": _animehacker_evidence_id(relative),
+        })
+    matrix_hashes = {
+        str(row["test_id"]): _animehacker_entity_hash(row) for row in matrix
+    }
+    if matrix_hashes != ANIMEHACKER_MATRIX_ENTITY_HASHES:
+        raise ValueError("intended matrix complete entity conflict")
+    failure_hashes = {
+        row["Failure ID"]: _animehacker_entity_hash(row) for row in failures
+    }
+    if failure_hashes != ANIMEHACKER_FAILURE_ENTITY_HASHES:
+        raise ValueError("historical failure ledger conflict")
     return {
         "matrix": matrix,
         "summaries": summaries,
@@ -2672,7 +2785,10 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
         "vulkan_tq3_runtime_classification": vulkan_classification,
         "formal_runtime_summary_count": len(summaries),
         "rejected_runtime_summary_count": len(ANIMEHACKER_REJECTED_SUMMARIES),
-        "authority_hashes_authenticated": len(authority_paths),
+        "authenticated_authorities": authenticated_authorities,
+        "matrix_entity_hashes": dict(ANIMEHACKER_MATRIX_ENTITY_HASHES),
+        "historical_failure_entity_hashes": dict(ANIMEHACKER_FAILURE_ENTITY_HASHES),
+        "authority_hashes_authenticated": len(authenticated_authorities),
     }
 
 
@@ -2860,6 +2976,10 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
                 "cpu_repository_tests", "sycl_repository_tests", "vulkan_tq3_runtime_classification",
                 "formal_runtime_summary_count", "rejected_runtime_summary_count", "authority_hashes_authenticated",
             )},
+            "source_authorities": audit["authenticated_authorities"],
+            "intended_matrix_entities": audit["matrix"],
+            "matrix_entity_hashes": audit["matrix_entity_hashes"],
+            "historical_failure_entity_hashes": audit["historical_failure_entity_hashes"],
             "historical_failure_rows": audit["historical_failures"],
             "quality_adjudications": audit["quality_rows"],
         },
@@ -2889,16 +3009,44 @@ def build_animehacker_report(bundle: RouteBundle) -> Report:
         row.test_case_id, row.status.display_label, "Yes" if row.executed else "No",
         row.backend_id or ANIMEHACKER_NOT_COLLECTED, row.reason or "Completed with explicitly included evidence",
     ) for row in terminal)
+
+    def display(value: object, places: int) -> str:
+        if value == ANIMEHACKER_NOT_COLLECTED:
+            return ANIMEHACKER_NOT_COLLECTED
+        return f"{float(value):.{places}f}"
+
     performance_rows = tuple((
         test_id,
-        resources[test_id]["time_to_first_token_ms"], resources[test_id]["generation_tokens_per_second"],
-        resources[test_id]["peak_working_set_mb"], resources[test_id]["kv_cache_mb"],
-        resources[test_id]["cpu_mean_percent"], resources[test_id]["gpu_mean_percent"],
+        display(resources[test_id]["time_to_first_token_ms"], 2),
+        display(resources[test_id]["generation_tokens_per_second"], 3),
+        display(resources[test_id]["peak_working_set_mb"], 2),
+        display(resources[test_id]["kv_cache_mb"], 2),
+        display(resources[test_id]["cpu_mean_percent"], 2),
+        display(resources[test_id]["gpu_mean_percent"], 2),
         resources[test_id]["inclusion_status"],
     ) for test_id in ANIMEHACKER_EXPECTED_IDS)
     historical = bundle.repository["historical_failure_rows"]
+    key_paths = (
+        ANIMEHACKER_WORKBOOK_RELATIVE,
+        ANIMEHACKER_MATRIX_RELATIVE,
+        ANIMEHACKER_RAW_RELATIVE / "reconciliation.json",
+        ANIMEHACKER_RAW_RELATIVE / "runtime/state.json",
+        ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/state.json",
+        ANIMEHACKER_RAW_RELATIVE / "build-cpu/reconciliation-final.json",
+        ANIMEHACKER_RAW_RELATIVE / "build-sycl/reconciliation.json",
+        ANIMEHACKER_RAW_RELATIVE / "build-vulkan/reconciliation.json",
+        ANIMEHACKER_RAW_RELATIVE / "quality/adjudication.json",
+        ANIMEHACKER_RAW_RELATIVE / "quality-recovery/quality-adjudications.json",
+        ANIMEHACKER_QUALITY_REGISTER_RELATIVE,
+        ANIMEHACKER_PROMPT_RELATIVE,
+        ANIMEHACKER_RUBRIC_RELATIVE,
+    )
+    evidence_by_path = {row.relative_path: row for row in bundle.evidence}
+    key_evidence = tuple(evidence_by_path[path.as_posix()] for path in key_paths)
     sections = (
-        ReportSection(SECTION_ORDER[0], (_table("DC-01", "Document control", ("Field", "Value"), (
+        ReportSection(SECTION_ORDER[0], (ReportParagraph(
+            "This publication is controlled by WB-03 revision 1.5 and the authenticated source set listed in the Evidence section."
+        ), _table("DC-01", "Document control", ("Field", "Value"), (
             ("Route", ANIMEHACKER_ROUTE_ID), ("Campaign", ANIMEHACKER_CAMPAIGN_ID),
             ("Controlled source", "WB-03 v1.5"), ("Canonical format", "Markdown"),
         )),)),
@@ -2906,13 +3054,17 @@ def build_animehacker_report(bundle: RouteBundle) -> Report:
             "The final authority records seven completed runnable configurations and three resolved safety classifications. "
             "Zero unresolved failures does not mean zero historical failure attempts: eleven resolved source-ledger events and rejected runtime evidence remain auditable."
         ),)),
-        ReportSection(SECTION_ORDER[2], (_table("KF-01", "Decision-relevant findings", ("Finding", "Evidence-bound conclusion"), (
+        ReportSection(SECTION_ORDER[2], (ReportParagraph(
+            "The key findings below separate completed runtime evidence, safety classifications, and rejected historical evidence."
+        ), _table("KF-01", "Decision-relevant findings", ("Finding", "Evidence-bound conclusion"), (
             ("Runtime", "Seven formal rows have exactly three explicitly included samples each."),
             ("Safety", "AH-06, AH-07, and AH-10 remain safety-classified; no request metrics are fabricated."),
             ("TQ3_0", "CPU activation is validated; AH-09 is CPU-resident TQ3 KV with 1/41 SYCL layers offloaded."),
             ("Rejected evidence", "Superseded AH-09 summaries are excluded from statistics but retained in the attempt/failure ledger."),
         )),)),
-        ReportSection(SECTION_ORDER[3], (_table("SYS-01", "Controlled identity", ("Field", "Value"), (
+        ReportSection(SECTION_ORDER[3], (ReportParagraph(
+            "The campaign identity is fixed to the recorded repository, machine, and operating-system environment."
+        ), _table("SYS-01", "Controlled identity", ("Field", "Value"), (
             ("Repository", bundle.repository["repository_url"]), ("Commit", bundle.repository["commit"]),
             ("CPU", bundle.hardware["processor"]), ("RAM", bundle.hardware["ram"]),
             ("GPU", bundle.hardware["graphics"]), ("OS", bundle.hardware["operating_system"]),
@@ -2920,11 +3072,17 @@ def build_animehacker_report(bundle: RouteBundle) -> Report:
         ReportSection(SECTION_ORDER[4], (ReportParagraph(
             "WB-03 defines AH-01 through AH-10. Final statuses come from reconciliation/state records; performance comes only from the seven selected runtime summaries."
         ),)),
-        ReportSection(SECTION_ORDER[5], (_table("AV-01", "Model, cache, and backend availability", ("Test", "Model", "Cache", "Backend", "Status"), (
+        ReportSection(SECTION_ORDER[5], (ReportParagraph(
+            "Availability preserves the full ten-row WB-03 matrix and its terminal status classification."
+        ), _table("AV-01", "Model, cache, and backend availability", ("Test", "Model", "Cache", "Backend", "Status"), (
             (row.test_case_id, row.model_id, row.cache_format_id, row.backend_id, row.status.display_label) for row in terminal
         )),)),
-        ReportSection(SECTION_ORDER[6], (_table("AT-01", "Complete terminal attempt accounting", ("Test", "Status", "Executed", "Backend", "Reason"), attempt_rows),)),
-        ReportSection(SECTION_ORDER[7], (_table("PF-01", "Performance and resource observations", (
+        ReportSection(SECTION_ORDER[6], (ReportParagraph(
+            "Each matrix row has one terminal accounting record; the separate rejected AH-09 attempt remains in the canonical attempt ledger."
+        ), _table("AT-01", "Complete terminal attempt accounting", ("Test", "Status", "Executed", "Backend", "Reason"), attempt_rows),)),
+        ReportSection(SECTION_ORDER[7], (ReportParagraph(
+            "Reader-facing metrics use stable decimal precision; only explicitly admitted samples contribute to the seven runnable rows."
+        ), _table("PF-01", "Performance and resource observations", (
             "Test", "TTFT ms", "Decode tok/s", "Peak WS MiB", "KV MiB", "CPU mean %", "GPU mean %", "Admission",
         ), performance_rows, footnotes=("Missing request-window/OS observations remain literal Not collected; safety evidence is not a formal statistic.",)),)),
         ReportSection(SECTION_ORDER[8], (ReportParagraph(
@@ -2937,7 +3095,9 @@ def build_animehacker_report(bundle: RouteBundle) -> Report:
             "AH-08 used SYCL OpenCL partial placement. Recovered AH-09 used Level Zero level_zero:0 with CPU-resident TQ3 KV and 1/41 layers offloaded. "
             "Vulkan built only as supplementary evidence and is not a source-proven controlled TQ3 route."
         ),)),
-        ReportSection(SECTION_ORDER[10], (_table("FL-01", "Historical failures, recoveries, and terminal classifications", ("ID", "Scope", "Code", "Resolution"), (
+        ReportSection(SECTION_ORDER[10], (ReportParagraph(
+            "Historical events remain distinct from the final unresolved-failure count and retain their original codes and resolutions."
+        ), _table("FL-01", "Historical failures, recoveries, and terminal classifications", ("ID", "Scope", "Code", "Resolution"), (
             (row["Failure ID"], row["Test ID"], row["Code"], row["Resolved?"]) for row in historical
         ), footnotes=("All eleven historical events remain visible. The formal runtime status has zero unresolved failures, not zero historical attempts.",)),)),
         ReportSection(SECTION_ORDER[11], (ReportParagraph(
@@ -2947,17 +3107,22 @@ def build_animehacker_report(bundle: RouteBundle) -> Report:
         ReportSection(SECTION_ORDER[12], (ReportParagraph(
             "Use the ordered commands in reproduction/commands.md to rebuild the route from immutable evidence, export the owned Word PDF, finalize it, and validate checksums."
         ),)),
-        ReportSection(SECTION_ORDER[13], (_table("EV-01", "Evidence inventory", ("Evidence ID", "Role", "Repository-relative path", "SHA-256"), (
-            (row.evidence_id, row.role, row.relative_path, row.sha256) for row in bundle.evidence
+        ReportSection(SECTION_ORDER[13], (ReportParagraph(
+            "This reader-facing table lists the bounded key authority set. The complete 742-row audit inventory remains in evidence/evidence-index.csv."
+        ), _table("EV-01", "Key authenticated evidence", ("Evidence ID", "Role", "Repository-relative path", "SHA-256"), (
+            (row.evidence_id, row.role, row.relative_path, row.sha256) for row in key_evidence
         )),)),
-        ReportSection(SECTION_ORDER[14], (_table("RH-01", "Revision history", ("Revision", "Date", "Change"), (
+        ReportSection(SECTION_ORDER[14], (ReportParagraph(
+            "Revision 1.1 records the source-authentication and reader-presentation hardening applied after independent review."
+        ), _table("RH-01", "Revision history", ("Revision", "Date", "Change"), (
             ("1.0", date.today().isoformat(), "Initial unified final-results publication from WB-03 v1.5 evidence"),
+            ("1.1", date.today().isoformat(), "Authenticated complete source entities and publication-ready evidence presentation"),
         )),)),
     )
     return Report(
         title="animehacker TQ3_0 Final Test Report", route_id=ANIMEHACKER_ROUTE_ID,
-        revision="1.0", generated_date=date.today(), sections=sections,
-        evidence_ids=tuple(row.evidence_id for row in bundle.evidence),
+        revision="1.1", generated_date=date.today(), sections=sections,
+        evidence_ids=tuple(row.evidence_id for row in key_evidence),
     )
 
 
@@ -2965,8 +3130,50 @@ def _animehacker_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
     attempt_ids = {row.attempt_id for row in bundle.attempts}
     terminal = [row for row in bundle.attempts if row.attempt_id.endswith("--terminal")]
     evidence_ids = {row.evidence_id for row in bundle.evidence}
+    evidence_by_path = {row.relative_path: row for row in bundle.evidence}
     measurement_ids = {row.measurement_id for row in bundle.measurements}
     errors: list[str] = []
+    expected_authorities = {
+        relative.as_posix(): {
+            "relative_path": relative.as_posix(),
+            "role": _animehacker_authority_role(relative),
+            "sha256": digest,
+            "evidence_id": _animehacker_evidence_id(relative),
+        }
+        for relative, digest in ANIMEHACKER_SOURCE_AUTHORITY_HASHES.items()
+    }
+    published_authorities = bundle.repository.get("source_authorities", [])
+    published_by_path = {
+        row.get("relative_path"): row
+        for row in published_authorities
+        if isinstance(row, dict)
+    } if isinstance(published_authorities, list) else {}
+    if published_by_path != expected_authorities:
+        errors.append("authority metadata relationship")
+    for relative_path, authority in expected_authorities.items():
+        evidence = evidence_by_path.get(relative_path)
+        if (
+            evidence is None
+            or evidence.evidence_id != authority["evidence_id"]
+            or evidence.sha256 != authority["sha256"]
+        ):
+            errors.append(f"authority evidence relationship: {relative_path}")
+    matrix_rows = bundle.repository.get("intended_matrix_entities", [])
+    matrix_hashes = {
+        str(row.get("test_id")): _animehacker_entity_hash(row)
+        for row in matrix_rows
+        if isinstance(row, dict)
+    } if isinstance(matrix_rows, list) else {}
+    if matrix_hashes != ANIMEHACKER_MATRIX_ENTITY_HASHES:
+        errors.append("matrix complete entity relationship")
+    historical_rows = bundle.repository.get("historical_failure_rows", [])
+    historical_hashes = {
+        str(row.get("Failure ID")): _animehacker_entity_hash(row)
+        for row in historical_rows
+        if isinstance(row, dict)
+    } if isinstance(historical_rows, list) else {}
+    if historical_hashes != ANIMEHACKER_FAILURE_ENTITY_HASHES:
+        errors.append("historical failure complete entity relationship")
     if tuple(row.test_case_id for row in terminal) != ANIMEHACKER_EXPECTED_IDS:
         errors.append("terminal attempt coverage")
     if len(bundle.measurements) != 21:
@@ -2989,6 +3196,9 @@ def _animehacker_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
         "formal_measurement_count": len(bundle.measurements), "summary_count": len(bundle.summaries),
         "quality_count": len(bundle.quality), "historical_failure_count": bundle.repository["historical_failure_attempt_count"],
         "canonical_failure_count": len(bundle.failures), "evidence_count": len(bundle.evidence),
+        "authenticated_authority_count": len(expected_authorities),
+        "authority_relationships_valid": not any("authority" in error for error in errors),
+        "complete_entity_relationships_valid": not any("complete entity" in error for error in errors),
     }
 
 
@@ -3144,26 +3354,44 @@ def finalize_animehacker_route(repo_root: Path) -> dict[str, object]:
     page_text = [(page.extract_text() or "").strip() for page in reader.pages]
     combined = "\n".join(page_text)
     normalized = " ".join(combined.split())
+    evidence_table_start = next(
+        (number for number, text in enumerate(page_text, 1) if "EV-01" in text), None
+    )
+    revision_start = next(
+        (number for number, text in enumerate(page_text, 1) if SECTION_ORDER[14] in text), None
+    )
     checks = {
         "pdf_signature": True, "page_count": len(reader.pages), "all_pages_nonblank": all(page_text),
         "all_sections_present": all(heading in combined for heading in SECTION_ORDER),
         "status_boundary_present": "seven completed" in normalized and "three resolved safety" in normalized,
         "historical_failure_boundary_present": "historical failure attempts" in normalized,
         "missing_value_boundary_present": ANIMEHACKER_NOT_COLLECTED in normalized,
+        "pagination_markers_present": evidence_table_start is not None and revision_start is not None,
     }
-    valid = len(reader.pages) >= 10 and all(value for key, value in checks.items() if key != "page_count")
+    valid = len(reader.pages) >= 7 and all(value for key, value in checks.items() if key != "page_count")
     contact_sheet_ranges = [
         f"{start + 1}-{min(start + 9, len(reader.pages))}"
         for start in range(0, len(reader.pages), 9)
     ]
+
+    def page_span(start: int, end: int) -> str:
+        return str(start) if start == end else f"{start}-{end}"
+
     receipt = {
         "valid": valid, "checks": checks, "inspected_pages": list(range(1, len(reader.pages) + 1)),
         "visual_findings": {
-            "inspection_method": "Rendered every PDF page with PyMuPDF and inspected contact sheets of up to 3-by-3 pages",
-            "contact_sheet_page_ranges": contact_sheet_ranges,
+            "inspection_method": "Rendered every PDF page with PyMuPDF and inspected all full-page images",
+            "inspection_page_ranges": contact_sheet_ranges,
             "inspection": "Every rendered page inspected; no blank, clipped, corrupt, or truncated content observed.",
-            "evidence_table_pages": "10-40",
-            "revision_history_page": len(reader.pages),
+            "evidence_table_pages": (
+                page_span(evidence_table_start, max(evidence_table_start, revision_start - 1))
+                if evidence_table_start is not None and revision_start is not None
+                else "Not found"
+            ),
+            "revision_history_pages": (
+                page_span(revision_start, len(reader.pages))
+                if revision_start is not None else "Not found"
+            ),
             "temporary_contact_sheets_committed": False,
         },
     }
