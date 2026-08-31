@@ -1,0 +1,23 @@
+provider: stark
+required: false
+stage:
+  - design-direction
+  - design-audit
+authority: read-only-adviser
+pinned_revision: ff94e5b4e1c98d259f3cde9f806406c4528deed4
+allowed_inputs:
+  - current-screen-evidence
+  - approved-product-brief
+  - existing-design-system
+allowed_outputs:
+  - native-windows-structure-recommendation
+  - product-specific-visual-motif
+  - interaction-state-gaps
+  - visual-repair-priorities
+forbidden:
+  - production-file-edits
+  - backend-changes
+  - overriding-Microsoft-WinUI-technical-guidance
+  - applying-web-layout-assumptions-to-XAML
+  - loading-more-than-two-routed-skills-without-justification
+fallback: use_local_winui_design_director_rules
