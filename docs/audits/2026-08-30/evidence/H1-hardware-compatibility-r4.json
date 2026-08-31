@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 2,
+  "workerId": "H1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "99294b544f1f2f53c8b1d19456ded6fac0f2b3bb",
+  "evidenceSubjectTree": "e96ce08218d96d3f430b9267c3fb98e2636bf3ae",
+  "createdAtUtc": "2026-08-31T01:37:04Z",
+  "route": "shared",
+  "evidenceStatus": "mixed",
+  "report": {
+    "path": "docs/audits/2026-08-30/H1-hardware-compatibility-r4.md",
+    "sha256": "94390a49a1a76b1beaf11ca1be773c113dcef8e2d5072d7dedbf9a3174e3c6fd",
+    "bytes": 3479
+  },
+  "inputs": [
+    {
+      "kind": "immutable-base",
+      "id": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "llmfit-executable",
+      "id": "llmfit-1.1.9-win-x64",
+      "sha256": "db82bcb17f065b7ff7528ffe9904b2b0e1cce0c843fcd659b4ee1432a2e72e19",
+      "bytes": 24321024,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "implementation-subject",
+      "id": "99294b544f1f2f53c8b1d19456ded6fac0f2b3bb",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "audit-report",
+      "id": "H1-hardware-compatibility-r4.md",
+      "sha256": "94390a49a1a76b1beaf11ca1be773c113dcef8e2d5072d7dedbf9a3174e3c6fd",
+      "bytes": 3479,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {
+      "id": "FOUNDATION-TESTS",
+      "exitCode": 0,
+      "discovered": 234,
+      "executed": 234,
+      "passed": 234,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "408f07a92975c34b85643de19cc16d06cc55aba34108132c4b9304d2f4587f2d"
+    },
+    {
+      "id": "LLAMACPP-PROBE-TESTS",
+      "exitCode": 0,
+      "discovered": 22,
+      "executed": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "8bd60b78fe30fd4188814c4bfb5a3e8b8aec8967423a0a61630eddd11a15e814"
+    },
+    {
+      "id": "COMPATIBILITY-TESTS",
+      "exitCode": 0,
+      "discovered": 1062,
+      "executed": 1062,
+      "passed": 1062,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "ccd55c6eff7c08caa4969812037019a016c6092df6ee7abad54d9253ea460211"
+    },
+    {
+      "id": "HARDWARE-POWERSHELL",
+      "exitCode": 0,
+      "discovered": 10,
+      "executed": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "DEBUG-X64-UNIT-BUILD",
+      "exitCode": 0,
+      "discovered": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed"
+    },
+    {
+      "id": "NATIVE-LLAMACPP-PROBE",
+      "exitCode": 0,
+      "discovered": 2,
+      "executed": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "passed",
+      "resultSha256": "b08dca8d1de8c6b6c616caf6800e00ae43515c604dfd22830190456a91a3ab58"
+    },
+    {
+      "id": "NATIVE-LLMFIT",
+      "exitCode": 1,
+      "discovered": 1,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "blocked"
+    },
+    {
+      "id": "PACKAGED-WINUI-TESTS",
+      "exitCode": 1,
+      "discovered": 1,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "disposition": "blocked"
+    }
+  ],
+  "blockers": [
+    "Windows Application Control blocked the exact hash-verified llmfit executable before process creation.",
+    "The packaged WinUI VSTest recipe deployed but the test runner handshake timed out; the unpackaged assembly lacks package context.",
+    "Application launch and screenshot capture were blocked by the same host/package constraints."
+  ],
+  "nonClaims": [
+    "No native llmfit functional acceptance is claimed.",
+    "No signed-package, visual, performance, release, or broad native acceptance is claimed.",
+    "Zero-test host failures are not counted as behavioral failures or passes."
+  ]
+}

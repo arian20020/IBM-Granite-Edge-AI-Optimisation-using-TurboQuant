@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "workerId": "H1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "baseCommit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
+  "baseTree": "5f50b480d39cbfbeb1ff74fab866b6a995418868",
+  "branch": "audit/ucl-h1-intel-candidate-r4",
+  "implementationSubjectCommit": "99294b544f1f2f53c8b1d19456ded6fac0f2b3bb",
+  "implementationSubjectTree": "e96ce08218d96d3f430b9267c3fb98e2636bf3ae",
+  "worktreeCleanAtHandoff": true,
+  "completedAtUtc": "2026-08-31T01:37:04Z",
+  "report": {
+    "path": "docs/audits/2026-08-30/H1-hardware-compatibility-r4.md",
+    "sha256": "94390a49a1a76b1beaf11ca1be773c113dcef8e2d5072d7dedbf9a3174e3c6fd",
+    "bytes": 3479
+  },
+  "transport": "remote",
+  "remoteRef": "refs/remotes/origin/audit/ucl-h1-intel-candidate-r4",
+  "bundle": null,
+  "evidenceManifest": {
+    "path": "docs/audits/2026-08-30/evidence/H1-hardware-compatibility-r4.json",
+    "sha256": "dde4959eff0e81bc85c3eff03b2141c6b252e75c719a94771985366b4709790d",
+    "bytes": 3934,
+    "evidenceSubjectCommit": "99294b544f1f2f53c8b1d19456ded6fac0f2b3bb",
+    "evidenceSubjectTree": "e96ce08218d96d3f430b9267c3fb98e2636bf3ae"
+  },
+  "testTotals": {
+    "discovered": 1328,
+    "executed": 1328,
+    "passed": 1328,
+    "failed": 0,
+    "skipped": 0
+  },
+  "nativeDisposition": "mixed"
+}
