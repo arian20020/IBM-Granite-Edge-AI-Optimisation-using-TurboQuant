@@ -12,8 +12,10 @@ function Assert-True([bool] $Condition, [string] $Message) {
 }
 
 function Invoke-Git([string] $Root, [string[]] $Arguments) {
-    $output = & git -C $Root @Arguments 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed:`n$output" }
+    $rawOutput = & git -C $Root @Arguments 2>&1
+    $exitCode = $LASTEXITCODE
+    $output = $rawOutput | Out-String
+    if ($exitCode -ne 0) { throw "git $($Arguments -join ' ') failed:`n$output" }
     return $output.Trim()
 }
 
@@ -25,8 +27,10 @@ function Get-RepositoryRoot {
 
 function Resolve-BaseCommit([string] $Root, [string] $Requested) {
     foreach ($candidate in @($Requested, "origin/$Requested", "refs/remotes/origin/$Requested", "refs/heads/$Requested")) {
-        $value = & git -C $Root rev-parse --verify --quiet "$candidate^{commit}" 2>$null | Select-Object -First 1
-        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
+        $rawValue = & git -C $Root rev-parse --verify --quiet "$candidate^{commit}" 2>$null
+        $exitCode = $LASTEXITCODE
+        $value = $rawValue | Select-Object -First 1
+        if ($exitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
     }
     throw "Unable to resolve base ref '$Requested'."
 }
