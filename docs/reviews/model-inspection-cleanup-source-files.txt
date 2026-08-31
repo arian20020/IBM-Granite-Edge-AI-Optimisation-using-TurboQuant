@@ -193,6 +193,7 @@ docs/audits/2026-08-30/C0-r4-specialist-reconciliation.md
 docs/audits/2026-08-30/H1-hardware-compatibility-r4.md
 docs/audits/2026-08-30/M1-model-inspection-r4.md
 docs/audits/2026-08-30/evidence/C0-r4-H1-launch-packet.json
+docs/audits/2026-08-30/evidence/C0-r4-Q1-launch-packet.json
 docs/audits/2026-08-30/evidence/C0-r4-specialist-reconciliation.json
 docs/audits/2026-08-30/evidence/C0-r4-worker-register.json
 docs/audits/2026-08-30/evidence/H1-hardware-compatibility-r4.json

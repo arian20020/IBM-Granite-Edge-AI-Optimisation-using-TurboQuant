@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "coordinator": "C0",
-  "updatedAtUtc": "2026-08-31T00:21:35Z",
+  "updatedAtUtc": "2026-08-31T02:04:02Z",
   "frozenSource": {
     "commit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
     "tree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91"
@@ -11,6 +11,12 @@
     "ref": "refs/remotes/origin/integration/ucl-r4-h1-issued-base-v1",
     "commit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
     "tree": "5f50b480d39cbfbeb1ff74fab866b6a995418868",
+    "remoteEqualityVerified": true
+  },
+  "postH1Candidate": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-q1-issued-base-v1",
+    "commit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+    "tree": "78c96061690b8ede285b83712219ba05af34a5dc",
     "remoteEqualityVerified": true
   },
   "candidateEvidence": {
@@ -38,7 +44,7 @@
   "workers": [
     {
       "workerId": "H1",
-      "state": "DISPATCHED",
+      "state": "ACCEPTED",
       "issuedBaseRef": "refs/remotes/origin/integration/ucl-r4-h1-issued-base-v1",
       "issuedBaseCommit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
       "issuedBaseTree": "5f50b480d39cbfbeb1ff74fab866b6a995418868",
@@ -58,43 +64,100 @@
         "sha256": "8879c028c2754cb73829b3191d7518aa3bf2beacebdd8264259cc43c2593b998",
         "bytes": 2947
       },
-      "returnedRef": null,
-      "returnedTip": null,
-      "returnedTree": null,
-      "implementationSubjectCommit": null,
-      "implementationSubjectTree": null,
+      "returnedRef": "refs/remotes/origin/audit/ucl-h1-intel-candidate-r4",
+      "returnedTip": "75689afc92489c885d20c57ca1d983523d76b3a4",
+      "returnedTree": "7b5b40011d0b659fac6f35c76237efc3821d5b07",
+      "implementationSubjectCommit": "99294b544f1f2f53c8b1d19456ded6fac0f2b3bb",
+      "implementationSubjectTree": "e96ce08218d96d3f430b9267c3fb98e2636bf3ae",
       "report": {
         "path": "docs/audits/2026-08-30/H1-hardware-compatibility-r4.md",
-        "sha256": null,
-        "bytes": null
+        "sha256": "94390a49a1a76b1beaf11ca1be773c113dcef8e2d5072d7dedbf9a3174e3c6fd",
+        "bytes": 3479
       },
       "evidenceManifest": {
-        "path": null,
-        "sha256": null,
-        "bytes": null
+        "path": "docs/audits/2026-08-30/evidence/H1-hardware-compatibility-r4.json",
+        "sha256": "dde4959eff0e81bc85c3eff03b2141c6b252e75c719a94771985366b4709790d",
+        "bytes": 3934
       },
       "receipt": {
         "path": "docs/audits/2026-08-30/handoffs/R4-H1.json",
-        "sha256": null,
-        "bytes": null
+        "sha256": "37adb14551f8fc35611376557c4bf9ba383b43f2d0ac5558757227d3fb3bf7b6",
+        "bytes": 1385
       },
-      "independentReviewResult": "PENDING_RETURN",
-      "testArithmetic": null,
-      "nativeDisposition": "not-run",
-      "c0IntakeDecision": "PENDING_RETURN",
-      "integratedCommit": null,
-      "supersededCandidate": null,
+      "independentReviewResult": "NO_REMAINING_CRITICAL_OR_IMPORTANT_AFTER_C0_REMEDIATION",
+      "testArithmetic": {
+        "returnedReceiptTotals": {
+          "discovered": 1328,
+          "executed": 1328,
+          "passed": 1328,
+          "failed": 0,
+          "skipped": 0
+        },
+        "returnedManifestSemanticStatus": "INVALID_TWO_BLOCKED_ROWS_HAVE_DISCOVERED_NOT_EQUAL_TO_EXECUTED_AND_AGGREGATE_INCLUDES_NON_TEST_GATES",
+        "normalizedManagedCommandIds": [
+          "FOUNDATION-TESTS",
+          "LLAMACPP-PROBE-TESTS",
+          "COMPATIBILITY-TESTS",
+          "HARDWARE-POWERSHELL"
+        ],
+        "normalizedManagedTotals": {
+          "discovered": 1328,
+          "executed": 1328,
+          "passed": 1328,
+          "failed": 0,
+          "skipped": 0
+        },
+        "nonTestOrBlockedRowsExcludedFromReceiptTotals": [
+          "DEBUG-X64-UNIT-BUILD",
+          "NATIVE-LLAMACPP-PROBE",
+          "NATIVE-LLMFIT",
+          "PACKAGED-WINUI-TESTS"
+        ],
+        "c0ReplayTotals": {
+          "discovered": 1328,
+          "executed": 1328,
+          "passed": 1328,
+          "failed": 0,
+          "skipped": 0
+        },
+        "c0AdditionalChecks": {
+          "crossFeature": "114/114",
+          "cleanupInventory": "721/721 after Q1 launch registration",
+          "debugX64ManagedBuild": "passed with zero errors",
+          "packagedWinUi": "blocked by unavailable package context and runner handshake"
+        }
+      },
+      "c0Remediation": {
+        "counterCorrectionCommit": "9c9403a15d2a2ecd123673221922f784405b9f67",
+        "trustBoundaryCommit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+        "closedFindings": [
+          "corrected the rejected-verifier call-count assertion",
+          "restricted null llmfit custody to verified ToolNotAvailable absence and added coordinator defense",
+          "made all non-Available llmfit evidence display-only so invalid evidence cannot create a handoff",
+          "preserved original H1 artifacts and recorded their semantic-arithmetic defect in this C0-owned register"
+        ]
+      },
+      "nativeDisposition": "mixed",
+      "c0IntakeDecision": "ACCEPTED_AFTER_C0_REMEDIATION",
+      "integratedCommit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+      "integratedTree": "78c96061690b8ede285b83712219ba05af34a5dc",
+      "supersededCandidate": {
+        "ref": "refs/remotes/origin/integration/ucl-r4-h1-issued-base-v1",
+        "commit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
+        "tree": "5f50b480d39cbfbeb1ff74fab866b6a995418868"
+      },
       "downstreamReplayRequirements": [
-        "C0 must independently verify H1 remote equality, ancestry, owned paths, hashes, schemas, arithmetic, privacy, blockers, and review.",
-        "Q1 remains blocked until C0 accepts H1, integrates any accepted delta, reruns affected suites, and republishes."
+        "Q1 must start only from refs/remotes/origin/integration/ucl-r4-q1-issued-base-v1 at commit 218ad08fb4ebad7b39d90fd2f906c4f234d66495 and tree 78c96061690b8ede285b83712219ba05af34a5dc.",
+        "Q1 must preserve the H1 display-only trust boundary and rerun affected cross-feature contracts after any owned delta.",
+        "E1 remains blocked until C0 accepts Q1, republishes, and freezes the exact final candidate."
       ]
     },
     {
       "workerId": "Q1",
-      "state": "NOT_STARTED",
-      "issuedBaseRef": null,
-      "issuedBaseCommit": null,
-      "issuedBaseTree": null,
+      "state": "DISPATCHED",
+      "issuedBaseRef": "refs/remotes/origin/integration/ucl-r4-q1-issued-base-v1",
+      "issuedBaseCommit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+      "issuedBaseTree": "78c96061690b8ede285b83712219ba05af34a5dc",
       "prompt": {
         "filename": "02-Q1-R4-UCL-INTEL-MASTER-PROMPT.md",
         "sha256": "ae34e2c903d83654025867785f3ce522c02f82026db83a3f91a3017654f9c259",
@@ -105,7 +168,11 @@
         "persistent export and runtime-only Chat targets",
         "Q1 tests and candidate-bound evidence"
       ],
-      "launchPacket": null,
+      "launchPacket": {
+        "path": "docs/audits/2026-08-30/evidence/C0-r4-Q1-launch-packet.json",
+        "sha256": "971768d81a051210e902ebd5fa1801eccb5f491cd46aede4483221aeacaa6d60",
+        "bytes": 4274
+      },
       "returnedRef": null,
       "returnedTip": null,
       "returnedTree": null,
@@ -126,15 +193,20 @@
         "sha256": null,
         "bytes": null
       },
-      "independentReviewResult": "NOT_STARTED",
+      "independentReviewResult": "PENDING_RETURN",
       "testArithmetic": null,
       "nativeDisposition": "not-run",
-      "c0IntakeDecision": "WAIT_FOR_ACCEPTED_H1",
+      "c0IntakeDecision": "PENDING_RETURN",
       "integratedCommit": null,
-      "supersededCandidate": null,
+      "supersededCandidate": {
+        "ref": "refs/remotes/origin/integration/ucl-r4-h1-issued-base-v1",
+        "commit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
+        "tree": "5f50b480d39cbfbeb1ff74fab866b6a995418868"
+      },
       "downstreamReplayRequirements": [
-        "Issue only from the exact advertised post-H1 candidate after C0 accepts H1.",
-        "Any Q1 production correction supersedes prior candidate evidence and requires affected C0 replay."
+        "C0 must independently verify Q1 remote equality, ancestry, owned paths, hashes, schemas, arithmetic, privacy, blockers, and review.",
+        "Any accepted Q1 production correction supersedes this issued candidate and requires affected C0 replay before final freeze.",
+        "E1 must not start until the accepted post-Q1 candidate is pushed and frozen."
       ]
     },
     {

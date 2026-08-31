@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "campaign": "Q1-R4-UCL-INTEL",
+  "state": "DISPATCHED",
+  "issuedBy": "C0",
+  "issuedAtUtc": "2026-08-31T02:04:02Z",
+  "prompt": {
+    "archive": "UCL-R4-Remaining-Worker-Prompts.zip",
+    "entry": "UCL-R4-Remaining-Worker-Prompts/02-Q1-R4-UCL-INTEL-MASTER-PROMPT.md",
+    "sha256": "ae34e2c903d83654025867785f3ce522c02f82026db83a3f91a3017654f9c259",
+    "bytes": 8399
+  },
+  "coordinatorRegister": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-specialist-reconciliation-v1",
+    "path": "docs/audits/2026-08-30/evidence/C0-r4-worker-register.json"
+  },
+  "validatedCandidateBase": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-q1-issued-base-v1",
+    "commit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+    "tree": "78c96061690b8ede285b83712219ba05af34a5dc"
+  },
+  "acceptedH1": {
+    "issuedBaseCommit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
+    "returnedRef": "refs/remotes/origin/audit/ucl-h1-intel-candidate-r4",
+    "returnedTip": "75689afc92489c885d20c57ca1d983523d76b3a4",
+    "returnedTree": "7b5b40011d0b659fac6f35c76237efc3821d5b07",
+    "implementationSubjectCommit": "99294b544f1f2f53c8b1d19456ded6fac0f2b3bb",
+    "implementationSubjectTree": "e96ce08218d96d3f430b9267c3fb98e2636bf3ae",
+    "c0IntegrationCommit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+    "c0IntegrationTree": "78c96061690b8ede285b83712219ba05af34a5dc",
+    "intakeDecision": "ACCEPTED_AFTER_C0_REMEDIATION",
+    "reconciliationRecord": "docs/audits/2026-08-30/evidence/C0-r4-worker-register.json"
+  },
+  "h1ReturnedArtifacts": {
+    "report": {
+      "path": "docs/audits/2026-08-30/H1-hardware-compatibility-r4.md",
+      "sha256": "94390a49a1a76b1beaf11ca1be773c113dcef8e2d5072d7dedbf9a3174e3c6fd",
+      "bytes": 3479
+    },
+    "manifest": {
+      "path": "docs/audits/2026-08-30/evidence/H1-hardware-compatibility-r4.json",
+      "sha256": "dde4959eff0e81bc85c3eff03b2141c6b252e75c719a94771985366b4709790d",
+      "bytes": 3934,
+      "semanticArithmetic": "RECONCILED_BY_C0_REGISTER_NOT_REWRITTEN"
+    },
+    "receipt": {
+      "path": "docs/audits/2026-08-30/handoffs/R4-H1.json",
+      "sha256": "37adb14551f8fc35611376557c4bf9ba383b43f2d0ac5558757227d3fb3bf7b6",
+      "bytes": 1385
+    }
+  },
+  "c0Verification": {
+    "remoteEquality": true,
+    "ancestryFromIssuedBase": true,
+    "ownedPathDiff": true,
+    "artifactSchemaValidation": true,
+    "managedH1Tests": {
+      "discovered": 1328,
+      "executed": 1328,
+      "passed": 1328,
+      "failed": 0,
+      "skipped": 0
+    },
+    "crossFeatureTests": {
+      "discovered": 114,
+      "executed": 114,
+      "passed": 114,
+      "failed": 0,
+      "skipped": 0
+    },
+    "cleanupInventory": "720/720",
+    "managedBuild": "passed with zero errors",
+    "nativeDisposition": "mixed"
+  },
+  "ownership": [
+    "Optimization execution identity, result provenance, and artifact custody",
+    "Exact-result Chat targets, persistent export, and runtime-only refusal",
+    "GGUF and OpenVINO output verification within Q1-owned services",
+    "Q1-owned tests, report, evidence manifest, receipt, and candidate-bound visual/native evidence"
+  ],
+  "forbiddenOwnership": [
+    "Hardware Inspection and compatibility-input behavior",
+    "Model Inspection projection and evidence schemas",
+    "Shared shell/navigation, XAML, project, solution, and package registration",
+    "T1 cross-feature project composition",
+    "Main branch and release acceptance"
+  ],
+  "return": {
+    "branch": "validation/ucl-q1-optimisation-candidate-r4",
+    "report": "docs/audits/2026-08-30/Q1-optimisation-result-binding-r4.md",
+    "receipt": "docs/audits/2026-08-30/handoffs/R4-Q1.json",
+    "required": [
+      "pushed remote/local-equal ref, tip, and tree",
+      "implementation subject and tree",
+      "schema-valid evidence manifest and receipt with verified hashes and bytes",
+      "complete owned-path diff and non-overlapping test arithmetic",
+      "exact output-format, load, Chat, export, custody, native-lock, cleanup, package, visual, and blocker disposition",
+      "typed C0 call sequence and recommended C0 intake decision"
+    ]
+  },
+  "sequencing": {
+    "e1": "WAIT_FOR_C0_ACCEPTED_Q1_FINAL_FREEZE",
+    "nativeConcurrency": "ONE_SHARED_LOCK_NO_PARALLEL_CAMPAIGNS"
+  }
+}
