@@ -18,25 +18,42 @@ internal interface IHardwareToolAcquisition
 
 internal sealed class HardwareToolLease : IDisposable
 {
-    private readonly VerifiedTrustedTool _llmFit;
+    private readonly VerifiedTrustedTool? _llmFit;
     private readonly VerifiedTrustedTool _llamaCpp;
     private int _disposed;
 
     internal HardwareToolLease(
-        VerifiedTrustedTool llmFit,
-        VerifiedTrustedTool llamaCpp)
+        VerifiedTrustedTool? llmFit,
+        VerifiedTrustedTool llamaCpp,
+        HardwareToolAcquisitionDiagnosticCode? llmFitDiagnostic = null)
     {
-        _llmFit = llmFit ?? throw new ArgumentNullException(nameof(llmFit));
         _llamaCpp = llamaCpp ?? throw new ArgumentNullException(nameof(llamaCpp));
-        if (ReferenceEquals(llmFit, llamaCpp))
+        if (llmFit is null != llmFitDiagnostic.HasValue)
+        {
+            throw new ArgumentException(
+                "Missing LLM Fit custody requires exactly one closed diagnostic.",
+                nameof(llmFitDiagnostic));
+        }
+
+        if (llmFitDiagnostic.HasValue && !Enum.IsDefined(llmFitDiagnostic.Value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(llmFitDiagnostic));
+        }
+
+        if (llmFit is not null && ReferenceEquals(llmFit, llamaCpp))
         {
             throw new ArgumentException("Tool custody objects must be distinct.", nameof(llamaCpp));
         }
+
+        _llmFit = llmFit;
+        LlmFitDiagnostic = llmFitDiagnostic;
     }
 
-    internal VerifiedTrustedTool LlmFit => GetLive(_llmFit);
+    internal VerifiedTrustedTool? LlmFit => GetLive(_llmFit);
 
-    internal VerifiedTrustedTool LlamaCpp => GetLive(_llamaCpp);
+    internal HardwareToolAcquisitionDiagnosticCode? LlmFitDiagnostic { get; }
+
+    internal VerifiedTrustedTool LlamaCpp => GetRequiredLive(_llamaCpp);
 
     public void Dispose()
     {
@@ -51,14 +68,20 @@ internal sealed class HardwareToolLease : IDisposable
         }
         finally
         {
-            _llmFit.Dispose();
+            _llmFit?.Dispose();
         }
     }
 
-    private VerifiedTrustedTool GetLive(VerifiedTrustedTool tool)
+    private T? GetLive<T>(T? value) where T : class
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
-        return tool;
+        return value;
+    }
+
+    private T GetRequiredLive<T>(T value) where T : class
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        return value;
     }
 }
 

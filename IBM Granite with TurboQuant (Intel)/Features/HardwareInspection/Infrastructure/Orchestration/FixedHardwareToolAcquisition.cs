@@ -84,23 +84,21 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
         bool ownershipTransferred = false;
         try
         {
-            if (!Directory.Exists(_llmFitPackageRoot))
+            bool llmFitUnavailable = !Directory.Exists(_llmFitPackageRoot);
+            if (!llmFitUnavailable)
             {
-                return HardwareToolAcquisitionResult.Failure(
-                    HardwareToolAcquisitionDiagnosticCode.ToolNotAvailable);
-            }
+                TrustedToolVerificationResult llmFitVerification = _verify(
+                    _llmFitApprovedRoot,
+                    _llmFitPackageRoot,
+                    LlmFitToolAuthority.Manifest);
+                if (!llmFitVerification.IsVerified || llmFitVerification.Tool is null)
+                {
+                    return HardwareToolAcquisitionResult.Failure(
+                        HardwareToolAcquisitionDiagnosticCode.ToolIntegrityFailure);
+                }
 
-            TrustedToolVerificationResult llmFitVerification = _verify(
-                _llmFitApprovedRoot,
-                _llmFitPackageRoot,
-                LlmFitToolAuthority.Manifest);
-            if (!llmFitVerification.IsVerified || llmFitVerification.Tool is null)
-            {
-                return HardwareToolAcquisitionResult.Failure(
-                    HardwareToolAcquisitionDiagnosticCode.ToolIntegrityFailure);
+                llmFit = llmFitVerification.Tool;
             }
-
-            llmFit = llmFitVerification.Tool;
             if (!Directory.Exists(_probePackageRoot))
             {
                 return HardwareToolAcquisitionResult.Failure(
@@ -129,7 +127,12 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
             }
 
             probe = probeVerification.Tool;
-            HardwareToolLease lease = new(llmFit, probe);
+            HardwareToolLease lease = new(
+                llmFit,
+                probe,
+                llmFitUnavailable
+                    ? HardwareToolAcquisitionDiagnosticCode.ToolNotAvailable
+                    : null);
             ownershipTransferred = true;
             return HardwareToolAcquisitionResult.Success(lease);
         }

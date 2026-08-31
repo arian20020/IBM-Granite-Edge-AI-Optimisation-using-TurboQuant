@@ -44,10 +44,9 @@ public sealed class HardwareInspectionRunResult
                 nameof(outcome));
         }
 
-        HardwareInspectionHandoff handoff = HardwareInspectionHandoff.Create(
-            inspectionId,
-            outcome,
-            snapshot);
+        HardwareInspectionHandoff? handoff = snapshot.Usability == HardwareSnapshotUsability.Usable
+            ? HardwareInspectionHandoff.Create(inspectionId, outcome, snapshot)
+            : null;
         return new HardwareInspectionRunResult(
             inspectionId,
             outcome,

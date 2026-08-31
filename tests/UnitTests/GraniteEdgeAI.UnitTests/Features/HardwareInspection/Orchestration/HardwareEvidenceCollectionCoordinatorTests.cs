@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.HardwareInspection.Application;
 using GraniteEdgeAI.Features.HardwareInspection.Orchestration;
 using GraniteEdgeAI.Features.HardwareInspection.Resolution;
+using GraniteEdgeAI.HardwareInspection.Foundation.LlmFit;
 using GraniteEdgeAI.HardwareInspection.Foundation.Windows;
 using GraniteEdgeAI.UnitTests.Features.HardwareInspection.Resolution;
 using GraniteEdgeAI.UnitTests.Features.HardwareInspection.Support;
@@ -13,6 +14,36 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection.Orchestration;
 [TestCategory("HardwareInspectionGate7Acceptance")]
 public sealed class HardwareEvidenceCollectionCoordinatorTests
 {
+    [TestMethod]
+    public async Task CollectAsync_MissingOptionalLlmFitPreservesWindowsFactsAndSkipsItsProcess()
+    {
+        using VerifiedPackagedToolFixture llamaCpp =
+            VerifiedPackagedToolFixture.CreateLlamaCpp("success");
+        using HardwareToolLease tools = new(
+            llmFit: null,
+            llamaCpp.Tool,
+            HardwareToolAcquisitionDiagnosticCode.ToolNotAvailable);
+        HardwareEvidenceCaptureTestDouble capture = new();
+        HardwareEvidenceCollectionCoordinator coordinator = new(
+            capture,
+            new HardwareResolutionTestData.FixedTimeProvider(
+                HardwareEvidenceCaptureTestDouble.CapturedAtUtc),
+            4,
+            1);
+
+        HardwareEvidenceCollectionResult result = await coordinator.CollectAsync(
+            tools, new RecordingProgress(), CancellationToken.None);
+
+        Assert.IsTrue(result.IsSuccess);
+        Assert.AreEqual(LlmFitEvidenceState.Unavailable, result.Evidence!.LlmFit.State);
+        CollectionAssert.AreEqual(
+            new[] { LlmFitDiagnosticCode.ToolNotAvailable },
+            result.Evidence.LlmFit.Diagnostics.ToArray());
+        Assert.AreSame(capture.Processor, result.Evidence.WindowsProcessor);
+        Assert.AreSame(capture.System, result.Evidence.WindowsSystem.Snapshot);
+        CollectionAssert.AreEqual(new[] { 1, 1, 1, 1, 1, 0, 1 }, capture.Calls);
+    }
+
     [TestMethod]
     public async Task CollectAsync_ReportsCategoryStagesAndBuildsOneExactAggregate()
     {
