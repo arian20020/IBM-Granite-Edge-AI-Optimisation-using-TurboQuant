@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "workerId": "Q1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "baseCommit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+  "baseTree": "78c96061690b8ede285b83712219ba05af34a5dc",
+  "branch": "audit/ucl-q1-optimisation-candidate-r4",
+  "implementationSubjectCommit": "8769ec80b2474cb5d638d1ad0c4b4ffdbe2ac38d",
+  "implementationSubjectTree": "b068ca7f35b7b0b79fff294b8d59ed77df7acdbd",
+  "worktreeCleanAtHandoff": true,
+  "completedAtUtc": "2026-08-31T02:37:58Z",
+  "report": {
+    "path": "docs/audits/2026-08-30/Q1-optimisation-result-binding-r4.md",
+    "sha256": "3aa988c9cb768617df1276d5944ceb54abb5131af4e28151e622ff0a24adb414",
+    "bytes": 6425
+  },
+  "transport": "remote",
+  "remoteRef": "refs/remotes/origin/audit/ucl-q1-optimisation-candidate-r4",
+  "bundle": null,
+  "evidenceManifest": {
+    "path": "docs/audits/2026-08-30/evidence/Q1-optimisation-result-binding-r4.json",
+    "sha256": "30faa849ea9c089eebdaf3f4000d56a4acc45dff2af9f6684eba889c84a4299b",
+    "bytes": 3435,
+    "evidenceSubjectCommit": "8769ec80b2474cb5d638d1ad0c4b4ffdbe2ac38d",
+    "evidenceSubjectTree": "b068ca7f35b7b0b79fff294b8d59ed77df7acdbd"
+  },
+  "testTotals": {
+    "discovered": 461,
+    "executed": 461,
+    "passed": 461,
+    "failed": 0,
+    "skipped": 0
+  },
+  "nativeDisposition": "blocked"
+}

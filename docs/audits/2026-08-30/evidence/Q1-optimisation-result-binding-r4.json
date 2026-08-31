@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 2,
+  "workerId": "Q1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "8769ec80b2474cb5d638d1ad0c4b4ffdbe2ac38d",
+  "evidenceSubjectTree": "b068ca7f35b7b0b79fff294b8d59ed77df7acdbd",
+  "createdAtUtc": "2026-08-31T02:37:58Z",
+  "route": ["shared", "gguf", "openvino"],
+  "evidenceStatus": "mixed",
+  "report": {
+    "path": "docs/audits/2026-08-30/Q1-optimisation-result-binding-r4.md",
+    "sha256": "3aa988c9cb768617df1276d5944ceb54abb5131af4e28151e622ff0a24adb414",
+    "bytes": 6425
+  },
+  "inputs": [
+    {
+      "kind": "validated-candidate-base",
+      "id": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "c0-launch-packet",
+      "id": "C0-r4-Q1-launch-packet",
+      "sha256": "971768d81a051210e902ebd5fa1801eccb5f491cd46aede4483221aeacaa6d60",
+      "bytes": 4274,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "implementation-subject",
+      "id": "8769ec80b2474cb5d638d1ad0c4b4ffdbe2ac38d",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "audit-report",
+      "id": "Q1-optimisation-result-binding-r4.md",
+      "sha256": "3aa988c9cb768617df1276d5944ceb54abb5131af4e28151e622ff0a24adb414",
+      "bytes": 6425,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {"id":"Q1-IDENTITY","exitCode":0,"discovered":47,"executed":47,"passed":47,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"OPENVINO-OPTIMIZATION","exitCode":0,"discovered":55,"executed":55,"passed":55,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"OPENVINO-CONTRACTS","exitCode":0,"discovered":202,"executed":202,"passed":202,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"OPENVINO-WORKER-CLIENT","exitCode":0,"discovered":17,"executed":17,"passed":17,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"GGUF-QUANT-CONTRACTS","exitCode":0,"discovered":7,"executed":7,"passed":7,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"GGUF-QUANT-WORKER-CLIENT","exitCode":0,"discovered":19,"executed":19,"passed":19,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"CROSS-FEATURE","exitCode":0,"discovered":114,"executed":114,"passed":114,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"DEBUG-X64-BUILD","exitCode":0,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"not-applicable"},
+    {"id":"NATIVE-APP-VISUAL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"}
+  ],
+  "blockers": [
+    "The exact Q1 shared native authorization token and lock were not published, so app, package, quantizer, converter, worker, real-model, Chat/export runtime, screenshot, and performance execution did not start.",
+    "The pinned SDK 10.0.301 is absent; managed verification used the installed 10.0.400 SDK through the established H1 shim without committing a policy change.",
+    "H1 records the packaged WinUI runner handshake and application screenshot gate as blocked on this host."
+  ],
+  "nonClaims": [
+    "No native GGUF or OpenVINO output-format, load, Chat, export, Intel performance, screenshot, signed-package, or release acceptance is claimed.",
+    "No C0-owned shell integration or E1 execution is claimed.",
+    "Build-only, blocked, zero-discovery, and mutation-failure rows are not included in the passing test total."
+  ]
+}
