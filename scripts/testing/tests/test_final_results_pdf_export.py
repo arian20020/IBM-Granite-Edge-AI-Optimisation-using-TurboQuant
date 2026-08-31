@@ -122,6 +122,19 @@ def _word_process_ids() -> set[int]:
     }
 
 
+def _process_exists(process_id: int) -> bool:
+    result = subprocess.run(
+        ["tasklist.exe", "/FI", f"PID eq {process_id}", "/FO", "CSV", "/NH"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return any(
+        len(row) >= 2 and row[1].isdigit() and int(row[1]) == process_id
+        for row in csv.reader(result.stdout.splitlines())
+    )
+
+
 def _wait_for_word_process_ids(expected: set[int], timeout_seconds: float = 15) -> set[int]:
     deadline = time.monotonic() + timeout_seconds
     observed = _word_process_ids()
@@ -399,3 +412,57 @@ def test_attribution_failure_never_selects_or_kills_a_snapshot_word_pid(tmp_path
         assert "causal Word attribution failed" in (result.stdout + result.stderr)
         assert int(pre_existing["pid"]) in _word_process_ids()
         assert _wait_for_word_process_ids(expected) == expected
+
+
+@pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
+def test_startup_timeout_contains_pre_receipt_word_and_worker_only(tmp_path):
+    docx = tmp_path / "report.docx"
+    pdf = tmp_path / "report.pdf"
+    worker_pid_path = tmp_path / "export-worker.pid"
+    activation_path = tmp_path / "export-word-activated.json"
+    _renderer()(_pdf_report(), docx)
+
+    with _pre_existing_hidden_word_session(tmp_path) as (baseline, pre_existing):
+        expected = baseline | {int(pre_existing["pid"])}
+        result = _invoke_export(
+            docx,
+            pdf,
+            60,
+            "-StartupTimeoutSeconds",
+            "8",
+            "-TestPreReceiptDelaySeconds",
+            "20",
+            "-TestWorkerPidPath",
+            str(worker_pid_path),
+            "-TestWordActivatedPath",
+            str(activation_path),
+        )
+
+        assert result.returncode != 0
+        assert "startup timeout" in (result.stdout + result.stderr).casefold()
+        activation = json.loads(activation_path.read_text(encoding="utf-8"))
+        assert int(activation["pid"]) != int(pre_existing["pid"])
+        worker_pid = int(worker_pid_path.read_text(encoding="ascii"))
+        assert _process_exists(worker_pid) is False
+        assert int(pre_existing["pid"]) in _word_process_ids()
+        assert _wait_for_word_process_ids(expected) == expected
+
+
+@pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
+def test_worker_waits_for_parent_identity_acknowledgement_before_fast_export(tmp_path):
+    docx = tmp_path / "report.docx"
+    pdf = tmp_path / "report.pdf"
+    _renderer()(_pdf_report(), docx)
+    baseline = _word_process_ids()
+
+    result = _invoke_export(
+        docx,
+        pdf,
+        60,
+        "-TestParentValidationDelaySeconds",
+        "3",
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert pdf.read_bytes().startswith(b"%PDF-")
+    assert _wait_for_word_process_ids(baseline) == baseline
