@@ -526,6 +526,7 @@ tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/Inspection/OpenVinoInspectionHandof
 tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/OpenVinoActivationOutcomePolicyTests.cs
 tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/OpenVinoRouteServiceTests.cs
 tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/OpenVinoRouteStateMachineTests.cs
+tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/TestDotNetHost.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/ChatAccessibilityTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/ChatPageTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/GgufRuntime/Controls/ChatComposerTests.cs
@@ -539,6 +540,7 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ImportMode
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/Controls/ModelImportPageStateMachineTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/FileImport/ModelFilePickerTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelDownload/ModelDownloadCardTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelDownload/ModelImportDownloadedModelIntegrationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportNavigationRequestTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportOperationLifecycleTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelImportPageCompositionTests.cs
@@ -606,7 +608,9 @@ tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/ModelIns
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/PixelDiff.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/RenderedFrame.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelInspection/Visual/WinUiRenderHost.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/Fixtures/OptimizationFixtureCatalog.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationSourceResolverTests.cs
+tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/A1BackendProductionReachabilityTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/Controls/OnboardingStageIndicatorTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingCompatibilityNavigationTests.cs
 tests/UnitTests/GraniteEdgeAI.UnitTests/Features/Onboarding/OnboardingEntryPointTests.cs

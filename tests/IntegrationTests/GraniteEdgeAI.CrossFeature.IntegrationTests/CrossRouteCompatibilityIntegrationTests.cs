@@ -66,7 +66,7 @@ public sealed class CrossRouteCompatibilityIntegrationTests
     [TestMethod]
     public void InstalledAvailableReserveAndExecutableBudgetRemainDistinct()
     {
-        CompatibilityMachineMemory memory = CompatibilityMachineMemory.Create(
+        CompatibilityMachineMemory memory = CreateMachineMemory(
             16 * GiB, 10 * GiB, GiB, 9 * GiB);
 
         Assert.AreEqual(16 * GiB, memory.InstalledSystemMemoryBytes);
@@ -106,7 +106,7 @@ public sealed class CrossRouteCompatibilityIntegrationTests
         Assert.IsTrue(actualReserve <= availableBytes);
         ulong actualBudget = availableBytes - actualReserve;
         Assert.AreEqual(expectedBudget, actualBudget);
-        CompatibilityMachineMemory memory = CompatibilityMachineMemory.Create(
+        CompatibilityMachineMemory memory = CreateMachineMemory(
             installedBytes, availableBytes, actualReserve, actualBudget);
         Assert.IsTrue(memory.SafetyReserveBytes <= memory.AvailableSystemMemoryBytes);
     }
@@ -117,9 +117,9 @@ public sealed class CrossRouteCompatibilityIntegrationTests
         ulong available = 10 * GiB;
         ulong reserve = InvokeReserve(available);
         ulong budget = available - reserve;
-        CompatibilityMachineMemory first = CompatibilityMachineMemory.Create(
+        CompatibilityMachineMemory first = CreateMachineMemory(
             16 * GiB, available, reserve, budget);
-        CompatibilityMachineMemory second = CompatibilityMachineMemory.Create(
+        CompatibilityMachineMemory second = CreateMachineMemory(
             32 * GiB, available, reserve, budget);
 
         Assert.AreEqual(first.SafetyReserveBytes, second.SafetyReserveBytes);
@@ -129,13 +129,10 @@ public sealed class CrossRouteCompatibilityIntegrationTests
     [TestMethod]
     public void MachineMemoryRejectsIncoherentBudgets()
     {
-        TargetInvocationException absent = Assert.ThrowsExactly<TargetInvocationException>(
-            () => InvokeReserve(GiB, absentPolicy: true));
-        Assert.IsInstanceOfType<InvalidOperationException>(absent.InnerException);
         Assert.ThrowsExactly<ArgumentException>(() =>
-            CompatibilityMachineMemory.Create(GiB, GiB / 4, GiB / 2, 0));
+            CreateMachineMemory(GiB, GiB / 4, GiB / 2, 0));
         Assert.ThrowsExactly<ArgumentException>(() =>
-            CompatibilityMachineMemory.Create(GiB, GiB, GiB / 2, GiB));
+            CreateMachineMemory(GiB, GiB, GiB / 2, GiB));
     }
 
     [TestMethod]
@@ -173,37 +170,36 @@ public sealed class CrossRouteCompatibilityIntegrationTests
             GgufCompatibilityModelInput.Create(
                 3 * GiB, 32, 4096, 32, 8, 8192, 15, 2),
             CompatibilityHardwareInput.Create(
-                installedBytes, 0, 500 * GiB,
+                TotalPhysicalMemory.FromBytes(installedBytes), 0, 500 * GiB,
                 [DeviceRouteId.Cpu], [CompatibilityBackend.Cpu]),
             CompatibilityFreshResourcesInput.Create(
-                availableBytes, 0, 500 * GiB, Now));
+                CurrentlyAvailableMemory.FromBytes(availableBytes),
+                0, 500 * GiB, Now));
     }
 
-    private static ulong InvokeReserve(
+    private static ulong InvokeReserve(ulong availableBytes) =>
+        SystemMemoryBudgetCalculator.Calculate(
+            CurrentlyAvailableMemory.FromBytes(availableBytes)).Reserve.Bytes;
+
+    private static CompatibilityMachineMemory CreateMachineMemory(
+        ulong installedBytes,
         ulong availableBytes,
-        bool absentPolicy = false)
+        ulong reserveBytes,
+        ulong budgetBytes)
     {
-        Assembly assembly = typeof(CompatibilityEngine).Assembly;
-        Type safetyType = assembly.GetType(
-            "GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.FitAssessment.SafetyPolicy",
-            throwOnError: true)!;
-        Type byteCountType = assembly.GetType(
-            "GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain.ByteCount",
-            throwOnError: true)!;
-        const BindingFlags staticFlags = BindingFlags.Static
+        const BindingFlags flags = BindingFlags.Instance
             | BindingFlags.Public | BindingFlags.NonPublic;
-        const BindingFlags instanceFlags = BindingFlags.Instance
-            | BindingFlags.Public | BindingFlags.NonPublic;
-        object policy = safetyType.GetMethod(
-            absentPolicy ? "Absent" : "ProportionalV2", staticFlags)!
-            .Invoke(null, null)!;
-        object available = byteCountType.GetMethod("FromBytes", staticFlags)!
-            .Invoke(null, [availableBytes])!;
-        object reserve = safetyType.GetMethod(
-            "AvailableMemoryReserveFor", instanceFlags)!
-            .Invoke(policy, [available])!;
-        return (ulong)byteCountType.GetProperty("Bytes", instanceFlags)!
-            .GetValue(reserve)!;
+        var reserve = (ProportionalSafetyReserve)Activator.CreateInstance(
+            typeof(ProportionalSafetyReserve), flags, binder: null,
+            args: [reserveBytes], culture: null)!;
+        var budget = (ExecutableModelBudget)Activator.CreateInstance(
+            typeof(ExecutableModelBudget), flags, binder: null,
+            args: [budgetBytes], culture: null)!;
+        return CompatibilityMachineMemory.Create(
+            TotalPhysicalMemory.FromBytes(installedBytes),
+            CurrentlyAvailableMemory.FromBytes(availableBytes),
+            reserve,
+            budget);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

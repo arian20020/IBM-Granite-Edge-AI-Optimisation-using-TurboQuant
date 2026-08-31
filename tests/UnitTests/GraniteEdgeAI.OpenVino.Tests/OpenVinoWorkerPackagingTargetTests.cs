@@ -197,7 +197,7 @@ public sealed class OpenVinoWorkerPackagingTargetTests
                 arguments.Add(
                     $"/p:GenerateAppxPackageOnBuild={generateAppxPackage.ToString().ToLowerInvariant()}");
             }
-            ProcessStartInfo start = new("dotnet")
+            ProcessStartInfo start = new(TestDotNetHost.Resolve())
             {
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

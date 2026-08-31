@@ -143,6 +143,42 @@ public sealed class ModelImportOperationLifecycleTests
         Assert.IsNull(page.ValidatedScanResult);
     }
 
+    [UITestMethod]
+    public async Task SourceConversionAuthority_IsCancelledAndCannotRejectReplacement()
+    {
+        var page = CreatePage(new ImmediateClassifier(ModelSelectionRoute.SourceModelDirectory));
+        ModelSelectionOperationId sourceOperationId = default;
+        CancellationToken sourceCancellationToken = default;
+        page.SourceModelConversionRequested += (_, eventArguments) =>
+        {
+            sourceOperationId = eventArguments.Selection.OperationId;
+            Assert.IsTrue(page.TryGetAcceptedFolderOperation(
+                sourceOperationId,
+                out string? sourceDirectory,
+                out sourceCancellationToken));
+            Assert.AreEqual(@"C:\Models\source", sourceDirectory);
+        };
+
+        await page.SubmitInputAsync(new ModelSelectionInput(
+            @"C:\Models\source",
+            "source",
+            true));
+        Assert.IsTrue(page.TryRequestModelInspection());
+
+        await page.SubmitInputAsync(new ModelSelectionInput(
+            @"C:\Models\replacement",
+            "replacement",
+            true));
+
+        Assert.IsTrue(sourceCancellationToken.IsCancellationRequested);
+        Assert.IsFalse(page.RejectFolderRoute(
+            sourceOperationId,
+            "stale-conversion",
+            "A stale conversion must not replace current state."));
+        Assert.IsTrue(page.HasValidatedModel);
+        Assert.AreEqual(ModelSelectionRoute.SourceModelDirectory, page.CurrentRoute);
+    }
+
     private static ModelImportPage CreatePage(IModelSelectionClassifier classifier) => new(
         () => Task.FromResult(ModelFormatSelection.Gguf),
         () => Task.FromResult<string?>(null),

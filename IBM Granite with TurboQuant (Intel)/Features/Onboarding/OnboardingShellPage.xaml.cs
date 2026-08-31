@@ -19,6 +19,7 @@ using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.SourceCustody;
+using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelOptimization;
 using GraniteEdgeAI.Features.ModelOptimization.Execution.Gguf;
 using GraniteEdgeAI.Features.ModelOptimization.Journey;
@@ -26,10 +27,13 @@ using GraniteEdgeAI.Features.ModelOptimization.Presentation;
 using GraniteEdgeAI.Features.ModelOptimization.Storage;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
+using GraniteEdgeAI.Features.OpenVinoRoute;
+using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.ModelOptimization.Execution.OpenVino;
 using GraniteEdgeAI.GgufQuantization.WorkerClient;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -63,6 +67,8 @@ namespace GraniteEdgeAI.Features.Onboarding
         private ChatDemoController? _chatController;
         private bool _ggufChatRouteRegistered;
         private int _ggufChatLaunchFaultReported;
+        private readonly CancellationTokenSource _lifetimeCancellation = new();
+        private int _disposed;
         private OptimizationPage? _attachedOptimizationPage;
         private CompatibilityPage? _compatibilityPageForOptimizationReturn;
         private OptimizationJourneyCoordinator? _optimizationCoordinator;
@@ -287,6 +293,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelImportPage_OpenVinoInspectionRequested;
             _attachedModelImportPage.SourceModelConversionRequested +=
                 ModelImportPage_SourceModelConversionRequested;
+            _attachedModelImportPage.VerifiedDownloadInspectionReady +=
+                ModelImportPage_VerifiedDownloadInspectionReady;
         }
 
         /// <summary>
@@ -377,7 +385,7 @@ namespace GraniteEdgeAI.Features.Onboarding
             return true;
         }
 
-        internal bool NavigateToOpenVinoInspection(
+        internal Task<bool> NavigateToOpenVinoInspectionAsync(
             OpenVinoInspectionRequestedEventArgs request)
         {
             ArgumentNullException.ThrowIfNull(request);
@@ -387,6 +395,23 @@ namespace GraniteEdgeAI.Features.Onboarding
                     request.OperationId,
                     out string? directoryPath) ||
                 string.IsNullOrWhiteSpace(directoryPath))
+            {
+                return Task.FromResult(false);
+            }
+
+            return NavigateToOpenVinoInspectionDirectoryAsync(
+                importPage,
+                request,
+                directoryPath);
+        }
+
+        private async Task<bool> NavigateToOpenVinoInspectionDirectoryAsync(
+            ModelImportPage importPage,
+            OpenVinoInspectionRequestedEventArgs request,
+            string directoryPath)
+        {
+            await importPage.RetireForNavigationAsync();
+            if (!ReferenceEquals(importPage, _attachedModelImportPage))
             {
                 return false;
             }
@@ -465,18 +490,25 @@ namespace GraniteEdgeAI.Features.Onboarding
             NavigateToModelInspection(eventArguments.Request);
         }
 
-        private void ModelImportPage_OpenVinoInspectionRequested(
+        private async void ModelImportPage_OpenVinoInspectionRequested(
             object? sender,
             OpenVinoInspectionRequestedEventArgs eventArguments)
         {
             if (sender is ModelImportPage page &&
                 ReferenceEquals(page, _attachedModelImportPage))
             {
-                NavigateToOpenVinoInspection(eventArguments);
+                try
+                {
+                    await NavigateToOpenVinoInspectionAsync(eventArguments);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Navigation retirement won the race.
+                }
             }
         }
 
-        private void ModelImportPage_SourceModelConversionRequested(
+        private async void ModelImportPage_SourceModelConversionRequested(
             object? sender,
             SourceModelConversionRequestedEventArgs eventArguments)
         {
@@ -486,10 +518,173 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return;
             }
 
-            // The shell relays the exact immutable intent. Conversion belongs
-            // to a later route; this boundary never starts a converter/process
-            // and never retains the selected folder path.
             SourceModelConversionRequested?.Invoke(this, eventArguments);
+            if (!page.TryGetAcceptedFolderOperation(
+                    eventArguments.Selection.OperationId,
+                    out string? sourceDirectory,
+                    out CancellationToken selectionCancellationToken)
+                || string.IsNullOrWhiteSpace(sourceDirectory))
+            {
+                page.RejectFolderRoute(
+                    eventArguments.Selection.OperationId,
+                    "conversion-source-unavailable",
+                    "The selected model source is no longer available. Choose it again.");
+                return;
+            }
+
+            try
+            {
+                using CancellationTokenSource conversionCancellation =
+                    CancellationTokenSource.CreateLinkedTokenSource(
+                        selectionCancellationToken,
+                        _lifetimeCancellation.Token);
+                await ConvertAndInspectAsync(
+                    page,
+                    eventArguments,
+                    sourceDirectory,
+                    conversionCancellation.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Shell or selection retirement owns cancellation.
+            }
+            catch (Exception exception) when (exception is IOException
+                                               or UnauthorizedAccessException
+                                               or InvalidOperationException
+                                               or PlatformNotSupportedException)
+            {
+                if (ReferenceEquals(page, _attachedModelImportPage)
+                    && page.IsCurrentSelectionOperation(
+                        eventArguments.Selection.OperationId))
+                {
+                    page.RejectFolderRoute(
+                        eventArguments.Selection.OperationId,
+                        "conversion-unavailable",
+                        "This model could not be converted on this computer. Check the local runtime, then try again.");
+                }
+            }
+        }
+
+        private async Task ConvertAndInspectAsync(
+            ModelImportPage page,
+            SourceModelConversionRequestedEventArgs eventArguments,
+            string sourceDirectory,
+            CancellationToken cancellationToken)
+        {
+            OpenVinoRouteService routeService =
+                ModelInspectionServiceComposition.CreateDefaultOpenVinoRouteService();
+            OpenVinoRouteInspectionResult inspection =
+                await routeService.InspectAsync(
+                    sourceDirectory,
+                    cancellationToken);
+            using OpenVinoConversionOffer? offer = inspection.ConversionOffer;
+            if (offer is null)
+            {
+                page.RejectFolderRoute(
+                    eventArguments.Selection.OperationId,
+                    "conversion-source-invalid",
+                    "The selected source model is incomplete or changed. Choose it again.");
+                return;
+            }
+
+            OpenVinoConversionService conversionService =
+                ModelInspectionServiceComposition.CreateDefaultOpenVinoConversionService(
+                    routeService);
+            OpenVinoConversionResult result = await conversionService.ConvertAsync(
+                offer,
+                confirmed: true,
+                progress: null,
+                cancellationToken);
+            if (result.Status != OpenVinoConversionStatus.Published
+                || string.IsNullOrWhiteSpace(result.PublishedDirectory)
+                || !ReferenceEquals(page, _attachedModelImportPage)
+                || !page.IsCurrentSelectionOperation(
+                    eventArguments.Selection.OperationId))
+            {
+                if (ReferenceEquals(page, _attachedModelImportPage)
+                    && page.IsCurrentSelectionOperation(
+                        eventArguments.Selection.OperationId))
+                {
+                    page.RejectFolderRoute(
+                        eventArguments.Selection.OperationId,
+                        "conversion-failed",
+                        "The selected model was not converted. Review local storage and try again.");
+                }
+                return;
+            }
+
+            var request = new OpenVinoInspectionRequestedEventArgs(
+                eventArguments.Selection.OperationId,
+                eventArguments.Selection.DisplayName);
+            await NavigateToOpenVinoInspectionDirectoryAsync(
+                page,
+                request,
+                result.PublishedDirectory);
+        }
+
+        private void ModelImportPage_VerifiedDownloadInspectionReady(
+            object? sender,
+            VerifiedDownloadInspectionReadyEventArgs eventArguments)
+        {
+            if (sender is not ModelImportPage page
+                || !ReferenceEquals(page, _attachedModelImportPage))
+            {
+                return;
+            }
+
+            CurrentNavigationTask =
+                HandleVerifiedDownloadInspectionReadyAsync(page, eventArguments);
+        }
+
+        private async Task HandleVerifiedDownloadInspectionReadyAsync(
+            ModelImportPage page,
+            VerifiedDownloadInspectionReadyEventArgs eventArguments)
+        {
+            if (!page.TryClaimVerifiedDownloadInspection(
+                    eventArguments.OperationId,
+                    out ModelInspectionRequest? request)
+                || request is null)
+            {
+                return;
+            }
+
+            bool installed = false;
+            try
+            {
+                await page.RetireForNavigationAsync();
+                if (!ReferenceEquals(page, _attachedModelImportPage))
+                {
+                    return;
+                }
+
+                installed = NavigateToModelInspection(request);
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceWarning(
+                    "Verified-download navigation observed {0}.",
+                    exception.GetType().Name);
+            }
+
+            if (installed || !ReferenceEquals(page, _attachedModelImportPage))
+            {
+                return;
+            }
+
+            try
+            {
+                if (!NavigateToFreshModelImport())
+                {
+                    Trace.TraceWarning(
+                        "Verified-download navigation recovery could not install a fresh import page.");
+                }
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceWarning(
+                    "Verified-download navigation recovery observed {0}.",
+                    exception.GetType().Name);
+            }
         }
 
         /// <summary>
@@ -972,10 +1167,14 @@ namespace GraniteEdgeAI.Features.Onboarding
                     }
                     break;
                 case OptimizationCommand.Chat:
-                    await LaunchOptimizedChatAsync(coordinator.State);
+                    await LaunchOptimizedChatAsync(
+                        coordinator.State,
+                        _lifetimeCancellation.Token);
                     break;
                 case OptimizationCommand.Save:
-                    await SaveOptimizedModelAsync(coordinator.State);
+                    await SaveOptimizedModelAsync(
+                        coordinator.State,
+                        _lifetimeCancellation.Token);
                     break;
                 case OptimizationCommand.Done:
                     await ReturnFromOptimizationAsync();
@@ -984,20 +1183,29 @@ namespace GraniteEdgeAI.Features.Onboarding
         }
 
         private async Task LaunchOptimizedChatAsync(
-            OptimizationJourneyState state)
+            OptimizationJourneyState state,
+            CancellationToken cancellationToken)
         {
             if (state.Result is { IsSuccessful: true } openVinoResult
                 && openVinoResult.Route == OptimizationRoute.OpenVino
-                && _modelInspectionPageForHardwareReturn is { } openVinoPage)
+                && _modelInspectionPageForHardwareReturn is { } openVinoPage
+                && _activeOpenVinoExecutor is { } openVinoExecutor)
             {
-                string? packageDirectory = openVinoResult.ProducedPersistentArtifact
-                    ? _activeOpenVinoExecutor?.LastPublishedDirectory
-                    : null;
-                bool activated = packageDirectory is null
-                    ? await openVinoPage.ActivateOpenVinoChatAsync(
-                        CancellationToken.None)
-                    : await openVinoPage.ActivateOpenVinoChatFromDirectoryAsync(
-                        packageDirectory, CancellationToken.None);
+                using OpenVinoOptimizationChatTarget? target =
+                    await openVinoExecutor.CreateChatTargetAsync(
+                        state.Result,
+                        cancellationToken);
+                if (target is null
+                    || !string.Equals(
+                        target.ConfigurationSha256,
+                        openVinoResult.ConfigurationSha256,
+                        StringComparison.Ordinal))
+                {
+                    return;
+                }
+                bool activated = await openVinoPage.ActivateOpenVinoChatTargetAsync(
+                    target,
+                    cancellationToken);
                 if (activated)
                 {
                     await RetireOptimizationAsync();
@@ -1073,7 +1281,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                         .CreateInitializedChatAsync(
                             page,
                             request,
-                            CancellationToken.None);
+                            cancellationToken);
                 }
                 catch (Exception exception)
                 {
@@ -1122,7 +1330,8 @@ namespace GraniteEdgeAI.Features.Onboarding
         }
 
         private async Task SaveOptimizedModelAsync(
-            OptimizationJourneyState state)
+            OptimizationJourneyState state,
+            CancellationToken cancellationToken)
         {
             if (state.Result is not
                     { Status: OptimizationExecutionStatus.SucceededPersistent }
@@ -1133,10 +1342,7 @@ namespace GraniteEdgeAI.Features.Onboarding
 
             if (result.Route == OptimizationRoute.OpenVino)
             {
-                string? sourceDirectory =
-                    _activeOpenVinoExecutor?.LastPublishedDirectory;
-                if (string.IsNullOrWhiteSpace(sourceDirectory)
-                    || !Directory.Exists(sourceDirectory))
+                if (_activeOpenVinoExecutor is not { } openVinoExecutor)
                 {
                     return;
                 }
@@ -1151,10 +1357,25 @@ namespace GraniteEdgeAI.Features.Onboarding
                 {
                     return;
                 }
-                string destinationRoot = Path.Combine(
+                string destination = Path.Combine(
                     selected.Path,
                     $"optimised-openvino-model-{DateTime.Now:yyyyMMdd-HHmmss}");
-                CopyDirectory(sourceDirectory, destinationRoot);
+                const ulong maximumExportBytes = 1UL << 40;
+                const ulong metadataAllowanceBytes = 64UL * 1024 * 1024;
+                ulong maximumBytes = result.OutputSizeBytes
+                    > maximumExportBytes - metadataAllowanceBytes
+                        ? maximumExportBytes
+                        : result.OutputSizeBytes + metadataAllowanceBytes;
+                OpenVinoExportResult exportResult =
+                    await openVinoExecutor.ExportPersistentAsync(
+                        state.Result,
+                        destination,
+                        maximumBytes,
+                        cancellationToken);
+                if (!exportResult.IsSuccessful)
+                {
+                    return;
+                }
                 return;
             }
 
@@ -1176,9 +1397,9 @@ namespace GraniteEdgeAI.Features.Onboarding
                 picker,
                 WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
             picker.FileTypeChoices.Add("GGUF model", [".gguf"]);
-            Windows.Storage.StorageFile? destination =
+            Windows.Storage.StorageFile? destinationFile =
                 await picker.PickSaveFileAsync();
-            if (destination is null)
+            if (destinationFile is null)
             {
                 return;
             }
@@ -1189,7 +1410,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 FileShare.Read,
                 1024 * 1024,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await using Stream target = await destination.OpenStreamForWriteAsync();
+            await using Stream target = await destinationFile.OpenStreamForWriteAsync();
             target.SetLength(0);
             await source.CopyToAsync(target);
             await target.FlushAsync();
@@ -1547,6 +1768,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 ModelImportPage_OpenVinoInspectionRequested;
             _attachedModelImportPage.SourceModelConversionRequested -=
                 ModelImportPage_SourceModelConversionRequested;
+            _attachedModelImportPage.VerifiedDownloadInspectionReady -=
+                ModelImportPage_VerifiedDownloadInspectionReady;
 
             // Release the reference to the old page.
             _attachedModelImportPage = null;

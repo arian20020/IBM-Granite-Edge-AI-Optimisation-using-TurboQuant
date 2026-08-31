@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
+using GraniteEdgeAI.ModelInspection.Contracts.Tests.Support;
 using GraniteEdgeAI.ModelInspection.Fixtures;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -2069,7 +2070,7 @@ public sealed class ModelInspectionFixtureValidationContractTests
         string configuration,
         string platform)
     {
-        var startInfo = new ProcessStartInfo("dotnet")
+        var startInfo = new ProcessStartInfo(EvaluatedMsBuildItems.ResolveDotNetHost())
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,

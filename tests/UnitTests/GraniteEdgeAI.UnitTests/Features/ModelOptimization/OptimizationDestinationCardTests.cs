@@ -1,6 +1,6 @@
 using System.Linq;
 using GraniteEdgeAI.Features.ModelOptimization.Controls;
-using GraniteEdgeAI.Features.ModelOptimization.DebugFixtures;
+using GraniteEdgeAI.UnitTests.Features.ModelOptimization.Fixtures;
 using GraniteEdgeAI.Features.ModelOptimization.Presentation;
 using GraniteEdgeAI.Features.ModelOptimization.Export;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;

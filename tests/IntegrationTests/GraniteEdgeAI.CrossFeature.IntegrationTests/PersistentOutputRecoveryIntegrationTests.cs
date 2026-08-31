@@ -25,7 +25,8 @@ public sealed class PersistentOutputRecoveryIntegrationTests
         OptimizationExecutionResult result = OptimizationExecutionResult.Succeeded(
             plan, receipt.Key.OutputIdentity,
             receipt.Key.OutputManifestSha256, receipt.OutputSizeBytes,
-            sourceUnchanged: true, DateTimeOffset.UnixEpoch);
+            sourceUnchanged: true, DateTimeOffset.UnixEpoch,
+            receipt.Key.ExecutionId);
 
         var restarted = new OptimizationOutputRegistry(
             fixture.StagingRoot, fixture.CommittedRoot);

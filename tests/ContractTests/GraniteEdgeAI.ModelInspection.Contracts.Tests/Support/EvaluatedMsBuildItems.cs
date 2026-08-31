@@ -194,7 +194,7 @@ internal static class EvaluatedMsBuildItems
             ? value.GetString()
             : null;
 
-    private static string ResolveDotNetHost()
+    internal static string ResolveDotNetHost()
     {
         string hostFileName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
         const string approvedSdk = @"C:\GEAI-Tools\dotnet-sdk-10.0.301\dotnet.exe";

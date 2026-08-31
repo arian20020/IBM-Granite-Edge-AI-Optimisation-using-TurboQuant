@@ -101,7 +101,7 @@ public sealed class ProductionCompatibilityBindingIntegrationTests
                     1),
                 OpenVinoWeightPrecision.Fp16);
         CompatibilityHardwareInput hardware = CompatibilityHardwareInput.Create(
-            installedSystemMemoryBytes,
+            TotalPhysicalMemory.FromBytes(installedSystemMemoryBytes),
             4 * GiB,
             500 * GiB,
             [DeviceRouteId.Cpu],
@@ -138,7 +138,7 @@ public sealed class ProductionCompatibilityBindingIntegrationTests
             journey,
             hardware,
             CompatibilityFreshResourcesInput.Create(
-                availableSystemMemoryBytes,
+                CurrentlyAvailableMemory.FromBytes(availableSystemMemoryBytes),
                 0,
                 500 * GiB,
                 observedAtUtc),

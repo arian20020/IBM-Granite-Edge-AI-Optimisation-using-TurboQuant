@@ -1,6 +1,6 @@
 using System.Linq;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
-using GraniteEdgeAI.Features.ModelOptimization.DebugFixtures;
+using GraniteEdgeAI.UnitTests.Features.ModelOptimization.Fixtures;
 using GraniteEdgeAI.Features.ModelOptimization.Presentation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 

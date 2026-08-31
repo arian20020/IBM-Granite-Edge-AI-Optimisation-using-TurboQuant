@@ -88,11 +88,12 @@
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\ChatTitlePolicy.cs" Link="Production\GgufRuntime\History\ChatTitlePolicy.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\IGgufChatSession.cs" Link="Production\GgufRuntime\Services\IGgufChatSession.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\GgufChatSessionAdapter.cs" Link="Production\GgufRuntime\Services\GgufChatSessionAdapter.cs" />
-    <Compile Include="..\..\..\infrastructure\GraniteEdgeAI.GgufQuantization.WorkerClient\GgufQuantizerEnvironmentPolicy.cs" Link="Production\GgufQuantization\GgufQuantizerEnvironmentPolicy.cs" />
+    <Compile Include="..\..\..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GgufRuntimeStartupException.cs" Link="Production\GgufRuntime\WorkerClient\GgufRuntimeStartupException.cs" />
+    <Compile Include="..\..\..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GgufWorkerPolicyException.cs" Link="Production\GgufRuntime\WorkerClient\GgufWorkerPolicyException.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj" />
+    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />

@@ -279,10 +279,51 @@ namespace GraniteEdgeAI.Features.ModelImport
             return true;
         }
 
+        internal bool TryGetAcceptedFolderOperation(
+            ModelSelectionOperationId operationId,
+            out string? localPath,
+            out CancellationToken cancellationToken)
+        {
+            localPath = null;
+            cancellationToken = default;
+            ModelSelectionOperation? active = Volatile.Read(ref _activeOperation);
+            if (Volatile.Read(ref _isRetired) != 0
+                || active is null
+                || active.Token.IsCancellationRequested
+                || active.Id != operationId
+                || _acceptedFolderOperationId != operationId
+                || string.IsNullOrWhiteSpace(_acceptedFolderLocalPath))
+            {
+                return false;
+            }
+
+            localPath = _acceptedFolderLocalPath;
+            cancellationToken = active.Token;
+            return true;
+        }
+
+        internal bool IsCurrentSelectionOperation(
+            ModelSelectionOperationId operationId)
+        {
+            ModelSelectionOperation? active = Volatile.Read(ref _activeOperation);
+            return Volatile.Read(ref _isRetired) == 0
+                && active is not null
+                && !active.Token.IsCancellationRequested
+                && active.Id == operationId;
+        }
+
         // A missing route implementation must fail closed without exposing the
         // selected folder path in UI text, diagnostics, or event payloads.
-        internal void RejectFolderRoute(string failureCode, string userMessage)
+        internal bool RejectFolderRoute(
+            ModelSelectionOperationId operationId,
+            string failureCode,
+            string userMessage)
         {
+            if (!IsCurrentSelectionOperation(operationId))
+            {
+                return false;
+            }
+
             string displayName = _acceptedFolderDisplayName ?? "selected folder";
             RetireActiveSelectionOperation();
             _acceptedFolderOperationId = null;
@@ -293,6 +334,7 @@ namespace GraniteEdgeAI.Features.ModelImport
             HasValidatedModel = false;
             ContinueToModelInspectionButton.IsEnabled = false;
             ImportModelCardControl.ShowFailure(displayName, failureCode, userMessage);
+            return true;
         }
 
         protected override async void OnNavigatedFrom(NavigationEventArgs e)

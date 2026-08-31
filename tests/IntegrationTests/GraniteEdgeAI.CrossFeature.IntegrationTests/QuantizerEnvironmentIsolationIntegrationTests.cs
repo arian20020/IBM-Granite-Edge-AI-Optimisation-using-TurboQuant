@@ -1,4 +1,4 @@
-using GraniteEdgeAI.GgufQuantization.WorkerClient;
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
 
 namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 
@@ -17,18 +17,9 @@ public sealed class QuantizerEnvironmentIsolationIntegrationTests
     public void QuantizerChildEnvironmentIsAllowlistedAndDiagnosticsDisabled()
     {
         string existing = Path.GetTempPath();
-        var parent = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["SystemRoot"] = existing,
-            ["WINDIR"] = existing,
-            ["TEMP"] = existing,
-            ["TMP"] = existing,
-            ["PATH"] = @"C:\private\toolchain",
-            ["SECRET_CANARY"] = "must-not-propagate"
-        };
-
-        IReadOnlyDictionary<string, string> child =
-            GgufQuantizerEnvironmentPolicy.Create(parent);
+        using TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: false);
+        IReadOnlyDictionary<string, string> child = operation.Variables;
 
         CollectionAssert.AreEquivalent(ExpectedKeys, child.Keys.ToArray());
         Assert.IsFalse(child.ContainsKey("PATH"));

@@ -116,10 +116,10 @@ public sealed class RemediationGapContractTests
             if (actionCaller is not null)
             {
                 IReadOnlyList<string[]> calls = InvocationStatements(
-                    actionCaller, "DownloadAsync", out bool containsLocalFunction);
+                    actionCaller, "StartAsync", out bool containsLocalFunction);
                 if (containsLocalFunction || calls.Count != 1
                     || !NormalizeCode(actionCaller).Contains(
-                        "_downloadCoordinator.DownloadAsync(", StringComparison.Ordinal))
+                        "_coordinator.StartAsync(", StringComparison.Ordinal))
                 {
                     failures.Add("download action does not directly invoke the owned coordinator once");
                 }
@@ -128,7 +128,9 @@ public sealed class RemediationGapContractTests
 
         string downloadRoot = AppFile(
             "Features", "ModelImport", "ModelDownload");
-        string catalogPath = Path.Combine(downloadRoot, "PinnedGraniteModelCatalog.cs");
+        string catalogPath = Path.Combine(
+            RepositoryRoot(), "shared", "GraniteEdgeAI.ModelDownload.Authority",
+            "PinnedGraniteModelCatalog.cs");
         string servicePath = Path.Combine(
             downloadRoot, "ResumableVerifiedModelDownloadService.cs");
         string coordinatorPath = Path.Combine(downloadRoot, "ModelDownloadCoordinator.cs");
@@ -138,7 +140,19 @@ public sealed class RemediationGapContractTests
 
         if (File.Exists(catalogPath))
         {
-            RequireCompiledByAppProject(catalogPath, failures);
+            string authorityProject = Path.Combine(
+                Path.GetDirectoryName(catalogPath)!,
+                "GraniteEdgeAI.ModelDownload.Authority.csproj");
+            string appBuildTargets = AppFile("Directory.Build.targets");
+            RequireFile(authorityProject, "the pinned catalogue authority project", failures);
+            RequireFile(appBuildTargets, "the app project authority reference", failures);
+            if (File.Exists(appBuildTargets)
+                && !File.ReadAllText(appBuildTargets).Contains(
+                    "GraniteEdgeAI.ModelDownload.Authority.csproj",
+                    StringComparison.Ordinal))
+            {
+                failures.Add("the app project does not reference the pinned catalogue authority");
+            }
             string catalog = StripComments(File.ReadAllText(catalogPath));
             RequireDeclaration(catalog, "PinnedGraniteModelCatalog", failures);
             string[] exactPins =
@@ -175,16 +189,23 @@ public sealed class RemediationGapContractTests
             string downloadMethod = MethodBody(service, "DownloadAsync");
             foreach (string rangeMember in new[]
             {
-                "HttpStatusCode.PartialContent", "response.ContentRange",
-                ".HasRange", ".From", ".To", ".Length"
+                "HttpStatusCode.PartialContent", "IsValidContentRange("
             })
             {
                 if (!ActiveCodeMask(downloadMethod).Contains(
                         rangeMember, StringComparison.Ordinal))
                     failures.Add($"active range validation member missing: {rangeMember}");
             }
-            RequireInvocationExpression(downloadMethod, "IsValidContentRange",
-                "download does not actively validate the returned byte range", failures);
+            string rangeValidation = MethodBody(service, "IsValidContentRange");
+            foreach (string rangeMember in new[]
+            {
+                "response.ContentRange", ".HasRange", ".From", ".To", ".Length"
+            })
+            {
+                if (!ActiveCodeMask(rangeValidation).Contains(
+                        rangeMember, StringComparison.Ordinal))
+                    failures.Add($"active range validator member missing: {rangeMember}");
+            }
         }
 
         if (File.Exists(coordinatorPath))
@@ -192,25 +213,35 @@ public sealed class RemediationGapContractTests
             RequireCompiledByAppProject(coordinatorPath, failures);
             string coordinator = File.ReadAllText(coordinatorPath);
             RequireDeclaration(coordinator, "ModelDownloadCoordinator", failures);
-            string coordinatorMethod = MethodBody(coordinator, "DownloadAsync");
+            string coordinatorMethod = MethodBody(coordinator, "StartAsync");
             string normalizedCoordinator = NormalizeCode(coordinatorMethod);
             if (!normalizedCoordinator.Contains(
-                    "_downloadService.DownloadAsync(", StringComparison.Ordinal))
-                failures.Add("coordinator DownloadAsync does not call the owned service");
-            if (!normalizedCoordinator.Contains(".IsVerified", StringComparison.Ordinal)
+                    "_service.DownloadAsync(", StringComparison.Ordinal))
+                failures.Add("coordinator StartAsync does not call the owned service");
+            if (!normalizedCoordinator.Contains(
+                    "result.VerifiedModelisnotnull", StringComparison.Ordinal)
                 || !normalizedCoordinator.Contains(
-                    "_modelImportPage.SubmitInputAsync(", StringComparison.Ordinal))
-                failures.Add("SubmitInputAsync is not guarded by a verified download result");
+                    "PublishVerifiedModelAvailable(", StringComparison.Ordinal))
+                failures.Add("verified completion does not publish the opaque handoff event");
             int serviceCall = normalizedCoordinator.IndexOf(
-                "_downloadService.DownloadAsync(", StringComparison.Ordinal);
-            int submitCall = normalizedCoordinator.IndexOf(
-                "_modelImportPage.SubmitInputAsync(", StringComparison.Ordinal);
-            if (serviceCall < 0 || submitCall <= serviceCall)
-                failures.Add("verified import convergence does not follow the service call");
+                "_service.DownloadAsync(", StringComparison.Ordinal);
+            int publishCall = normalizedCoordinator.IndexOf(
+                "PublishVerifiedModelAvailable(", StringComparison.Ordinal);
+            if (serviceCall < 0 || publishCall <= serviceCall)
+                failures.Add("verified handoff publication does not follow the service call");
             RequireInvocationStatement(coordinatorMethod, "DownloadAsync",
                 "coordinator has no executable service download invocation", failures);
-            RequireInvocationStatement(coordinatorMethod, "SubmitInputAsync",
-                "verified completion does not invoke SubmitInputAsync", failures);
+            RequireInvocationStatement(coordinatorMethod, "PublishVerifiedModelAvailable",
+                "verified completion does not publish its opaque handoff", failures);
+
+            string importPage = ReadAppFile(
+                "Features", "ModelImport", "ModelImportPage.xaml.cs");
+            string verifiedHandoff = MethodBody(
+                importPage, "CompleteVerifiedDownloadHandoffAsync");
+            RequireToken(verifiedHandoff, "TryClaimVerifiedModel",
+                "Model Import does not claim the verified model from the coordinator", failures);
+            RequireInvocationStatement(verifiedHandoff, "SubmitInputAsync",
+                "Model Import does not converge the claimed model through SubmitInputAsync", failures);
         }
 
         RequireCompiledByAppProject(xamlPath, failures, compileItem: "Page");
@@ -250,15 +281,23 @@ public sealed class RemediationGapContractTests
             "export uses CancellationToken.None instead of a lifecycle token", failures);
         RejectToken(export, "LastPublishedDirectory",
             "export still trusts LastPublishedDirectory", failures);
-        string conversionMethod = MethodBody(selection, "TryRequestFolderInspection");
-        RequireToken(conversionMethod, "SourceModelConversionRequested",
+        string conversionIntent = MethodBody(selection, "TryRequestFolderInspection");
+        RequireToken(conversionIntent, "SourceModelConversionRequested",
             "source-model selection has no conversion intent", failures);
-        RejectToken(conversionMethod,
+        RejectToken(conversionIntent,
             "SourceModelConversionRequested?.Invoke(this, new OpenVinoInspectionRequestedEventArgs",
             "source conversion bypasses conversion as an inspection request", failures);
-        RequireInvocationStatement(conversionMethod, "ConvertAndInspectAsync",
+        string conversionHandler = MethodBody(
+            shell, "ModelImportPage_SourceModelConversionRequested");
+        RequireInvocationStatement(conversionHandler, "ConvertAndInspectAsync",
             "source conversion intent has no real conversion-and-inspection composition",
             failures);
+        string conversionComposition = MethodBody(shell, "ConvertAndInspectAsync");
+        RequireInvocationStatement(conversionComposition, "ConvertAsync",
+            "source conversion composition does not invoke the conversion authority", failures);
+        RequireInvocationStatement(
+            conversionComposition, "NavigateToOpenVinoInspectionDirectoryAsync",
+            "published conversion output does not converge into inspection", failures);
 
         Assert.AreEqual(0, failures.Count,
             "Exact result/source conversion composition gaps: "

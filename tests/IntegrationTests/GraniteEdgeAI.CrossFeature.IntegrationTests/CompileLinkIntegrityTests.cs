@@ -16,8 +16,10 @@ public sealed class CompileLinkIntegrityTests
 
     private static readonly string[] ExpectedProjectReferences =
     [
+        @"..\..\..\infrastructure\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj",
         @"..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj",
         @"..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj",
+        @"..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj",
         @"..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj"
     ];
 
@@ -166,7 +168,7 @@ public sealed class CompileLinkIntegrityTests
                 && element.Attribute("Include") is not null)
             .Select(element => element.Attribute("Include")!.Value)
             .ToArray();
-        Assert.AreEqual(60, includeGroups.Length,
+        Assert.AreEqual(62, includeGroups.Length,
             "Every unavoidable linked production file must remain exact and documented.");
         Assert.IsTrue(includeGroups.All(include =>
             include.StartsWith(@"..\..\..\", StringComparison.Ordinal)));

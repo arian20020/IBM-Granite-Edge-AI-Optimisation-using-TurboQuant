@@ -1,6 +1,6 @@
 using System.Linq;
 using GraniteEdgeAI.Features.ModelOptimization;
-using GraniteEdgeAI.Features.ModelOptimization.DebugFixtures;
+using GraniteEdgeAI.UnitTests.Features.ModelOptimization.Fixtures;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;

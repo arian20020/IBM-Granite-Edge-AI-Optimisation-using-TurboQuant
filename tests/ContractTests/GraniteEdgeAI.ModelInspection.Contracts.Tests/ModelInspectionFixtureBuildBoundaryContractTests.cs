@@ -4,6 +4,7 @@ using System.Reflection.PortableExecutable;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using GraniteEdgeAI.ModelInspection.Fixtures;
+using GraniteEdgeAI.ModelInspection.Contracts.Tests.Support;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GraniteEdgeAI.ModelInspection.Contracts.Tests;
@@ -1733,7 +1734,7 @@ public sealed class ModelInspectionFixtureBuildBoundaryContractTests
         string runtimeIdentifier)
     {
         string projectPath = Absolute(project.RelativePath);
-        var startInfo = new ProcessStartInfo("dotnet")
+        var startInfo = new ProcessStartInfo(EvaluatedMsBuildItems.ResolveDotNetHost())
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,

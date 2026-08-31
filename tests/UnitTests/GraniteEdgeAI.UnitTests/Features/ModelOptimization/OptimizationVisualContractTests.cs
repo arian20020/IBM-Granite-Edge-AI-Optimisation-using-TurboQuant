@@ -1,5 +1,5 @@
 using GraniteEdgeAI.Features.ModelOptimization;
-using GraniteEdgeAI.Features.ModelOptimization.DebugFixtures;
+using GraniteEdgeAI.UnitTests.Features.ModelOptimization.Fixtures;
 using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

@@ -234,7 +234,7 @@ public sealed class A1BackendProductionReachabilityTests
         {
             CaptureCount++;
             return ValueTask.FromResult(CompatibilityFreshResourcesInput.Create(
-                8UL * 1024 * 1024 * 1024,
+                CurrentlyAvailableMemory.FromBytes(8UL * 1024 * 1024 * 1024),
                 availableDedicatedDeviceMemoryBytes: null,
                 32UL * 1024 * 1024 * 1024,
                 DateTimeOffset.UtcNow));

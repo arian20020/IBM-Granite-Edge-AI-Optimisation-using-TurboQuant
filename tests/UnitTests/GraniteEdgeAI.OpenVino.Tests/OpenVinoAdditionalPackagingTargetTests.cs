@@ -151,7 +151,7 @@ public sealed class OpenVinoAdditionalPackagingTargetTests
                 arguments.Add($"/p:{role.DigestProperty}={digest}");
             }
 
-            ProcessStartInfo start = new("dotnet")
+            ProcessStartInfo start = new(TestDotNetHost.Resolve())
             {
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

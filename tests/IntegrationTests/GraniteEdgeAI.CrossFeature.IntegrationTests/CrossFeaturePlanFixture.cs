@@ -263,7 +263,7 @@ internal static class CrossFeaturePlanFixture
                 OpenVinoCompiledCachePolicy.Disabled, 1),
             OpenVinoWeightPrecision.Fp16);
         var hardware = CompatibilityHardwareInput.Create(
-            64 * GiB, 8 * GiB, 500 * GiB,
+            TotalPhysicalMemory.FromBytes(64 * GiB), 8 * GiB, 500 * GiB,
             [DeviceRouteId.Cpu], [CompatibilityBackend.OpenVinoCpu]);
         OptimizationJourneyBinding binding = Binding();
         return CompatibilityProductionInput.Create(
@@ -273,7 +273,8 @@ internal static class CrossFeaturePlanFixture
                 HardwareDigest, CompatibilityFactDigest.ComputeHardware(hardware)),
             hardware,
             CompatibilityFreshResourcesInput.Create(
-                48 * GiB, 4 * GiB, 500 * GiB, DateTimeOffset.UnixEpoch),
+                CurrentlyAvailableMemory.FromBytes(48 * GiB),
+                4 * GiB, 500 * GiB, DateTimeOffset.UnixEpoch),
             CompatibilityOptimizationProductionInput.Create(
                 snapshot, Workload(), binding, new HashSet<string>()));
     }
@@ -295,7 +296,7 @@ internal static class CrossFeaturePlanFixture
                 CompatibilityBackend.Cpu, DeviceRouteId.Cpu,
                 GpuOffloadLevel.None));
         var hardware = CompatibilityHardwareInput.Create(
-            64 * GiB, 0, 500 * GiB,
+            TotalPhysicalMemory.FromBytes(64 * GiB), 0, 500 * GiB,
             [DeviceRouteId.Cpu], [CompatibilityBackend.Cpu]);
         return CompatibilityProductionInput.Create(
             modelRun, hardwareRun, current,
@@ -305,7 +306,8 @@ internal static class CrossFeaturePlanFixture
                 CompatibilityFactDigest.ComputeHardware(hardware)),
             hardware,
             CompatibilityFreshResourcesInput.Create(
-                48 * GiB, 0, 500 * GiB, DateTimeOffset.UnixEpoch),
+                CurrentlyAvailableMemory.FromBytes(48 * GiB),
+                0, 500 * GiB, DateTimeOffset.UnixEpoch),
             CompatibilityOptimizationProductionInput.Create(
                 snapshot, Workload(), binding, new HashSet<string>()));
     }

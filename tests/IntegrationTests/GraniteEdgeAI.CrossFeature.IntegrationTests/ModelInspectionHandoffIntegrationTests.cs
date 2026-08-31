@@ -1,6 +1,8 @@
 using System.Text;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
+using SharedHandoff = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
+using SharedOutcome = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionOutcomeV2;
 
 namespace GraniteEdgeAI.CrossFeature.IntegrationTests;
 
@@ -37,9 +39,30 @@ public sealed class ModelInspectionHandoffIntegrationTests
     }
 
     [TestMethod]
+    public void GgufAndOpenVinoApprovedContractsProduceIdenticalV2Projection()
+    {
+        byte[] ggufProjection = ModelInspectionHandoffCodec.Serialize(Create(HandoffId));
+        var sharedProjection = new SharedHandoff(
+            SharedHandoff.RequiredSchemaVersion,
+            HandoffId,
+            ModelRunId,
+            SharedOutcome.ReadyWithWarnings,
+            ModelDigest,
+            4096);
+
+        CollectionAssert.AreEqual(
+            ggufProjection,
+            sharedProjection.ToCanonicalUtf8Json());
+        Assert.IsFalse(Encoding.UTF8.GetString(ggufProjection)
+            .Contains("path", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
     [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096,\"path\":\"C:\\\\Users\\\\private\\\\model.gguf\"}")]
     [DataRow("{\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096}")]
     [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\",\"modelLengthBytes\":4096}")]
+    [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096,\"fileName\":\"..\\\\hostile.gguf\"}")]
+    [DataRow("{\"schemaVersion\":2,\"modelInspectionHandoffId\":\"22222222-2222-4222-8222-222222222222\",\"modelInspectionRunId\":\"11111111-1111-4111-8111-111111111111\",\"outcome\":\"ReadyWithWarnings\",\"modelSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"modelLengthBytes\":4096,\"providerOutput\":\"raw model output canary\"}")]
     public void V2HandoffRejectsPathOrderAndDigestMutations(string hostileJson)
     {
         Assert.IsFalse(ModelInspectionHandoffCodec.TryDeserialize(

@@ -30,8 +30,6 @@ internal sealed class OptimizationOutputRegistry
             throw new InvalidOperationException("Output staging and committed roots must share one volume.");
         }
         _quarantineRoot = Path.Combine(_committedRoot, ".quarantine");
-        Directory.CreateDirectory(_quarantineRoot);
-        StoragePathGuard.RequireChild(_committedRoot, _quarantineRoot, mustExist: true);
         _journal = new OptimizationCommitJournal(_committedRoot);
         Recover();
     }
@@ -406,6 +404,11 @@ internal sealed class OptimizationOutputRegistry
         try
         {
             string owned = StoragePathGuard.RequireChild(_committedRoot, path, mustExist: true);
+            Directory.CreateDirectory(_quarantineRoot);
+            StoragePathGuard.RequireChild(
+                _committedRoot,
+                _quarantineRoot,
+                mustExist: true);
             string destination = Path.Combine(_quarantineRoot, $"rejected-{Guid.NewGuid():N}");
             Directory.Move(owned, destination);
         }

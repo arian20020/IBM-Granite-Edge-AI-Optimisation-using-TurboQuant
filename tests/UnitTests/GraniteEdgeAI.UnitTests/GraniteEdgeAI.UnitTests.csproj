@@ -402,6 +402,7 @@
     <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.ModelInspection.WorkerClient\GraniteEdgeAI.ModelInspection.WorkerClient.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelDownload.Authority\GraniteEdgeAI.ModelDownload.Authority.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufQuantization.Contracts\GraniteEdgeAI.GgufQuantization.Contracts.csproj"
                       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj"

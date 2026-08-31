@@ -1429,6 +1429,9 @@ public sealed class ModelInspectionVisualSourceContractTests
         };
         startInfo.ArgumentList.Add("-NoLogo");
         startInfo.ArgumentList.Add("-NoProfile");
+        startInfo.ArgumentList.Add("-NonInteractive");
+        startInfo.ArgumentList.Add("-ExecutionPolicy");
+        startInfo.ArgumentList.Add("Bypass");
         startInfo.ArgumentList.Add("-File");
         startInfo.ArgumentList.Add(script);
         startInfo.ArgumentList.Add("-ArtifactRoot");

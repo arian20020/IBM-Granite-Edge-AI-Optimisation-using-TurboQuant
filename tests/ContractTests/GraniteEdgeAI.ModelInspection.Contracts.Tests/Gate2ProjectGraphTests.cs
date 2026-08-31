@@ -175,6 +175,7 @@ public sealed class Gate2ProjectGraphTests
         ProjectGraphAssert.HasExactly(
             Root,
             "infrastructure/GraniteEdgeAI.ModelInspection.WorkerClient/GraniteEdgeAI.ModelInspection.WorkerClient.csproj",
+            "infrastructure/GraniteEdgeAI.HardwareInspection.Foundation/GraniteEdgeAI.HardwareInspection.Foundation.csproj",
             "shared/GraniteEdgeAI.ModelInspection.Contracts/GraniteEdgeAI.ModelInspection.Contracts.csproj",
             "shared/GraniteEdgeAI.ModelInspection.Transport/GraniteEdgeAI.ModelInspection.Transport.csproj");
     }

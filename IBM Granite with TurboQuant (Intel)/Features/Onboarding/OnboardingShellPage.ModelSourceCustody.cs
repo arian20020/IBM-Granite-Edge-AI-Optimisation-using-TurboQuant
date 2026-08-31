@@ -66,10 +66,16 @@ public sealed partial class OnboardingShellPage
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+        _lifetimeCancellation.Cancel();
         InvalidateActiveHardwareJourney();
         _currentModelChatLaunchRegistry?.Dispose();
         _modelSourceCustodyRegistry.Dispose();
         _handoffRegistry.Dispose();
+        _lifetimeCancellation.Dispose();
     }
 
     internal async Task ShutdownAsync()

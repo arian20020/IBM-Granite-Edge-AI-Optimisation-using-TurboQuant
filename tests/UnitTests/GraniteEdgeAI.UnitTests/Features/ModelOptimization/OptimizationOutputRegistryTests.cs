@@ -55,7 +55,8 @@ public sealed class OptimizationOutputRegistryTests
             receipt.Key.OutputManifestSha256,
             receipt.OutputSizeBytes,
             sourceUnchanged: true,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            receipt.Key.ExecutionId);
 
         Assert.IsTrue(registry.TryGetPublishedGgufFile(
             result,

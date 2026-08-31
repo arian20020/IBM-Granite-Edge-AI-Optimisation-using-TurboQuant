@@ -4,6 +4,8 @@ using GraniteEdgeAI.Features.ModelImport.ModelDownload;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.Selection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using GraniteEdgeAI.Features.Onboarding;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
 namespace GraniteEdgeAI.UnitTests;
@@ -199,6 +201,55 @@ public sealed class ModelImportDownloadedModelIntegrationTests
 
             Assert.IsTrue(operationId.HasValue);
             Assert.IsFalse(page.TryClaimVerifiedDownloadInspection(operationId.Value, out _));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [UITestMethod]
+    public async Task FailedVerifiedDownloadNavigation_IsObservedAndRecoversToFreshImport()
+    {
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "GraniteEdgeAI-DownloadHandoff-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string path = Path.Combine(root, "granite.gguf");
+        await File.WriteAllBytesAsync(path, [1, 2, 3, 4]);
+        DateTimeOffset timestamp = new(File.GetLastWriteTimeUtc(path));
+        try
+        {
+            var coordinator = new ModelDownloadCoordinator(
+                new CompletedDownloadService(path),
+                new UnrestrictedPolicy());
+            var page = new ModelImportPage(
+                () => Task.FromResult(ModelFormatSelection.None),
+                () => Task.FromResult<string?>(null),
+                (_, _, _) => Task.FromResult(ModelQuickScanResult.CreateSuccess(
+                    "Granite", "granite", "3B", "Q4_K_M", 4, 4096, 3, timestamp)),
+                classifier: new AcceptedGgufClassifier(),
+                modelDownloadCoordinator: coordinator);
+            int navigationAttempts = 0;
+            var shell = new OnboardingShellPage((_, _) =>
+            {
+                navigationAttempts++;
+                return false;
+            });
+            Frame frame = (Frame)shell.FindName("StageFrame");
+            object initialContent = frame.Content;
+            shell.AttachModelImportPage(page);
+
+            await coordinator.StartAsync(50, allowMetered: false, CancellationToken.None);
+            await shell.CurrentNavigationTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.AreEqual(1, navigationAttempts);
+            Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+            Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
+            Assert.AreNotSame(initialContent, frame.Content);
+            Assert.IsFalse(page.TryClaimVerifiedDownloadInspection(
+                coordinator.State.OperationId!.Value,
+                out _));
         }
         finally
         {

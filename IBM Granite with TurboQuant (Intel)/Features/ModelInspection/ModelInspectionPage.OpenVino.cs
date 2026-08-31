@@ -400,6 +400,17 @@ public sealed partial class ModelInspectionPage
             packageDirectory,
             cancellationToken)).IsActivated;
 
+    internal async Task<bool> ActivateOpenVinoChatTargetAsync(
+        OpenVinoOptimizationChatTarget target,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        return (await ActivateOpenVinoChatFromDirectoryWithResultAsync(
+            target.PackageDirectory,
+            target.RuntimeOptions,
+            cancellationToken)).IsActivated;
+    }
+
     internal Task<OpenVinoChatActivationResult> ActivateOpenVinoChatWithResultAsync(
         CancellationToken cancellationToken) =>
         ActivateOpenVinoChatFromDirectoryWithResultAsync(
@@ -409,8 +420,19 @@ public sealed partial class ModelInspectionPage
     internal async Task<OpenVinoChatActivationResult>
         ActivateOpenVinoChatFromDirectoryWithResultAsync(
             string? packageDirectory,
+            CancellationToken cancellationToken) =>
+        await ActivateOpenVinoChatFromDirectoryWithResultAsync(
+            packageDirectory,
+            OpenVinoRuntimeOptions.ReleasedDefault,
+            cancellationToken);
+
+    private async Task<OpenVinoChatActivationResult>
+        ActivateOpenVinoChatFromDirectoryWithResultAsync(
+            string? packageDirectory,
+            OpenVinoRuntimeOptions runtimeOptions,
             CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(runtimeOptions);
         if (_openVinoRouteService is null
             || _promptRouteRegistry is null
             || string.IsNullOrWhiteSpace(packageDirectory))
@@ -440,8 +462,9 @@ public sealed partial class ModelInspectionPage
             object eventGate = new();
             bool presenterReady = false;
             PromptRouteSessionActivation activation =
-                await _promptRouteRegistry.ActivateAsync(
+                await _openVinoRouteService.ActivateAsync(
                     lease,
+                    runtimeOptions,
                     promptEvent =>
                     {
                         lock (eventGate)

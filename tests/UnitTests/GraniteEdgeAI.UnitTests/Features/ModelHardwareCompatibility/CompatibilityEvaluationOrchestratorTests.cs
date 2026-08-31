@@ -124,7 +124,7 @@ public sealed class CompatibilityEvaluationOrchestratorTests
 
     private static CompatibilityFreshResourcesInput Fresh(DateTimeOffset observedAtUtc) =>
         CompatibilityFreshResourcesInput.Create(
-            8UL * 1024 * 1024 * 1024,
+            CurrentlyAvailableMemory.FromBytes(8UL * 1024 * 1024 * 1024),
             availableDedicatedDeviceMemoryBytes: null,
             64UL * 1024 * 1024 * 1024,
             observedAtUtc);
