@@ -1,3 +1,3 @@
 # Metric definitions
 
-Performance medians use three validated repetitions; peak working set uses the worst observed repetition; utilization remains per run and aggregates use declared rules. Missing data is `Not collected`.
+TTFT, peak working set, KV allocation, and utilization use the 2026-07-17 measurement JSON sources reconciled to all 57 Performance-Measurement register rows. TTFT and KV use the median; peak working set uses the maximum; CPU/GPU headline values average the three per-repetition means. Decode throughput uses 19 formal sources: 17 formal summary JSON files and generation-only eval events from three samples for each of the two controlled safety-bypass rows. Utilization CSV files support raw utilization samples only and never decode throughput. Missing data is `Not collected`.

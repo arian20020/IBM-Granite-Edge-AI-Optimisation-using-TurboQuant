@@ -1,6 +1,6 @@
-deviation_id,scope,code,status,reason,evidence_path
-FAIL-AB-UI-ASSET,AB-B02/AB-B05,UI-BUNDLE-MISSING,Resolved,Generated UI embed target lacked loading.html,experiments/raw-results/atomicbot-turboquant/2026-07-16/
-FAIL-AB-DEVICE-GUARD,AB-B04,DEVICE-GUARD-4551,Open - external policy,test-barrier.exe blocked at launch,experiments/raw-results/atomicbot-turboquant/2026-07-16/
-FAIL-AB-08Q-MEMORY,AB-08Q,MEMORY-GUARD,Resolved,Initial batch reached 470.7 MiB free,experiments/raw-results/atomicbot-turboquant/2026-07-16/
-FAIL-AB-8B-SAFETY,AB-KV8-F16-4K/AB-15M,SAFETY-GATE,Resolved by controlled bypass,Initial preventive gate blocked high-risk 8B rows,experiments/raw-results/atomicbot-turboquant/2026-07-16/
-FAIL-AB-P5-TIMEOUT,P5/AB-06,QUALITY-TIMEOUT-2400,Open,Turbo3 P5 returned no response within 2400 seconds,experiments/raw-results/atomicbot-turboquant/2026-07-16/
+deviation_id,scope_type,scope_ids_json,nonterminal,code,status,reason,evidence_ids_json
+FAIL-AB-UI-ASSET,setup,"[""AB-B02"", ""AB-B05""]",true,UI-BUNDLE-MISSING,Resolved,Generated UI embed target lacked loading.html,"[""atomicbot-failure-register-175d58cb2e63e262""]"
+FAIL-AB-DEVICE-GUARD,setup,"[""AB-B04""]",true,DEVICE-GUARD-4551,Open - external policy,test-barrier.exe blocked at launch,"[""atomicbot-failure-register-175d58cb2e63e262""]"
+FAIL-AB-08Q-MEMORY,test,"[""AB-08Q""]",true,MEMORY-GUARD,Resolved,Initial batch reached 470.7 MiB free,"[""atomicbot-failure-register-175d58cb2e63e262""]"
+FAIL-AB-8B-SAFETY,multi-test,"[""AB-KV8-F16-4K"", ""AB-15M""]",true,SAFETY-GATE,Resolved by controlled bypass,Initial preventive gate blocked high-risk 8B rows,"[""atomicbot-failure-register-175d58cb2e63e262""]"
+FAIL-AB-P5-TIMEOUT,mixed,"[""P5"", ""AB-06""]",true,QUALITY-TIMEOUT-2400,Open,Turbo3 P5 returned no response within 2400 seconds,"[""atomicbot-failure-register-175d58cb2e63e262""]"

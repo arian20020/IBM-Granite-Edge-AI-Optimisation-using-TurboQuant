@@ -1,11 +1,9 @@
 {
-  "VSCMD_ARG_HOST_ARCH": "x64",
-  "VSCMD_ARG_TGT_ARCH": "x64",
-  "VULKAN_SDK": "C:\\VulkanSDK\\1.4.350.0",
   "available_memory_mib": 10280.234375,
   "logical_cpus": 12,
   "machine": "Lenovo-PF4HMD0T",
   "npu": "Not collected",
   "platform": "Windows-10-10.0.26200-SP0",
-  "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel"
+  "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+  "vulkan_sdk_version": "1.4.350.0"
 }

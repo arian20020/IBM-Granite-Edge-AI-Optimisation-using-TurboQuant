@@ -1,7 +1,9 @@
 {
   "attempt_count": 19,
-  "measurement_count": 57,
+  "formal_throughput_measurement_count": 19,
+  "measurement_count": 76,
   "quality_count": 114,
+  "resource_measurement_count": 57,
   "runtime_status_counts": {
     "blocked": 0,
     "passed": 19

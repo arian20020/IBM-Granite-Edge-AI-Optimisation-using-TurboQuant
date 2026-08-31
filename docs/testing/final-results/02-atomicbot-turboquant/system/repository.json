@@ -1,8 +1,3745 @@
 {
   "branch": "DETACHED",
   "commit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+  "deviation_rows": [
+    {
+      "code": "UI-BUNDLE-MISSING",
+      "deviation_id": "FAIL-AB-UI-ASSET",
+      "evidence_ids": [
+        "atomicbot-failure-register-175d58cb2e63e262"
+      ],
+      "nonterminal": true,
+      "reason": "Generated UI embed target lacked loading.html",
+      "scope_ids": [
+        "AB-B02",
+        "AB-B05"
+      ],
+      "scope_type": "setup",
+      "status": "Resolved"
+    },
+    {
+      "code": "DEVICE-GUARD-4551",
+      "deviation_id": "FAIL-AB-DEVICE-GUARD",
+      "evidence_ids": [
+        "atomicbot-failure-register-175d58cb2e63e262"
+      ],
+      "nonterminal": true,
+      "reason": "test-barrier.exe blocked at launch",
+      "scope_ids": [
+        "AB-B04"
+      ],
+      "scope_type": "setup",
+      "status": "Open - external policy"
+    },
+    {
+      "code": "MEMORY-GUARD",
+      "deviation_id": "FAIL-AB-08Q-MEMORY",
+      "evidence_ids": [
+        "atomicbot-failure-register-175d58cb2e63e262"
+      ],
+      "nonterminal": true,
+      "reason": "Initial batch reached 470.7 MiB free",
+      "scope_ids": [
+        "AB-08Q"
+      ],
+      "scope_type": "test",
+      "status": "Resolved"
+    },
+    {
+      "code": "SAFETY-GATE",
+      "deviation_id": "FAIL-AB-8B-SAFETY",
+      "evidence_ids": [
+        "atomicbot-failure-register-175d58cb2e63e262"
+      ],
+      "nonterminal": true,
+      "reason": "Initial preventive gate blocked high-risk 8B rows",
+      "scope_ids": [
+        "AB-KV8-F16-4K",
+        "AB-15M"
+      ],
+      "scope_type": "multi-test",
+      "status": "Resolved by controlled bypass"
+    },
+    {
+      "code": "QUALITY-TIMEOUT-2400",
+      "deviation_id": "FAIL-AB-P5-TIMEOUT",
+      "evidence_ids": [
+        "atomicbot-failure-register-175d58cb2e63e262"
+      ],
+      "nonterminal": true,
+      "reason": "Turbo3 P5 returned no response within 2400 seconds",
+      "scope_ids": [
+        "P5",
+        "AB-06"
+      ],
+      "scope_type": "mixed",
+      "status": "Open"
+    }
+  ],
+  "measurement_field_evidence": [
+    {
+      "evidence_ids": [
+        "atomicbot-resource-e60f95d589aa1ab1",
+        "EVID-34f5fdef9ec609afb3c6"
+      ],
+      "measurement_id": "MEAS-AB-01-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-01"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-ee5dfe8604d350ee",
+        "EVID-9e206b7341caf6ef1e4b"
+      ],
+      "measurement_id": "MEAS-AB-01-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-01"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-eae7f7d1f9a690fe",
+        "EVID-e0bc789317b1973f74b1"
+      ],
+      "measurement_id": "MEAS-AB-01-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-01"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-873d9213f08c5c94",
+        "EVID-e08341064813060e9c40"
+      ],
+      "measurement_id": "MEAS-AB-02-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-02"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-65451b0ae8a00724",
+        "EVID-d2af2834cb1723571844"
+      ],
+      "measurement_id": "MEAS-AB-02-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-02"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-aeda0592516518c8",
+        "EVID-a247b3a1bf624cb0be6d"
+      ],
+      "measurement_id": "MEAS-AB-02-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-02"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-b7100238300b17fc",
+        "EVID-43ddaeac46382db021c0"
+      ],
+      "measurement_id": "MEAS-AB-03-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-03"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-32de32cbd9cfe78d",
+        "EVID-96472d9159b64f3d0f65"
+      ],
+      "measurement_id": "MEAS-AB-03-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-03"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-9ca9934bb9f1a5bb",
+        "EVID-d2e75891fe506a3d775f"
+      ],
+      "measurement_id": "MEAS-AB-03-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-03"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-110b5b282652658f",
+        "EVID-efec9b2fed630bc079ad"
+      ],
+      "measurement_id": "MEAS-AB-KV3-F16-4K-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-KV3-F16-4K"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-192efe0b319ec903",
+        "EVID-35506717fa8f706ba6b9"
+      ],
+      "measurement_id": "MEAS-AB-KV3-F16-4K-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-KV3-F16-4K"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-4c80f5cf8e86acab",
+        "EVID-b900dc6046ab8890a097"
+      ],
+      "measurement_id": "MEAS-AB-KV3-F16-4K-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-KV3-F16-4K"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-8544fc83416f82d6",
+        "EVID-31f24bf0eb4821290fce"
+      ],
+      "measurement_id": "MEAS-AB-04-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-04"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-d1e863c7f0eb6507",
+        "EVID-e1d5edcc34b6df5a42c0"
+      ],
+      "measurement_id": "MEAS-AB-04-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-04"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-1be858555d7e35c2",
+        "EVID-4f346806f246152437a9"
+      ],
+      "measurement_id": "MEAS-AB-04-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-04"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-852eaf84a4c065bc",
+        "EVID-759c545f82837ae106dd"
+      ],
+      "measurement_id": "MEAS-AB-05-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-05"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-33bb1ffe960a2bc2",
+        "EVID-dbded501d8152f537c56"
+      ],
+      "measurement_id": "MEAS-AB-05-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-05"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-7c6c291e3ad2008c",
+        "EVID-6866e746d187bbee0ac6"
+      ],
+      "measurement_id": "MEAS-AB-05-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-05"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-7b5dc1a7273ccc8f",
+        "EVID-3382d3ef7ea06f1a7a52"
+      ],
+      "measurement_id": "MEAS-AB-06-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-06"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-fff02d54f3a4ea42",
+        "EVID-f7b55e6294fb67f15ea7"
+      ],
+      "measurement_id": "MEAS-AB-06-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-06"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-98ed77d29fb16233",
+        "EVID-69787a9facbcd5de813b"
+      ],
+      "measurement_id": "MEAS-AB-06-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-06"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-2c1e0ca48d035ecd",
+        "EVID-2aaaf7ac319b5669b987"
+      ],
+      "measurement_id": "MEAS-AB-07-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-07"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-ec7f80a74b4a7aca",
+        "EVID-d23210a9c54336b88a56"
+      ],
+      "measurement_id": "MEAS-AB-07-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-07"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-52da382d7cd53174",
+        "EVID-dff602af13743c1775d5"
+      ],
+      "measurement_id": "MEAS-AB-07-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-07"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-36cf50f56b3cb835",
+        "EVID-b48b06f7e232e9507627"
+      ],
+      "measurement_id": "MEAS-AB-08F-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-08F"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-1740374af96a9573",
+        "EVID-793ca72fd9a7b13b2e0a"
+      ],
+      "measurement_id": "MEAS-AB-08F-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-08F"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-0f9597c30cb9cc3b",
+        "EVID-6c032ed4cc277ccec758"
+      ],
+      "measurement_id": "MEAS-AB-08F-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-08F"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-6bc1e7c28b0f2409",
+        "EVID-a3c4b3b14df707019272"
+      ],
+      "measurement_id": "MEAS-AB-08Q-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-08Q"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-db18ad923ae3ba1a",
+        "EVID-2ff1479273ed7b5a05e2"
+      ],
+      "measurement_id": "MEAS-AB-08Q-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-08Q"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-a7266baa8b538c1d",
+        "EVID-ae1c042bc2ea20c2ac2e"
+      ],
+      "measurement_id": "MEAS-AB-08Q-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-08Q"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-987c9fe92897b203",
+        "EVID-45db26ec3f6616dc6913"
+      ],
+      "measurement_id": "MEAS-AB-09-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-09"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-01d3605f80065fa4",
+        "EVID-62c516ef063b12d6f6f1"
+      ],
+      "measurement_id": "MEAS-AB-09-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-09"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-4aef08ad8e497bfb",
+        "EVID-96f24ae10a918198f7c9"
+      ],
+      "measurement_id": "MEAS-AB-09-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-09"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-5cc3af81d7d2a445",
+        "EVID-ad925037c820d6075e67"
+      ],
+      "measurement_id": "MEAS-AB-10-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-10"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-dca37519afef85a2",
+        "EVID-79c091063ef0c73a9d5e"
+      ],
+      "measurement_id": "MEAS-AB-10-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-10"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-6df28a3ea21179d2",
+        "EVID-a5764619cf1da59a8e0a"
+      ],
+      "measurement_id": "MEAS-AB-10-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-10"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-0cea64220b7f30b3",
+        "EVID-625077f743e3810b543e"
+      ],
+      "measurement_id": "MEAS-AB-11-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-11"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-db3088010f3a7569",
+        "EVID-46901e38af2eaa4f2813"
+      ],
+      "measurement_id": "MEAS-AB-11-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-11"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-26a839706d0d9f4d",
+        "EVID-b9c202e5b3cd54802118"
+      ],
+      "measurement_id": "MEAS-AB-11-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-11"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-ac7e4ebe0724b0fe",
+        "EVID-e126b1db323e238494df"
+      ],
+      "measurement_id": "MEAS-AB-12-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-12"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-70b86fe564b4af19",
+        "EVID-f4dd8ae8e6ed98fb5c52"
+      ],
+      "measurement_id": "MEAS-AB-12-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-12"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-e7bb975837a43148",
+        "EVID-ee35228c1040c4f08483"
+      ],
+      "measurement_id": "MEAS-AB-12-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-12"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-7f7572d35fe65601",
+        "EVID-c1e4b60a6837abf99a6b"
+      ],
+      "measurement_id": "MEAS-AB-13-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-13"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-ad5e8b2e398297cc",
+        "EVID-cac81abd5a4fa1b8f2f9"
+      ],
+      "measurement_id": "MEAS-AB-13-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-13"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-c6f70e054b0427ed",
+        "EVID-a57b801e7fed30c80667"
+      ],
+      "measurement_id": "MEAS-AB-13-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-13"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-024b9e4c61595a57",
+        "EVID-e76dbcf7433ecb002ef5"
+      ],
+      "measurement_id": "MEAS-AB-14-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-14"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-3bb715c321a1413f",
+        "EVID-ad382ddac7cef76295f2"
+      ],
+      "measurement_id": "MEAS-AB-14-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-14"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-fa4da5eaf8a881a4",
+        "EVID-c6c3c604c452251f4dfc"
+      ],
+      "measurement_id": "MEAS-AB-14-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-14"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-fee7092dd983245b",
+        "EVID-a97823e1897bccf9e8d7"
+      ],
+      "measurement_id": "MEAS-AB-15-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-15"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-f9f1eb968ad71102",
+        "EVID-c319f022f6c4cdbd1711"
+      ],
+      "measurement_id": "MEAS-AB-15-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-15"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-0824c929e5de90bd",
+        "EVID-1b5d1d29897495b6c299"
+      ],
+      "measurement_id": "MEAS-AB-15-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-15"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-1d19b6052cf6064b",
+        "EVID-9ba79bb02872443abcd8"
+      ],
+      "measurement_id": "MEAS-AB-KV8-F16-4K-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-KV8-F16-4K"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-18e78e03bcb8a8eb",
+        "EVID-18be949bb5e1bf81201e"
+      ],
+      "measurement_id": "MEAS-AB-KV8-F16-4K-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-KV8-F16-4K"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-a321a5a5cfa26556",
+        "EVID-f8af396a3d2346487378"
+      ],
+      "measurement_id": "MEAS-AB-KV8-F16-4K-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-KV8-F16-4K"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-ef329b913667a3ff",
+        "EVID-47de4e1b31325b0ee43e"
+      ],
+      "measurement_id": "MEAS-AB-15M-R1",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-15M"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-b7eaf8dfbd72d707",
+        "EVID-00aacf23b28a78f3b4cb"
+      ],
+      "measurement_id": "MEAS-AB-15M-R2",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-15M"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-resource-0912fead90f45530",
+        "EVID-b35f15053b83eb16c61a"
+      ],
+      "measurement_id": "MEAS-AB-15M-R3",
+      "measurement_kind": "resource-utilization",
+      "supported_fields": [
+        "latency_ms",
+        "peak_working_set_bytes",
+        "kv_cache_allocated_bytes",
+        "cpu_utilization",
+        "gpu_utilization"
+      ],
+      "test_case_id": "AB-15M"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-f4dc5f4cc1abb9e7"
+      ],
+      "measurement_id": "MEAS-AB-01-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-01"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-4e79c93e598d7ebe"
+      ],
+      "measurement_id": "MEAS-AB-02-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-02"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-8639469b84dd468e"
+      ],
+      "measurement_id": "MEAS-AB-03-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-03"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-269ef7a16247e2ca"
+      ],
+      "measurement_id": "MEAS-AB-KV3-F16-4K-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-KV3-F16-4K"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-22c5dc1be32155dc"
+      ],
+      "measurement_id": "MEAS-AB-04-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-04"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-e51c0f0ed67d6679"
+      ],
+      "measurement_id": "MEAS-AB-05-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-05"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-dcdd8d4b8df288ec"
+      ],
+      "measurement_id": "MEAS-AB-06-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-06"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-3cd1fc7ad6fc75ba"
+      ],
+      "measurement_id": "MEAS-AB-07-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-07"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-aac4bd0b23b6bbeb"
+      ],
+      "measurement_id": "MEAS-AB-08F-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-08F"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-7a72e46cbf652d02",
+        "atomicbot-formal-throughput-source-2610ce93211eb21f",
+        "atomicbot-formal-throughput-source-8802adf6c7325d17"
+      ],
+      "measurement_id": "MEAS-AB-KV8-F16-4K-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-KV8-F16-4K"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-42a1ae2ad863eb72"
+      ],
+      "measurement_id": "MEAS-AB-08Q-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-08Q"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-06bff1890a79477a"
+      ],
+      "measurement_id": "MEAS-AB-09-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-09"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-0915ba1b98540d53"
+      ],
+      "measurement_id": "MEAS-AB-10-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-10"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-82ed10afb751a496"
+      ],
+      "measurement_id": "MEAS-AB-11-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-11"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-2bf63156a88a6b29"
+      ],
+      "measurement_id": "MEAS-AB-12-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-12"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-a887065460d9be1d"
+      ],
+      "measurement_id": "MEAS-AB-13-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-13"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-04b35554d3107caa"
+      ],
+      "measurement_id": "MEAS-AB-14-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-14"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-05eed1af0843462b"
+      ],
+      "measurement_id": "MEAS-AB-15-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-15"
+    },
+    {
+      "evidence_ids": [
+        "atomicbot-formal-throughput-source-75bd0dd6694b1133",
+        "atomicbot-formal-throughput-source-cbea1346c235b995",
+        "atomicbot-formal-throughput-source-6d63d4de9f01de38"
+      ],
+      "measurement_id": "MEAS-AB-15M-FORMAL-TPS",
+      "measurement_kind": "formal-throughput",
+      "supported_fields": [
+        "generation_tokens_per_second"
+      ],
+      "test_case_id": "AB-15M"
+    }
+  ],
+  "quality_adjudications": [
+    {
+      "adjudication_key": "P1:0ed6cbe79d0b67d980eeb907cbee929adabd41fa1515f055e7d97b6bf2375986",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 9,
+        "correctness_and_grounding": 9,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 9,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "0ed6cbe79d0b67d980eeb907cbee929adabd41fa1515f055e7d97b6bf2375986",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P1.json",
+      "score": 9.0,
+      "sha256": "8d1822b6114407b418c63761b01dfbae7ef567893f1a73bb87d56131507a408a",
+      "test_case_id": "AB-01",
+      "weighted_score": 9.0
+    },
+    {
+      "adjudication_key": "P2:9888235a7f3bfad49c679db735b719145ee836bfe1bd599fdfb715067317a0a5",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "9888235a7f3bfad49c679db735b719145ee836bfe1bd599fdfb715067317a0a5",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P2.json",
+      "score": 8.35,
+      "sha256": "fad9bcf69a3fe4d6ed6b5d90b5c5b02a525602a9053c2f008eb13d54eae95cf5",
+      "test_case_id": "AB-01",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:8dcc3e75af2ba4d31a002fa1f25486e359447c0762598783637004fce470f58e",
+      "critical_cap_reason": "Invalid JSON or wrong exact schema",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 2,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 1,
+        "relevance_clarity_and_coherence": 3,
+        "stability_and_output_integrity": 3
+      },
+      "output_sha256": "8dcc3e75af2ba4d31a002fa1f25486e359447c0762598783637004fce470f58e",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P3.json",
+      "score": 2.0,
+      "sha256": "2239fa0e6ff046d15478af4f25d6efbefadf5225583fa31310846832882cda02",
+      "test_case_id": "AB-01",
+      "weighted_score": 2.0
+    },
+    {
+      "adjudication_key": "P4:74872879565dccda7eb1979559c63f60bab5d31f013ffe3ef6211f531e08791c",
+      "critical_cap_reason": "P4 missing/format gate: sentences=2, missing=runtime,caches,turbo",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 8,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "74872879565dccda7eb1979559c63f60bab5d31f013ffe3ef6211f531e08791c",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P4.json",
+      "score": 4.0,
+      "sha256": "05afbf651b75f4e59e641759e99f1c99f89e1a00fc6b4b23735260f88c2a3e32",
+      "test_case_id": "AB-01",
+      "weighted_score": 7.0
+    },
+    {
+      "adjudication_key": "P5:2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "critical_cap_reason": "Exact-output failure: prohibited space after colon",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P5.json",
+      "score": 4.0,
+      "sha256": "e4c092a9890f93bea6d90c0f3b7ea76a3ffc11cbdd7cb382a5a7443e96563951",
+      "test_case_id": "AB-01",
+      "weighted_score": 8.5
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-01/P6.json",
+      "score": 10.0,
+      "sha256": "d25f02d2da9110a588e93ead4fd883f176e0bf30f91232973742abfb66e3df11",
+      "test_case_id": "AB-01",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:e852b5d02588bb68cb5cdba09ce6f97b85f8cc5e30b71d63ccb89ee218341e13",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=63, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "e852b5d02588bb68cb5cdba09ce6f97b85f8cc5e30b71d63ccb89ee218341e13",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P1.json",
+      "score": 4.0,
+      "sha256": "e4826b680ae462caa8f6dc90efa1d4bd320671301f3d090a601443c268056ec3",
+      "test_case_id": "AB-02",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:cbc46a12d3ed9ee8f533637e92d7a88cd73f5069addc9199a689e77123eaf6d8",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "cbc46a12d3ed9ee8f533637e92d7a88cd73f5069addc9199a689e77123eaf6d8",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P2.json",
+      "score": 8.35,
+      "sha256": "f67598ab015767a4a05431f07e7090035066eb9da3db132239f77e2a9b6bd89b",
+      "test_case_id": "AB-02",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:835923c15d0426c64d63c00037373b8c22c5fb3a4399137e142cd2362d2a8a58",
+      "critical_cap_reason": "Invalid JSON or wrong exact schema",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 2,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 1,
+        "relevance_clarity_and_coherence": 3,
+        "stability_and_output_integrity": 3
+      },
+      "output_sha256": "835923c15d0426c64d63c00037373b8c22c5fb3a4399137e142cd2362d2a8a58",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P3.json",
+      "score": 2.0,
+      "sha256": "5130fe49bb1a2cb303b614be58f3e68f367c0c0086ba77415be05825c92deb93",
+      "test_case_id": "AB-02",
+      "weighted_score": 2.0
+    },
+    {
+      "adjudication_key": "P4:0efeabc06f019f5c2bd4c8f15597dd1db0ebbba8371612ba17347307c6323ea5",
+      "critical_cap_reason": "P4 missing/format gate: sentences=1, missing=caches,turbo",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "0efeabc06f019f5c2bd4c8f15597dd1db0ebbba8371612ba17347307c6323ea5",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P4.json",
+      "score": 4.0,
+      "sha256": "e51e1191e52bb32025602f80ef9deec6471fd154b2f1b8a8f709fcfe6d8cef26",
+      "test_case_id": "AB-02",
+      "weighted_score": 6.0
+    },
+    {
+      "adjudication_key": "P5:2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "critical_cap_reason": "Exact-output failure: prohibited space after colon",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P5.json",
+      "score": 4.0,
+      "sha256": "f5f5ca4789b2be162d670bd6605a207300694cb4c131d5fd9df169a4e5fbbb44",
+      "test_case_id": "AB-02",
+      "weighted_score": 8.5
+    },
+    {
+      "adjudication_key": "P6:491094813ab33f8f992c348a3c6f79b6bc3dc2df1b521ca498f9214567e4fa9d",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "491094813ab33f8f992c348a3c6f79b6bc3dc2df1b521ca498f9214567e4fa9d",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-02/P6.json",
+      "score": 10.0,
+      "sha256": "6972ead6a7d4dff16884aad207f6454f87a5c680ca2027fdcf148c3a1e69da1f",
+      "test_case_id": "AB-02",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:23b53e7112f364f744d8043f54d83e3b741ac6621aa57208964e40ba193917e8",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=29, required_terms=True, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "23b53e7112f364f744d8043f54d83e3b741ac6621aa57208964e40ba193917e8",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P1.json",
+      "score": 4.0,
+      "sha256": "71653238cbd5db7ff3a8a7c538e511cc8ed8101ae2aee9098b5eabe060773cfd",
+      "test_case_id": "AB-03",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:a614471a7508c3f0caf88e87b615d49abebe547ad39453926f4472b4b873dd67",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "a614471a7508c3f0caf88e87b615d49abebe547ad39453926f4472b4b873dd67",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P2.json",
+      "score": 8.35,
+      "sha256": "f9b932de3a4786ed32046e0382dd2688c30ea5f21247f6b9774291ca2edb1564",
+      "test_case_id": "AB-03",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "critical_cap_reason": "Materially wrong memory-effect claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 7,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P3.json",
+      "score": 4.0,
+      "sha256": "ab236cf98aaa8ca94db56fafe17e1646fce774719b0d8e9dd35fb69a111f7e91",
+      "test_case_id": "AB-03",
+      "weighted_score": 6.7
+    },
+    {
+      "adjudication_key": "P4:22c0878c9956fd63b9b7aae990555274a38bbdba8aa6d699da6bf69d13002c9e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "22c0878c9956fd63b9b7aae990555274a38bbdba8aa6d699da6bf69d13002c9e",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P4.json",
+      "score": 10.0,
+      "sha256": "a24573d6b2f95199998675f2ac913a58b249df9328159d6a2e8acbf626e54e71",
+      "test_case_id": "AB-03",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P5:cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P5.json",
+      "score": 10.0,
+      "sha256": "d2b3ffd6bb8c6e6803d7897ab8f0daa0104d91507af1cf02f579d00a06002989",
+      "test_case_id": "AB-03",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P6:a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2",
+      "critical_cap_reason": "Wrong remembered value: missing amber prefix",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 4,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 2
+      },
+      "output_sha256": "a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-03/P6.json",
+      "score": 2.0,
+      "sha256": "9833a319fc68b253eabebddfc2889ee59c7a8e0ba2ebc984e21e13178390b311",
+      "test_case_id": "AB-03",
+      "weighted_score": 4.4
+    },
+    {
+      "adjudication_key": "P1:23b53e7112f364f744d8043f54d83e3b741ac6621aa57208964e40ba193917e8",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=29, required_terms=True, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "23b53e7112f364f744d8043f54d83e3b741ac6621aa57208964e40ba193917e8",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P1.json",
+      "score": 4.0,
+      "sha256": "cd5adb9714c99bc6212de7024ec77dbdbe6ddf95669e3f256a8e5b00935fb34c",
+      "test_case_id": "AB-KV3-F16-4K",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:a614471a7508c3f0caf88e87b615d49abebe547ad39453926f4472b4b873dd67",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "a614471a7508c3f0caf88e87b615d49abebe547ad39453926f4472b4b873dd67",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P2.json",
+      "score": 8.35,
+      "sha256": "37de321634ca9d7177a58ab78341d8758d8993f91e58f90a99d91b30c5054247",
+      "test_case_id": "AB-KV3-F16-4K",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "critical_cap_reason": "Materially wrong memory-effect claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 7,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P3.json",
+      "score": 4.0,
+      "sha256": "790572ca55f2ecb23c202914fec6fd3a2831e246452b7e3675829cc3f09bb43d",
+      "test_case_id": "AB-KV3-F16-4K",
+      "weighted_score": 6.7
+    },
+    {
+      "adjudication_key": "P4:22c0878c9956fd63b9b7aae990555274a38bbdba8aa6d699da6bf69d13002c9e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "22c0878c9956fd63b9b7aae990555274a38bbdba8aa6d699da6bf69d13002c9e",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P4.json",
+      "score": 10.0,
+      "sha256": "f16e93ad1c86e79dc657d0059ee3561765030ddced0afa9dfe3c1de38f91f655",
+      "test_case_id": "AB-KV3-F16-4K",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P5:cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P5.json",
+      "score": 10.0,
+      "sha256": "d584d51e3d7343176adb2164b262d2844cf961cb3ed08764da60b6d1cc3e6f7a",
+      "test_case_id": "AB-KV3-F16-4K",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P6:a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2",
+      "critical_cap_reason": "Wrong remembered value: missing amber prefix",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 4,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 2
+      },
+      "output_sha256": "a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV3-F16-4K/P6.json",
+      "score": 2.0,
+      "sha256": "d40b292d40f0d3dbb0b6106edad9732b78da703799bd23aedfa68fba3fb8bd6c",
+      "test_case_id": "AB-KV3-F16-4K",
+      "weighted_score": 4.4
+    },
+    {
+      "adjudication_key": "P1:8d1f5afbaee909ef173edb387f0b10c4783841aa2cf4ecac63e7dc0e73ccae97",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=28, required_terms=True, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "8d1f5afbaee909ef173edb387f0b10c4783841aa2cf4ecac63e7dc0e73ccae97",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P1.json",
+      "score": 4.0,
+      "sha256": "397c0b1243a3dfdeff9fc7c60cb7c7bae9eee49e8aaecd7ec06edadd00ff4475",
+      "test_case_id": "AB-04",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:f425733e6ffc9f2eb721db5e60e0ce59e957ebf812728eb4cc1ac3e994313c4d",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "f425733e6ffc9f2eb721db5e60e0ce59e957ebf812728eb4cc1ac3e994313c4d",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P2.json",
+      "score": 8.35,
+      "sha256": "c9a44471a063ecca68f3588df79eccbd356a0e0fcd1d94eb9ffdc8adcc6dca48",
+      "test_case_id": "AB-04",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "critical_cap_reason": "Materially wrong memory-effect claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 7,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P3.json",
+      "score": 4.0,
+      "sha256": "a25327c38e67dee069ae429a9520dbe0b3f7675a08dc07f36f3aa37597bb423d",
+      "test_case_id": "AB-04",
+      "weighted_score": 6.7
+    },
+    {
+      "adjudication_key": "P4:a98356a461c6fc7e2c08e0f6bf9567200d6948317d5702883ba02ce344797739",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "a98356a461c6fc7e2c08e0f6bf9567200d6948317d5702883ba02ce344797739",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P4.json",
+      "score": 10.0,
+      "sha256": "e728c5721cce42a445c45a8624b7c5eeb3a5f4ad81541dd61bfd4554052aabfa",
+      "test_case_id": "AB-04",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P5:2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "critical_cap_reason": "Exact-output failure: prohibited space after colon",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P5.json",
+      "score": 4.0,
+      "sha256": "e1567b53c39cdba6656d72313acab60da448c7a9f46bc50dbecc703a10ce1d2e",
+      "test_case_id": "AB-04",
+      "weighted_score": 8.5
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-04/P6.json",
+      "score": 10.0,
+      "sha256": "31a06ef15928138b84e3e210ad7ebfe1d3ac0620e78993ca917f55008d5ccfad",
+      "test_case_id": "AB-04",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:d3dadc06fa2a735c42f85bded56e53cd6b363f0e13f5c3c679f6b2fa9287b243",
+      "critical_cap_reason": "P1 gate failure: bullets=3, words=26, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "d3dadc06fa2a735c42f85bded56e53cd6b363f0e13f5c3c679f6b2fa9287b243",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P1.json",
+      "score": 4.0,
+      "sha256": "33d62be118c78b24c8ff04aa3eb1fded1b55960332debbfb0f1b67bbb211fc06",
+      "test_case_id": "AB-05",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:38717ce623a42596bebc31353db20f53bad5e52b75f5484ec8c62c13a99b3765",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "38717ce623a42596bebc31353db20f53bad5e52b75f5484ec8c62c13a99b3765",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P2.json",
+      "score": 8.35,
+      "sha256": "b124dee3c300851b24b175ac882d096779018c095c756706e8d9ee9b2061a26e",
+      "test_case_id": "AB-05",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:501ce96bff6c3c0751388f2172d3aa8beb60da4464e9c5041d5ee581812303bb",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "501ce96bff6c3c0751388f2172d3aa8beb60da4464e9c5041d5ee581812303bb",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P3.json",
+      "score": 8.7,
+      "sha256": "5a5157e298af3bb1b8fea1b9263331d1afe878291e595911543ad972b2509295",
+      "test_case_id": "AB-05",
+      "weighted_score": 8.7
+    },
+    {
+      "adjudication_key": "P4:18982ca2cfc89c6d1f560cb69ac7feb2512b24ae62c61eb0ef7968e2da9d6246",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "18982ca2cfc89c6d1f560cb69ac7feb2512b24ae62c61eb0ef7968e2da9d6246",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P4.json",
+      "score": 10.0,
+      "sha256": "9587c647bb3d150f92c701482a83b2a34a3fa728f5f9fd3bfd03bece3f6a4540",
+      "test_case_id": "AB-05",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "No model response: controlled timeout or 16K safety block",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P5.json",
+      "score": 0.0,
+      "sha256": "2643f225aac9de2a3030f4b61e04e2b836e740a6bafbe43bb0a8b07acd7dc40b",
+      "test_case_id": "AB-05",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-05/P6.json",
+      "score": 10.0,
+      "sha256": "14e7ecf5cc03c223da9c2e216d24b6d66703f824aa6ee336c970bee85583be1b",
+      "test_case_id": "AB-05",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:3363d3dcce600461ee093d19323c85db062f0dbc241b4a4ddea52098cf143f61",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 9,
+        "correctness_and_grounding": 9,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 9,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "3363d3dcce600461ee093d19323c85db062f0dbc241b4a4ddea52098cf143f61",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P1.json",
+      "score": 9.0,
+      "sha256": "73bcf11f91c64838e8d981d182498f90a8483b2b341c0d1b5fc1e55750ae2705",
+      "test_case_id": "AB-06",
+      "weighted_score": 9.0
+    },
+    {
+      "adjudication_key": "P2:12bc3dc480ab31229683f5e5519527a05e74abe546f2c1dd641b3fd8885ded1c",
+      "critical_cap_reason": "Materially unsuitable or wrong verification claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 5,
+        "correctness_and_grounding": 3,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 7,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "12bc3dc480ab31229683f5e5519527a05e74abe546f2c1dd641b3fd8885ded1c",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P2.json",
+      "score": 4.0,
+      "sha256": "e65ccfb374721a209e73f7cdafc3c32bb286d0cfc04613d5a0d32b1d39c81afe",
+      "test_case_id": "AB-06",
+      "weighted_score": 6.1
+    },
+    {
+      "adjudication_key": "P3:21b9c66c8bd359e62d9462422b9f632ec330097941d3caa85c3632f0db8094e0",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "21b9c66c8bd359e62d9462422b9f632ec330097941d3caa85c3632f0db8094e0",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P3.json",
+      "score": 8.7,
+      "sha256": "29b5c7c6c9cb5ee88d65c1d931a56bcd2b3e932a7bb191d605801a74f5c94e52",
+      "test_case_id": "AB-06",
+      "weighted_score": 8.7
+    },
+    {
+      "adjudication_key": "P4:b4c88c9d6212d1d1931a0cfc82643f8362ea84b78f3e1ffa2a3528a2baa876ee",
+      "critical_cap_reason": "P4 missing/format gate: sentences=1, missing=runtime,caches",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "b4c88c9d6212d1d1931a0cfc82643f8362ea84b78f3e1ffa2a3528a2baa876ee",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P4.json",
+      "score": 4.0,
+      "sha256": "3fb01d03908f38d24cff6cc2652e88d2b301f43bec48184a9e2a4f8e3e597b5a",
+      "test_case_id": "AB-06",
+      "weighted_score": 6.0
+    },
+    {
+      "adjudication_key": "P5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "No model response: controlled timeout or 16K safety block",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P5.json",
+      "score": 0.0,
+      "sha256": "c6fe8f3a3243b68b7d7393877a3b2101104803c0e01f603bc15e506ca65ccad8",
+      "test_case_id": "AB-06",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-06/P6.json",
+      "score": 10.0,
+      "sha256": "0725e0c7b396e7e785caba7abdaef3c17e0ea71057177c963b2362900ea271a7",
+      "test_case_id": "AB-06",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:4d0283094c310eecec95dc2754d77406122a6d99323c55482cebcdf8b772a0e1",
+      "critical_cap_reason": "Severely incomplete/corrupted response",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 1,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 1,
+        "stability_and_output_integrity": 1
+      },
+      "output_sha256": "4d0283094c310eecec95dc2754d77406122a6d99323c55482cebcdf8b772a0e1",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P1.json",
+      "score": 0.55,
+      "sha256": "853c8e91d1ea9d038f8405d5483a82d2bf59db2f37ecfd846fa97a6f194fcbbf",
+      "test_case_id": "AB-07",
+      "weighted_score": 0.55
+    },
+    {
+      "adjudication_key": "P2:1660f6affa1a58dbcd3600759ffe24431c02d72be575cb12df43958b3d4d6b82",
+      "critical_cap_reason": "Required three-line labelled format failed",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 1,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 1,
+        "stability_and_output_integrity": 2
+      },
+      "output_sha256": "1660f6affa1a58dbcd3600759ffe24431c02d72be575cb12df43958b3d4d6b82",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P2.json",
+      "score": 0.65,
+      "sha256": "e6e914ce10a5fb32d069dafa24d751a4fda1d5260626288f115404cbf5252c24",
+      "test_case_id": "AB-07",
+      "weighted_score": 0.65
+    },
+    {
+      "adjudication_key": "P3:2c846e7f43db3e2aadf6aa5b437ad0763091ed35746c0c5fce50c67f47a5c3da",
+      "critical_cap_reason": "Invalid JSON or wrong exact schema",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 2,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 1,
+        "relevance_clarity_and_coherence": 3,
+        "stability_and_output_integrity": 3
+      },
+      "output_sha256": "2c846e7f43db3e2aadf6aa5b437ad0763091ed35746c0c5fce50c67f47a5c3da",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P3.json",
+      "score": 2.0,
+      "sha256": "e88ff0356a43824853a4155d933b6e4a440083dc244293f89d16b80279730093",
+      "test_case_id": "AB-07",
+      "weighted_score": 2.0
+    },
+    {
+      "adjudication_key": "P4:4d3bec045ca16f6da8d8044dab76cf2be8067654c550524b2f0ac0741e365207",
+      "critical_cap_reason": "Severe incoherence and fact corruption",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 1,
+        "correctness_and_grounding": 1,
+        "instruction_and_format_adherence": 1,
+        "relevance_clarity_and_coherence": 1,
+        "stability_and_output_integrity": 1
+      },
+      "output_sha256": "4d3bec045ca16f6da8d8044dab76cf2be8067654c550524b2f0ac0741e365207",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P4.json",
+      "score": 1.0,
+      "sha256": "47615130ee574a62a34cffe003286796981337b5bebf0065e0ceb215589e34a1",
+      "test_case_id": "AB-07",
+      "weighted_score": 1.0
+    },
+    {
+      "adjudication_key": "P5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "No model response: controlled timeout or 16K safety block",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P5.json",
+      "score": 0.0,
+      "sha256": "dd057999f193c25e53eaa77ee9f43cbeed7d7023bb2dc72881f0559f7a5c3012",
+      "test_case_id": "AB-07",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P6:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "Multi-turn response unusable",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-07/P6.json",
+      "score": 0.0,
+      "sha256": "e45e4d33a8976db5a691ca6f89c7015bf25f15e0337649464455945e2aac0c72",
+      "test_case_id": "AB-07",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P1:49dbbc04932425930491d4d75d6a523a1e7bc95ca69c2f93e36124479fe9bde6",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=39, required_terms=True, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "49dbbc04932425930491d4d75d6a523a1e7bc95ca69c2f93e36124479fe9bde6",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P1.json",
+      "score": 4.0,
+      "sha256": "6d52edbfeb0cf58423e1e18e75883fddb31500f59b93ad7fc0739bafc927b13e",
+      "test_case_id": "AB-08F",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:0a4f18ed3c70ef5f6c3d5707811de5cc2f3c8cdccb115a5d8a25221325075bc3",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "0a4f18ed3c70ef5f6c3d5707811de5cc2f3c8cdccb115a5d8a25221325075bc3",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P2.json",
+      "score": 8.35,
+      "sha256": "78306ba88dbefc69d980064ad7e0a58dd4a951a641ae996b6e177a63d9ba9819",
+      "test_case_id": "AB-08F",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:468b5ca5eb51e086ccfa2cb0d1a25b687d096040e6d2f3247063945f1a357d02",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 5,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "468b5ca5eb51e086ccfa2cb0d1a25b687d096040e6d2f3247063945f1a357d02",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P3.json",
+      "score": 7.8,
+      "sha256": "e5424508c7c907be38564d497e6c17615a64a6e0603360133a989080dfed5cff",
+      "test_case_id": "AB-08F",
+      "weighted_score": 7.8
+    },
+    {
+      "adjudication_key": "P4:6d182753d2654833feab70fa928ca361c2cb519a5cd63cc848b744b664864e59",
+      "critical_cap_reason": "P4 missing/format gate: sentences=2, missing=runtime",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 8,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "6d182753d2654833feab70fa928ca361c2cb519a5cd63cc848b744b664864e59",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P4.json",
+      "score": 4.0,
+      "sha256": "38d734f4f0abab9340b5d6a10063c85d0c7754ffbadf8e225196f0c7cacb1426",
+      "test_case_id": "AB-08F",
+      "weighted_score": 7.0
+    },
+    {
+      "adjudication_key": "P5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "No model response: controlled timeout or 16K safety block",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P5.json",
+      "score": 0.0,
+      "sha256": "1dd497dc7ec4526bece8a1c9d033d906945ce7f6cb60c463487a69569065853f",
+      "test_case_id": "AB-08F",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08F/P6.json",
+      "score": 10.0,
+      "sha256": "44f1c904be912890b1c7e7ee4ce3ffb5eea59bbae6547739f2a57009dfedd236",
+      "test_case_id": "AB-08F",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:49dbbc04932425930491d4d75d6a523a1e7bc95ca69c2f93e36124479fe9bde6",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=39, required_terms=True, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "49dbbc04932425930491d4d75d6a523a1e7bc95ca69c2f93e36124479fe9bde6",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P1.json",
+      "score": 4.0,
+      "sha256": "718ada29131a118f976d8b4913129b8bab83acccb0403c2534aaaee5109c39ff",
+      "test_case_id": "AB-KV8-F16-4K",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:0a4f18ed3c70ef5f6c3d5707811de5cc2f3c8cdccb115a5d8a25221325075bc3",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "0a4f18ed3c70ef5f6c3d5707811de5cc2f3c8cdccb115a5d8a25221325075bc3",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P2.json",
+      "score": 8.35,
+      "sha256": "c6b5cf7d4ca2b9569ce8a45ab58ea89eac4f632f4e0fc587cad99bb05b942251",
+      "test_case_id": "AB-KV8-F16-4K",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:468b5ca5eb51e086ccfa2cb0d1a25b687d096040e6d2f3247063945f1a357d02",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 5,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "468b5ca5eb51e086ccfa2cb0d1a25b687d096040e6d2f3247063945f1a357d02",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P3.json",
+      "score": 7.8,
+      "sha256": "28d25ffa3fcff8ca92209f989d472312100d862c82db3c77c094ad32905ba814",
+      "test_case_id": "AB-KV8-F16-4K",
+      "weighted_score": 7.8
+    },
+    {
+      "adjudication_key": "P4:6d182753d2654833feab70fa928ca361c2cb519a5cd63cc848b744b664864e59",
+      "critical_cap_reason": "P4 missing/format gate: sentences=2, missing=runtime",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 8,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "6d182753d2654833feab70fa928ca361c2cb519a5cd63cc848b744b664864e59",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P4.json",
+      "score": 4.0,
+      "sha256": "6b0af34c02c847c1a868aa22529114c01d6bb28c14c53c757363d0ec98050bb4",
+      "test_case_id": "AB-KV8-F16-4K",
+      "weighted_score": 7.0
+    },
+    {
+      "adjudication_key": "P5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "No model response: controlled timeout or 16K safety block",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P5.json",
+      "score": 0.0,
+      "sha256": "67da36ea8eddd03421ee4e6f5b43feef1d68c285179c02a854af27265e95d6a9",
+      "test_case_id": "AB-KV8-F16-4K",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-KV8-F16-4K/P6.json",
+      "score": 10.0,
+      "sha256": "9fcecfff9221cac7de782d5f8013d279ed06eef633d26365e7b2a2f78c5ce80c",
+      "test_case_id": "AB-KV8-F16-4K",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:2fa40e53214f0494e14800f1597f43a729eaf6d727ef3968eef29a6119a9df0e",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=40, required_terms=True, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "2fa40e53214f0494e14800f1597f43a729eaf6d727ef3968eef29a6119a9df0e",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P1.json",
+      "score": 4.0,
+      "sha256": "e8b43f069a64acb20d69e991bd9d593e2cdc0b561be37d87c17b05fb9723b11f",
+      "test_case_id": "AB-08Q",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:0a4f18ed3c70ef5f6c3d5707811de5cc2f3c8cdccb115a5d8a25221325075bc3",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "0a4f18ed3c70ef5f6c3d5707811de5cc2f3c8cdccb115a5d8a25221325075bc3",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P2.json",
+      "score": 8.35,
+      "sha256": "b0b4d0b6feb4e742c02b74253541a62b675a7e8381bf6f9b5135bfe54172924c",
+      "test_case_id": "AB-08Q",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:3ae07e59aec6237aa8a69a0f57b7d50c3c1c172e4749c151be785e6611b34b0e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 5,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "3ae07e59aec6237aa8a69a0f57b7d50c3c1c172e4749c151be785e6611b34b0e",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P3.json",
+      "score": 7.8,
+      "sha256": "f1c6748ba96ca7c46732a9be5f80694b286ccec01f5ef56bb3dcc81abd2deb42",
+      "test_case_id": "AB-08Q",
+      "weighted_score": 7.8
+    },
+    {
+      "adjudication_key": "P4:7e1973c48b9b779f46a42b8597ec66c15b64ec4844c023640e9473e39af7a275",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "7e1973c48b9b779f46a42b8597ec66c15b64ec4844c023640e9473e39af7a275",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P4.json",
+      "score": 10.0,
+      "sha256": "383e670b1d0a7a5b3a772f6dd582c866787a44fb9d96a05a6dcdc3454f496660",
+      "test_case_id": "AB-08Q",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "No model response: controlled timeout or 16K safety block",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P5.json",
+      "score": 0.0,
+      "sha256": "79846161c2cfcc9a81198974a1d39ad6c46e31e41cb029c4c880fb37612c5b86",
+      "test_case_id": "AB-08Q",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-08Q/P6.json",
+      "score": 10.0,
+      "sha256": "aa5d6d06458737d0c5c62335cdac0f4657e08754351548b65f9e188494359c00",
+      "test_case_id": "AB-08Q",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:f94ce0d7c6f4b22d23639e313d95a03d654e1d25044b4e6201767ca324aadc83",
+      "critical_cap_reason": "P1 gate failure: bullets=6, words=38, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "f94ce0d7c6f4b22d23639e313d95a03d654e1d25044b4e6201767ca324aadc83",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P1.json",
+      "score": 4.0,
+      "sha256": "8121afc08a594384f54a25a78b76b0dad205e8c63120fd8b4f55717a5007f307",
+      "test_case_id": "AB-09",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:1281c797e8c37b0fa9039026a5651d18be6a15963e8cd17805bb38011987b6c0",
+      "critical_cap_reason": "Materially unsuitable or wrong verification claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 5,
+        "correctness_and_grounding": 3,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 7,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "1281c797e8c37b0fa9039026a5651d18be6a15963e8cd17805bb38011987b6c0",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P2.json",
+      "score": 4.0,
+      "sha256": "a1ed9a09a36b8ab48d6103ca5b7d9632d34893db164843fbf13859968c00f244",
+      "test_case_id": "AB-09",
+      "weighted_score": 6.1
+    },
+    {
+      "adjudication_key": "P3:468b5ca5eb51e086ccfa2cb0d1a25b687d096040e6d2f3247063945f1a357d02",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 5,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "468b5ca5eb51e086ccfa2cb0d1a25b687d096040e6d2f3247063945f1a357d02",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P3.json",
+      "score": 7.8,
+      "sha256": "cebb743f7a1bf1d213b27e8fec3f1c9da5b8cbb7f7663063492a3a6d71eb9a64",
+      "test_case_id": "AB-09",
+      "weighted_score": 7.8
+    },
+    {
+      "adjudication_key": "P4:17f651c63097631ef4a95e338bb0345976b65b8726da106b41d782909be74c97",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "17f651c63097631ef4a95e338bb0345976b65b8726da106b41d782909be74c97",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P4.json",
+      "score": 10.0,
+      "sha256": "87dbb59dd48a68bad621fccb969d40b4867dbee4d2d3adc1b44f78dfa82e1e8d",
+      "test_case_id": "AB-09",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "No model response: controlled timeout or 16K safety block",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P5.json",
+      "score": 0.0,
+      "sha256": "89f79c981f6661e179692ecf60201d6f15a3862cb7796d4ec923acd6e446b3e4",
+      "test_case_id": "AB-09",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-09/P6.json",
+      "score": 10.0,
+      "sha256": "74ca16dd2d2351311ee5fd8990dd1fd3b1b322cfc0a2d4f4143c798e5e38b8bb",
+      "test_case_id": "AB-09",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:4f5ca398a4db2ec4b9aa6186de1ebb1ad16e5e553f96dda0795522d935cd9f7a",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 9,
+        "correctness_and_grounding": 9,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 9,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "4f5ca398a4db2ec4b9aa6186de1ebb1ad16e5e553f96dda0795522d935cd9f7a",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P1.json",
+      "score": 9.0,
+      "sha256": "210dbcca15c317903fbf880e84530936800b9c5f328fbb537ca7b0db133045f7",
+      "test_case_id": "AB-10",
+      "weighted_score": 9.0
+    },
+    {
+      "adjudication_key": "P2:7d1e702937edc224451dbbb25f82273b3b13dc77fb32a46ae75eee25f4803641",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "7d1e702937edc224451dbbb25f82273b3b13dc77fb32a46ae75eee25f4803641",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P2.json",
+      "score": 8.35,
+      "sha256": "444119025a13af630b72b78c509b451686876b8d46b418227caff41b1b851724",
+      "test_case_id": "AB-10",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:a2d1523ba20bf174eca6fb086943a49f56d3c813cfb5df920519bf29346ef36c",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "a2d1523ba20bf174eca6fb086943a49f56d3c813cfb5df920519bf29346ef36c",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P3.json",
+      "score": 8.7,
+      "sha256": "db7b85851ca0b5ac9f80f82ac274f70dc419ade704cab6b7e6815fd6fe4f1fbe",
+      "test_case_id": "AB-10",
+      "weighted_score": 8.7
+    },
+    {
+      "adjudication_key": "P4:e08d70301268a903ba2d1ebf0e429f8bd00c9c195cbb73d1b89d4b4e2e4a153e",
+      "critical_cap_reason": "P4 missing/format gate: sentences=2, missing=runtime",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 8,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "e08d70301268a903ba2d1ebf0e429f8bd00c9c195cbb73d1b89d4b4e2e4a153e",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P4.json",
+      "score": 4.0,
+      "sha256": "f01400a460e6abc2e65c954160ef81f628c610ad963ba58c1e7384891d60111c",
+      "test_case_id": "AB-10",
+      "weighted_score": 7.0
+    },
+    {
+      "adjudication_key": "P5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "No model response: controlled timeout or 16K safety block",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P5.json",
+      "score": 0.0,
+      "sha256": "deac54778f443cb75c68ab6bff611ab152ff9d61643b3b5b29a67bc8ef519dda",
+      "test_case_id": "AB-10",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-10/P6.json",
+      "score": 10.0,
+      "sha256": "0d6b08c77077b65f4270405499b20be64b5c04066f36692973c1f6bc06109037",
+      "test_case_id": "AB-10",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:1d411d18e9ec1df14fecb2ec4852e53efd68944619ed06a0bca316ae70543457",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=29, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "1d411d18e9ec1df14fecb2ec4852e53efd68944619ed06a0bca316ae70543457",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P1.json",
+      "score": 4.0,
+      "sha256": "5d1c064f072a60d49d7423d7ae2e986e4090a352a34211e735cbe77ddc456fd9",
+      "test_case_id": "AB-11",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:96c661912a0e4f3ceb58126ab364276c3966464324e9585120bb647069ba5ea1",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "96c661912a0e4f3ceb58126ab364276c3966464324e9585120bb647069ba5ea1",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P2.json",
+      "score": 8.35,
+      "sha256": "8c87a029e9cd7fc585a4ec4683b7d817440d069e9a78e4b18d274b757ff6938c",
+      "test_case_id": "AB-11",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "critical_cap_reason": "Materially wrong memory-effect claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 7,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P3.json",
+      "score": 4.0,
+      "sha256": "0e55be212c3efcb4224a8edb462a0ee137a718d60af7b74b6b8f1c5a99dcd7fe",
+      "test_case_id": "AB-11",
+      "weighted_score": 6.7
+    },
+    {
+      "adjudication_key": "P4:8d2dedb57423d93d465192642c28461c754b8c6e9d39efeea8b69b3cc09ffdac",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "8d2dedb57423d93d465192642c28461c754b8c6e9d39efeea8b69b3cc09ffdac",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P4.json",
+      "score": 10.0,
+      "sha256": "cdb5dc8bf4208b1224d6ca3a2fd6663ba1297f9deeb5a52a11ce8188988ffff0",
+      "test_case_id": "AB-11",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P5:2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "critical_cap_reason": "Exact-output failure: prohibited space after colon",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P5.json",
+      "score": 4.0,
+      "sha256": "6574a6ea771ff72b545db0af854376dc5981cd2903d34f004c55d14d9e2e3948",
+      "test_case_id": "AB-11",
+      "weighted_score": 8.5
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-11/P6.json",
+      "score": 10.0,
+      "sha256": "78812e68f8366496576ced10d7a266a225b362eece8e5532bcaa8dfe51d6e6ca",
+      "test_case_id": "AB-11",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:e287332baf2f162e4415d01d63f2bee9a0c8f3b2d8dead519ff5a3ce769b47eb",
+      "critical_cap_reason": "P1 gate failure: bullets=4, words=33, required_terms=True, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "e287332baf2f162e4415d01d63f2bee9a0c8f3b2d8dead519ff5a3ce769b47eb",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P1.json",
+      "score": 4.0,
+      "sha256": "57bf8d8681aa6d340c8d0746d9738aa39c35fceeaabd569d36da89dc647d39dc",
+      "test_case_id": "AB-12",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:73cebb9859d0162bad0571d02194e0df7e6b1e8894c1f64920acb7d1fb6842a6",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 7,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 7,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "73cebb9859d0162bad0571d02194e0df7e6b1e8894c1f64920acb7d1fb6842a6",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P2.json",
+      "score": 7.35,
+      "sha256": "f460de778cb9b15d93df9ef88dd358d215f1771b8c66a02691dcdd6a95e1a14e",
+      "test_case_id": "AB-12",
+      "weighted_score": 7.35
+    },
+    {
+      "adjudication_key": "P3:16a89723ed96cfe5fc76a1764993670132d07922fff2b20757dc7a78dbbd3116",
+      "critical_cap_reason": "Materially wrong memory-effect claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 7,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "16a89723ed96cfe5fc76a1764993670132d07922fff2b20757dc7a78dbbd3116",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P3.json",
+      "score": 4.0,
+      "sha256": "537f7098da8fcc28bd1f7403146812bfa0eb66fa631d64be68ed5a80725b9cb3",
+      "test_case_id": "AB-12",
+      "weighted_score": 6.7
+    },
+    {
+      "adjudication_key": "P4:f968aaf7abfa1f31b945bb900d242ba465d79b42fb153d1301458c9deff256c1",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "f968aaf7abfa1f31b945bb900d242ba465d79b42fb153d1301458c9deff256c1",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P4.json",
+      "score": 10.0,
+      "sha256": "2d6006177a6ae9ef239905d8f461d74e65436ba3705df9dacaff5ddd68b08e79",
+      "test_case_id": "AB-12",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P5:cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P5.json",
+      "score": 10.0,
+      "sha256": "a9d7bcf25dc9ec58ae5feb06b31c0f9299db12a1c148e4bab3d4516e347745b6",
+      "test_case_id": "AB-12",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P6:a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2",
+      "critical_cap_reason": "Wrong remembered value: missing amber prefix",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 4,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 2
+      },
+      "output_sha256": "a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-12/P6.json",
+      "score": 2.0,
+      "sha256": "90423aea78367f0fa2217dfe2b482debaf8c843def779d0efc3ff9dd4771d2d7",
+      "test_case_id": "AB-12",
+      "weighted_score": 4.4
+    },
+    {
+      "adjudication_key": "P1:e7b549ea54dc3f527b1782268a14f0ec417cd5a7e9535456f8477241f2a0326f",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 9,
+        "correctness_and_grounding": 9,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 9,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "e7b549ea54dc3f527b1782268a14f0ec417cd5a7e9535456f8477241f2a0326f",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P1.json",
+      "score": 9.0,
+      "sha256": "8ef9fd0153211ea945760c1405bb317a5ec960132b3e9f8b837207ea7749a346",
+      "test_case_id": "AB-13",
+      "weighted_score": 9.0
+    },
+    {
+      "adjudication_key": "P2:bec302e7e453b726e15c0dd2348a97842802caeeb2081145b3f93a2ea597a242",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "bec302e7e453b726e15c0dd2348a97842802caeeb2081145b3f93a2ea597a242",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P2.json",
+      "score": 8.35,
+      "sha256": "0b6829cb39e45f97bb22f4fb8d883519296d8dbf6efe66ffb17206b38c0b88ce",
+      "test_case_id": "AB-13",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:535daa992c1f8f8a071328027604c6bd0340e22d0c13e1bc7abd4983caad6f70",
+      "critical_cap_reason": "Invalid JSON or wrong exact schema",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 2,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 1,
+        "relevance_clarity_and_coherence": 3,
+        "stability_and_output_integrity": 3
+      },
+      "output_sha256": "535daa992c1f8f8a071328027604c6bd0340e22d0c13e1bc7abd4983caad6f70",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P3.json",
+      "score": 2.0,
+      "sha256": "3754507ee4a9a02eface7f5bd9eef4cbc8bfc893eebf1632c494af958e473a86",
+      "test_case_id": "AB-13",
+      "weighted_score": 2.0
+    },
+    {
+      "adjudication_key": "P4:a8af0905032f17beb7d92c2e8b7f45000ec1c9a320d1d5de1466cebab2b3dc0e",
+      "critical_cap_reason": "P4 missing/format gate: sentences=2, missing=model,caches,turbo",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 8,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "a8af0905032f17beb7d92c2e8b7f45000ec1c9a320d1d5de1466cebab2b3dc0e",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P4.json",
+      "score": 4.0,
+      "sha256": "36de68faf06ce484f8014067c8c034425fcce3fdf99b53e505343374110137c8",
+      "test_case_id": "AB-13",
+      "weighted_score": 7.0
+    },
+    {
+      "adjudication_key": "P5:cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P5.json",
+      "score": 10.0,
+      "sha256": "c74ab3d148f03944996ec5051e8a42f2fb9881ad70c00c1196c450394f8a4bba",
+      "test_case_id": "AB-13",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-13/P6.json",
+      "score": 10.0,
+      "sha256": "cf3fb737e26b6f929b508014e1bceafb735eb0a2087827cd20b82a38c96a4353",
+      "test_case_id": "AB-13",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:e918fe24471bcd571dadefc408e6d24e8169c8330313487cc8d142025548807a",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=41, required_terms=True, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "e918fe24471bcd571dadefc408e6d24e8169c8330313487cc8d142025548807a",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P1.json",
+      "score": 4.0,
+      "sha256": "f0f9cc8e8debc974446a840a5eb7328b83cca172d72f0dc190a66042f9db1caf",
+      "test_case_id": "AB-14",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:80a41e5ab214ac754825aa7ae0507d68a2a8a2c4a4a4d4b2ea2cef3394523c05",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "80a41e5ab214ac754825aa7ae0507d68a2a8a2c4a4a4d4b2ea2cef3394523c05",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P2.json",
+      "score": 8.35,
+      "sha256": "e2544d6869e55fae670aadd3c03d95610f5a4ba2c0be6c53520c5ca37c97ea92",
+      "test_case_id": "AB-14",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:357902f2678dcedd6b09d099387aee510f2e8fe8a64bcee86b389a760165bc7b",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 5,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "357902f2678dcedd6b09d099387aee510f2e8fe8a64bcee86b389a760165bc7b",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P3.json",
+      "score": 7.8,
+      "sha256": "64032a10b29f06ab4852ba966bc7c3dc5ef8a12f498bd6d89ebbe0eeefa6e9ac",
+      "test_case_id": "AB-14",
+      "weighted_score": 7.8
+    },
+    {
+      "adjudication_key": "P4:74e34141551d7f0fba31304fb697060617748e5c435dc6f67218de4165c15af0",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "74e34141551d7f0fba31304fb697060617748e5c435dc6f67218de4165c15af0",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P4.json",
+      "score": 10.0,
+      "sha256": "4e0edd4921afcb55d73cd10289ea9255ac7a363b3d060435c1b7f2b5777fe63d",
+      "test_case_id": "AB-14",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P5:cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P5.json",
+      "score": 10.0,
+      "sha256": "18ca1f5e682153d4c09c3c65d9f936e567ad01aac10013da9f1d393b4e5c8b6a",
+      "test_case_id": "AB-14",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-14/P6.json",
+      "score": 10.0,
+      "sha256": "c9eae786d8a76c3438b9b396157d5f76611ffef8b3b5ab59523712289e1a3dcc",
+      "test_case_id": "AB-14",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:b4b9d1571cbec5fd38d7d94be62c713c6ce32592c97b432cb1d069e21374bc94",
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=43, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "b4b9d1571cbec5fd38d7d94be62c713c6ce32592c97b432cb1d069e21374bc94",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P1.json",
+      "score": 4.0,
+      "sha256": "09c2f43ff5c88d990b5d67ddb82230ba507d705415a68063e89260de29c32418",
+      "test_case_id": "AB-15",
+      "weighted_score": 5.7
+    },
+    {
+      "adjudication_key": "P2:7cd8837090325593c0973f8d2e77e2ae638442ecd72556d8c1f996ff055b9e19",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "7cd8837090325593c0973f8d2e77e2ae638442ecd72556d8c1f996ff055b9e19",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P2.json",
+      "score": 8.35,
+      "sha256": "63ff2e6ed5717966b5b1983448e1be1dbf5d0a2aafe7d0dde7c24d35d6a5e0bd",
+      "test_case_id": "AB-15",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:8fd83d4d0d2ecf5667fce297724551006c721223b8192ed889e323e779fa9462",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "8fd83d4d0d2ecf5667fce297724551006c721223b8192ed889e323e779fa9462",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P3.json",
+      "score": 8.7,
+      "sha256": "20a031897467b6bdf5f69bd987da55733bced3c47bdb3d845cad1c280ada6cfe",
+      "test_case_id": "AB-15",
+      "weighted_score": 8.7
+    },
+    {
+      "adjudication_key": "P4:e34aa6ad47d61780d9ec6804d3f7897d79ac164b32ee6dc789f4da82a82657ea",
+      "critical_cap_reason": "P4 missing/format gate: sentences=1, missing=none",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "e34aa6ad47d61780d9ec6804d3f7897d79ac164b32ee6dc789f4da82a82657ea",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P4.json",
+      "score": 4.0,
+      "sha256": "2551168492a1a927a5355ba8111ff1b101cb216589fdbe8c2f38ee1fd79cd713",
+      "test_case_id": "AB-15",
+      "weighted_score": 6.0
+    },
+    {
+      "adjudication_key": "P5:cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P5.json",
+      "score": 10.0,
+      "sha256": "e630a5f4840270a3d726b6dacb5762f4150709d0e0b537fd147c08433bf295c6",
+      "test_case_id": "AB-15",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15/P6.json",
+      "score": 10.0,
+      "sha256": "d29dae84f22981df8de7d108ed6823593f192f3094c3e43c6f350bea02664bb6",
+      "test_case_id": "AB-15",
+      "weighted_score": 10.0
+    },
+    {
+      "adjudication_key": "P1:5ccbbcf154652d40f6569655dc10ed54947276925d18b600e48e69d8cc0c8823",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 9,
+        "correctness_and_grounding": 9,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 9,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "5ccbbcf154652d40f6569655dc10ed54947276925d18b600e48e69d8cc0c8823",
+      "prompt_id": "P1",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P1.json",
+      "score": 9.0,
+      "sha256": "bcc07ccbbe4c393535606010a66781af9e40eda063a90f8df0e81a454330599d",
+      "test_case_id": "AB-15M",
+      "weighted_score": 9.0
+    },
+    {
+      "adjudication_key": "P2:dd9831f629031224666e6de1cda05154cbebb4bb9e63d03cd25c75ded63f291f",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "dd9831f629031224666e6de1cda05154cbebb4bb9e63d03cd25c75ded63f291f",
+      "prompt_id": "P2",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P2.json",
+      "score": 8.35,
+      "sha256": "5f58f76492f6531ed92745d6a0ec3924988fbf38eaf48781d0bca8ae2bfa4e73",
+      "test_case_id": "AB-15M",
+      "weighted_score": 8.35
+    },
+    {
+      "adjudication_key": "P3:00b613631dfac2ed00acada18539beb0b5b3bfd56cb84e0370382a373d6e0485",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "00b613631dfac2ed00acada18539beb0b5b3bfd56cb84e0370382a373d6e0485",
+      "prompt_id": "P3",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P3.json",
+      "score": 8.7,
+      "sha256": "ecdc981fc265c117953a07068c0d31d6b77f8c382cbc34fb10a5b8d4f24857ad",
+      "test_case_id": "AB-15M",
+      "weighted_score": 8.7
+    },
+    {
+      "adjudication_key": "P4:4f8e8b0361a1ea3cf3faae46b0d1bb3b6e71c6194a93e89c4ed6d63d4d05a7f1",
+      "critical_cap_reason": "P4 missing/format gate: sentences=1, missing=runtime",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "4f8e8b0361a1ea3cf3faae46b0d1bb3b6e71c6194a93e89c4ed6d63d4d05a7f1",
+      "prompt_id": "P4",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P4.json",
+      "score": 4.0,
+      "sha256": "e8bdc231406fa0f3a7d7c61c4261ebca965ca952cfd524e29e4004306ac6df2f",
+      "test_case_id": "AB-15M",
+      "weighted_score": 6.0
+    },
+    {
+      "adjudication_key": "P5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "critical_cap_reason": "No model response: controlled timeout or 16K safety block",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_id": "P5",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P5.json",
+      "score": 0.0,
+      "sha256": "505ce27d4b11253c506f210f68d9f852688ae1d831a7c7a46f215a20c141ec4c",
+      "test_case_id": "AB-15M",
+      "weighted_score": 0.0
+    },
+    {
+      "adjudication_key": "P6:215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "relative_path": "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/AB-15M/P6.json",
+      "score": 10.0,
+      "sha256": "14d39071d182a5e8d4faea9e9bdbd5b2b6326a71ae53682e88aee6e4668035f5",
+      "test_case_id": "AB-15M",
+      "weighted_score": 10.0
+    }
+  ],
   "quality_authority": "limited/provisional historical screen",
   "quality_calibration": "Not collected",
+  "quality_contract": {
+    "anchors": {
+      "0": "No usable answer, empty output, unnecessary refusal, or wholly incorrect/corrupted output.",
+      "10": "Fully correct, complete, relevant and exactly compliant; no material weakness.",
+      "2": "Minimal usable content; major errors, instability or severe incompleteness.",
+      "4": "Partially correct or useful, but a critical instruction, fact or format requirement failed.",
+      "6": "Mostly correct, but one meaningful omission, ambiguity or quality weakness remains.",
+      "8": "Correct and usable with only a minor, non-material weakness."
+    },
+    "dimension_weights": {
+      "completeness_and_fact_retention": 0.2,
+      "correctness_and_grounding": 0.3,
+      "instruction_and_format_adherence": 0.25,
+      "relevance_clarity_and_coherence": 0.15,
+      "stability_and_output_integrity": 0.1
+    },
+    "dimensions": [
+      {
+        "critical_cap": "Material contradiction, fabricated required fact or wrong exact answer caps the task at 4/10.",
+        "name": "correctness_and_grounding",
+        "weight": 0.3
+      },
+      {
+        "critical_cap": "Failed required format/schema caps the task at 4/10; empty or unnecessary refusal scores 0/10.",
+        "name": "instruction_and_format_adherence",
+        "weight": 0.25
+      },
+      {
+        "critical_cap": "Missing a critical required fact caps the task at 4/10.",
+        "name": "completeness_and_fact_retention",
+        "weight": 0.2
+      },
+      {
+        "critical_cap": "Severe incoherence or off-topic output caps the task at 2/10.",
+        "name": "relevance_clarity_and_coherence",
+        "weight": 0.15
+      },
+      {
+        "critical_cap": "Corruption, repeated loops, truncation that prevents completion, or wrong remembered value caps the task at 2/10.",
+        "name": "stability_and_output_integrity",
+        "weight": 0.1
+      }
+    ],
+    "generation_settings": {
+      "max_output_tokens": 256,
+      "seed": 42,
+      "temperature": 0.0,
+      "top_p": 1.0
+    },
+    "procedure": [
+      "Run deterministic gates first.",
+      "Score baseline and optimised outputs independently with configuration labels hidden.",
+      "For subjective pairwise comparison, evaluate both presentation orders.",
+      "Manually adjudicate every critical-gate failure, judge disagreement greater than one point, or ranking reversal.",
+      "An automated or model judge must never override an objective deterministic failure.",
+      "Report per-prompt results as well as averages; equal averages must not hide different failures."
+    ],
+    "prompt_set_id": "GTQ-PROMPTS-v1",
+    "prompt_set_sha256": "9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f",
+    "prompts": [
+      {
+        "deterministic_checks": {
+          "exact_bullet_count": 5,
+          "maximum_words": 89,
+          "required_semantic_slots": [
+            "two benefits",
+            "two limitations",
+            "one check"
+          ],
+          "required_substrings": [
+            "KV cache",
+            "offline",
+            "memory"
+          ]
+        },
+        "prompt_id": "P1",
+        "task": "Sanity explanation"
+      },
+      {
+        "deterministic_checks": {
+          "exact_nonempty_lines": 3,
+          "line_prefixes": [
+            "BENEFIT:",
+            "LIMITATION:",
+            "CHECK:"
+          ],
+          "prohibit_extra_text": true
+        },
+        "prompt_id": "P2",
+        "task": "Instruction following"
+      },
+      {
+        "deterministic_checks": {
+          "all_other_values_type": "string",
+          "exact_top_level_keys": [
+            "optimisation",
+            "memory_effect",
+            "quality_risk",
+            "verification"
+          ],
+          "exact_values": {
+            "optimisation": "TurboQuant"
+          },
+          "prohibit_markdown_fence": true,
+          "valid_json": true
+        },
+        "prompt_id": "P3",
+        "task": "Exact JSON structure"
+      },
+      {
+        "deterministic_checks": {
+          "exact_sentences": 2,
+          "required_facts": [
+            "IBM Granite 4.1 3B",
+            "upstream llama.cpp",
+            "Q4_K_M",
+            "Q8_0 K cache",
+            "Q8_0 V cache",
+            "4096",
+            "local Windows Intel",
+            "TurboQuant not active"
+          ],
+          "unsupported_fact_count_expected": 0
+        },
+        "prompt_id": "P4",
+        "task": "Summarisation and fact retention"
+      },
+      {
+        "deterministic_checks": {
+          "exact_nonempty_lines": 1,
+          "exact_output": "MARKER:IXN-TQ-7319"
+        },
+        "prompt_id": "P5",
+        "task": "Long-context exact retrieval"
+      },
+      {
+        "deterministic_checks": {
+          "turn_1_exact_output": "SAVED",
+          "turn_2_exact_output": "amber:4821"
+        },
+        "prompt_id": "P6",
+        "task": "Multi-turn stability"
+      }
+    ],
+    "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+    "rubric_sha256": "a36016f66e02c9e28f0938cf81335dc4b522e9f92b7d9bad3031f90b7ef91d90"
+  },
   "quality_direct_openvino_comparison_permitted": false,
   "runtime_status_counts": {
     "blocked": 0,
@@ -15,11 +3752,36 @@
   },
   "source_date": "2026-07-17",
   "source_reconciliation": {
+    "current_server_summaries_reconciled": 19,
+    "duplicate_evidence_id": "EVID-e3b0c44298fc1c149afb",
+    "duplicate_evidence_id_extra_rows": 4,
+    "duplicate_evidence_id_paths": 5,
+    "duplicate_evidence_paths": [
+      "experiments/raw-results/atomicbot-turboquant/2026-07-17/ab-15m-utilization-rerun-v2/AB-15M/pilot/stdout.txt",
+      "experiments/raw-results/atomicbot-turboquant/2026-07-17/ab-15m-utilization-rerun-v2/AB-15M/sample-1/stdout.txt",
+      "experiments/raw-results/atomicbot-turboquant/2026-07-17/ab-15m-utilization-rerun-v2/AB-15M/sample-2/stdout.txt",
+      "experiments/raw-results/atomicbot-turboquant/2026-07-17/ab-15m-utilization-rerun-v2/AB-15M/sample-3/stdout.txt",
+      "experiments/raw-results/atomicbot-turboquant/2026-07-17/ab-15m-utilization-rerun-v2/AB-15M/warmup/stdout.txt"
+    ],
+    "formal_throughput_sources_reconciled": 19,
     "index_row_count": 828,
     "joined_evidence_count": 57,
     "joined_evidence_hash_conflicts": 0,
+    "master_summary_chronology": "Historical acquisition authority: 17 passed summaries and 2 research-only rows; current WB-02/Test-Run authority supersedes status only for the two controlled safety-bypass retests.",
+    "master_summary_rows_reconciled": 19,
+    "performance_register_rows_reconciled": 57,
+    "quality_adjudication_bindings_reconciled": 114,
+    "quality_evaluation_rows_reconciled": 114,
+    "quality_means_recomputed": 19,
+    "quality_weighted_scores_recomputed": 114,
     "stale_index_hash_conflicts": 263,
-    "stale_index_missing_paths": 38
+    "stale_index_missing_paths": 38,
+    "workbook_excluded_columns": [
+      "Quality /10",
+      "Status"
+    ],
+    "workbook_overwritten_result_rows": 19,
+    "workbook_precedence": "Test-Run register for runtime status; Performance register/current summaries for performance and utilization; Quality-Evaluation register/current quality artifacts for quality"
   },
   "url": "https://github.com/AtomicBot-ai/atomic-llama-cpp-turboquant",
   "utilization_observations": [
@@ -30,6 +3792,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 27262976,
       "measurement_id": "MEAS-AB-01-R1",
       "run_id": "AB-01-R1",
       "source_evidence_id": "EVID-34f5fdef9ec609afb3c6",
@@ -42,6 +3805,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 27262976,
       "measurement_id": "MEAS-AB-01-R2",
       "run_id": "AB-01-R2",
       "source_evidence_id": "EVID-9e206b7341caf6ef1e4b",
@@ -54,6 +3818,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 27262976,
       "measurement_id": "MEAS-AB-01-R3",
       "run_id": "AB-01-R3",
       "source_evidence_id": "EVID-e0bc789317b1973f74b1",
@@ -66,6 +3831,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 5326766,
       "measurement_id": "MEAS-AB-02-R1",
       "run_id": "AB-02-R1",
       "source_evidence_id": "EVID-e08341064813060e9c40",
@@ -78,6 +3844,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 5326766,
       "measurement_id": "MEAS-AB-02-R2",
       "run_id": "AB-02-R2",
       "source_evidence_id": "EVID-d2af2834cb1723571844",
@@ -90,6 +3857,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 5326766,
       "measurement_id": "MEAS-AB-02-R3",
       "run_id": "AB-02-R3",
       "source_evidence_id": "EVID-a247b3a1bf624cb0be6d",
@@ -102,6 +3870,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 167772160,
       "measurement_id": "MEAS-AB-03-R1",
       "run_id": "AB-03-R1",
       "source_evidence_id": "EVID-43ddaeac46382db021c0",
@@ -114,6 +3883,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 167772160,
       "measurement_id": "MEAS-AB-03-R2",
       "run_id": "AB-03-R2",
       "source_evidence_id": "EVID-96472d9159b64f3d0f65",
@@ -126,6 +3896,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 167772160,
       "measurement_id": "MEAS-AB-03-R3",
       "run_id": "AB-03-R3",
       "source_evidence_id": "EVID-d2e75891fe506a3d775f",
@@ -138,6 +3909,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 335544320,
       "measurement_id": "MEAS-AB-KV3-F16-4K-R1",
       "run_id": "AB-KV3-F16-4K-R1",
       "source_evidence_id": "EVID-efec9b2fed630bc079ad",
@@ -150,6 +3922,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 335544320,
       "measurement_id": "MEAS-AB-KV3-F16-4K-R2",
       "run_id": "AB-KV3-F16-4K-R2",
       "source_evidence_id": "EVID-35506717fa8f706ba6b9",
@@ -162,6 +3935,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 335544320,
       "measurement_id": "MEAS-AB-KV3-F16-4K-R3",
       "run_id": "AB-KV3-F16-4K-R3",
       "source_evidence_id": "EVID-b900dc6046ab8890a097",
@@ -174,6 +3948,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 178257920,
       "measurement_id": "MEAS-AB-04-R1",
       "run_id": "AB-04-R1",
       "source_evidence_id": "EVID-31f24bf0eb4821290fce",
@@ -186,6 +3961,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 178257920,
       "measurement_id": "MEAS-AB-04-R2",
       "run_id": "AB-04-R2",
       "source_evidence_id": "EVID-e1d5edcc34b6df5a42c0",
@@ -198,6 +3974,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 178257920,
       "measurement_id": "MEAS-AB-04-R3",
       "run_id": "AB-04-R3",
       "source_evidence_id": "EVID-4f346806f246152437a9",
@@ -210,6 +3987,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 178257920,
       "measurement_id": "MEAS-AB-05-R1",
       "run_id": "AB-05-R1",
       "source_evidence_id": "EVID-759c545f82837ae106dd",
@@ -222,6 +4000,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 178257920,
       "measurement_id": "MEAS-AB-05-R2",
       "run_id": "AB-05-R2",
       "source_evidence_id": "EVID-dbded501d8152f537c56",
@@ -234,6 +4013,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 178257920,
       "measurement_id": "MEAS-AB-05-R3",
       "run_id": "AB-05-R3",
       "source_evidence_id": "EVID-6866e746d187bbee0ac6",
@@ -246,6 +4026,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-06-R1",
       "run_id": "AB-06-R1",
       "source_evidence_id": "EVID-3382d3ef7ea06f1a7a52",
@@ -258,6 +4039,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-06-R2",
       "run_id": "AB-06-R2",
       "source_evidence_id": "EVID-f7b55e6294fb67f15ea7",
@@ -270,6 +4052,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-06-R3",
       "run_id": "AB-06-R3",
       "source_evidence_id": "EVID-69787a9facbcd5de813b",
@@ -282,6 +4065,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 93585408,
       "measurement_id": "MEAS-AB-07-R1",
       "run_id": "AB-07-R1",
       "source_evidence_id": "EVID-2aaaf7ac319b5669b987",
@@ -294,6 +4078,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 93585408,
       "measurement_id": "MEAS-AB-07-R2",
       "run_id": "AB-07-R2",
       "source_evidence_id": "EVID-d23210a9c54336b88a56",
@@ -306,6 +4091,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 93585408,
       "measurement_id": "MEAS-AB-07-R3",
       "run_id": "AB-07-R3",
       "source_evidence_id": "EVID-dff602af13743c1775d5",
@@ -318,6 +4104,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 335544320,
       "measurement_id": "MEAS-AB-08F-R1",
       "run_id": "AB-08F-R1",
       "source_evidence_id": "EVID-b48b06f7e232e9507627",
@@ -330,6 +4117,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 335544320,
       "measurement_id": "MEAS-AB-08F-R2",
       "run_id": "AB-08F-R2",
       "source_evidence_id": "EVID-793ca72fd9a7b13b2e0a",
@@ -342,6 +4130,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 335544320,
       "measurement_id": "MEAS-AB-08F-R3",
       "run_id": "AB-08F-R3",
       "source_evidence_id": "EVID-6c032ed4cc277ccec758",
@@ -354,6 +4143,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 356515840,
       "measurement_id": "MEAS-AB-08Q-R1",
       "run_id": "AB-08Q-R1",
       "source_evidence_id": "EVID-a3c4b3b14df707019272",
@@ -366,6 +4156,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 356515840,
       "measurement_id": "MEAS-AB-08Q-R2",
       "run_id": "AB-08Q-R2",
       "source_evidence_id": "EVID-2ff1479273ed7b5a05e2",
@@ -378,6 +4169,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 356515840,
       "measurement_id": "MEAS-AB-08Q-R3",
       "run_id": "AB-08Q-R3",
       "source_evidence_id": "EVID-ae1c042bc2ea20c2ac2e",
@@ -390,6 +4182,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 178257920,
       "measurement_id": "MEAS-AB-09-R1",
       "run_id": "AB-09-R1",
       "source_evidence_id": "EVID-45db26ec3f6616dc6913",
@@ -402,6 +4195,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 178257920,
       "measurement_id": "MEAS-AB-09-R2",
       "run_id": "AB-09-R2",
       "source_evidence_id": "EVID-62c516ef063b12d6f6f1",
@@ -414,6 +4208,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 178257920,
       "measurement_id": "MEAS-AB-09-R3",
       "run_id": "AB-09-R3",
       "source_evidence_id": "EVID-96f24ae10a918198f7c9",
@@ -426,6 +4221,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-10-R1",
       "run_id": "AB-10-R1",
       "source_evidence_id": "EVID-ad925037c820d6075e67",
@@ -438,6 +4234,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-10-R2",
       "run_id": "AB-10-R2",
       "source_evidence_id": "EVID-79c091063ef0c73a9d5e",
@@ -450,6 +4247,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-10-R3",
       "run_id": "AB-10-R3",
       "source_evidence_id": "EVID-a5764619cf1da59a8e0a",
@@ -462,6 +4260,7 @@
       "gpu_mean_percent": 25.142857,
       "gpu_median_percent": 25.0,
       "gpu_peak_percent": 40.0,
+      "kv_cache_allocated_bytes": 335544320,
       "measurement_id": "MEAS-AB-11-R1",
       "run_id": "AB-11-R1",
       "source_evidence_id": "EVID-625077f743e3810b543e",
@@ -474,6 +4273,7 @@
       "gpu_mean_percent": 29.571429,
       "gpu_median_percent": 25.0,
       "gpu_peak_percent": 43.0,
+      "kv_cache_allocated_bytes": 335544320,
       "measurement_id": "MEAS-AB-11-R2",
       "run_id": "AB-11-R2",
       "source_evidence_id": "EVID-46901e38af2eaa4f2813",
@@ -486,6 +4286,7 @@
       "gpu_mean_percent": 22.5,
       "gpu_median_percent": 22.5,
       "gpu_peak_percent": 28.0,
+      "kv_cache_allocated_bytes": 335544320,
       "measurement_id": "MEAS-AB-11-R3",
       "run_id": "AB-11-R3",
       "source_evidence_id": "EVID-b9c202e5b3cd54802118",
@@ -498,6 +4299,7 @@
       "gpu_mean_percent": 24.625,
       "gpu_median_percent": 23.0,
       "gpu_peak_percent": 41.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-12-R1",
       "run_id": "AB-12-R1",
       "source_evidence_id": "EVID-e126b1db323e238494df",
@@ -510,6 +4312,7 @@
       "gpu_mean_percent": 26.0,
       "gpu_median_percent": 24.0,
       "gpu_peak_percent": 35.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-12-R2",
       "run_id": "AB-12-R2",
       "source_evidence_id": "EVID-f4dd8ae8e6ed98fb5c52",
@@ -522,6 +4325,7 @@
       "gpu_mean_percent": 26.5,
       "gpu_median_percent": 23.0,
       "gpu_peak_percent": 41.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-12-R3",
       "run_id": "AB-12-R3",
       "source_evidence_id": "EVID-ee35228c1040c4f08483",
@@ -534,6 +4338,7 @@
       "gpu_mean_percent": 90.928571,
       "gpu_median_percent": 96.0,
       "gpu_peak_percent": 100.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-13-R1",
       "run_id": "AB-13-R1",
       "source_evidence_id": "EVID-c1e4b60a6837abf99a6b",
@@ -546,6 +4351,7 @@
       "gpu_mean_percent": 93.153846,
       "gpu_median_percent": 96.0,
       "gpu_peak_percent": 98.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-13-R2",
       "run_id": "AB-13-R2",
       "source_evidence_id": "EVID-cac81abd5a4fa1b8f2f9",
@@ -558,6 +4364,7 @@
       "gpu_mean_percent": 93.230769,
       "gpu_median_percent": 96.0,
       "gpu_peak_percent": 98.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-13-R3",
       "run_id": "AB-13-R3",
       "source_evidence_id": "EVID-a57b801e7fed30c80667",
@@ -570,6 +4377,7 @@
       "gpu_mean_percent": 27.375,
       "gpu_median_percent": 27.0,
       "gpu_peak_percent": 44.0,
+      "kv_cache_allocated_bytes": 356515840,
       "measurement_id": "MEAS-AB-14-R1",
       "run_id": "AB-14-R1",
       "source_evidence_id": "EVID-e76dbcf7433ecb002ef5",
@@ -582,6 +4390,7 @@
       "gpu_mean_percent": 25.0,
       "gpu_median_percent": 23.0,
       "gpu_peak_percent": 40.0,
+      "kv_cache_allocated_bytes": 356515840,
       "measurement_id": "MEAS-AB-14-R2",
       "run_id": "AB-14-R2",
       "source_evidence_id": "EVID-ad382ddac7cef76295f2",
@@ -594,6 +4403,7 @@
       "gpu_mean_percent": 25.625,
       "gpu_median_percent": 26.0,
       "gpu_peak_percent": 38.0,
+      "kv_cache_allocated_bytes": 356515840,
       "measurement_id": "MEAS-AB-14-R3",
       "run_id": "AB-14-R3",
       "source_evidence_id": "EVID-c6c3c604c452251f4dfc",
@@ -606,6 +4416,7 @@
       "gpu_mean_percent": 25.222222,
       "gpu_median_percent": 24.5,
       "gpu_peak_percent": 45.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-15-R1",
       "run_id": "AB-15-R1",
       "source_evidence_id": "EVID-a97823e1897bccf9e8d7",
@@ -618,6 +4429,7 @@
       "gpu_mean_percent": 25.0,
       "gpu_median_percent": 23.0,
       "gpu_peak_percent": 45.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-15-R2",
       "run_id": "AB-15-R2",
       "source_evidence_id": "EVID-c319f022f6c4cdbd1711",
@@ -630,6 +4442,7 @@
       "gpu_mean_percent": 24.611111,
       "gpu_median_percent": 22.0,
       "gpu_peak_percent": 43.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-15-R3",
       "run_id": "AB-15-R3",
       "source_evidence_id": "EVID-1b5d1d29897495b6c299",
@@ -642,6 +4455,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 671088640,
       "measurement_id": "MEAS-AB-KV8-F16-4K-R1",
       "run_id": "AB-KV8-F16-4K-R1",
       "source_evidence_id": "EVID-9ba79bb02872443abcd8",
@@ -654,6 +4468,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 671088640,
       "measurement_id": "MEAS-AB-KV8-F16-4K-R2",
       "run_id": "AB-KV8-F16-4K-R2",
       "source_evidence_id": "EVID-18be949bb5e1bf81201e",
@@ -666,6 +4481,7 @@
       "gpu_mean_percent": 0.0,
       "gpu_median_percent": 0.0,
       "gpu_peak_percent": 0.0,
+      "kv_cache_allocated_bytes": 671088640,
       "measurement_id": "MEAS-AB-KV8-F16-4K-R3",
       "run_id": "AB-KV8-F16-4K-R3",
       "source_evidence_id": "EVID-f8af396a3d2346487378",
@@ -678,6 +4494,7 @@
       "gpu_mean_percent": 96.416667,
       "gpu_median_percent": 97.5,
       "gpu_peak_percent": 100.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-15M-R1",
       "run_id": "AB-15M-R1",
       "source_evidence_id": "EVID-47de4e1b31325b0ee43e",
@@ -690,6 +4507,7 @@
       "gpu_mean_percent": 95.75,
       "gpu_median_percent": 97.5,
       "gpu_peak_percent": 99.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-15M-R2",
       "run_id": "AB-15M-R2",
       "source_evidence_id": "EVID-00aacf23b28a78f3b4cb",
@@ -702,6 +4520,7 @@
       "gpu_mean_percent": 95.0,
       "gpu_median_percent": 95.0,
       "gpu_peak_percent": 100.0,
+      "kv_cache_allocated_bytes": 131072000,
       "measurement_id": "MEAS-AB-15M-R3",
       "run_id": "AB-15M-R3",
       "source_evidence_id": "EVID-b35f15053b83eb16c61a",
