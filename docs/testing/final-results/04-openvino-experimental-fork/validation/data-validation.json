@@ -1,11 +1,26 @@
 {
   "checks": {
+    "artifact_unavailable_semantics": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
     "attempt_identifier_uniqueness": {
       "actual": 81,
       "expected": 81,
       "passed": true
     },
     "attempt_source_evidence_references": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "evidence_identifier_uniqueness": {
+      "actual": 81,
+      "expected": 81,
+      "passed": true
+    },
+    "evidence_references": {
       "actual": [],
       "expected": [],
       "passed": true
@@ -24,12 +39,22 @@
       "expected": 54,
       "passed": true
     },
+    "failure_identifier_uniqueness": {
+      "actual": 54,
+      "expected": 54,
+      "passed": true
+    },
     "failure_references": {
       "actual": [],
       "expected": [],
       "passed": true
     },
     "measurement_count": {
+      "actual": 81,
+      "expected": 81,
+      "passed": true
+    },
+    "measurement_identifier_uniqueness": {
       "actual": 81,
       "expected": 81,
       "passed": true
@@ -44,12 +69,22 @@
       "expected": 1296,
       "passed": true
     },
+    "output_identifier_uniqueness": {
+      "actual": 1296,
+      "expected": 1296,
+      "passed": true
+    },
     "output_references": {
       "actual": [],
       "expected": [],
       "passed": true
     },
     "prompt_count": {
+      "actual": 48,
+      "expected": 48,
+      "passed": true
+    },
+    "prompt_identifier_uniqueness": {
       "actual": 48,
       "expected": 48,
       "passed": true
@@ -64,12 +99,22 @@
       "expected": 3888,
       "passed": true
     },
+    "quality_identifier_uniqueness": {
+      "actual": 3888,
+      "expected": 3888,
+      "passed": true
+    },
     "quality_references": {
       "actual": [],
       "expected": [],
       "passed": true
     },
     "summary_count": {
+      "actual": 81,
+      "expected": 81,
+      "passed": true
+    },
+    "summary_identifier_uniqueness": {
       "actual": 81,
       "expected": 81,
       "passed": true

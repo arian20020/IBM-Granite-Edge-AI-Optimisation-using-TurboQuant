@@ -32,6 +32,7 @@ from .models import (
 
 _EXPERIMENTAL_ROUTE_ID = "openvino-experimental-fork"
 _EXPERIMENTAL_CAMPAIGN_ID = "fv6-2026-08-30"
+_EXPERIMENTAL_QUALITY_SCHEMA = "experimental-openvino-objective-quality/v2"
 _FV6_RELATIVE = Path(
     "experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6"
 )
@@ -707,6 +708,19 @@ def build_experimental_bundle(repo_root: Path) -> RouteBundle:
             )
         )
 
+    quality_schemas = {
+        run.get("quality", {}).get("schema")
+        for payload in raw_by_case.values()
+        for run in payload.get("quality_runs", [])
+        if isinstance(run, dict) and isinstance(run.get("quality"), dict)
+    }
+    if quality_schemas != {_EXPERIMENTAL_QUALITY_SCHEMA}:
+        raise ValueError(
+            "fv6 quality scoring schema is not uniform and expected: "
+            f"{sorted(str(value) for value in quality_schemas)}"
+        )
+    quality_scoring_version = next(iter(quality_schemas))
+
     quality: list[QualityRecord] = []
     quality_by_case_prompt: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
     for row in quality_rows:
@@ -727,7 +741,7 @@ def build_experimental_bundle(repo_root: Path) -> RouteBundle:
                 maximum_score=float(row["weight"]),
                 prompt_suite_id=row["prompt_set_id"],
                 rubric_id="objective-quality-weighted-5-3-2-output-health-gate",
-                scoring_version="experimental-openvino-objective-quality/v2",
+                scoring_version=quality_scoring_version,
                 source_evidence_id=raw_record.evidence_id,
             )
         )
@@ -861,6 +875,7 @@ def _prompt_and_output_rows(
             answer = str(result.get("text", ""))
             outputs.append(
                 {
+                    "output_id": f"{case_id}--{prompt_id}--output",
                     "test_case_id": case_id,
                     "prompt_id": prompt_id,
                     "domain": str(run["domain"]),
@@ -910,21 +925,89 @@ def _receipt_check(actual: object, expected: object) -> dict[str, object]:
     return {"actual": actual, "expected": expected, "passed": actual == expected}
 
 
+def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
+    detailed = _read_csv(repo_root / _FV6_RELATIVE / _DETAILED_NAME)
+    return {
+        "artifact_unavailable_cases": sorted(
+            row["case_id"]
+            for row in detailed
+            if row["status"] == "model_artifact_unavailable"
+            and not _bool(row["executed"])
+        ),
+        "cache_formats": sorted({row["cache_codec"] for row in detailed}),
+        "executed_model_weight_artifacts": sorted(
+            {
+                f"{row['model']}|{row['weight_precision']}"
+                for row in detailed
+                if row["status"] == "passed" and _bool(row["executed"])
+            }
+        ),
+        "attempt_semantics": {
+            row["case_id"]: {
+                "status": Status.from_source(row["status"]),
+                "executed": _bool(row["executed"]),
+                "source_status": row["status"],
+            }
+            for row in detailed
+        },
+    }
+
+
+def _evidence_case(record: EvidenceRecord) -> str | None:
+    prefix = "fv6 raw result "
+    if record.role == "raw-case-result" and record.source_label is not None:
+        if record.source_label.startswith(prefix):
+            return record.source_label.removeprefix(prefix)
+    return None
+
+
 def _experimental_validation_receipts(
     bundle: RouteBundle,
     prompt_rows: Sequence[Mapping[str, object]],
     output_rows: Sequence[Mapping[str, object]],
+    expectations: Mapping[str, object],
 ) -> tuple[dict[str, object], dict[str, object]]:
-    passed_attempts = {item.test_case_id: item for item in bundle.attempts if item.executed}
-    unavailable_cases = {
-        item.test_case_id for item in bundle.attempts if not item.executed
+    attempt_counts = Counter(item.attempt_id for item in bundle.attempts)
+    measurement_counts = Counter(item.measurement_id for item in bundle.measurements)
+    summary_counts = Counter(item.summary_id for item in bundle.summaries)
+    quality_counts = Counter(item.quality_id for item in bundle.quality)
+    failure_counts = Counter(item.failure_id for item in bundle.failures)
+    evidence_counts = Counter(item.evidence_id for item in bundle.evidence)
+    output_counts = Counter(str(row.get("output_id", "")) for row in output_rows)
+    prompt_counts = Counter(
+        (str(row.get("prompt_suite_id", "")), str(row.get("prompt_id", "")))
+        for row in prompt_rows
+    )
+
+    attempt_by_id = {
+        item.attempt_id: item
+        for item in bundle.attempts
+        if attempt_counts[item.attempt_id] == 1
     }
-    evidence_ids = {item.evidence_id for item in bundle.evidence}
-    attempt_ids = {item.attempt_id for item in bundle.attempts}
-    measurement_ids = {item.measurement_id for item in bundle.measurements}
-    prompt_keys = {
-        (str(row["prompt_suite_id"]), str(row["prompt_id"])) for row in prompt_rows
+    measurement_by_id = {
+        item.measurement_id: item
+        for item in bundle.measurements
+        if measurement_counts[item.measurement_id] == 1
     }
+    evidence_by_id = {
+        item.evidence_id: item
+        for item in bundle.evidence
+        if evidence_counts[item.evidence_id] == 1
+    }
+    passed_attempts = {
+        item.test_case_id: item
+        for item in bundle.attempts
+        if item.status is Status.PASSED and item.executed
+    }
+    artifact_unavailable_attempts = {
+        item.test_case_id: item
+        for item in bundle.attempts
+        if item.status is Status.ARTIFACT_UNAVAILABLE and not item.executed
+    }
+    expected_unavailable = list(expectations["artifact_unavailable_cases"])
+    expected_cache_formats = list(expectations["cache_formats"])
+    expected_artifacts = list(expectations["executed_model_weight_artifacts"])
+    expected_semantics = expectations["attempt_semantics"]
 
     prompts_per_case = Counter(
         (item.test_case_id, item.prompt_id) for item in bundle.quality
@@ -936,9 +1019,19 @@ def _experimental_validation_receipts(
         else sorted(set(prompt_count_values.values()))
     )
     coverage_checks = {
-        "artifact_unavailable_count": _receipt_check(len(unavailable_cases), 54),
+        "artifact_unavailable_count": _receipt_check(
+            len(artifact_unavailable_attempts), len(expected_unavailable)
+        ),
+        "artifact_unavailable_cases": _receipt_check(
+            sorted(artifact_unavailable_attempts), expected_unavailable
+        ),
         "cache_format_count": _receipt_check(
-            len({item.cache_format_id for item in bundle.attempts}), 9
+            len({item.cache_format_id for item in bundle.attempts}),
+            len(expected_cache_formats),
+        ),
+        "cache_format_set": _receipt_check(
+            sorted({str(item.cache_format_id) for item in bundle.attempts}),
+            expected_cache_formats,
         ),
         "executed_count": _receipt_check(len(passed_attempts), 27),
         "executed_model_weight_artifact_count": _receipt_check(
@@ -949,7 +1042,17 @@ def _experimental_validation_receipts(
                     if item.executed
                 }
             ),
-            3,
+            len(expected_artifacts),
+        ),
+        "executed_model_weight_artifact_set": _receipt_check(
+            sorted(
+                {
+                    f"{item.model_id}|{item.weight_format_id}"
+                    for item in bundle.attempts
+                    if item.executed
+                }
+            ),
+            expected_artifacts,
         ),
         "passed_count": _receipt_check(
             sum(item.status is Status.PASSED for item in bundle.attempts), 27
@@ -961,7 +1064,7 @@ def _experimental_validation_receipts(
         "planned": len(bundle.attempts),
         "executed": len(passed_attempts),
         "passed": sum(item.status is Status.PASSED for item in bundle.attempts),
-        "artifact_unavailable": len(unavailable_cases),
+        "artifact_unavailable": len(artifact_unavailable_attempts),
         "cache_format_count": len({item.cache_format_id for item in bundle.attempts}),
         "model_weight_artifact_count": len(
             {
@@ -975,61 +1078,142 @@ def _experimental_validation_receipts(
         "valid": all(bool(check["passed"]) for check in coverage_checks.values()),
     }
 
-    attempt_reference_errors = sorted(
-        item.attempt_id
-        for item in bundle.attempts
-        if any(evidence_id not in evidence_ids for evidence_id in item.evidence_ids)
+    attempt_semantic_errors: list[str] = []
+    attempt_reference_errors: list[str] = []
+    for item in bundle.attempts:
+        expected = expected_semantics.get(item.test_case_id)
+        if (
+            expected is None
+            or item.status is not expected["status"]
+            or item.executed is not expected["executed"]
+            or item.source_status != expected["source_status"]
+        ):
+            attempt_semantic_errors.append(item.attempt_id)
+        linked = [evidence_by_id.get(evidence_id) for evidence_id in item.evidence_ids]
+        if any(record is None for record in linked):
+            attempt_reference_errors.append(item.attempt_id)
+            continue
+        roles = Counter(record.role for record in linked if record is not None)
+        expected_roles = (
+            Counter({"source-results": 1, "source-ledger": 1, "raw-case-result": 1})
+            if item.status is Status.PASSED and item.executed
+            else Counter({"source-results": 1, "source-ledger": 1})
+        )
+        raw_cases = {
+            _evidence_case(record)
+            for record in linked
+            if record is not None and record.role == "raw-case-result"
+        }
+        if roles != expected_roles or raw_cases not in (set(), {item.test_case_id}):
+            attempt_reference_errors.append(item.attempt_id)
+
+    measurement_reference_errors: list[str] = []
+    for item in bundle.measurements:
+        attempt = attempt_by_id.get(item.attempt_id)
+        evidence = evidence_by_id.get(str(item.source_evidence_id))
+        if (
+            attempt is None
+            or attempt.test_case_id != item.test_case_id
+            or attempt.status is not Status.PASSED
+            or not attempt.executed
+            or evidence is None
+            or evidence.role != "raw-case-result"
+            or _evidence_case(evidence) != item.test_case_id
+        ):
+            measurement_reference_errors.append(item.measurement_id)
+
+    summary_reference_errors: list[str] = []
+    for item in bundle.summaries:
+        sources = [measurement_by_id.get(source_id) for source_id in item.source_measurement_ids]
+        metric_field = {
+            "generation_tokens_per_second": "generation_tokens_per_second",
+            "time_to_first_token": "latency_ms",
+            "peak_working_set_bytes": "peak_working_set_bytes",
+        }.get(item.metric_name)
+        if (
+            item.test_case_id not in passed_attempts
+            or not sources
+            or any(source is None or source.test_case_id != item.test_case_id for source in sources)
+            or metric_field is None
+            or any(getattr(source, metric_field) is None for source in sources if source is not None)
+        ):
+            summary_reference_errors.append(item.summary_id)
+
+    quality_reference_errors: list[str] = []
+    for item in bundle.quality:
+        evidence = evidence_by_id.get(str(item.source_evidence_id))
+        if (
+            item.test_case_id not in passed_attempts
+            or evidence is None
+            or evidence.role != "raw-case-result"
+            or _evidence_case(evidence) != item.test_case_id
+            or item.prompt_id is None
+            or item.criterion_id is None
+            or item.scoring_version != _EXPERIMENTAL_QUALITY_SCHEMA
+        ):
+            quality_reference_errors.append(item.quality_id)
+
+    failure_reference_errors: list[str] = []
+    for item in bundle.failures:
+        attempt = attempt_by_id.get(item.attempt_id)
+        linked = [evidence_by_id.get(evidence_id) for evidence_id in item.evidence_ids]
+        roles = Counter(record.role for record in linked if record is not None)
+        if (
+            attempt is None
+            or attempt.test_case_id != item.test_case_id
+            or attempt.status is not Status.ARTIFACT_UNAVAILABLE
+            or attempt.executed
+            or item.status is not Status.ARTIFACT_UNAVAILABLE
+            or any(record is None for record in linked)
+            or roles != Counter({"source-results": 1, "source-ledger": 1})
+        ):
+            failure_reference_errors.append(item.failure_id)
+
+    prompt_reference_errors: list[str] = []
+    for row in prompt_rows:
+        evidence = evidence_by_id.get(str(row.get("input_evidence_id", "")))
+        if (
+            evidence is None
+            or evidence.role != "quality-prompt-input"
+            or evidence.relative_path != str(row.get("relative_path", ""))
+            or evidence.sha256 != str(row.get("sha256", ""))
+        ):
+            prompt_reference_errors.append(str(row.get("prompt_id", "")))
+
+    prompt_ids = {prompt_id for _, prompt_id in prompt_counts}
+    output_reference_errors: list[str] = []
+    for row in output_rows:
+        case_id = str(row.get("test_case_id", ""))
+        prompt_id = str(row.get("prompt_id", ""))
+        output_id = str(row.get("output_id", ""))
+        evidence = evidence_by_id.get(str(row.get("source_evidence_id", "")))
+        if (
+            output_id != f"{case_id}--{prompt_id}--output"
+            or case_id not in passed_attempts
+            or prompt_id not in prompt_ids
+            or evidence is None
+            or evidence.role != "raw-case-result"
+            or _evidence_case(evidence) != case_id
+        ):
+            output_reference_errors.append(output_id or f"{case_id}/{prompt_id}")
+
+    known_source_roles = {
+        "source-results",
+        "source-coverage",
+        "source-quality",
+        "source-ledger",
+        "source-workbook",
+        "raw-case-result",
+        "quality-prompt-input",
+    }
+    evidence_reference_errors = sorted(
+        item.evidence_id
+        for item in bundle.evidence
+        if item.role not in known_source_roles
+        or item.derived
+        or bool(item.input_evidence_ids)
+        or any(source_id not in evidence_by_id for source_id in item.input_evidence_ids)
     )
-    measurement_reference_errors = sorted(
-        item.measurement_id
-        for item in bundle.measurements
-        if item.attempt_id not in attempt_ids
-        or item.test_case_id not in passed_attempts
-        or item.source_evidence_id not in evidence_ids
-    )
-    summary_reference_errors = sorted(
-        item.summary_id
-        for item in bundle.summaries
-        if item.test_case_id not in passed_attempts
-        or not item.source_measurement_ids
-        or any(source_id not in measurement_ids for source_id in item.source_measurement_ids)
-    )
-    quality_reference_errors = sorted(
-        item.quality_id
-        for item in bundle.quality
-        if item.test_case_id not in passed_attempts
-        or item.source_evidence_id not in evidence_ids
-        or item.prompt_id is None
-        or item.criterion_id is None
-    )
-    failure_reference_errors = sorted(
-        item.failure_id
-        for item in bundle.failures
-        if item.attempt_id not in attempt_ids
-        or item.test_case_id not in unavailable_cases
-        or any(evidence_id not in evidence_ids for evidence_id in item.evidence_ids)
-    )
-    prompt_reference_errors = sorted(
-        str(row["prompt_id"])
-        for row in prompt_rows
-        if str(row["input_evidence_id"]) not in evidence_ids
-    )
-    output_keys = [
-        (str(row["test_case_id"]), str(row["prompt_id"])) for row in output_rows
-    ]
-    output_reference_errors = sorted(
-        f"{row['test_case_id']}/{row['prompt_id']}"
-        for row in output_rows
-        if str(row["source_evidence_id"]) not in evidence_ids
-        or str(row["test_case_id"]) not in passed_attempts
-        or not any(prompt_id == str(row["prompt_id"]) for _, prompt_id in prompt_keys)
-    )
-    duplicate_output_keys = sorted(
-        f"{case_id}/{prompt_id}"
-        for (case_id, prompt_id), count in Counter(output_keys).items()
-        if count != 1
-    )
-    output_reference_errors.extend(duplicate_output_keys)
 
     criteria_by_prompt: dict[tuple[str, str | None], set[str | None]] = defaultdict(set)
     for item in bundle.quality:
@@ -1039,14 +1223,16 @@ def _experimental_validation_receipts(
     )
     unavailable_exclusions = {
         "measurements": sorted(
-            {item.test_case_id for item in bundle.measurements} & unavailable_cases
+            {item.test_case_id for item in bundle.measurements} & set(expected_unavailable)
         ),
         "outputs": sorted(
-            {str(row["test_case_id"]) for row in output_rows} & unavailable_cases
+            {str(row["test_case_id"]) for row in output_rows} & set(expected_unavailable)
         ),
-        "quality": sorted({item.test_case_id for item in bundle.quality} & unavailable_cases),
+        "quality": sorted(
+            {item.test_case_id for item in bundle.quality} & set(expected_unavailable)
+        ),
         "summaries": sorted(
-            {item.test_case_id for item in bundle.summaries} & unavailable_cases
+            {item.test_case_id for item in bundle.summaries} & set(expected_unavailable)
         ),
     }
     empty_exclusions = {
@@ -1060,23 +1246,50 @@ def _experimental_validation_receipts(
             len({item.attempt_id for item in bundle.attempts}), 81
         ),
         "attempt_source_evidence_references": _receipt_check(
-            attempt_reference_errors, []
+            sorted(attempt_reference_errors), []
         ),
+        "artifact_unavailable_semantics": _receipt_check(
+            sorted(attempt_semantic_errors), []
+        ),
+        "evidence_identifier_uniqueness": _receipt_check(
+            len(evidence_counts), len(bundle.evidence)
+        ),
+        "evidence_references": _receipt_check(evidence_reference_errors, []),
         "exactly_three_distinct_criteria_per_prompt": _receipt_check(
             distinct_criteria_actual, [3]
         ),
         "failure_count": _receipt_check(len(bundle.failures), 54),
-        "failure_references": _receipt_check(failure_reference_errors, []),
+        "failure_identifier_uniqueness": _receipt_check(
+            len(failure_counts), len(bundle.failures)
+        ),
+        "failure_references": _receipt_check(sorted(failure_reference_errors), []),
         "measurement_count": _receipt_check(len(bundle.measurements), 81),
-        "measurement_references": _receipt_check(measurement_reference_errors, []),
+        "measurement_identifier_uniqueness": _receipt_check(
+            len(measurement_counts), len(bundle.measurements)
+        ),
+        "measurement_references": _receipt_check(
+            sorted(measurement_reference_errors), []
+        ),
         "output_count": _receipt_check(len(output_rows), 1296),
-        "output_references": _receipt_check(output_reference_errors, []),
+        "output_identifier_uniqueness": _receipt_check(
+            len(output_counts), len(output_rows)
+        ),
+        "output_references": _receipt_check(sorted(output_reference_errors), []),
         "prompt_count": _receipt_check(len(prompt_rows), 48),
+        "prompt_identifier_uniqueness": _receipt_check(
+            len(prompt_counts), len(prompt_rows)
+        ),
         "prompt_references": _receipt_check(prompt_reference_errors, []),
         "quality_criterion_count": _receipt_check(len(bundle.quality), 3888),
-        "quality_references": _receipt_check(quality_reference_errors, []),
+        "quality_identifier_uniqueness": _receipt_check(
+            len(quality_counts), len(bundle.quality)
+        ),
+        "quality_references": _receipt_check(sorted(quality_reference_errors), []),
         "summary_count": _receipt_check(len(bundle.summaries), 81),
-        "summary_references": _receipt_check(summary_reference_errors, []),
+        "summary_identifier_uniqueness": _receipt_check(
+            len(summary_counts), len(bundle.summaries)
+        ),
+        "summary_references": _receipt_check(sorted(summary_reference_errors), []),
         "unavailable_exclusions": _receipt_check(
             unavailable_exclusions, empty_exclusions
         ),
@@ -1094,12 +1307,24 @@ def _experimental_validation_receipts(
 
 
 def build_experimental_validation_receipts(
-    repo_root: Path, bundle: RouteBundle
+    repo_root: Path,
+    bundle: RouteBundle,
+    *,
+    prompt_rows: Sequence[Mapping[str, object]] | None = None,
+    output_rows: Sequence[Mapping[str, object]] | None = None,
 ) -> tuple[dict[str, object], dict[str, object]]:
     """Recompute named fv6 coverage and referential-integrity checks."""
     root = Path(repo_root).resolve(strict=True)
-    prompt_rows, output_rows = _prompt_and_output_rows(root, bundle)
-    return _experimental_validation_receipts(bundle, prompt_rows, output_rows)
+    if prompt_rows is None or output_rows is None:
+        generated_prompts, generated_outputs = _prompt_and_output_rows(root, bundle)
+        if prompt_rows is None:
+            prompt_rows = generated_prompts
+        if output_rows is None:
+            output_rows = generated_outputs
+    expectations = _frozen_validation_expectations(root)
+    return _experimental_validation_receipts(
+        bundle, prompt_rows, output_rows, expectations
+    )
 
 
 def write_experimental_route(repo_root: Path) -> RouteBundle:
@@ -1202,6 +1427,7 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         route / "quality/outputs-index.csv",
         output_rows,
         (
+            "output_id",
             "test_case_id",
             "prompt_id",
             "domain",
@@ -1319,8 +1545,11 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         newline="\n",
     )
 
-    coverage_validation, data_validation = _experimental_validation_receipts(
-        bundle, prompt_rows, output_rows
+    coverage_validation, data_validation = build_experimental_validation_receipts(
+        root,
+        bundle,
+        prompt_rows=prompt_rows,
+        output_rows=output_rows,
     )
     write_json(route / "validation/coverage-validation.json", coverage_validation)
     write_json(route / "validation/data-validation.json", data_validation)

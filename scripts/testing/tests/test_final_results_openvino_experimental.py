@@ -268,6 +268,7 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     output_by_key = {
         (row["test_case_id"], row["prompt_id"]): row for row in generated_outputs
     }
+    assert len({row["output_id"] for row in generated_outputs}) == 27 * 48
     score_by_id = {row["quality_id"]: row for row in generated_scores}
     for source in source_rows:
         if source["executed"] != "true":
@@ -305,9 +306,12 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     assert coverage["valid"] is True
     assert set(coverage["checks"]) == {
         "artifact_unavailable_count",
+        "artifact_unavailable_cases",
         "cache_format_count",
+        "cache_format_set",
         "executed_count",
         "executed_model_weight_artifact_count",
+        "executed_model_weight_artifact_set",
         "passed_count",
         "planned_count",
         "quality_prompts_per_passed_case",
@@ -326,18 +330,27 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     assert set(data_validation["checks"]) == {
         "attempt_identifier_uniqueness",
         "attempt_source_evidence_references",
+        "artifact_unavailable_semantics",
+        "evidence_identifier_uniqueness",
+        "evidence_references",
         "exactly_three_distinct_criteria_per_prompt",
         "failure_count",
+        "failure_identifier_uniqueness",
         "failure_references",
         "measurement_count",
+        "measurement_identifier_uniqueness",
         "measurement_references",
         "output_count",
+        "output_identifier_uniqueness",
         "output_references",
         "prompt_count",
+        "prompt_identifier_uniqueness",
         "prompt_references",
         "quality_criterion_count",
+        "quality_identifier_uniqueness",
         "quality_references",
         "summary_count",
+        "summary_identifier_uniqueness",
         "summary_references",
         "unavailable_exclusions",
     }
@@ -361,6 +374,242 @@ def test_validation_receipts_fail_when_expected_measurements_are_missing():
         "expected": 81,
         "passed": False,
     }
+
+
+def test_validation_receipts_require_exact_unavailable_status_and_execution_flag():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    attempts = list(bundle.attempts)
+    index = next(
+        index
+        for index, attempt in enumerate(attempts)
+        if attempt.status is Status.ARTIFACT_UNAVAILABLE
+    )
+    attempts[index] = replace(attempts[index], status=Status.NOT_EXECUTED)
+
+    coverage, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, attempts=tuple(attempts))
+    )
+
+    assert coverage["valid"] is False
+    assert coverage["checks"]["artifact_unavailable_cases"]["passed"] is False
+    assert data["checks"]["artifact_unavailable_semantics"]["passed"] is False
+
+
+def test_validation_receipts_reject_count_preserving_unsupported_cache_format():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    attempts = tuple(
+        replace(attempt, cache_format_id="unsupported-format")
+        if attempt.cache_format_id == "f16"
+        else attempt
+        for attempt in bundle.attempts
+    )
+
+    coverage, _ = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, attempts=attempts)
+    )
+
+    assert coverage["checks"]["cache_format_count"]["passed"] is True
+    assert coverage["checks"]["cache_format_set"]["passed"] is False
+    assert coverage["valid"] is False
+
+
+def test_validation_receipts_reject_count_preserving_wrong_executed_artifact():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    attempts = tuple(
+        replace(attempt, model_id="unsupported-model")
+        if attempt.executed
+        and (attempt.model_id, attempt.weight_format_id) == ("granite-8b", "int4")
+        else attempt
+        for attempt in bundle.attempts
+    )
+
+    coverage, _ = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, attempts=attempts)
+    )
+
+    assert coverage["checks"]["executed_model_weight_artifact_count"]["passed"] is True
+    assert coverage["checks"]["executed_model_weight_artifact_set"]["passed"] is False
+    assert coverage["valid"] is False
+
+
+@pytest.mark.parametrize(
+    ("collection_name", "identifier_field", "check_name"),
+    (
+        ("attempts", "attempt_id", "attempt_identifier_uniqueness"),
+        ("measurements", "measurement_id", "measurement_identifier_uniqueness"),
+        ("summaries", "summary_id", "summary_identifier_uniqueness"),
+        ("quality", "quality_id", "quality_identifier_uniqueness"),
+        ("failures", "failure_id", "failure_identifier_uniqueness"),
+        ("evidence", "evidence_id", "evidence_identifier_uniqueness"),
+    ),
+)
+def test_validation_receipts_reject_duplicate_stable_record_ids(
+    collection_name, identifier_field, check_name
+):
+    bundle = build_experimental_bundle(REPO_ROOT)
+    records = list(getattr(bundle, collection_name))
+    records[1] = replace(
+        records[1], **{identifier_field: getattr(records[0], identifier_field)}
+    )
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, **{collection_name: tuple(records)})
+    )
+
+    assert data["checks"][check_name]["passed"] is False
+    assert data["valid"] is False
+
+
+def test_validation_receipts_reject_duplicate_output_ids():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    outputs[1]["output_id"] = outputs[0]["output_id"]
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT,
+        bundle,
+        prompt_rows=prompts,
+        output_rows=outputs,
+    )
+
+    assert data["checks"]["output_identifier_uniqueness"]["passed"] is False
+    assert data["valid"] is False
+
+
+def test_validation_receipts_reject_cross_case_measurement_attempt():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    measurements = list(bundle.measurements)
+    wrong_attempt = next(
+        attempt
+        for attempt in bundle.attempts
+        if attempt.executed and attempt.test_case_id != measurements[0].test_case_id
+    )
+    measurements[0] = replace(measurements[0], attempt_id=wrong_attempt.attempt_id)
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, measurements=tuple(measurements))
+    )
+
+    assert data["checks"]["measurement_references"]["passed"] is False
+
+
+def test_validation_receipts_reject_cross_case_summary_measurement():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    summaries = list(bundle.summaries)
+    wrong_measurement = next(
+        measurement
+        for measurement in bundle.measurements
+        if measurement.test_case_id != summaries[0].test_case_id
+    )
+    summaries[0] = replace(
+        summaries[0], source_measurement_ids=(wrong_measurement.measurement_id,)
+    )
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, summaries=tuple(summaries))
+    )
+
+    assert data["checks"]["summary_references"]["passed"] is False
+
+
+def test_validation_receipts_reject_cross_case_quality_raw_evidence():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    quality = list(bundle.quality)
+    wrong_raw = next(
+        evidence
+        for evidence in bundle.evidence
+        if evidence.role == "raw-case-result"
+        and quality[0].test_case_id not in str(evidence.source_label)
+    )
+    quality[0] = replace(quality[0], source_evidence_id=wrong_raw.evidence_id)
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, quality=tuple(quality))
+    )
+
+    assert data["checks"]["quality_references"]["passed"] is False
+
+
+def test_validation_receipts_reject_attempt_raw_evidence_from_another_case():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    attempts = list(bundle.attempts)
+    index = next(index for index, attempt in enumerate(attempts) if attempt.executed)
+    attempt = attempts[index]
+    evidence_by_id = {item.evidence_id: item for item in bundle.evidence}
+    wrong_raw = next(
+        evidence
+        for evidence in bundle.evidence
+        if evidence.role == "raw-case-result"
+        and attempt.test_case_id not in str(evidence.source_label)
+    )
+    attempts[index] = replace(
+        attempt,
+        evidence_ids=tuple(
+            wrong_raw.evidence_id
+            if evidence_by_id[evidence_id].role == "raw-case-result"
+            else evidence_id
+            for evidence_id in attempt.evidence_ids
+        ),
+    )
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, attempts=tuple(attempts))
+    )
+
+    assert data["checks"]["attempt_source_evidence_references"]["passed"] is False
+
+
+def test_validation_receipts_reject_failure_linked_to_another_case_attempt():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    failures = list(bundle.failures)
+    wrong_attempt = next(
+        attempt
+        for attempt in bundle.attempts
+        if not attempt.executed and attempt.test_case_id != failures[0].test_case_id
+    )
+    failures[0] = replace(failures[0], attempt_id=wrong_attempt.attempt_id)
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, failures=tuple(failures))
+    )
+
+    assert data["checks"]["failure_references"]["passed"] is False
+
+
+def test_validation_receipts_reject_output_with_prompt_input_evidence_role():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    prompt_evidence = next(
+        evidence for evidence in bundle.evidence if evidence.role == "quality-prompt-input"
+    )
+    outputs[0]["source_evidence_id"] = prompt_evidence.evidence_id
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT,
+        bundle,
+        prompt_rows=prompts,
+        output_rows=outputs,
+    )
+
+    assert data["checks"]["output_references"]["passed"] is False
+
+
+def test_validation_receipts_reject_source_evidence_with_derived_links():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    evidence = list(bundle.evidence)
+    evidence[0] = replace(
+        evidence[0],
+        derived=True,
+        input_evidence_ids=(evidence[1].evidence_id,),
+    )
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, evidence=tuple(evidence))
+    )
+
+    assert data["checks"]["evidence_references"]["passed"] is False
 
 
 def test_fv6_rejects_a_conflicting_comparison_value(tmp_path):
@@ -393,6 +642,34 @@ def test_fv6_rejects_a_selected_repetition_metric_conflict(tmp_path):
     )
 
     with pytest.raises(ValueError, match="selected benchmark"):
+        build_experimental_bundle(repo)
+
+
+def test_fv6_rejects_nonselected_repetition_stdout_result_conflict(tmp_path):
+    repo = _isolated_fv6_repo(tmp_path)
+    _rewrite_raw(
+        repo,
+        "granite-3b__int4__tbq3",
+        lambda payload: payload["benchmark_runs"][1]["result"].__setitem__(
+            "input_tokens", payload["benchmark_runs"][1]["result"]["input_tokens"] + 1
+        ),
+    )
+
+    with pytest.raises(ValueError, match="stdout/result conflict"):
+        build_experimental_bundle(repo)
+
+
+def test_fv6_rejects_complete_internally_consistent_nonmedian_selection(tmp_path):
+    repo = _isolated_fv6_repo(tmp_path)
+
+    def mutate(payload):
+        payload["benchmark"] = json.loads(
+            json.dumps(payload["benchmark_runs"][1])
+        )
+
+    _rewrite_raw(repo, "granite-3b__int4__tbq3", mutate)
+
+    with pytest.raises(ValueError, match="not the median-decode repetition"):
         build_experimental_bundle(repo)
 
 
@@ -460,6 +737,38 @@ def test_fv6_rejects_raw_quality_output_text_conflict(tmp_path):
     _rewrite_raw(repo, "granite-3b__int4__tbq3", mutate)
 
     with pytest.raises(ValueError, match="quality output"):
+        build_experimental_bundle(repo)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (("domain", "education"), ("prompt_length", "long")),
+)
+def test_fv6_rejects_raw_and_embedded_prompt_metadata_conflicting_with_csv(
+    tmp_path, field, replacement
+):
+    repo = _isolated_fv6_repo(tmp_path)
+
+    def mutate(payload):
+        run = payload["quality_runs"][0]
+        run[field] = replacement
+        run["quality"][field] = replacement
+
+    _rewrite_raw(repo, "granite-3b__int4__tbq3", mutate)
+
+    with pytest.raises(ValueError, match=f"quality prompt {field} conflict"):
+        build_experimental_bundle(repo)
+
+
+def test_fv6_rejects_nonuniform_quality_scoring_schema(tmp_path):
+    repo = _isolated_fv6_repo(tmp_path)
+
+    def mutate(payload):
+        payload["quality_runs"][0]["quality"]["schema"] = "unexpected-quality/v9"
+
+    _rewrite_raw(repo, "granite-3b__int4__tbq3", mutate)
+
+    with pytest.raises(ValueError, match="quality scoring schema"):
         build_experimental_bundle(repo)
 
 
