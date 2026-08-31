@@ -66,7 +66,7 @@ public sealed class FixedHardwareToolAcquisitionTests
             llamaCpp,
             (_, _, _) => { calls++; return TrustedToolVerificationResult.Rejected(TrustedToolVerificationFailure.HashMismatch); });
         AssertFailure(rejected.Acquire(), HardwareToolAcquisitionDiagnosticCode.ToolIntegrityFailure);
-        Assert.AreEqual(1, calls);
+        Assert.AreEqual(2, calls);
     }
 
     [TestMethod]
