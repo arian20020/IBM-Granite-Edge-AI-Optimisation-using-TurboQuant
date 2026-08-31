@@ -76,6 +76,22 @@ public sealed class E1EvidenceSupportTests
     }
 
     [TestMethod]
+    public void Managed_profiler_diagnostic_and_resolver_overrides_are_all_classified_unsafe()
+    {
+        string command = $$"""
+            $ErrorActionPreference = 'Stop'
+            Import-Module '{{SupportModule}}' -Force
+            $names = @('CORECLR_ENABLE_PROFILING','CORECLR_PROFILER_PATH_64','COR_PROFILER','COMPlus_ReadyToRun','DOTNET_DiagnosticPorts','MSBuildSDKsPath','NUGET_PLUGIN_PATHS')
+            foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, 'poison', 'Process') }
+            $unsafe = @(Get-E1UnsafeManagedEnvironmentNames)
+            foreach ($name in $names) { if ($name -notin $unsafe) { throw "unsafe override was not classified: $name" } }
+            """;
+
+        ProcessResult result = PowerShell(command, FindRepositoryRoot());
+        Assert.AreEqual(0, result.ExitCode, result.Output);
+    }
+
+    [TestMethod]
     public void Trx_requires_fresh_exact_single_passing_identity()
     {
         using TestDirectory directory = TestDirectory.Create();

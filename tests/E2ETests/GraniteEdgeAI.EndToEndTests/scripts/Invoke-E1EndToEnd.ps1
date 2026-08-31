@@ -131,7 +131,7 @@ if ($Stage -eq 'Evidence') {
         $dotnetItem.Name -ne 'dotnet.exe') { throw 'The approved x64 dotnet host is invalid.' }
     $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
     $buildStartedUtc = [DateTime]::UtcNow
-    $buildEnvironmentNames = @(
+    $buildEnvironmentNames = @(@(
         'MSBuildSDKsPath', 'MSBuildExtensionsPath', 'MSBuildExtensionsPath32', 'MSBuildExtensionsPath64',
         'MSBuildUserExtensionsPath', 'MSBUILD_EXE_PATH', 'MSBUILDUSESERVER', 'MSBUILDLEGACYEXTENSIONSPATH',
         'DOTNET_MSBUILD_SDK_RESOLVER_SDKS_DIR', 'DOTNET_MSBUILD_SDK_RESOLVER_SDKS_VER',
@@ -139,7 +139,7 @@ if ($Stage -eq 'Evidence') {
         'DOTNET_HOST_PATH', 'DOTNET_ADDITIONAL_DEPS', 'DOTNET_SHARED_STORE', 'DOTNET_STARTUP_HOOKS', 'DOTNET_MULTILEVEL_LOOKUP',
         'DOTNET_CLI_HOME', 'NUGET_PLUGIN_PATHS', 'NUGET_CREDENTIALPROVIDERS_PATH', 'NUGET_PACKAGES',
         'NUGET_HTTP_CACHE_PATH', 'NUGET_FALLBACK_PACKAGES', 'RestoreSources'
-    )
+    ) + @(Get-E1UnsafeManagedEnvironmentNames) | Sort-Object -Unique)
     $savedBuildEnvironment = @{}
     foreach ($name in $buildEnvironmentNames) {
         $savedBuildEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -169,14 +169,27 @@ if ($Stage -eq 'Evidence') {
         @('GraniteEdgeAI.EndToEndTests.Tests.R4TwoPhaseIssueEvidenceVerifierTests', 'Exact_schema_v4_candidate_closure_and_catalog_are_committed_and_pushed', 'Preflight'),
         @('GraniteEdgeAI.EndToEndTests.Tests.R4TwoPhaseIssueEvidenceVerifierTests', 'Exact_E1_post_acceptance_evidence_is_candidate_bound_and_fail_closed', 'PostAcceptance')
     )
-    foreach ($test in $authoritative) {
-        $trxName = "E1-$($test[2])-$([Guid]::NewGuid().ToString('N')).trx"
-        $trxPath = Join-Path $evidenceResultRoot $trxName
-        $startedUtc = [DateTime]::UtcNow
-        $arguments = New-E1AuthoritativeVSTestArguments -AssemblyPath $assemblyPath -ExpectedClass $test[0] -ExpectedMethod $test[1] -ResultsRoot $evidenceResultRoot -TrxFileName $trxName
-        & $vstestExecutable @arguments
-        if ($LASTEXITCODE -ne 0) { throw "Authoritative $($test[2]) evaluator failed with exit code $LASTEXITCODE." }
-        Assert-E1AuthoritativeTrx -Path $trxPath -ExpectedResultsRoot $evidenceResultRoot -RepositoryRoot $repositoryRoot -ExpectedClass $test[0] -ExpectedMethod $test[1] -InvocationStartedUtc $startedUtc
+    $runtimeEnvironmentNames = @(Get-E1UnsafeManagedEnvironmentNames)
+    $savedRuntimeEnvironment = @{}
+    foreach ($name in $runtimeEnvironmentNames) {
+        $savedRuntimeEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+        [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+    }
+    try {
+        foreach ($test in $authoritative) {
+            $trxName = "E1-$($test[2])-$([Guid]::NewGuid().ToString('N')).trx"
+            $trxPath = Join-Path $evidenceResultRoot $trxName
+            $startedUtc = [DateTime]::UtcNow
+            $arguments = New-E1AuthoritativeVSTestArguments -AssemblyPath $assemblyPath -ExpectedClass $test[0] -ExpectedMethod $test[1] -ResultsRoot $evidenceResultRoot -TrxFileName $trxName
+            & $vstestExecutable @arguments
+            if ($LASTEXITCODE -ne 0) { throw "Authoritative $($test[2]) evaluator failed with exit code $LASTEXITCODE." }
+            Assert-E1AuthoritativeTrx -Path $trxPath -ExpectedResultsRoot $evidenceResultRoot -RepositoryRoot $repositoryRoot -ExpectedClass $test[0] -ExpectedMethod $test[1] -InvocationStartedUtc $startedUtc
+        }
+    }
+    finally {
+        foreach ($name in $runtimeEnvironmentNames) {
+            [Environment]::SetEnvironmentVariable($name, $savedRuntimeEnvironment[$name], 'Process')
+        }
     }
     return
 }

@@ -298,6 +298,12 @@ public sealed class E1EndToEndRunnerInvocationTests
             start.Environment["DOTNET_MSBUILD_SDK_RESOLVER_SDKS_VER"] = "99.0.0";
             start.Environment["DOTNET_MSBUILD_SDK_RESOLVER_CLI_DIR"] = _directory.Path;
             start.Environment["NUGET_PLUGIN_PATHS"] = _directory.Path;
+            start.Environment["CORECLR_ENABLE_PROFILING"] = "1";
+            start.Environment["CORECLR_PROFILER"] = "{11111111-1111-1111-1111-111111111111}";
+            start.Environment["CORECLR_PROFILER_PATH_64"] = Path.Combine(_directory.Path, "fake-profiler.dll");
+            start.Environment["COR_ENABLE_PROFILING"] = "1";
+            start.Environment["COMPlus_ReadyToRun"] = "0";
+            start.Environment["DOTNET_DiagnosticPorts"] = Path.Combine(_directory.Path, "diagnostic-port");
             start.ArgumentList.Add("-NoProfile");
             start.ArgumentList.Add("-NonInteractive");
             start.ArgumentList.Add("-ExecutionPolicy");

@@ -132,6 +132,12 @@ function Get-E1TrustedMSBuildSdkRoot {
     return $item.FullName
 }
 
+function Get-E1UnsafeManagedEnvironmentNames {
+    return @([Environment]::GetEnvironmentVariables('Process').Keys | ForEach-Object { [string]$_ } | Where-Object {
+        $_ -match '^(CORECLR_|COR_|COMPlus_|DOTNET_|MSBUILD|NUGET_)' -or $_ -eq 'RestoreSources'
+    } | Sort-Object -Unique)
+}
+
 function Assert-E1EvidenceAssembly {
     param(
         [Parameter(Mandatory = $true)] [string] $Path,
@@ -251,4 +257,4 @@ function Assert-E1AuthoritativeTrx {
     }
 }
 
-Export-ModuleMember -Function Get-E1TrustedVSTest, Get-E1TrustedDotNet, Get-E1TrustedMSBuild, Get-E1TrustedMSBuildSdkRoot, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx
+Export-ModuleMember -Function Get-E1TrustedVSTest, Get-E1TrustedDotNet, Get-E1TrustedMSBuild, Get-E1TrustedMSBuildSdkRoot, Get-E1UnsafeManagedEnvironmentNames, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx
