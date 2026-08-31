@@ -64,36 +64,10 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
-    public void Verify_post_acceptance_binds_receipt_and_keeps_blocked_gates_out_of_passes()
+    public void External_block_closes_R3_020_but_not_R3_022()
     {
         using TestDirectory directory = TestDirectory.Create();
-        string report = Path.Combine(directory.Path, "report.md");
-        string manifest = Path.Combine(directory.Path, "manifest.json");
-        File.WriteAllText(report, "blocked");
-        File.WriteAllText(manifest, "{}");
-        string receipt = Path.Combine(directory.Path, "receipt.json");
-        File.WriteAllText(receipt, JsonSerializer.Serialize(new
-        {
-            schemaVersion = 1,
-            workerId = "E1",
-            baseCommit = new string('a', 40),
-            baseTree = new string('b', 40),
-            implementationSubjectCommit = new string('c', 40),
-            implementationSubjectTree = new string('d', 40),
-            disposition = "BLOCKED BY EXTERNAL ENVIRONMENT",
-            report = FileBinding(report),
-            evidenceManifest = FileBinding(manifest),
-            nativeLockAcquisitions = 0,
-            cleanupVerified = true,
-            packageAttempted = false,
-            appControlChecked = true,
-            managedExecuted = 311,
-            managedPassed = 311,
-            managedFailed = 0,
-            managedSkipped = 0,
-            blockedGatesCountedAsPasses = false,
-            externalBlock = "exact native prerequisites absent before lock"
-        }));
+        string receipt = WritePostReceipt(directory);
 
         R4PostAcceptanceEvidence result = R3IssueEvidenceVerifier.VerifyPostAcceptance(
             receipt, directory.Path, new string('a', 40), new string('b', 40),
@@ -101,22 +75,97 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
 
         Assert.AreEqual("BLOCKED BY EXTERNAL ENVIRONMENT", result.Disposition);
         Assert.IsTrue(result.ClosesR3_020);
+        Assert.IsFalse(result.ClosesR3_022);
+    }
+
+    [TestMethod]
+    public void Zero_package_attempts_cannot_close_R3_022()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, approvedEvidence: true, overrides: new()
+        {
+            ["disposition"] = "CHANGES REQUIRED", ["packageAttempted"] = false, ["packagePassed"] = false
+        });
+        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
+        Assert.IsFalse(result.ClosesR3_022);
+    }
+
+    [TestMethod]
+    public void Zero_native_lock_acquisitions_cannot_close_R3_022()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, approvedEvidence: true, overrides: new()
+        {
+            ["disposition"] = "CHANGES REQUIRED", ["nativeLockAcquisitions"] = 0
+        });
+        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
+        Assert.IsFalse(result.ClosesR3_022);
+    }
+
+    [TestMethod]
+    public void Approval_closes_R3_022_only_with_executed_passing_package_native_and_E2E_evidence()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, approvedEvidence: true);
+        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
+        Assert.IsTrue(result.ClosesR3_020);
         Assert.IsTrue(result.ClosesR3_022);
 
-        string mutated = File.ReadAllText(receipt).Replace(
-            "\"blockedGatesCountedAsPasses\":false", "\"blockedGatesCountedAsPasses\":true");
-        File.WriteAllText(receipt, mutated);
+        receipt = WritePostReceipt(directory, approvedEvidence: true, overrides: new() { ["nativePassed"] = 0, ["nativeFailed"] = 1 });
         Assert.ThrowsExactly<InvalidDataException>(() => R3IssueEvidenceVerifier.VerifyPostAcceptance(
             receipt, directory.Path, new string('a', 40), new string('b', 40),
             new string('c', 40), new string('d', 40)));
+    }
 
-        mutated = File.ReadAllText(receipt)
-            .Replace("\"blockedGatesCountedAsPasses\":true", "\"blockedGatesCountedAsPasses\":false")
-            .Replace("BLOCKED BY EXTERNAL ENVIRONMENT", "APPROVED FOR MAIN INTEGRATION");
-        File.WriteAllText(receipt, mutated);
-        Assert.ThrowsExactly<InvalidDataException>(() => R3IssueEvidenceVerifier.VerifyPostAcceptance(
-            receipt, directory.Path, new string('a', 40), new string('b', 40),
-            new string('c', 40), new string('d', 40)));
+    [TestMethod]
+    public void Changes_required_closes_neither_finding_without_its_precise_evidence()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, overrides: new()
+        {
+            ["disposition"] = "CHANGES REQUIRED",
+            ["externalBlock"] = "none"
+        });
+        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
+        Assert.IsFalse(result.ClosesR3_020);
+        Assert.IsFalse(result.ClosesR3_022);
+    }
+
+    private static R4PostAcceptanceEvidence VerifyPostFixture(string receipt, string root) =>
+        R3IssueEvidenceVerifier.VerifyPostAcceptance(
+            receipt, root, new string('a', 40), new string('b', 40),
+            new string('c', 40), new string('d', 40));
+
+    private static string WritePostReceipt(
+        TestDirectory directory,
+        bool approvedEvidence = false,
+        Dictionary<string, object?>? overrides = null)
+    {
+        string report = Path.Combine(directory.Path, "report.md");
+        string manifest = Path.Combine(directory.Path, "manifest.json");
+        File.WriteAllText(report, "evidence");
+        File.WriteAllText(manifest, "{}");
+        var receipt = new Dictionary<string, object?>
+        {
+            ["schemaVersion"] = 1, ["workerId"] = "E1",
+            ["baseCommit"] = new string('a', 40), ["baseTree"] = new string('b', 40),
+            ["implementationSubjectCommit"] = new string('c', 40), ["implementationSubjectTree"] = new string('d', 40),
+            ["disposition"] = approvedEvidence ? "APPROVED FOR MAIN INTEGRATION" : "BLOCKED BY EXTERNAL ENVIRONMENT",
+            ["report"] = FileBinding(report), ["evidenceManifest"] = FileBinding(manifest),
+            ["nativeLockAcquisitions"] = approvedEvidence ? 1 : 0,
+            ["cleanupVerified"] = true,
+            ["packageAttempted"] = approvedEvidence, ["packagePassed"] = approvedEvidence,
+            ["appControlChecked"] = true, ["appControlPassed"] = true,
+            ["nativeExecuted"] = approvedEvidence ? 1 : 0, ["nativePassed"] = approvedEvidence ? 1 : 0,
+            ["nativeFailed"] = 0, ["nativeSkipped"] = 0,
+            ["managedExecuted"] = 311, ["managedPassed"] = 311, ["managedFailed"] = 0, ["managedSkipped"] = 0,
+            ["blockedGatesCountedAsPasses"] = false,
+            ["externalBlock"] = approvedEvidence ? "none" : "exact native prerequisites absent before lock"
+        };
+        foreach ((string key, object? value) in overrides ?? []) receipt[key] = value;
+        string path = Path.Combine(directory.Path, $"receipt-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(receipt));
+        return path;
     }
 
     private static object FileBinding(string path)
@@ -155,7 +204,7 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
             RequireEnvironment("GRANITE_E2E_IMPLEMENTATION_COMMIT"),
             RequireEnvironment("GRANITE_E2E_IMPLEMENTATION_TREE"));
         Assert.IsTrue(result.ClosesR3_020);
-        Assert.IsTrue(result.ClosesR3_022);
+        Assert.IsFalse(result.ClosesR3_022);
     }
 
     private static Fixture WriteFixture(

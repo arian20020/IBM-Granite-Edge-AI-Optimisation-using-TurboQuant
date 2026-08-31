@@ -147,7 +147,8 @@ internal static class R3IssueEvidenceVerifier
         JsonContract.RequireOnly(root, "schemaVersion", "workerId", "baseCommit", "baseTree",
             "implementationSubjectCommit", "implementationSubjectTree", "disposition", "report",
             "evidenceManifest", "nativeLockAcquisitions", "cleanupVerified", "packageAttempted",
-            "appControlChecked", "managedExecuted", "managedPassed", "managedFailed", "managedSkipped",
+            "packagePassed", "appControlChecked", "appControlPassed", "nativeExecuted", "nativePassed",
+            "nativeFailed", "nativeSkipped", "managedExecuted", "managedPassed", "managedFailed", "managedSkipped",
             "blockedGatesCountedAsPasses", "externalBlock");
         if (JsonContract.RequiredInt64(root, "schemaVersion") != 1
             || JsonContract.RequiredString(root, "workerId") != "E1")
@@ -170,26 +171,46 @@ internal static class R3IssueEvidenceVerifier
         long passed = JsonContract.RequiredInt64(root, "managedPassed");
         long failed = JsonContract.RequiredInt64(root, "managedFailed");
         long skipped = JsonContract.RequiredInt64(root, "managedSkipped");
-        if (executed <= 0 || executed != passed + failed + skipped || failed != 0 || skipped != 0
-            || RequiredBoolean(root, "blockedGatesCountedAsPasses") || !RequiredBoolean(root, "cleanupVerified")
-            || !RequiredBoolean(root, "appControlChecked"))
+        long nativeExecuted = JsonContract.RequiredInt64(root, "nativeExecuted");
+        long nativePassed = JsonContract.RequiredInt64(root, "nativePassed");
+        long nativeFailed = JsonContract.RequiredInt64(root, "nativeFailed");
+        long nativeSkipped = JsonContract.RequiredInt64(root, "nativeSkipped");
+        if (executed <= 0 || passed < 0 || failed < 0 || skipped < 0 || executed != passed + failed + skipped
+            || nativeExecuted < 0 || nativePassed < 0 || nativeFailed < 0 || nativeSkipped < 0
+            || nativeExecuted != nativePassed + nativeFailed + nativeSkipped
+            || RequiredBoolean(root, "blockedGatesCountedAsPasses"))
         {
-            throw new InvalidDataException("Post-acceptance execution arithmetic or cleanup is invalid.");
+            throw new InvalidDataException("Post-acceptance execution arithmetic is invalid.");
         }
         bool packageAttempted = RequiredBoolean(root, "packageAttempted");
+        bool packagePassed = RequiredBoolean(root, "packagePassed");
+        bool appControlChecked = RequiredBoolean(root, "appControlChecked");
+        bool appControlPassed = RequiredBoolean(root, "appControlPassed");
+        bool cleanupVerified = RequiredBoolean(root, "cleanupVerified");
         long lockAcquisitions = JsonContract.RequiredInt64(root, "nativeLockAcquisitions");
-        string externalBlock = JsonContract.RequiredString(root, "externalBlock");
-        if (disposition == "BLOCKED BY EXTERNAL ENVIRONMENT"
-            && (packageAttempted || lockAcquisitions != 0 || string.IsNullOrWhiteSpace(externalBlock)))
+        if (lockAcquisitions < 0 || packagePassed && !packageAttempted || appControlPassed && !appControlChecked)
         {
-            throw new InvalidDataException("External pre-lock block evidence is inconsistent.");
+            throw new InvalidDataException("Post-acceptance gate evidence is inconsistent.");
+        }
+        string externalBlock = JsonContract.RequiredString(root, "externalBlock");
+        bool hasExternalBlock = !string.Equals(externalBlock, "none", StringComparison.Ordinal);
+        bool closesR3_020 = nativeExecuted > 0 || hasExternalBlock;
+        bool closesR3_022 = packageAttempted && packagePassed
+            && appControlChecked && appControlPassed
+            && lockAcquisitions > 0
+            && nativeExecuted > 0 && nativeFailed == 0 && nativeSkipped == 0
+            && failed == 0 && skipped == 0
+            && cleanupVerified;
+        if (disposition == "BLOCKED BY EXTERNAL ENVIRONMENT" && !hasExternalBlock)
+        {
+            throw new InvalidDataException("External-block disposition requires precise external evidence.");
         }
         if (disposition == "APPROVED FOR MAIN INTEGRATION"
-            && (!packageAttempted || lockAcquisitions <= 0 || !string.Equals(externalBlock, "none", StringComparison.Ordinal)))
+            && (!closesR3_020 || !closesR3_022 || hasExternalBlock))
         {
-            throw new InvalidDataException("Approval requires completed package/native lock evidence and no external block.");
+            throw new InvalidDataException("Approval requires all package, App Control, native, cleanup and E2E evidence to execute and pass.");
         }
-        return new R4PostAcceptanceEvidence(disposition, ClosesR3_020: true, ClosesR3_022: true);
+        return new R4PostAcceptanceEvidence(disposition, closesR3_020, closesR3_022);
     }
 
     private static void RequireExactObject(JsonElement root, string name, string expected)
