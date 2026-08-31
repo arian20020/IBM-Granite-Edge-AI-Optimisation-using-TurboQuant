@@ -123,7 +123,7 @@ if ($Q1Manifest) { $env:GRANITE_E2E_Q1_MANIFEST = (Resolve-Path -LiteralPath $Q1
 
 if ($Stage -eq 'Evidence') {
     Assert-E1ImplementationBoundary -RepositoryRoot $repositoryRoot -ImplementationCommit $ImplementationCommit
-    $evidenceDotNet = Join-Path $env:ProgramFiles 'dotnet\dotnet.exe'
+    $evidenceDotNet = Get-E1TrustedDotNet
     $dotnetItem = Get-Item -LiteralPath $evidenceDotNet -Force -ErrorAction Stop
     if ($dotnetItem.PSIsContainer -or ($dotnetItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
         $dotnetItem.Name -ne 'dotnet.exe') { throw 'The approved x64 dotnet host is invalid.' }
@@ -150,7 +150,7 @@ if ($Stage -eq 'Evidence') {
         $arguments = New-E1AuthoritativeVSTestArguments -AssemblyPath $assemblyPath -ExpectedClass $test[0] -ExpectedMethod $test[1] -ResultsRoot $evidenceResultRoot -TrxFileName $trxName
         & $vstestExecutable @arguments
         if ($LASTEXITCODE -ne 0) { throw "Authoritative $($test[2]) evaluator failed with exit code $LASTEXITCODE." }
-        Assert-E1AuthoritativeTrx -Path $trxPath -ExpectedClass $test[0] -ExpectedMethod $test[1] -InvocationStartedUtc $startedUtc
+        Assert-E1AuthoritativeTrx -Path $trxPath -ExpectedResultsRoot $evidenceResultRoot -ExpectedClass $test[0] -ExpectedMethod $test[1] -InvocationStartedUtc $startedUtc
     }
     return
 }

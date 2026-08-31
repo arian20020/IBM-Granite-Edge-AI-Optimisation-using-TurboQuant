@@ -52,14 +52,21 @@ function Assert-E1TrustedVSTestPath {
 }
 
 function Get-E1TrustedVSTest {
+    $programFiles = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
+    $programFilesX86 = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFilesX86)
+    if ([string]::IsNullOrWhiteSpace($programFiles) -or [string]::IsNullOrWhiteSpace($programFilesX86)) {
+        throw 'Blocked: canonical Windows program roots are unavailable.'
+    }
     $candidates = @(
-        (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'),
-        (Join-Path $env:ProgramFiles 'Microsoft Visual Studio\Installer\vswhere.exe')
+        (Join-Path $programFilesX86 'Microsoft Visual Studio\Installer\vswhere.exe'),
+        (Join-Path $programFiles 'Microsoft Visual Studio\Installer\vswhere.exe')
     )
     $vswhere = $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
     if (-not $vswhere) { throw 'Blocked: approved vswhere.exe is unavailable.' }
     $vswhereItem = Assert-E1RegularFile -Path $vswhere
     if ($vswhereItem.Name -ne 'vswhere.exe') { throw 'Blocked: Visual Studio discovery executable identity is invalid.' }
+    $vswhereBoundary = if ($vswhereItem.FullName.StartsWith([IO.Path]::GetFullPath($programFilesX86) + '\', [StringComparison]::OrdinalIgnoreCase)) { $programFilesX86 } else { $programFiles }
+    Assert-E1NoReparseChain -Path $vswhereItem.FullName -Boundary $vswhereBoundary
     $installation = @(& $vswhereItem.FullName -latest -products * -requires Microsoft.VisualStudio.Component.TestTools.BuildTools -property installationPath 2>&1 | ForEach-Object { "$_" })
     if ($LASTEXITCODE -ne 0 -or $installation.Count -ne 1 -or [string]::IsNullOrWhiteSpace($installation[0])) {
         throw 'Blocked: Visual Studio discovery failed.'
@@ -68,8 +75,22 @@ function Get-E1TrustedVSTest {
     if (-not $rootItem.PSIsContainer -or ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
         throw 'Blocked: Visual Studio installation root is invalid.'
     }
+    $canonicalRoots = @([IO.Path]::GetFullPath($programFiles).TrimEnd('\'), [IO.Path]::GetFullPath($programFilesX86).TrimEnd('\'))
+    if (-not @($canonicalRoots | Where-Object { $rootItem.FullName.StartsWith($_ + '\', [StringComparison]::OrdinalIgnoreCase) }).Count) {
+        throw 'Blocked: Visual Studio installation is outside canonical Windows program roots.'
+    }
     $expected = Join-Path $rootItem.FullName 'Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe'
     return Assert-E1TrustedVSTestPath -Path $expected -InstallationRoot $rootItem.FullName
+}
+
+function Get-E1TrustedDotNet {
+    $programFiles = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
+    if ([string]::IsNullOrWhiteSpace($programFiles)) { throw 'Blocked: canonical Windows Program Files is unavailable.' }
+    $path = Join-Path $programFiles 'dotnet\dotnet.exe'
+    $item = Assert-E1RegularFile -Path $path
+    if ($item.Name -ne 'dotnet.exe' -or $item.Extension -ne '.exe') { throw 'Blocked: approved dotnet executable identity is invalid.' }
+    Assert-E1NoReparseChain -Path $item.FullName -Boundary $programFiles
+    return $item.FullName
 }
 
 function Assert-E1EvidenceAssembly {
@@ -152,11 +173,16 @@ function New-E1AuthoritativeVSTestArguments {
 function Assert-E1AuthoritativeTrx {
     param(
         [Parameter(Mandatory = $true)] [string] $Path,
+        [Parameter(Mandatory = $true)] [string] $ExpectedResultsRoot,
         [Parameter(Mandatory = $true)] [string] $ExpectedClass,
         [Parameter(Mandatory = $true)] [string] $ExpectedMethod,
         [Parameter(Mandatory = $true)] [DateTime] $InvocationStartedUtc
     )
+    $root = [IO.Path]::GetFullPath($ExpectedResultsRoot).TrimEnd('\')
+    $full = [IO.Path]::GetFullPath($Path)
+    if (-not $full.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Authoritative TRX is outside its validated results root.' }
     $item = Assert-E1RegularFile -Path $Path
+    Assert-E1NoReparseChain -Path $item.FullName -Boundary $root
     if ($item.LastWriteTimeUtc -lt $InvocationStartedUtc.AddSeconds(-2)) { throw 'Authoritative TRX is stale.' }
     try { [xml]$document = Get-Content -Raw -LiteralPath $item.FullName -ErrorAction Stop }
     catch { throw 'Authoritative TRX is unreadable or malformed.' }
@@ -182,4 +208,4 @@ function Assert-E1AuthoritativeTrx {
     }
 }
 
-Export-ModuleMember -Function Get-E1TrustedVSTest, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx
+Export-ModuleMember -Function Get-E1TrustedVSTest, Get-E1TrustedDotNet, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx
