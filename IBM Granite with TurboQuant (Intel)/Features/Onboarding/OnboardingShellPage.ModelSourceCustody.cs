@@ -71,6 +71,7 @@ public sealed partial class OnboardingShellPage
             return;
         }
         _lifetimeCancellation.Cancel();
+        RetireActiveOptimizationChatTarget();
         InvalidateActiveHardwareJourney();
         _currentModelChatLaunchRegistry?.Dispose();
         _modelSourceCustodyRegistry.Dispose();
@@ -100,6 +101,7 @@ public sealed partial class OnboardingShellPage
             _chatController = null;
             await chatController.DisposeAsync();
         }
+        RetireActiveOptimizationChatTarget();
 
         DetachCompatibilityPage();
         DetachHardwareInspectionPage();

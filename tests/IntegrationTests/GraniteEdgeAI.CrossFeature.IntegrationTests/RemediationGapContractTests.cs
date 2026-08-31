@@ -267,15 +267,15 @@ public sealed class RemediationGapContractTests
         RequireCompiledByAppProject(selectionPath, failures);
         string selection = File.ReadAllText(selectionPath);
 
-        RequireToken(method, "openVinoResult.ConfigurationSha256",
-            "Chat does not bind the result configuration", failures);
-        RequireLifecycleInvocation(method, "CreateChatTargetAsync",
+        RequireToken(method, "CreateOptimizationChatTargetAsync",
+            "Chat does not use the exact-result destination facade", failures);
+        RequireLifecycleInvocation(method, "CreateOptimizationChatTargetAsync",
             ["state.Result"], failures);
         RejectToken(method, "CancellationToken.None",
             "Chat uses CancellationToken.None instead of a lifecycle token", failures);
         RejectToken(method, "LastPublishedDirectory",
             "Chat still trusts LastPublishedDirectory", failures);
-        RequireLifecycleInvocation(export, "ExportPersistentAsync",
+        RequireLifecycleInvocation(export, "ExportOptimizedModelAsync",
             ["state.Result", "destination", "maximumBytes"], failures);
         RejectToken(export, "CancellationToken.None",
             "export uses CancellationToken.None instead of a lifecycle token", failures);
@@ -317,6 +317,50 @@ public sealed class RemediationGapContractTests
         Assert.IsFalse(activeMethod.Contains(
             "OptimizationExecutionStatus.SucceededRuntimeProfile",
             StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void OptimizationDestinationsUseOneJourneyScopedFacadeAndRetainChatCustody()
+    {
+        string shell = ReadAppFile(
+            "Features", "Onboarding", "OnboardingShellPage.xaml.cs");
+        string lifecycle = ReadAppFile(
+            "Features", "Onboarding",
+            "OnboardingShellPage.OptimizationDestinations.cs");
+        string navigation = NormalizeCode(MethodBody(
+            shell, "NavigateToOptimization"));
+        string chat = NormalizeCode(MethodBody(
+            shell, "LaunchOptimizedChatAsync"));
+        string export = NormalizeCode(MethodBody(
+            shell, "SaveOptimizedModelAsync"));
+        string retirement = NormalizeCode(MethodBody(
+            shell, "RetireOptimizationAsync"));
+        string lifecycleCode = NormalizeCode(lifecycle);
+
+        StringAssert.Contains(navigation,
+            "CreateOptimizationDestinationFacade(entry.OptimizationHandoff.Plan,backend.Executor,outputs,appRoot)");
+        StringAssert.Contains(navigation,
+            "BeginOptimizationDestinationLifecycle(");
+        StringAssert.Contains(chat,
+            "CreateOptimizationChatTargetAsync(state.Result,cancellationToken)");
+        StringAssert.Contains(export,
+            "ExportOptimizedModelAsync(state.Result,destination,maximumBytes,cancellationToken)");
+        StringAssert.Contains(retirement,
+            "RetireOptimizationDestinationLifecycleAsync()");
+        StringAssert.Contains(lifecycleCode,
+            "newGgufOptimizationDestinationRoute(plan,outputs,_modelSourceCustodyRegistry)");
+        StringAssert.Contains(lifecycleCode,
+            "newOpenVinoOptimizationDestinationRoute(openVinoExecutor)");
+        StringAssert.Contains(lifecycleCode,
+            "newOptimizationDestinationFacade(gguf,openVino)");
+        StringAssert.Contains(lifecycleCode,
+            "_activeOptimizationChatTarget");
+        StringAssert.Contains(lifecycleCode,
+            "RetireActiveOptimizationChatTarget");
+        StringAssert.Contains(lifecycleCode,
+            "CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token)");
+        StringAssert.Contains(lifecycleCode,
+            "catch(Exception)when(cancellationisnotnull)");
     }
 
     [TestMethod]

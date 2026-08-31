@@ -158,11 +158,14 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/IModelIn
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/ModelInspectionViewModel.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/ModelInspectionViewSnapshot.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/README.md
+IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Execution/OpenVino/OpenVinoOptimizationDestinationRoute.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/OptimizationDestinationFacade.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/README.md
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/DebugFixtures/OnboardingShellPage.FixtureGallery.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.ModelSourceCustody.cs
+IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.OptimizationDestinations.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingStage.cs
@@ -192,14 +195,17 @@ docs/audits/2026-08-30/C0-r4-issue-ledger.md
 docs/audits/2026-08-30/C0-r4-specialist-reconciliation.md
 docs/audits/2026-08-30/H1-hardware-compatibility-r4.md
 docs/audits/2026-08-30/M1-model-inspection-r4.md
+docs/audits/2026-08-30/Q1-optimisation-result-binding-r4.md
 docs/audits/2026-08-30/evidence/C0-r4-H1-launch-packet.json
 docs/audits/2026-08-30/evidence/C0-r4-Q1-launch-packet.json
 docs/audits/2026-08-30/evidence/C0-r4-specialist-reconciliation.json
 docs/audits/2026-08-30/evidence/C0-r4-worker-register.json
 docs/audits/2026-08-30/evidence/H1-hardware-compatibility-r4.json
 docs/audits/2026-08-30/evidence/M1-model-inspection-r4.json
+docs/audits/2026-08-30/evidence/Q1-optimisation-result-binding-r4.json
 docs/audits/2026-08-30/handoffs/R4-C0.json
 docs/audits/2026-08-30/handoffs/R4-H1.json
+docs/audits/2026-08-30/handoffs/R4-Q1.json
 docs/development/Model-Import-Quick-Scan-Current-State.md
 docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md
 docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md
@@ -436,6 +442,7 @@ tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerP
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerProcessTreeContainmentTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerProtocolIntegrityTests.cs
 tests/IntegrationTests/GraniteEdgeAI.ModelInspection.WorkerProcess.Tests/WorkerStandardErrorTests.cs
+tests/IntegrationTests/GraniteEdgeAI.Q1.Identity.Tests/OptimizationDestinationFacadeTests.cs
 tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/ChildProcessScenario.cs
 tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/FixtureMilestoneWriter.cs
 tests/ProcessFixtures/GraniteEdgeAI.ModelInspection.ProtocolTestWorker/GraniteEdgeAI.ModelInspection.ProtocolTestWorker.csproj

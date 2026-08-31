@@ -39,7 +39,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
-using Windows.Storage.Pickers;
 using Microsoft.UI.Xaml;
 
 namespace GraniteEdgeAI.Features.Onboarding
@@ -62,7 +61,6 @@ namespace GraniteEdgeAI.Features.Onboarding
         private GgufOptimizationProductionAuthority? _activeGgufAuthority;
         private OpenVinoOptimizationProductionAuthority? _activeOpenVinoAuthority;
         private OpenVinoOptimizationService? _activeOpenVinoOptimizationService;
-        private OpenVinoOptimizationExecutor? _activeOpenVinoExecutor;
         private ChatPage? _attachedChatPage;
         private ChatDemoController? _chatController;
         private bool _ggufChatRouteRegistered;
@@ -73,7 +71,6 @@ namespace GraniteEdgeAI.Features.Onboarding
         private CompatibilityPage? _compatibilityPageForOptimizationReturn;
         private OptimizationJourneyCoordinator? _optimizationCoordinator;
         private IOptimizationAttemptContextFactory? _optimizationContextFactory;
-        private OptimizationOutputRegistry? _optimizationOutputRegistry;
         private ModelInspectionPage? _modelInspectionPageForHardwareReturn;
         private Guid _activeModelHandoffId;
         private Guid _activeProductHardwareRunId;
@@ -1047,12 +1044,17 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return;
             }
 
-            _activeOpenVinoExecutor =
-                backend.Executor as OpenVinoOptimizationExecutor;
             OptimizationJourneyCoordinator coordinator = backend.Coordinator;
             IOptimizationAttemptContextFactory contextFactory =
                 backend.ContextFactory;
             OptimizationOutputRegistry outputs = backend.Outputs;
+            OptimizationDestinationFacade destinations =
+                CreateOptimizationDestinationFacade(
+                    entry.OptimizationHandoff.Plan,
+                    backend.Executor,
+                    outputs,
+                    appRoot);
+            BeginOptimizationDestinationLifecycle(destinations);
             var page = new OptimizationPage(entry);
             page.IntentRequested += OptimizationPage_IntentRequested;
             coordinator.StateChanged += OptimizationCoordinator_StateChanged;
@@ -1061,7 +1063,6 @@ namespace GraniteEdgeAI.Features.Onboarding
             _attachedOptimizationPage = page;
             _optimizationCoordinator = coordinator;
             _optimizationContextFactory = contextFactory;
-            _optimizationOutputRegistry = outputs;
             StageFrame.Content = page;
             StageFrame.BackStack.Clear();
             StageFrame.ForwardStack.Clear();
@@ -1169,12 +1170,12 @@ namespace GraniteEdgeAI.Features.Onboarding
                 case OptimizationCommand.Chat:
                     await LaunchOptimizedChatAsync(
                         coordinator.State,
-                        _lifetimeCancellation.Token);
+                        OptimizationDestinationToken);
                     break;
                 case OptimizationCommand.Save:
                     await SaveOptimizedModelAsync(
                         coordinator.State,
-                        _lifetimeCancellation.Token);
+                        OptimizationDestinationToken);
                     break;
                 case OptimizationCommand.Done:
                     await ReturnFromOptimizationAsync();
@@ -1186,26 +1187,48 @@ namespace GraniteEdgeAI.Features.Onboarding
             OptimizationJourneyState state,
             CancellationToken cancellationToken)
         {
-            if (state.Result is { IsSuccessful: true } openVinoResult
-                && openVinoResult.Route == OptimizationRoute.OpenVino
-                && _modelInspectionPageForHardwareReturn is { } openVinoPage
-                && _activeOpenVinoExecutor is { } openVinoExecutor)
+            if (state.Result is not { IsSuccessful: true } result)
             {
-                using OpenVinoOptimizationChatTarget? target =
-                    await openVinoExecutor.CreateChatTargetAsync(
-                        state.Result,
-                        cancellationToken);
-                if (target is null
-                    || !string.Equals(
-                        target.ConfigurationSha256,
-                        openVinoResult.ConfigurationSha256,
-                        StringComparison.Ordinal))
+                return;
+            }
+
+            OptimizationChatTarget? target;
+            try
+            {
+                target = await CreateOptimizationChatTargetAsync(
+                    state.Result, cancellationToken);
+            }
+            catch (OperationCanceledException) when (
+                cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            if (target is null)
+            {
+                return;
+            }
+
+            if (target is OpenVinoDestinationChatTarget openVinoTarget)
+            {
+                if (_modelInspectionPageForHardwareReturn is not
+                    { } openVinoPage)
                 {
+                    RetireActiveOptimizationChatTarget();
                     return;
                 }
-                bool activated = await openVinoPage.ActivateOpenVinoChatTargetAsync(
-                    target,
-                    cancellationToken);
+
+                bool activated;
+                try
+                {
+                    activated = await openVinoPage.ActivateOpenVinoChatTargetAsync(
+                        openVinoTarget.Target, cancellationToken);
+                }
+                catch (OperationCanceledException) when (
+                    cancellationToken.IsCancellationRequested)
+                {
+                    RetireActiveOptimizationChatTarget();
+                    return;
+                }
                 if (activated)
                 {
                     await RetireOptimizationAsync();
@@ -1218,59 +1241,32 @@ namespace GraniteEdgeAI.Features.Onboarding
                     CurrentStage = OnboardingStage.ReadyToChat;
                     StageIndicator.CurrentStage = CurrentStage;
                 }
-                return;
-            }
-            if (_activeGgufAuthority is not { } authority
-                || state.Result is not { IsSuccessful: true } result
-                || state.Entry.OptimizationHandoff.Plan.ExecutionPayload.Gguf
-                    is not { } payload)
-            {
-                return;
-            }
-
-            string? modelPath = null;
-            string? modelSha256 = null;
-            ModelSourceLease? sourceLease = null;
-            try
-            {
-                if (result.ProducedPersistentArtifact)
-                {
-                    if (_optimizationOutputRegistry is null
-                        || !_optimizationOutputRegistry.TryGetPublishedGgufFile(
-                            result,
-                            out modelPath,
-                            out modelSha256,
-                            out _))
-                    {
-                        return;
-                    }
-                }
                 else
                 {
-                    OptimizationExecutionPlan plan =
-                        state.Entry.OptimizationHandoff.Plan;
-                    ModelSourceCustodyKey key =
-                        GgufOptimizationAttemptContextFactory.SourceKey(plan);
-                    if (!_modelSourceCustodyRegistry.TryAcquire(
-                            key,
-                            out sourceLease))
-                    {
-                        return;
-                    }
-                    modelPath = sourceLease!.SourcePath;
-                    modelSha256 = plan.Binding.ModelSha256;
+                    RetireActiveOptimizationChatTarget();
                 }
+                return;
+            }
 
+            if (target is not GgufOptimizationChatTarget ggufTarget
+                || _activeGgufAuthority is not { } authority)
+            {
+                RetireActiveOptimizationChatTarget();
+                return;
+            }
+
+            try
+            {
                 GraniteEdgeAI.GgufRuntime.Contracts.Configuration.GgufRuntimeConfiguration
                     configuration =
                     GgufCurrentModelChatRouteLauncher.CreateConfiguration(
-                        $"optimized-{modelSha256![..12]}",
-                        modelSha256!,
-                        payload);
+                        $"optimized-{ggufTarget.VerifiedModelSha256[..12]}",
+                        ggufTarget.VerifiedModelSha256,
+                        ggufTarget.RuntimeOptions);
                 var request = new GgufChatLaunchRequest(
                     authority.RuntimePackageRoot,
                     authority.TrustedRuntimeManifest.Span,
-                    modelPath!,
+                    ggufTarget.VerifiedModelPath,
                     "Optimised model",
                     configuration);
                 var page = new ChatPage();
@@ -1286,6 +1282,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 catch (Exception exception)
                 {
                     ReportGgufLaunchFault(exception);
+                    RetireActiveOptimizationChatTarget();
                     return;
                 }
 
@@ -1300,16 +1297,14 @@ namespace GraniteEdgeAI.Features.Onboarding
                     if (controller is not null)
                     {
                         await controller.DisposeAsync();
+                        RetireActiveOptimizationChatTarget();
                     }
                 }
             }
             catch (Exception exception)
             {
                 ReportGgufLaunchFault(exception);
-            }
-            finally
-            {
-                sourceLease?.Dispose();
+                RetireActiveOptimizationChatTarget();
             }
         }
 
@@ -1340,80 +1335,59 @@ namespace GraniteEdgeAI.Features.Onboarding
                 return;
             }
 
-            if (result.Route == OptimizationRoute.OpenVino)
-            {
-                if (_activeOpenVinoExecutor is not { } openVinoExecutor)
-                {
-                    return;
-                }
-                var folderPicker = new Windows.Storage.Pickers.FolderPicker();
-                WinRT.Interop.InitializeWithWindow.Initialize(
-                    folderPicker,
-                    WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
-                folderPicker.FileTypeFilter.Add("*");
-                Windows.Storage.StorageFolder? selected =
-                    await folderPicker.PickSingleFolderAsync();
-                if (selected is null)
-                {
-                    return;
-                }
-                string destination = Path.Combine(
-                    selected.Path,
-                    $"optimised-openvino-model-{DateTime.Now:yyyyMMdd-HHmmss}");
-                const ulong maximumExportBytes = 1UL << 40;
-                const ulong metadataAllowanceBytes = 64UL * 1024 * 1024;
-                ulong maximumBytes = result.OutputSizeBytes
-                    > maximumExportBytes - metadataAllowanceBytes
-                        ? maximumExportBytes
-                        : result.OutputSizeBytes + metadataAllowanceBytes;
-                OpenVinoExportResult exportResult =
-                    await openVinoExecutor.ExportPersistentAsync(
-                        state.Result,
-                        destination,
-                        maximumBytes,
-                        cancellationToken);
-                if (!exportResult.IsSuccessful)
-                {
-                    return;
-                }
-                return;
-            }
-
-            if (_optimizationOutputRegistry is null
-                || !_optimizationOutputRegistry.TryGetPublishedGgufFile(
-                    result,
-                    out string? sourcePath,
-                    out _,
-                    out _))
-            {
-                return;
-            }
-
-            var picker = new FileSavePicker
-            {
-                SuggestedFileName = "optimised-model",
-            };
+            var picker = new Windows.Storage.Pickers.FolderPicker();
             WinRT.Interop.InitializeWithWindow.Initialize(
                 picker,
                 WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
-            picker.FileTypeChoices.Add("GGUF model", [".gguf"]);
-            Windows.Storage.StorageFile? destinationFile =
-                await picker.PickSaveFileAsync();
-            if (destinationFile is null)
+            picker.FileTypeFilter.Add("*");
+            Windows.Storage.StorageFolder? selected =
+                await picker.PickSingleFolderAsync();
+            if (selected is null)
             {
                 return;
             }
-            await using FileStream source = new(
-                sourcePath!,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                1024 * 1024,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await using Stream target = await destinationFile.OpenStreamForWriteAsync();
-            target.SetLength(0);
-            await source.CopyToAsync(target);
-            await target.FlushAsync();
+
+            string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            string destination = Path.Combine(
+                selected.Path,
+                result.Route == OptimizationRoute.Gguf
+                    ? $"optimised-model-{stamp}.gguf"
+                    : $"optimised-openvino-model-{stamp}");
+            const ulong maximumExportBytes = 1UL << 40;
+            const ulong metadataAllowanceBytes = 64UL * 1024 * 1024;
+            ulong maximumBytes = result.Route == OptimizationRoute.OpenVino
+                && result.OutputSizeBytes
+                    <= maximumExportBytes - metadataAllowanceBytes
+                    ? result.OutputSizeBytes + metadataAllowanceBytes
+                    : maximumExportBytes;
+            OptimizationDestinationExportResult exportResult;
+            try
+            {
+                exportResult = await ExportOptimizedModelAsync(
+                    state.Result, destination, maximumBytes, cancellationToken);
+            }
+            catch (OperationCanceledException) when (
+                cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            switch (exportResult.Disposition)
+            {
+                case OptimizationDestinationExportDisposition.Succeeded:
+                case OptimizationDestinationExportDisposition.RuntimeOnly:
+                case OptimizationDestinationExportDisposition.ResultRejected:
+                case OptimizationDestinationExportDisposition.DestinationRejected:
+                case OptimizationDestinationExportDisposition.DestinationExists:
+                case OptimizationDestinationExportDisposition.Oversized:
+                case OptimizationDestinationExportDisposition.CleanupFailed:
+                case OptimizationDestinationExportDisposition.Failed:
+                    return;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(exportResult), exportResult.Disposition,
+                        "The optimization export disposition is not supported.");
+            }
         }
 
         private static void CopyDirectory(string sourceRoot, string destinationRoot)
@@ -1437,6 +1411,7 @@ namespace GraniteEdgeAI.Features.Onboarding
 
         private async Task RetireOptimizationAsync()
         {
+            await RetireOptimizationDestinationLifecycleAsync();
             if (_attachedOptimizationPage is { } page)
             {
                 page.IntentRequested -= OptimizationPage_IntentRequested;
@@ -1449,13 +1424,11 @@ namespace GraniteEdgeAI.Features.Onboarding
             _attachedOptimizationPage = null;
             _optimizationCoordinator = null;
             _optimizationContextFactory = null;
-            _activeOpenVinoExecutor = null;
         }
 
         private async Task ReturnFromOptimizationAsync()
         {
             await RetireOptimizationAsync();
-            _optimizationOutputRegistry = null;
             if (_compatibilityPageForOptimizationReturn is { } compatibility)
             {
                 StageFrame.Content = compatibility;
@@ -1741,6 +1714,7 @@ namespace GraniteEdgeAI.Features.Onboarding
             // Transfer event ownership only after the new page exists.
             AttachModelImportPage(modelImportPage);
             DetachModelInspectionPage();
+            RetireActiveOptimizationChatTarget();
             InvalidateActiveHardwareJourney();
             DetachHardwareInspectionPage();
             _modelInspectionPageForHardwareReturn = null;
@@ -1888,6 +1862,7 @@ namespace GraniteEdgeAI.Features.Onboarding
             }
             finally
             {
+                RetireActiveOptimizationChatTarget();
                 NavigateToFreshModelImport();
             }
         }
