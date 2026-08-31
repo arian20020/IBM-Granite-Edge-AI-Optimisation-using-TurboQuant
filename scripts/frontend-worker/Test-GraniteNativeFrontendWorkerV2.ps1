@@ -168,7 +168,8 @@ try {
         $tokens = $null
         $parseErrors = $null
         [void] [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref] $tokens, [ref] $parseErrors)
-        Assert-True ($parseErrors.Count -eq 0) "PowerShell parse errors in $($script.FullName): $($parseErrors.Message -join '; ')"
+        $parseMessages = @($parseErrors | ForEach-Object { $_.Message })
+        Assert-True ($parseErrors.Count -eq 0) "PowerShell parse errors in $($script.FullName): $($parseMessages -join '; ')"
     }
 
     if ([string]::IsNullOrWhiteSpace($BaseRef)) {
