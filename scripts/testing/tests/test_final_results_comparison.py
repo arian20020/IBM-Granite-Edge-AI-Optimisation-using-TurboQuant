@@ -691,6 +691,45 @@ def test_ranking_prose_gate_rejects_controller_probes(wording):
 @pytest.mark.parametrize(
     "wording",
     (
+        "Left ranks 1st and right ranks 2nd.",
+        "Left placed 1st and right placed 2nd.",
+        "Left is in first place for quality.",
+        "Left is number-one for quality.",
+        "Left ranked 3rd and right ranked 4th.",
+        "Left placed 3rd and right placed 4th.",
+        "Left ranks 4th.",
+        "Left is in 1st place for quality.",
+        "Left is in 2nd place for quality.",
+        "Left is in 3rd place for quality.",
+        "Left is in 4th place for quality.",
+        "Left is in third place for quality.",
+        "Left is number one for quality.",
+    ),
+)
+def test_ranking_prose_gate_rejects_ordinal_controller_probes(wording):
+    from scripts.testing.final_results.comparison import (
+        build_catalogs,
+        build_cross_route_report,
+        build_cross_route_validation,
+    )
+
+    bundles = (_bundle("left"), _bundle("right", prompt_suite="different-suite"))
+    report = build_cross_route_report(bundles)
+    changed = dataclasses.replace(
+        report,
+        sections=report.sections + (ReportSection("Unsupported prose", (ReportParagraph(wording),)),),
+    )
+
+    validation = build_cross_route_validation(changed, build_catalogs(bundles), bundles)
+
+    assert validation["valid"] is False
+    assert validation["universal_ranking_present"] is True
+    assert validation["incompatible_quality_ranking_present"] is True
+
+
+@pytest.mark.parametrize(
+    "wording",
+    (
         "Left isn't better than right, and right isn't worse than left.",
         "Left is neither better nor worse than right.",
     ),
