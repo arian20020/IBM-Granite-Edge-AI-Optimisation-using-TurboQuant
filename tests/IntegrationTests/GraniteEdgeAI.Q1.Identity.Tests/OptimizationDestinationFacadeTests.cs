@@ -186,12 +186,19 @@ public sealed class OptimizationDestinationFacadeTests
                 receipt.OutputSizeBytes, true, DateTimeOffset.UnixEpoch,
                 receipt.Key.ExecutionId);
 
-            Assert.IsTrue(registry.TryAcquirePublishedGguf(result, out var lease));
-            GgufPublishedOutputLease retained = lease!;
+            using var sourceCustody = new GraniteEdgeAI.Features.ModelInspection.SourceCustody.ModelSourceCustodyRegistry();
+            var ggufRoute = new GgufOptimizationDestinationRoute(
+                plan, registry, sourceCustody);
+            var facade = new OptimizationDestinationFacade(
+                ggufRoute, new RecordingRoute(OptimizationRoute.OpenVino));
+            using OptimizationChatTarget? target = await facade.CreateChatTargetAsync(
+                result, CancellationToken.None);
+            Assert.IsInstanceOfType<GgufOptimizationChatTarget>(target);
+            var retained = (GgufOptimizationChatTarget)target;
             using (retained)
             {
                 Assert.ThrowsExactly<IOException>(() =>
-                    File.Open(retained.FilePath, FileMode.Create, FileAccess.Write,
+                    File.Open(retained.VerifiedModelPath, FileMode.Create, FileAccess.Write,
                         FileShare.Read).Dispose());
             }
         }
