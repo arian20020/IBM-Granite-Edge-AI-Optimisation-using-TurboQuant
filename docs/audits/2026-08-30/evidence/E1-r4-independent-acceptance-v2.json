@@ -25,7 +25,6 @@
     {"kind":"post-acceptance-evaluation","id":"R3-022","evidenceGrade":"verified"}
   ],
   "commands": [
-    {"id":"E1-DISCOVERY","exitCode":0,"discovered":53,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"not-applicable"},
     {"id":"E1-DETERMINISTIC","exitCode":0,"discovered":34,"executed":34,"passed":34,"failed":0,"skipped":0,"disposition":"passed"},
     {"id":"E1-SCHEMA-V4-PREFLIGHT","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0,"disposition":"passed"},
     {"id":"OPENVINO-OPTIMIZATION","exitCode":0,"discovered":55,"executed":55,"passed":55,"failed":0,"skipped":0,"disposition":"passed"},

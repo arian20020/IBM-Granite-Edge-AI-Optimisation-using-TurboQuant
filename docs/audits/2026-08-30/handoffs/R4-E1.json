@@ -20,8 +20,8 @@
   "bundle": null,
   "evidenceManifest": {
     "path": "docs/audits/2026-08-30/evidence/E1-r4-independent-acceptance-v2.json",
-    "sha256": "b6280215038d80d32ebaa5e19f63469256216dd7ec8bc89b745d6c29276a8200",
-    "bytes": 4403,
+    "sha256": "19a3dcd1c2ae9a2d027f80c72a8007804587359e18d4d29cd34636af7a314b19",
+    "bytes": 4269,
     "evidenceSubjectCommit": "41e7efa23404eaae6a344204d0c7649487d1acd5",
     "evidenceSubjectTree": "cdaa88099f5754811a0d3bdb1c49c884ac1607cc"
   },

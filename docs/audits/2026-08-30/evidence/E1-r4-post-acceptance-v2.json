@@ -13,8 +13,8 @@
   },
   "evidenceManifest": {
     "path": "docs/audits/2026-08-30/evidence/E1-r4-independent-acceptance-v2.json",
-    "sha256": "b6280215038d80d32ebaa5e19f63469256216dd7ec8bc89b745d6c29276a8200",
-    "bytes": 4403
+    "sha256": "19a3dcd1c2ae9a2d027f80c72a8007804587359e18d4d29cd34636af7a314b19",
+    "bytes": 4269
   },
   "nativeLockAcquisitions": 0,
   "cleanupVerified": true,
