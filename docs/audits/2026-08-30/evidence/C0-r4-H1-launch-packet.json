@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "campaign": "H1-R4-UCL-INTEL",
+  "state": "DISPATCHED",
+  "issuedBy": "C0",
+  "issuedAtUtc": "2026-08-31T00:21:35Z",
+  "prompt": {
+    "archive": "UCL-R4-Remaining-Worker-Prompts.zip",
+    "entry": "UCL-R4-Remaining-Worker-Prompts/01-H1-R4-UCL-INTEL-MASTER-PROMPT.md",
+    "sha256": "f09cd973e2da5321ef01dd3392206c49bcbe21da8d61d7d09219640bf29798cc",
+    "bytes": 8098
+  },
+  "coordinatorRegister": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-specialist-reconciliation-v1",
+    "path": "docs/audits/2026-08-30/evidence/C0-r4-worker-register.json"
+  },
+  "validatedCandidateBase": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-h1-issued-base-v1",
+    "commit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
+    "tree": "5f50b480d39cbfbeb1ff74fab866b6a995418868"
+  },
+  "implementationEvidence": {
+    "report": {
+      "path": "docs/audits/2026-08-30/C0-r4-specialist-reconciliation.md",
+      "sha256": "12442e775d2848ae58ede50455e760e5b7ec65b2a321e32e84d7a26bacc2f5fc",
+      "bytes": 7422
+    },
+    "manifest": {
+      "path": "docs/audits/2026-08-30/evidence/C0-r4-specialist-reconciliation.json",
+      "sha256": "2ecbbcf8e4fd15f587d5b4b6169745beadc59b665f9e24444f1b3fe1bb01ecda",
+      "bytes": 4546
+    },
+    "receipt": {
+      "path": "docs/audits/2026-08-30/handoffs/R4-C0.json",
+      "sha256": "4069876155a09ff80a8d5e5cf0569b03fa843c79c4ed4791f04074d3ff937da0",
+      "bytes": 1423
+    },
+    "issueLedger": {
+      "path": "docs/audits/2026-08-30/C0-r4-issue-ledger.md",
+      "sha256": "8587ffb709866a8d3fe0c35cc49a3fc735ca90afd4a7d85e857ea391223ce3ee",
+      "bytes": 3133
+    }
+  },
+  "ownership": [
+    "Hardware Inspection hardware facts, probe behavior, and degraded-state semantics",
+    "Fresh-memory and hardware-to-compatibility input projection for GGUF and OpenVINO",
+    "H1-owned tests, report, evidence manifest, receipt, and candidate-bound visual/native evidence"
+  ],
+  "forbiddenOwnership": [
+    "Model Inspection schemas",
+    "Optimization executors and artifact custody",
+    "Model download UI",
+    "Shared shell/navigation and solution registration",
+    "Generic trusted-process environment policy"
+  ],
+  "return": {
+    "branch": "validation/ucl-h1-intel-candidate-r4",
+    "report": "docs/audits/2026-08-30/H1-hardware-compatibility-r4.md",
+    "receipt": "docs/audits/2026-08-30/handoffs/R4-H1.json",
+    "required": [
+      "pushed remote/local-equal ref, tip, and tree",
+      "implementation subject and tree",
+      "schema-valid evidence manifest and receipt with verified hashes and bytes",
+      "complete owned-path diff and test arithmetic",
+      "native-lock, cleanup, package, visual, and blocker disposition",
+      "recommended C0 intake decision"
+    ]
+  },
+  "sequencing": {
+    "q1": "WAIT_FOR_C0_ACCEPTED_H1_REPUBLICATION",
+    "e1": "WAIT_FOR_C0_ACCEPTED_Q1_FINAL_FREEZE",
+    "nativeConcurrency": "ONE_SHARED_LOCK_NO_PARALLEL_CAMPAIGNS"
+  }
+}

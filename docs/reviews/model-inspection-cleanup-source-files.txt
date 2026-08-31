@@ -188,8 +188,14 @@ docs/audits/2026-08-28/evidence/M1-model-inspection-evidence-v1.json
 docs/audits/2026-08-28/proposals/M1-R3-shared-project-fixture-boundary.diff
 docs/audits/2026-08-28/schemas/10-EVIDENCE-MANIFEST-SCHEMA.json
 docs/audits/2026-08-28/schemas/10-HANDOFF-RECEIPT-SCHEMA.json
+docs/audits/2026-08-30/C0-r4-issue-ledger.md
+docs/audits/2026-08-30/C0-r4-specialist-reconciliation.md
 docs/audits/2026-08-30/M1-model-inspection-r4.md
+docs/audits/2026-08-30/evidence/C0-r4-H1-launch-packet.json
+docs/audits/2026-08-30/evidence/C0-r4-specialist-reconciliation.json
+docs/audits/2026-08-30/evidence/C0-r4-worker-register.json
 docs/audits/2026-08-30/evidence/M1-model-inspection-r4.json
+docs/audits/2026-08-30/handoffs/R4-C0.json
 docs/development/Model-Import-Quick-Scan-Current-State.md
 docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md
 docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md
