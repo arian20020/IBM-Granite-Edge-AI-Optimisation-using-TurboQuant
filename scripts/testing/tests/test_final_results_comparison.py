@@ -727,11 +727,74 @@ def test_ranking_prose_gate_rejects_ordinal_controller_probes(wording):
     assert validation["incompatible_quality_ranking_present"] is True
 
 
+@pytest.mark.parametrize("entity", ("route", "repository", "model", "configuration"))
+@pytest.mark.parametrize("copula", ("is", "was"))
+@pytest.mark.parametrize("ordinal", ("first", "second", "third", "fourth"))
+def test_ranking_prose_gate_rejects_copular_entity_ordinals(entity, copula, ordinal):
+    from scripts.testing.final_results.comparison import (
+        build_catalogs,
+        build_cross_route_report,
+        build_cross_route_validation,
+    )
+
+    bundles = (_bundle("left"), _bundle("right", prompt_suite="different-suite"))
+    report = build_cross_route_report(bundles)
+    changed = dataclasses.replace(
+        report,
+        sections=report.sections + (
+            ReportSection(
+                "Unsupported prose",
+                (ReportParagraph(f"The {entity} {copula} {ordinal} for quality."),),
+            ),
+        ),
+    )
+
+    validation = build_cross_route_validation(changed, build_catalogs(bundles), bundles)
+
+    assert validation["valid"] is False
+    assert validation["universal_ranking_present"] is True
+    assert validation["incompatible_quality_ranking_present"] is True
+
+
+@pytest.mark.parametrize(
+    "ordinal",
+    ("first", "second", "third", "fourth", "1st", "2nd", "3rd", "4th"),
+)
+def test_ranking_prose_gate_rejects_placed_in_ordinal_place(ordinal):
+    from scripts.testing.final_results.comparison import (
+        build_catalogs,
+        build_cross_route_report,
+        build_cross_route_validation,
+    )
+
+    bundles = (_bundle("left"), _bundle("right", prompt_suite="different-suite"))
+    report = build_cross_route_report(bundles)
+    changed = dataclasses.replace(
+        report,
+        sections=report.sections + (
+            ReportSection(
+                "Unsupported prose",
+                (ReportParagraph(f"The route placed in {ordinal} place for quality."),),
+            ),
+        ),
+    )
+
+    validation = build_cross_route_validation(changed, build_catalogs(bundles), bundles)
+
+    assert validation["valid"] is False
+    assert validation["universal_ranking_present"] is True
+    assert validation["incompatible_quality_ranking_present"] is True
+
+
 @pytest.mark.parametrize(
     "wording",
     (
         "Left isn't better than right, and right isn't worse than left.",
         "Left is neither better nor worse than right.",
+        "The route is not fourth for quality.",
+        "The repository wasn't fourth for quality.",
+        "The configuration was not placed in first place for quality.",
+        "The model wasn't placed in 1st place for quality.",
     ),
 )
 def test_ranking_prose_gate_accepts_controller_negations(wording):
