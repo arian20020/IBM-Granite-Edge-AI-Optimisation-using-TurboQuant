@@ -2437,6 +2437,11 @@ ANIMEHACKER_REJECTED_SUMMARIES = (
     ANIMEHACKER_RAW_RELATIVE / "runtime/AH-09/summary.json",
     ANIMEHACKER_RAW_RELATIVE / "runtime/AH-09-rejected-flash-env-only/summary.json",
 )
+ANIMEHACKER_SAFETY_MEASUREMENTS = {
+    "AH-06": ANIMEHACKER_RAW_RELATIVE / "runtime/AH-06/pilot-emergency-stop-2048/measurement.json",
+    "AH-07": ANIMEHACKER_RAW_RELATIVE / "runtime/AH-07/pilot/measurement.json",
+    "AH-10": ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/AH-10/pilot/measurement.json",
+}
 ANIMEHACKER_SOURCE_AUTHORITY_HASHES = {
     ANIMEHACKER_WORKBOOK_RELATIVE: "f4b86b1aaca43745c2a701e38c6571968596ef586e8fd775b69aa4b7983770b0",
     Path("docs/testing/Workbook-Revision-Register.csv"): "380883e7920541ed2b59889a40fad29626b5b0e3b9d06fdfbfe280ee1e945f64",
@@ -2511,6 +2516,20 @@ ANIMEHACKER_FAILURE_ENTITY_HASHES = {
     "AH-F11": "33e6a39dfde1dc7984b5ded2de992bf177cf617b380137b781e475d0805be910",
     "AH-F10": "0b28bf2b8aae83a3ba2727cbc255db1b46ba463959274416f4a3dc2681775ba3",
 }
+ANIMEHACKER_RUNTIME_SOURCE_ENTITY_HASHES = {
+    "AH-01": "da803d592ba8081ad89e5a31c2a0535ec9d29d38fcc0515092004ea00dc63443",
+    "AH-02": "27e46dc395f91141e7b76f4a7b914ca15c681396d96a73746e1bef40b19aa85c",
+    "AH-03": "6e7d8b212edfdb4a0c2c71599baa0c1a129dace69682f17e01273e99da6ad8a6",
+    "AH-04": "2443934c3dcce33456cd6f838834178d124945fd9d04fe7a180ce4a460493cd3",
+    "AH-05": "91d4362c0ae428f47bc0b2e8129a1f18a5e4ca20d9a335192f37f8b542c88665",
+    "AH-08": "ba1aabb8f595052b0b867f4e071f6118a7e4453aaecc2c62651106c1c89a5083",
+    "AH-09": "0405e11200f228bea5619d41d43d979b18a59ef17aa36dfd5b5e84817ebb133c",
+}
+ANIMEHACKER_SAFETY_SOURCE_ENTITY_HASHES = {
+    "AH-06": "b7c4a5ff93228a2ec25bf7b9881b73119742adbf344696425f7a16e54ecbc9a0",
+    "AH-07": "8c55596ca2658404b56fc2fc4b74c3c7058d96e86ca096619b597a2c2cab8a1d",
+    "AH-10": "b2f32accc2e80405c0a7b9be94a9344e31ff1abef8de9b84f9c752dbfdc9d29d",
+}
 
 
 def _animehacker_evidence_id(relative: Path) -> str:
@@ -2566,6 +2585,145 @@ def _animehacker_relative(value: object) -> str:
 
 def _animehacker_equal(left: object, right: object, tolerance: float = 1e-7) -> bool:
     return abs(float(left) - float(right)) <= tolerance
+
+
+def _animehacker_source_derived_canonical_entities(
+    matrix_rows: list[dict[str, object]],
+    runtime_sources: dict[str, dict[str, object]],
+    safety_sources: dict[str, dict[str, object]],
+) -> dict[str, object]:
+    """Rebuild canonical entities solely from separately authenticated source entities."""
+    matrix = {str(row["test_id"]): row for row in matrix_rows}
+    attempts: list[AttemptRecord] = []
+    reconciliation_evidence_id = _animehacker_evidence_id(
+        ANIMEHACKER_RAW_RELATIVE / "reconciliation.json"
+    )
+    for test_id in ANIMEHACKER_EXPECTED_IDS:
+        row = matrix[test_id]
+        passed = test_id in ANIMEHACKER_RUNNABLE_IDS
+        attempts.append(AttemptRecord(
+            route_id=ANIMEHACKER_ROUTE_ID,
+            campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+            test_case_id=test_id,
+            attempt_id=f"{test_id}--terminal",
+            status=Status.PASSED if passed else Status.BLOCKED,
+            executed=passed,
+            reason="" if passed else (
+                "Safety prerequisite blocked inference before a request; "
+                "classification resolved with cleanup evidence"
+            ),
+            model_id=str(row["model_id"]),
+            weight_format_id="q8_0" if "8b" in str(row["model_id"]) else "q4_k_m",
+            cache_format_id=str(row["cache"]).lower(),
+            backend_id=str(row["backend"]),
+            source_status="complete" if passed else "safety-classified",
+            failure_kind=None if passed else "safety-memory-floor",
+            evidence_ids=(reconciliation_evidence_id,),
+        ))
+    rejected_relative = ANIMEHACKER_REJECTED_SUMMARIES[1]
+    attempts.append(AttemptRecord(
+        route_id=ANIMEHACKER_ROUTE_ID,
+        campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+        test_case_id="AH-09",
+        attempt_id="AH-09--rejected-flash-env-only",
+        status=Status.FAILED,
+        executed=True,
+        reason=(
+            "Rejected from formal statistics: environment-only flash change "
+            "produced invalid one-token timing evidence"
+        ),
+        model_id=str(matrix["AH-09"]["model_id"]),
+        weight_format_id="q4_k_m",
+        cache_format_id="tq3_0",
+        backend_id="sycl-partial",
+        source_status="rejected",
+        failure_kind="invalid-runtime-evidence",
+        evidence_ids=(_animehacker_evidence_id(rejected_relative),),
+    ))
+
+    measurements: list[MeasurementRecord] = []
+    summaries: list[SummaryRecord] = []
+    resources: list[dict[str, object]] = []
+    for test_id in ANIMEHACKER_RUNNABLE_IDS:
+        payload = runtime_sources[test_id]
+        summary_relative = ANIMEHACKER_FORMAL_SUMMARIES[test_id]
+        measurement_ids: list[str] = []
+        for number, sample in enumerate(payload["samples"], 1):
+            measurement_id = f"{test_id}--formal-sample-{number:03d}"
+            measurement_ids.append(measurement_id)
+            measurements.append(MeasurementRecord(
+                route_id=ANIMEHACKER_ROUTE_ID,
+                campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+                test_case_id=test_id,
+                attempt_id=f"{test_id}--terminal",
+                measurement_id=measurement_id,
+                run_id=f"{test_id}-R{number:03d}",
+                repetition_id=str(number),
+                source_evidence_id=_animehacker_evidence_id(
+                    summary_relative.parent / f"sample-{number}/measurement.json"
+                ),
+                latency_ms=float(sample["ttft_ms"]),
+                prompt_tokens_per_second=float(sample["prompt_tps"]),
+                generation_tokens_per_second=float(sample["decode_tps"]),
+                peak_working_set_bytes=round(float(sample["peak_working_set_mb"]) * 1048576),
+                input_tokens=int(sample["response_timings"]["prompt_n"]),
+                output_tokens=int(sample["response_timings"]["predicted_n"]),
+            ))
+        aggregate = payload["aggregate"]
+        for metric, value, unit, aggregation in (
+            ("time_to_first_token", aggregate["ttft_ms"]["median"], "milliseconds", "median of exactly 3 explicitly included formal samples"),
+            ("prompt_tokens_per_second", aggregate["prompt_tps"]["median"], "tokens_per_second", "median of exactly 3 explicitly included formal samples"),
+            ("generation_tokens_per_second", aggregate["decode_tps"]["median"], "tokens_per_second", "median of exactly 3 explicitly included formal samples"),
+            ("peak_working_set_bytes", round(float(aggregate["peak_working_set_mb"]["max"]) * 1048576), "bytes", "maximum of exactly 3 explicitly included formal samples"),
+            ("kv_cache_allocated_bytes", round(float(aggregate["kv_mb"]["median"]) * 1048576), "bytes", "median of exactly 3 explicitly included formal samples"),
+        ):
+            summaries.append(SummaryRecord(
+                route_id=ANIMEHACKER_ROUTE_ID,
+                campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+                test_case_id=test_id,
+                summary_id=f"{test_id}--{metric}",
+                metric_name=metric,
+                value=value,
+                unit=unit,
+                aggregation=aggregation,
+                source_measurement_ids=tuple(measurement_ids),
+            ))
+        resources.append({
+            "test_case_id": test_id,
+            "inclusion_status": "included",
+            "summary_evidence_id": _animehacker_evidence_id(summary_relative),
+            "time_to_first_token_ms": aggregate["ttft_ms"]["median"],
+            "prompt_tokens_per_second": aggregate["prompt_tps"]["median"],
+            "generation_tokens_per_second": aggregate["decode_tps"]["median"],
+            "peak_working_set_mb": aggregate["peak_working_set_mb"]["max"],
+            "peak_private_bytes_mb": aggregate["peak_private_bytes_mb"]["max"],
+            "kv_cache_mb": aggregate["kv_mb"]["median"],
+            "cpu_mean_percent": aggregate["cpu_percent"]["mean"],
+            "gpu_mean_percent": aggregate["gpu_percent"]["mean"],
+            "gpu_memory_peak_mb": aggregate["gpu_memory_peak_mb"]["max"],
+        })
+    for test_id in ANIMEHACKER_SAFETY_IDS:
+        payload = safety_sources[test_id]
+        resources.append({
+            "test_case_id": test_id,
+            "inclusion_status": "safety evidence only; excluded from formal statistics",
+            "summary_evidence_id": _animehacker_evidence_id(ANIMEHACKER_SAFETY_MEASUREMENTS[test_id]),
+            "time_to_first_token_ms": ANIMEHACKER_NOT_COLLECTED,
+            "prompt_tokens_per_second": ANIMEHACKER_NOT_COLLECTED,
+            "generation_tokens_per_second": ANIMEHACKER_NOT_COLLECTED,
+            "peak_working_set_mb": payload["peak_working_set_mb"],
+            "peak_private_bytes_mb": payload["peak_private_bytes_mb"],
+            "kv_cache_mb": payload["kv_mb"],
+            "cpu_mean_percent": ANIMEHACKER_NOT_COLLECTED,
+            "gpu_mean_percent": ANIMEHACKER_NOT_COLLECTED,
+            "gpu_memory_peak_mb": ANIMEHACKER_NOT_COLLECTED,
+        })
+    return {
+        "attempts": tuple(attempts),
+        "measurements": tuple(measurements),
+        "summaries": tuple(summaries),
+        "resource_observations": tuple(sorted(resources, key=lambda row: row["test_case_id"])),
+    }
 
 
 def _animehacker_validate_summary(path: Path, test_id: str) -> dict[str, object]:
@@ -2683,6 +2841,10 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
         test_id: _animehacker_validate_summary(root / relative, test_id)
         for test_id, relative in ANIMEHACKER_FORMAL_SUMMARIES.items()
     }
+    safety_measurements = {
+        test_id: _read_json(root / relative)
+        for test_id, relative in ANIMEHACKER_SAFETY_MEASUREMENTS.items()
+    }
 
     cpu = _read_json(root / authority_paths["cpu-reconciliation"])
     sycl = _read_json(root / authority_paths["sycl-reconciliation"])
@@ -2778,6 +2940,7 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
     return {
         "matrix": matrix,
         "summaries": summaries,
+        "safety_measurements": safety_measurements,
         "quality_rows": quality_rows,
         "historical_failures": failures,
         "cpu_repository_tests": cpu_counts,
@@ -2899,13 +3062,8 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
             "gpu_mean_percent": aggregate["gpu_percent"]["mean"],
             "gpu_memory_peak_mb": aggregate["gpu_memory_peak_mb"]["max"],
         })
-    blocked_measurement_paths = {
-        "AH-06": ANIMEHACKER_RAW_RELATIVE / "runtime/AH-06/pilot-emergency-stop-2048/measurement.json",
-        "AH-07": ANIMEHACKER_RAW_RELATIVE / "runtime/AH-07/pilot/measurement.json",
-        "AH-10": ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/AH-10/pilot/measurement.json",
-    }
-    for test_id, relative in blocked_measurement_paths.items():
-        payload = _read_json(root / relative)
+    for test_id, relative in ANIMEHACKER_SAFETY_MEASUREMENTS.items():
+        payload = audit["safety_measurements"][test_id]
         resource_observations.append({
             "test_case_id": test_id, "inclusion_status": "safety evidence only; excluded from formal statistics",
             "summary_evidence_id": evidence_by_path[relative.as_posix()].evidence_id,
@@ -2931,9 +3089,9 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
     ) for row in audit["quality_rows"])
 
     safety_paths = {
-        "AH-06": blocked_measurement_paths["AH-06"],
-        "AH-07": blocked_measurement_paths["AH-07"],
-        "AH-10": blocked_measurement_paths["AH-10"],
+        "AH-06": ANIMEHACKER_SAFETY_MEASUREMENTS["AH-06"],
+        "AH-07": ANIMEHACKER_SAFETY_MEASUREMENTS["AH-07"],
+        "AH-10": ANIMEHACKER_SAFETY_MEASUREMENTS["AH-10"],
     }
     failures = [FailureRecord(
         route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
@@ -2981,6 +3139,10 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
             "matrix_entity_hashes": audit["matrix_entity_hashes"],
             "historical_failure_entity_hashes": audit["historical_failure_entity_hashes"],
             "historical_failure_rows": audit["historical_failures"],
+            "runtime_source_entities": audit["summaries"],
+            "runtime_source_entity_hashes": dict(ANIMEHACKER_RUNTIME_SOURCE_ENTITY_HASHES),
+            "safety_source_entities": audit["safety_measurements"],
+            "safety_source_entity_hashes": dict(ANIMEHACKER_SAFETY_SOURCE_ENTITY_HASHES),
             "quality_adjudications": audit["quality_rows"],
         },
         hardware={
@@ -3166,6 +3328,8 @@ def _animehacker_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
     } if isinstance(matrix_rows, list) else {}
     if matrix_hashes != ANIMEHACKER_MATRIX_ENTITY_HASHES:
         errors.append("matrix complete entity relationship")
+    if bundle.repository.get("matrix_entity_hashes") != matrix_hashes:
+        errors.append("published matrix entity-hash map relationship")
     historical_rows = bundle.repository.get("historical_failure_rows", [])
     historical_hashes = {
         str(row.get("Failure ID")): _animehacker_entity_hash(row)
@@ -3174,6 +3338,82 @@ def _animehacker_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
     } if isinstance(historical_rows, list) else {}
     if historical_hashes != ANIMEHACKER_FAILURE_ENTITY_HASHES:
         errors.append("historical failure complete entity relationship")
+    if bundle.repository.get("historical_failure_entity_hashes") != historical_hashes:
+        errors.append("published historical failure entity-hash map relationship")
+
+    runtime_sources = bundle.repository.get("runtime_source_entities", {})
+    runtime_source_hashes = {
+        str(test_id): _animehacker_entity_hash(payload)
+        for test_id, payload in runtime_sources.items()
+        if isinstance(payload, dict)
+    } if isinstance(runtime_sources, dict) else {}
+    if runtime_source_hashes != ANIMEHACKER_RUNTIME_SOURCE_ENTITY_HASHES:
+        errors.append("runtime source complete entity relationship")
+    if bundle.repository.get("runtime_source_entity_hashes") != runtime_source_hashes:
+        errors.append("published runtime source entity-hash map relationship")
+    safety_sources = bundle.repository.get("safety_source_entities", {})
+    safety_source_hashes = {
+        str(test_id): _animehacker_entity_hash(payload)
+        for test_id, payload in safety_sources.items()
+        if isinstance(payload, dict)
+    } if isinstance(safety_sources, dict) else {}
+    if safety_source_hashes != ANIMEHACKER_SAFETY_SOURCE_ENTITY_HASHES:
+        errors.append("safety source complete entity relationship")
+    if bundle.repository.get("safety_source_entity_hashes") != safety_source_hashes:
+        errors.append("published safety source entity-hash map relationship")
+
+    if (
+        matrix_hashes == ANIMEHACKER_MATRIX_ENTITY_HASHES
+        and runtime_source_hashes == ANIMEHACKER_RUNTIME_SOURCE_ENTITY_HASHES
+        and safety_source_hashes == ANIMEHACKER_SAFETY_SOURCE_ENTITY_HASHES
+    ):
+        expected = _animehacker_source_derived_canonical_entities(
+            matrix_rows, runtime_sources, safety_sources
+        )
+
+        def compare_records(
+            actual_records: Sequence[object],
+            expected_records: Sequence[object],
+            id_attribute: str,
+            label: str,
+        ) -> None:
+            actual_by_id = {
+                str(getattr(row, id_attribute)): row.to_row()
+                for row in actual_records
+            }
+            expected_by_id = {
+                str(getattr(row, id_attribute)): row.to_row()
+                for row in expected_records
+            }
+            if len(actual_by_id) != len(actual_records):
+                errors.append(f"canonical {label} duplicate identity")
+            for entity_id in sorted(set(actual_by_id) | set(expected_by_id)):
+                if actual_by_id.get(entity_id) != expected_by_id.get(entity_id):
+                    errors.append(f"canonical {label} complete entity: {entity_id}")
+
+        compare_records(bundle.attempts, expected["attempts"], "attempt_id", "attempt")
+        compare_records(
+            bundle.measurements,
+            expected["measurements"],
+            "measurement_id",
+            "measurement",
+        )
+        compare_records(bundle.summaries, expected["summaries"], "summary_id", "summary")
+        actual_resources = bundle.repository.get("resource_observations", [])
+        actual_resource_by_id = {
+            str(row.get("test_case_id")): row
+            for row in actual_resources
+            if isinstance(row, dict)
+        } if isinstance(actual_resources, list) else {}
+        expected_resource_by_id = {
+            str(row["test_case_id"]): row
+            for row in expected["resource_observations"]
+        }
+        if len(actual_resource_by_id) != len(actual_resources):
+            errors.append("resource observation duplicate identity")
+        for test_id in sorted(set(actual_resource_by_id) | set(expected_resource_by_id)):
+            if actual_resource_by_id.get(test_id) != expected_resource_by_id.get(test_id):
+                errors.append(f"resource observation complete entity: {test_id}")
     if tuple(row.test_case_id for row in terminal) != ANIMEHACKER_EXPECTED_IDS:
         errors.append("terminal attempt coverage")
     if len(bundle.measurements) != 21:
@@ -3198,7 +3438,10 @@ def _animehacker_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
         "canonical_failure_count": len(bundle.failures), "evidence_count": len(bundle.evidence),
         "authenticated_authority_count": len(expected_authorities),
         "authority_relationships_valid": not any("authority" in error for error in errors),
-        "complete_entity_relationships_valid": not any("complete entity" in error for error in errors),
+        "complete_entity_relationships_valid": not any(
+            "complete entity" in error or "entity-hash map" in error
+            for error in errors
+        ),
     }
 
 

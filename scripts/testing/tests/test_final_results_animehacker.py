@@ -210,6 +210,88 @@ def test_relationship_receipt_reauthenticates_authority_evidence():
     assert receipt["authenticated_authority_count"] >= 40
 
 
+def test_relationship_receipt_rejects_fabricated_canonical_attempt_model():
+    bundle = build_animehacker_bundle(REPOSITORY_ROOT)
+    mutated = replace(bundle, attempts=tuple(
+        replace(row, model_id="fabricated-model")
+        if row.attempt_id == "AH-01--terminal" else row
+        for row in bundle.attempts
+    ))
+
+    receipt = _animehacker_relationship_receipt(mutated)
+
+    assert receipt["valid"] is False
+    assert "canonical attempt complete entity: AH-01--terminal" in receipt["errors"]
+
+
+def test_relationship_receipt_rejects_coordinated_canonical_latency_edits():
+    bundle = build_animehacker_bundle(REPOSITORY_ROOT)
+    mutated = replace(
+        bundle,
+        measurements=tuple(
+            replace(row, latency_ms=999.0)
+            if row.measurement_id == "AH-01--formal-sample-001" else row
+            for row in bundle.measurements
+        ),
+        summaries=tuple(
+            replace(row, value=999.0)
+            if row.summary_id == "AH-01--time_to_first_token" else row
+            for row in bundle.summaries
+        ),
+    )
+
+    receipt = _animehacker_relationship_receipt(mutated)
+
+    assert receipt["valid"] is False
+    assert "canonical measurement complete entity: AH-01--formal-sample-001" in receipt["errors"]
+    assert "canonical summary complete entity: AH-01--time_to_first_token" in receipt["errors"]
+
+
+def test_relationship_receipt_rejects_canonical_resource_observation_edit():
+    bundle = build_animehacker_bundle(REPOSITORY_ROOT)
+    repository = dict(bundle.repository)
+    repository["resource_observations"] = [
+        {**row, "time_to_first_token_ms": 999.0}
+        if row["test_case_id"] == "AH-01" else row
+        for row in bundle.repository["resource_observations"]
+    ]
+
+    receipt = _animehacker_relationship_receipt(replace(bundle, repository=repository))
+
+    assert receipt["valid"] is False
+    assert "resource observation complete entity: AH-01" in receipt["errors"]
+
+
+def test_relationship_receipt_validates_published_matrix_entity_hash_map():
+    bundle = build_animehacker_bundle(REPOSITORY_ROOT)
+    repository = dict(bundle.repository)
+    repository["matrix_entity_hashes"] = {
+        **bundle.repository["matrix_entity_hashes"],
+        "AH-01": "0" * 64,
+    }
+
+    receipt = _animehacker_relationship_receipt(replace(bundle, repository=repository))
+
+    assert receipt["valid"] is False
+    assert "published matrix entity-hash map relationship" in receipt["errors"]
+    assert receipt["complete_entity_relationships_valid"] is False
+
+
+def test_relationship_receipt_validates_published_failure_entity_hash_map():
+    bundle = build_animehacker_bundle(REPOSITORY_ROOT)
+    repository = dict(bundle.repository)
+    repository["historical_failure_entity_hashes"] = {
+        **bundle.repository["historical_failure_entity_hashes"],
+        "AH-F01": "0" * 64,
+    }
+
+    receipt = _animehacker_relationship_receipt(replace(bundle, repository=repository))
+
+    assert receipt["valid"] is False
+    assert "published historical failure entity-hash map relationship" in receipt["errors"]
+    assert receipt["complete_entity_relationships_valid"] is False
+
+
 def test_report_uses_bounded_key_evidence_and_reader_formatted_metrics():
     bundle = build_animehacker_bundle(REPOSITORY_ROOT)
     report = build_animehacker_report(bundle)
