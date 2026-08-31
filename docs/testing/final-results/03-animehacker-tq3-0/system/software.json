@@ -1,0 +1,8 @@
+{
+  "cmake": "4.4.0",
+  "cpu_tests": "40/40 passed",
+  "msvc": "19.51",
+  "ninja": "1.13.0",
+  "sycl_tests": "40/40 terminal reconciliation",
+  "vulkan_tq3": "Not proven; supplementary build only"
+}

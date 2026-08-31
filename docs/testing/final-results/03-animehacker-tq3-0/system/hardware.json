@@ -1,0 +1,8 @@
+{
+  "graphics": "Intel UHD Graphics; shared system memory",
+  "machine_id": "Lenovo-PF4HMD0T",
+  "npu": "Not available; excluded",
+  "operating_system": "Windows 11 Home 10.0.26200 build 26200",
+  "processor": "12th Gen Intel Core i5-12450H",
+  "ram": "16.0 GB installed; 15.7 GB usable"
+}

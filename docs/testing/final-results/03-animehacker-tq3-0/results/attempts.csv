@@ -1,0 +1,12 @@
+route_id,campaign_id,test_case_id,attempt_id,status,executed,reason,model_id,weight_format_id,cache_format_id,backend_id,source_status,failure_kind,evidence_ids
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-01,AH-01--terminal,passed,true,,gemma-1b-q4-k-m,q4_k_m,f16,cpu,complete,,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-02,AH-02--terminal,passed,true,,gemma-1b-q4-k-m,q4_k_m,tq3_0,cpu,complete,,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-03,AH-03--terminal,passed,true,,granite-3b-bf16,q4_k_m,f16,cpu,complete,,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-04,AH-04--terminal,passed,true,,granite-3b-bf16,q4_k_m,q8_0,cpu,complete,,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-05,AH-05--terminal,passed,true,,granite-3b-bf16,q4_k_m,tq3_0,cpu,complete,,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-06,AH-06--terminal,blocked,false,Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence,granite-8b-q8-0,q8_0,f16,cpu,safety-classified,safety-memory-floor,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-07,AH-07--terminal,blocked,false,Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence,granite-8b-q8-0,q8_0,tq3_0,cpu,safety-classified,safety-memory-floor,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-08,AH-08--terminal,passed,true,,granite-3b-bf16,q4_k_m,f16,sycl-partial,complete,,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-09,AH-09--terminal,passed,true,,granite-3b-bf16,q4_k_m,tq3_0,sycl-partial,complete,,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-10,AH-10--terminal,blocked,false,Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence,granite-8b-q8-0,q8_0,tq3_0,sycl-partial,safety-classified,safety-memory-floor,"[""animehacker-34ab10f0a8210699f64b""]"
+animehacker-tq3-0,wb-03-v1.5-2026-07-18,AH-09,AH-09--rejected-flash-env-only,failed,true,Rejected from formal statistics: environment-only flash change produced invalid one-token timing evidence,granite-3b-bf16,q4_k_m,tq3_0,sycl-partial,rejected,invalid-runtime-evidence,"[""animehacker-161b128b90a01ee0e4d5""]"

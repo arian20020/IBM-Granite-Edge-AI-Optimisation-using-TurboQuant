@@ -1,0 +1,11 @@
+model_id,weight_format_id,status
+gemma-1b-q4-k-m,q4_k_m,Passed
+gemma-1b-q4-k-m,q4_k_m,Passed
+granite-3b-bf16,q4_k_m,Passed
+granite-3b-bf16,q4_k_m,Passed
+granite-3b-bf16,q4_k_m,Passed
+granite-8b-q8-0,q8_0,Blocked
+granite-8b-q8-0,q8_0,Blocked
+granite-3b-bf16,q4_k_m,Passed
+granite-3b-bf16,q4_k_m,Passed
+granite-8b-q8-0,q8_0,Blocked

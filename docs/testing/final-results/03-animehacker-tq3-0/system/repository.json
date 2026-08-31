@@ -1,0 +1,1051 @@
+{
+  "branch": "main (detached campaign pin)",
+  "commit": "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc",
+  "formal_runtime_summary_count": 7,
+  "historical_failure_attempt_count": 11,
+  "historical_failure_rows": [
+    {
+      "Code": "DEP",
+      "Description": "CMake and Ninja absent from PATH; machine-wide silent installer stalled",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/`",
+      "Failure ID": "AH-F01",
+      "Likely cause": "Missing user build tools and MSI stall",
+      "Next action": "Stopped winget route; installed user-local CMake 4.4.0/Ninja 1.13.0 and verified versions",
+      "Resolved?": "Yes",
+      "Test ID": "AH-B02"
+    },
+    {
+      "Code": "BF",
+      "Description": "First CMake invocation could not find MSVC because cmd expanded PATH before VsDevCmd updated it",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/configure.log`; `configure-retry.log`",
+      "Failure ID": "AH-F02",
+      "Likely cause": "Command expansion order erased compiler PATH entries",
+      "Next action": "Prepend user tools before calling VsDevCmd; fresh configure detected MSVC 19.51",
+      "Resolved?": "Yes",
+      "Test ID": "AH-B02"
+    },
+    {
+      "Code": "REPRO",
+      "Description": "Two quantization tests segfaulted on TQ3_0 and then one failed its numeric gate",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/test-capability-guard.patch`; `ctest-final.log`",
+      "Failure ID": "AH-F03",
+      "Likely cause": "Generic tests called absent optional vec-dot trait; new 3-bit type omitted from existing 3-bit RMSE category",
+      "Next action": "Added test-only capability guards and mapped TQ3_0 to unchanged 0.0040 3-bit limit; full suite passed 40/40",
+      "Resolved?": "Yes",
+      "Test ID": "AH-B05"
+    },
+    {
+      "Code": "REPRO",
+      "Description": "One controller invocation ran CTest from source root and found zero tests",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/ctest-final.log`",
+      "Failure ID": "AH-F04",
+      "Likely cause": "Missing explicit test directory",
+      "Next action": "Rejected invalid zero-test result; reran with `--test-dir build-cpu-controlled`, parsed exactly 40/40",
+      "Resolved?": "Yes",
+      "Test ID": "AH-B05"
+    },
+    {
+      "Code": "REPRO",
+      "Description": "SYCL Level Zero tests aborted during teardown with device-lost errors",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/device-level-zero.log`; `reconciliation.json`",
+      "Failure ID": "AH-F05",
+      "Likely cause": "Level Zero runtime instability on the installed Intel UHD driver",
+      "Next action": "Selected the independently inventoried OpenCL SYCL device; final terminal reconciliation is 40/40",
+      "Resolved?": "Yes",
+      "Test ID": "AH-B06"
+    },
+    {
+      "Code": "REPRO",
+      "Description": "SYCL F16 EXP backend cases returned invalid numeric results",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/backend-ops-minimal-final.log`; `campaign-fixes.patch`",
+      "Failure ID": "AH-F06",
+      "Likely cause": "Backend declared unsupported behavior as supported",
+      "Next action": "Restricted SYCL EXP support to verified F32; targeted regression and terminal suite passed",
+      "Resolved?": "Yes",
+      "Test ID": "AH-B05"
+    },
+    {
+      "Code": "REPRO",
+      "Description": "Thread-safety test exhausted OpenCL resources when run immediately after exhaustive backend operations",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/thread-safety-minimal-final.log`; `thread-safety-exact-minimal-final.log`",
+      "Failure ID": "AH-F07",
+      "Likely cause": "Integrated-GPU resource lifetime/order sensitivity",
+      "Next action": "Preserved failed attempt and reran the exact indexed test in isolation; terminal pass included in 40/40 reconciliation",
+      "Resolved?": "Yes",
+      "Test ID": "AH-B05"
+    },
+    {
+      "Code": "SAFETY",
+      "Description": "8B model loads crossed 3 GiB, 2.5 GiB and final 2 GiB emergency floors before a request",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-06/`; `AH-07/pilot/`",
+      "Failure ID": "AH-F08",
+      "Likely cause": "16 GB system cannot preserve the controlled reserve with these 8B mappings",
+      "Next action": "Stopped and cleaned every process tree; classified both rows from measured gate evidence without unsafe lowering",
+      "Resolved?": "Yes - safety-classified",
+      "Test ID": "AH-06/AH-07"
+    },
+    {
+      "Code": "RECOVERY",
+      "Description": "Initial SYCL TQ3 attempts produced invalid/aborted attention paths",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/`; `quality-recovery/AH-09/`",
+      "Failure ID": "AH-F09",
+      "Likely cause": "Broad GPU placement was not viable; narrowed placement retained KV and 40/41 layers on CPU",
+      "Next action": "Recovered with controlled `-ngl 1` placement; accepted three samples and six quality records without claiming GPU-resident TQ3 cache",
+      "Resolved?": "Yes - recovered with bounded partial placement",
+      "Test ID": "AH-09"
+    },
+    {
+      "Code": "SAFETY",
+      "Description": "Guarded 8B SYCL pilot crossed the unchanged 2048 MiB available-RAM floor before request",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-10/`",
+      "Failure ID": "AH-F11",
+      "Likely cause": "9.35 GB model mapping on a 16 GB shared-memory system exhausted the controlled reserve",
+      "Next action": "Controller stopped synchronously; schema-v2 preflight, wrapper and post-stop cleanup prove zero residual processes; no quality run",
+      "Resolved?": "Yes - safety-classified",
+      "Test ID": "AH-10"
+    },
+    {
+      "Code": "QUAL",
+      "Description": "First 16K long-context attempt reached the 900-second absolute deadline",
+      "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P5-timeout-900.json`; `P5.json`",
+      "Failure ID": "AH-F10",
+      "Likely cause": "Q8_0 CPU prefill exceeded the initial bounded deadline",
+      "Next action": "Preserved empty-response hash and reran P5 only with a 1,800-second ceiling; completed in 1,024.6 seconds",
+      "Resolved?": "Yes",
+      "Test ID": "AH-04/P5"
+    }
+  ],
+  "measurement_authority": "Only summary paths explicitly included by reconciliation/state",
+  "quality_adjudications": [
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 9,
+        "correctness_and_grounding": 9,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 9,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "fa10e50e47508ef769f9c313854ac5d477f82f077f76b9a3bbc7d9aad4d52d81",
+      "prompt_id": "P1",
+      "score": 9.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P1.json",
+      "test_case_id": "AH-01"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "92b28886903cb6547a1d62be3d387a84960a717450a993f49d52e12c438a2073",
+      "prompt_id": "P2",
+      "score": 8.35,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P2.json",
+      "test_case_id": "AH-01"
+    },
+    {
+      "critical_cap_reason": "Invalid JSON or wrong exact schema",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 2,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 1,
+        "relevance_clarity_and_coherence": 3,
+        "stability_and_output_integrity": 3
+      },
+      "output_sha256": "c6611f831b1b3eb7ff9a45a8722d69663e0b090871b8da442f8d4d9bfefacb7e",
+      "prompt_id": "P3",
+      "score": 2.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P3.json",
+      "test_case_id": "AH-01"
+    },
+    {
+      "critical_cap_reason": "P4 missing/format gate: sentences=2, missing=runtime,caches,turbo",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 8,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "74872879565dccda7eb1979559c63f60bab5d31f013ffe3ef6211f531e08791c",
+      "prompt_id": "P4",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P4.json",
+      "test_case_id": "AH-01"
+    },
+    {
+      "critical_cap_reason": "Exact-output failure: prohibited space after colon",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "prompt_id": "P5",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P5.json",
+      "test_case_id": "AH-01"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "score": 10.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P6.json",
+      "test_case_id": "AH-01"
+    },
+    {
+      "critical_cap_reason": "P1 gate failure: bullets=9, words=113, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "99c6c198e151bf875427e98e622bfb3effe1c939ef32fe50a55e453d2612e2c7",
+      "prompt_id": "P1",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P1.json",
+      "test_case_id": "AH-02"
+    },
+    {
+      "critical_cap_reason": "Required three-line labelled format failed",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 1,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 1,
+        "stability_and_output_integrity": 2
+      },
+      "output_sha256": "56ac5e02e077e841455d0392e2e8da06dd2f4d3d3fed9d70c1cca40886a546a7",
+      "prompt_id": "P2",
+      "score": 0.65,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P2.json",
+      "test_case_id": "AH-02"
+    },
+    {
+      "critical_cap_reason": "Invalid JSON or wrong exact schema",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 2,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 1,
+        "relevance_clarity_and_coherence": 3,
+        "stability_and_output_integrity": 3
+      },
+      "output_sha256": "b976670371782e99c60d513cdee2c45525361337240dd88f3ea5208e173040ba",
+      "prompt_id": "P3",
+      "score": 2.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P3.json",
+      "test_case_id": "AH-02"
+    },
+    {
+      "critical_cap_reason": "P4 missing/format gate: sentences=2, missing=runtime,turbo",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 8,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "a651c48faa6895b7daf141a023f1eb925ea72dc22f0eec02f1c5c70951be9fe9",
+      "prompt_id": "P4",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P4.json",
+      "test_case_id": "AH-02"
+    },
+    {
+      "critical_cap_reason": "Wrong long-context marker",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 2,
+        "relevance_clarity_and_coherence": 2,
+        "stability_and_output_integrity": 5
+      },
+      "output_sha256": "5b20ff2dc4bc40523e7bd7db5ddb11f71a87a8aac8a1a14d437a471679fe2c3a",
+      "prompt_id": "P5",
+      "score": 1.3,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P5.json",
+      "test_case_id": "AH-02"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "score": 10.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P6.json",
+      "test_case_id": "AH-02"
+    },
+    {
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=28, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "72e791e70ddbf3f47966fc243de1548fbb511bbe916825daefb1c7ed15f3c357",
+      "prompt_id": "P1",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P1.json",
+      "test_case_id": "AH-03"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "2c5e6f21ffe07347dbaefa9e6a1cc230e8c4931f66cab9d70aa5b55a87cc97a8",
+      "prompt_id": "P2",
+      "score": 8.35,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P2.json",
+      "test_case_id": "AH-03"
+    },
+    {
+      "critical_cap_reason": "Materially wrong memory-effect claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 7,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "prompt_id": "P3",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P3.json",
+      "test_case_id": "AH-03"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "e6ec8021677c176a31a77c590dd48b691e90c27fab47d604fb0d5942fadc484b",
+      "prompt_id": "P4",
+      "score": 10.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P4.json",
+      "test_case_id": "AH-03"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
+      "prompt_id": "P5",
+      "score": 10.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P5.json",
+      "test_case_id": "AH-03"
+    },
+    {
+      "critical_cap_reason": "Wrong remembered value: missing amber prefix",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 4,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 2
+      },
+      "output_sha256": "a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2",
+      "prompt_id": "P6",
+      "score": 2.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P6.json",
+      "test_case_id": "AH-03"
+    },
+    {
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=29, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "1d411d18e9ec1df14fecb2ec4852e53efd68944619ed06a0bca316ae70543457",
+      "prompt_id": "P1",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P1.json",
+      "test_case_id": "AH-04"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "7b8ee69a4e8c9c2cafcabc6092e4dda9357b6910eb8d5b40cb6675f0802321ef",
+      "prompt_id": "P2",
+      "score": 8.35,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P2.json",
+      "test_case_id": "AH-04"
+    },
+    {
+      "critical_cap_reason": "Materially wrong memory-effect claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 7,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
+      "prompt_id": "P3",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P3.json",
+      "test_case_id": "AH-04"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "cd222f54800f87fa6113ba224d8ca148adf59829cfc90b7b1670cd5e89c794bd",
+      "prompt_id": "P4",
+      "score": 10.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P4.json",
+      "test_case_id": "AH-04"
+    },
+    {
+      "critical_cap_reason": "Exact-output failure: prohibited space after colon",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
+      "prompt_id": "P5",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P5.json",
+      "test_case_id": "AH-04"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "score": 10.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P6.json",
+      "test_case_id": "AH-04"
+    },
+    {
+      "critical_cap_reason": "P1 gate failure: bullets=3, words=33, required_terms=True, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "8cdd767c2eac895b22b165bcf9ec41569f8d52765baff90d15c6bdaefc6e2eed",
+      "prompt_id": "P1",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P1.json",
+      "test_case_id": "AH-05"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "a4a501d9bbc1078e2074d6d543c7259a2c23264e372668e2d2dcc2eec7a5f2ff",
+      "prompt_id": "P2",
+      "score": 8.35,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P2.json",
+      "test_case_id": "AH-05"
+    },
+    {
+      "critical_cap_reason": "Invalid JSON or wrong exact schema",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 2,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 1,
+        "relevance_clarity_and_coherence": 3,
+        "stability_and_output_integrity": 3
+      },
+      "output_sha256": "623f6c6517cb6be9dcb5bd012188948e22b7ec6c0155d1a951e3e11b176aabe9",
+      "prompt_id": "P3",
+      "score": 2.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P3.json",
+      "test_case_id": "AH-05"
+    },
+    {
+      "critical_cap_reason": "P4 missing/format gate: sentences=1, missing=runtime",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "8a4b186cdf2c570223ac54e7ebfac86a64334a651463e82cf153fef333dbc6c8",
+      "prompt_id": "P4",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P4.json",
+      "test_case_id": "AH-05"
+    },
+    {
+      "critical_cap_reason": "Wrong long-context marker",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 2,
+        "relevance_clarity_and_coherence": 2,
+        "stability_and_output_integrity": 5
+      },
+      "output_sha256": "d8d73ad6cd1cd330d061bb290a3d33e5a9fa52bdeeb2ef7c7c4df6d5de98fbc7",
+      "prompt_id": "P5",
+      "score": 1.3,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P5.json",
+      "test_case_id": "AH-05"
+    },
+    {
+      "critical_cap_reason": "Multi-turn response unusable",
+      "critical_caps": [
+        0
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 0,
+        "relevance_clarity_and_coherence": 0,
+        "stability_and_output_integrity": 0
+      },
+      "output_sha256": "20863259f1eb84987de07856a89815ed6b4a8afe9826c8e8250e2b70e7e81867",
+      "prompt_id": "P6",
+      "score": 0.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P6.json",
+      "test_case_id": "AH-05"
+    },
+    {
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=28, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "72e791e70ddbf3f47966fc243de1548fbb511bbe916825daefb1c7ed15f3c357",
+      "prompt_id": "P1",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P1.json",
+      "test_case_id": "AH-08"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "9d38fea4266beafe34c80e2d7c70754398aaad1d05e5eec9d10b995f109b1ee3",
+      "prompt_id": "P2",
+      "score": 8.35,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P2.json",
+      "test_case_id": "AH-08"
+    },
+    {
+      "critical_cap_reason": "Materially wrong memory-effect claim",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 7,
+        "correctness_and_grounding": 2,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "c69fa34422f44f4b6c31287af87b3e4ccb0a501d7df0f87db9542abab9a3c38d",
+      "prompt_id": "P3",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P3.json",
+      "test_case_id": "AH-08"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "22c0878c9956fd63b9b7aae990555274a38bbdba8aa6d699da6bf69d13002c9e",
+      "prompt_id": "P4",
+      "score": 10.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P4.json",
+      "test_case_id": "AH-08"
+    },
+    {
+      "critical_cap_reason": "Wrong long-context marker",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 2,
+        "relevance_clarity_and_coherence": 2,
+        "stability_and_output_integrity": 5
+      },
+      "output_sha256": "1329b1fde6262a88469f5fbd1f340cf7acb58f313e0e45bb9286b7f0427a2929",
+      "prompt_id": "P5",
+      "score": 1.3,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P5.json",
+      "test_case_id": "AH-08"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "score": 10.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P6.json",
+      "test_case_id": "AH-08"
+    },
+    {
+      "critical_cap_reason": "P1 gate failure: bullets=5, words=55, required_terms=False, semantic_slots=False",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 6,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "5301df6d2025c9d86efbf01602c1979dae8b8d6d7c6102db38d1cb429f07e2c9",
+      "prompt_id": "P1",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P1.json",
+      "test_case_id": "AH-09"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 9,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "0ddac73d955e51ab4e2af46db74551ae917e8f8ac17f23a3e447adbad0332b85",
+      "prompt_id": "P2",
+      "score": 8.35,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P2.json",
+      "test_case_id": "AH-09"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 8,
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "70bc9a0c03802c4a71ed664d39b072b6cd1e6018689ff70cc4efff631e9e5c98",
+      "prompt_id": "P3",
+      "score": 8.7,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P3.json",
+      "test_case_id": "AH-09"
+    },
+    {
+      "critical_cap_reason": "P4 missing/format gate: sentences=1, missing=caches,turbo",
+      "critical_caps": [
+        4
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 4,
+        "correctness_and_grounding": 7,
+        "instruction_and_format_adherence": 4,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 9
+      },
+      "output_sha256": "8b808310880d35799378cdc1cec3262a72ddca960cef9d6de21972f66c1c6e85",
+      "prompt_id": "P4",
+      "score": 4.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P4.json",
+      "test_case_id": "AH-09"
+    },
+    {
+      "critical_cap_reason": "Wrong long-context marker",
+      "critical_caps": [
+        2
+      ],
+      "deterministic_pass": false,
+      "dimensions": {
+        "completeness_and_fact_retention": 0,
+        "correctness_and_grounding": 0,
+        "instruction_and_format_adherence": 2,
+        "relevance_clarity_and_coherence": 2,
+        "stability_and_output_integrity": 5
+      },
+      "output_sha256": "824f2908f1a04296801a3f2c86103f2bc8eca36c7935bb93b0ce5eb085d23aec",
+      "prompt_id": "P5",
+      "score": 1.3,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P5.json",
+      "test_case_id": "AH-09"
+    },
+    {
+      "critical_cap_reason": "No critical cap",
+      "critical_caps": [],
+      "deterministic_pass": true,
+      "dimensions": {
+        "completeness_and_fact_retention": 10,
+        "correctness_and_grounding": 10,
+        "instruction_and_format_adherence": 10,
+        "relevance_clarity_and_coherence": 10,
+        "stability_and_output_integrity": 10
+      },
+      "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
+      "prompt_id": "P6",
+      "score": 10.0,
+      "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P6.json",
+      "test_case_id": "AH-09"
+    }
+  ],
+  "quality_calibration": "Not collected",
+  "quality_direct_openvino_comparison_permitted": false,
+  "quality_method": "historical harsh content screen; deterministic gates plus manual adjudication",
+  "rejected_runtime_summary_count": 2,
+  "repository_url": "https://github.com/animehacker/llama-turboquant",
+  "resource_observations": [
+    {
+      "cpu_mean_percent": 56.9017584,
+      "generation_tokens_per_second": 46.32343893629804,
+      "gpu_mean_percent": 0.0,
+      "gpu_memory_peak_mb": 0.0,
+      "inclusion_status": "included",
+      "kv_cache_mb": 26.0,
+      "peak_private_bytes_mb": 730.87109375,
+      "peak_working_set_mb": 929.48828125,
+      "prompt_tokens_per_second": 95.31484225393606,
+      "summary_evidence_id": "animehacker-2c8711c6ef06a0aae448",
+      "test_case_id": "AH-01",
+      "time_to_first_token_ms": 140.3925
+    },
+    {
+      "cpu_mean_percent": 58.43756383333332,
+      "generation_tokens_per_second": 37.74895880703853,
+      "gpu_mean_percent": 0.0,
+      "gpu_memory_peak_mb": 0.0,
+      "inclusion_status": "included",
+      "kv_cache_mb": 5.6899999999999995,
+      "peak_private_bytes_mb": 712.9140625,
+      "peak_working_set_mb": 911.0625,
+      "prompt_tokens_per_second": 81.5128790348875,
+      "summary_evidence_id": "animehacker-7be5a350bf466da3eaaf",
+      "test_case_id": "AH-02",
+      "time_to_first_token_ms": 137.7451
+    },
+    {
+      "cpu_mean_percent": 62.038622076923076,
+      "generation_tokens_per_second": 15.871533821308601,
+      "gpu_mean_percent": 0.0,
+      "gpu_memory_peak_mb": 0.0,
+      "inclusion_status": "included",
+      "kv_cache_mb": 160.0,
+      "peak_private_bytes_mb": 1944.08203125,
+      "peak_working_set_mb": 3663.23046875,
+      "prompt_tokens_per_second": 45.68887399770033,
+      "summary_evidence_id": "animehacker-ff5d663228531b9bb284",
+      "test_case_id": "AH-03",
+      "time_to_first_token_ms": 274.9168
+    },
+    {
+      "cpu_mean_percent": 61.971243034188035,
+      "generation_tokens_per_second": 15.819049843601503,
+      "gpu_mean_percent": 0.0,
+      "gpu_memory_peak_mb": 0.0,
+      "inclusion_status": "included",
+      "kv_cache_mb": 170.0,
+      "peak_private_bytes_mb": 1933.171875,
+      "peak_working_set_mb": 3672.13671875,
+      "prompt_tokens_per_second": 52.02800841119469,
+      "summary_evidence_id": "animehacker-f57e698215bd476a2ed4",
+      "test_case_id": "AH-04",
+      "time_to_first_token_ms": 243.2251
+    },
+    {
+      "cpu_mean_percent": 62.70475638997821,
+      "generation_tokens_per_second": 11.535865275513414,
+      "gpu_mean_percent": 0.0,
+      "gpu_memory_peak_mb": 0.0,
+      "inclusion_status": "included",
+      "kv_cache_mb": 70.0,
+      "peak_private_bytes_mb": 1838.03515625,
+      "peak_working_set_mb": 3575.02734375,
+      "prompt_tokens_per_second": 50.690446118167884,
+      "summary_evidence_id": "animehacker-2fdd99f74f84583010bc",
+      "test_case_id": "AH-05",
+      "time_to_first_token_ms": 252.5695
+    },
+    {
+      "cpu_mean_percent": "Not collected",
+      "generation_tokens_per_second": "Not collected",
+      "gpu_mean_percent": "Not collected",
+      "gpu_memory_peak_mb": "Not collected",
+      "inclusion_status": "safety evidence only; excluded from formal statistics",
+      "kv_cache_mb": 320.0,
+      "peak_private_bytes_mb": 4317.8671875,
+      "peak_working_set_mb": 8913.6484375,
+      "prompt_tokens_per_second": "Not collected",
+      "summary_evidence_id": "animehacker-57d0c768549edab36e5f",
+      "test_case_id": "AH-06",
+      "time_to_first_token_ms": "Not collected"
+    },
+    {
+      "cpu_mean_percent": "Not collected",
+      "generation_tokens_per_second": "Not collected",
+      "gpu_mean_percent": "Not collected",
+      "gpu_memory_peak_mb": "Not collected",
+      "inclusion_status": "safety evidence only; excluded from formal statistics",
+      "kv_cache_mb": 140.0,
+      "peak_private_bytes_mb": 4137.68359375,
+      "peak_working_set_mb": 8737.703125,
+      "prompt_tokens_per_second": "Not collected",
+      "summary_evidence_id": "animehacker-cd9e81def3ebb64f18ec",
+      "test_case_id": "AH-07",
+      "time_to_first_token_ms": "Not collected"
+    },
+    {
+      "cpu_mean_percent": 62.03087522649573,
+      "generation_tokens_per_second": 15.18407067615497,
+      "gpu_mean_percent": 16.30982905982906,
+      "gpu_memory_peak_mb": 408.109375,
+      "inclusion_status": "included",
+      "kv_cache_mb": 320.0,
+      "peak_private_bytes_mb": 1289.58203125,
+      "peak_working_set_mb": 3130.69140625,
+      "prompt_tokens_per_second": 40.92755481734373,
+      "summary_evidence_id": "animehacker-9718cbe662f09c02b2f6",
+      "test_case_id": "AH-08",
+      "time_to_first_token_ms": 309.9542
+    },
+    {
+      "cpu_mean_percent": 63.13879183790849,
+      "generation_tokens_per_second": 12.10940430529057,
+      "gpu_mean_percent": 12.605228758169934,
+      "gpu_memory_peak_mb": 411.628906,
+      "inclusion_status": "included",
+      "kv_cache_mb": 70.0,
+      "peak_private_bytes_mb": 1040.0859375,
+      "peak_working_set_mb": 2891.65625,
+      "prompt_tokens_per_second": 40.9038105989954,
+      "summary_evidence_id": "animehacker-7fa35879b72853a189cc",
+      "test_case_id": "AH-09",
+      "time_to_first_token_ms": 491.0024
+    },
+    {
+      "cpu_mean_percent": "Not collected",
+      "generation_tokens_per_second": "Not collected",
+      "gpu_mean_percent": "Not collected",
+      "gpu_memory_peak_mb": "Not collected",
+      "inclusion_status": "safety evidence only; excluded from formal statistics",
+      "kv_cache_mb": 70.0,
+      "peak_private_bytes_mb": 1145.53515625,
+      "peak_working_set_mb": 8969.625,
+      "prompt_tokens_per_second": "Not collected",
+      "summary_evidence_id": "animehacker-993c82e73a1b79e1b4ee",
+      "test_case_id": "AH-10",
+      "time_to_first_token_ms": "Not collected"
+    }
+  ],
+  "source_reconciliation": {
+    "authority_hashes_authenticated": 9,
+    "cpu_repository_tests": {
+      "failed": 0,
+      "passed": 40,
+      "total": 40
+    },
+    "formal_runtime_summary_count": 7,
+    "rejected_runtime_summary_count": 2,
+    "sycl_repository_tests": {
+      "failed": 0,
+      "passed": 40,
+      "total": 40
+    },
+    "vulkan_tq3_runtime_classification": "not proven by source audit; not a controlled TQ3 route"
+  },
+  "status_authority": "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+  "unresolved_failure_count": 0,
+  "workbook_revision": "1.5"
+}

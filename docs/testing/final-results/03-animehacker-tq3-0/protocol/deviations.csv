@@ -1,0 +1,12 @@
+deviation_id,scope_ids,code,description,resolution,terminal
+AH-F01,AH-B02,DEP,CMake and Ninja absent from PATH; machine-wide silent installer stalled,Yes,false
+AH-F02,AH-B02,BF,First CMake invocation could not find MSVC because cmd expanded PATH before VsDevCmd updated it,Yes,false
+AH-F03,AH-B05,REPRO,Two quantization tests segfaulted on TQ3_0 and then one failed its numeric gate,Yes,false
+AH-F04,AH-B05,REPRO,One controller invocation ran CTest from source root and found zero tests,Yes,false
+AH-F05,AH-B06,REPRO,SYCL Level Zero tests aborted during teardown with device-lost errors,Yes,false
+AH-F06,AH-B05,REPRO,SYCL F16 EXP backend cases returned invalid numeric results,Yes,false
+AH-F07,AH-B05,REPRO,Thread-safety test exhausted OpenCL resources when run immediately after exhaustive backend operations,Yes,false
+AH-F08,AH-06/AH-07,SAFETY,"8B model loads crossed 3 GiB, 2.5 GiB and final 2 GiB emergency floors before a request",Yes - safety-classified,false
+AH-F09,AH-09,RECOVERY,Initial SYCL TQ3 attempts produced invalid/aborted attention paths,Yes - recovered with bounded partial placement,false
+AH-F11,AH-10,SAFETY,Guarded 8B SYCL pilot crossed the unchanged 2048 MiB available-RAM floor before request,Yes - safety-classified,false
+AH-F10,AH-04/P5,QUAL,First 16K long-context attempt reached the 900-second absolute deadline,Yes,false

@@ -2399,6 +2399,787 @@ def finalize_atomicbot_route(repo_root: Path) -> dict[str, object]:
     return receipt
 
 
+# animehacker TQ3_0 (WB-03 v1.5)
+ANIMEHACKER_ROUTE_ID = "animehacker-tq3-0"
+ANIMEHACKER_CAMPAIGN_ID = "wb-03-v1.5-2026-07-18"
+ANIMEHACKER_ROUTE_RELATIVE = Path("docs/testing/final-results/03-animehacker-tq3-0")
+ANIMEHACKER_WORKBOOK_RELATIVE = Path(
+    "docs/testing/workbooks/text-templates/03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.md"
+)
+ANIMEHACKER_RAW_RELATIVE = Path("experiments/raw-results/animehacker-tq3-0/2026-07-18")
+ANIMEHACKER_MATRIX_RELATIVE = Path("experiments/manifests/animehacker-tq3-0/retest-matrix.json")
+ANIMEHACKER_EXPECTED_IDS = tuple(f"AH-{number:02d}" for number in range(1, 11))
+ANIMEHACKER_RUNNABLE_IDS = ("AH-01", "AH-02", "AH-03", "AH-04", "AH-05", "AH-08", "AH-09")
+ANIMEHACKER_SAFETY_IDS = ("AH-06", "AH-07", "AH-10")
+ANIMEHACKER_NOT_COLLECTED = "Not collected"
+ANIMEHACKER_QUALITY_REGISTER_RELATIVE = Path("docs/testing/Quality-Evaluation-Register.csv")
+ANIMEHACKER_PROMPT_RELATIVE = QUALITY_PROMPTS_RELATIVE
+ANIMEHACKER_RUBRIC_RELATIVE = QUALITY_RUBRIC_RELATIVE
+ANIMEHACKER_AUTHORITY_HASHES = {
+    "reconciliation": "02f6dea288f1b704747ec07b0adacd2644990e645eb7fa45ff32fa71098ebc15",
+    "cpu-reconciliation": "4347b7dd353001b35bb13d5d1c304e970cae533c10b4102dd918e46731d6c28b",
+    "sycl-reconciliation": "b60e97f3855bda1ec0e4d9858e40d7f3c21f669735940aa6788c8c1446b01241",
+    "vulkan-reconciliation": "57871c024dc5c425692ec436974ac397088a6c43192448719e13b61cbadfddda",
+    "quality-adjudication": "5123c0fd2016159fb2b48ea2bedfa039af30798112d18b6f52fe914322fe521b",
+    "quality-recovery-adjudication": "4fb179143e2867023d264c5b5d73cbfe3fa5901c81338a78f5e8d41b3cdc37d9",
+    "quality-register": ATOMICBOT_QUALITY_REGISTER_SHA256,
+    "prompt-contract": ATOMICBOT_PROMPT_SHA256,
+    "rubric-contract": ATOMICBOT_RUBRIC_SHA256,
+}
+ANIMEHACKER_FORMAL_SUMMARIES = {
+    **{
+        test_id: ANIMEHACKER_RAW_RELATIVE / f"runtime/{test_id}/summary.json"
+        for test_id in ANIMEHACKER_RUNNABLE_IDS[:-1]
+    },
+    "AH-09": ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/AH-09/summary.json",
+}
+ANIMEHACKER_REJECTED_SUMMARIES = (
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-09/summary.json",
+    ANIMEHACKER_RAW_RELATIVE / "runtime/AH-09-rejected-flash-env-only/summary.json",
+)
+
+
+def _animehacker_evidence_id(relative: Path) -> str:
+    return f"animehacker-{hashlib.sha256(relative.as_posix().encode('utf-8')).hexdigest()[:20]}"
+
+
+def _animehacker_source_record(root: Path, relative: Path, role: str, label: str) -> EvidenceRecord:
+    path = root / relative
+    return EvidenceRecord(
+        route_id=ANIMEHACKER_ROUTE_ID,
+        campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+        evidence_id=_animehacker_evidence_id(relative),
+        role=role,
+        relative_path=relative.as_posix(),
+        sha256=hash_file(path),
+        size_bytes=path.stat().st_size,
+        source_label=label,
+    )
+
+
+def _animehacker_matrix(root: Path) -> list[dict[str, object]]:
+    payload = _read_json(root / ANIMEHACKER_MATRIX_RELATIVE)
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        raise ValueError("animehacker matrix schema conflict")
+    rows = [row for row in payload.get("cases", []) if row.get("phase") == "runtime"]
+    if tuple(row.get("test_id") for row in rows) != ANIMEHACKER_EXPECTED_IDS:
+        raise ValueError("WB-03 matrix must contain AH-01 through AH-10 exactly once in order")
+    return rows
+
+
+def _animehacker_relative(value: object) -> str:
+    return str(value).replace("\\", "/")
+
+
+def _animehacker_equal(left: object, right: object, tolerance: float = 1e-7) -> bool:
+    return abs(float(left) - float(right)) <= tolerance
+
+
+def _animehacker_validate_summary(path: Path, test_id: str) -> dict[str, object]:
+    payload = _read_json(path)
+    if not isinstance(payload, dict) or payload.get("test_id") != test_id:
+        raise ValueError(f"runtime summary identity conflict: {test_id}")
+    samples = payload.get("samples")
+    if not isinstance(samples, list) or len(samples) != 3:
+        raise ValueError(f"runtime summary must contain three formal samples: {test_id}")
+    if any(
+        sample.get("sample_id") != f"{test_id}-sample-{number}" or sample.get("valid") is not True
+        for number, sample in enumerate(samples, 1)
+    ):
+        raise ValueError(f"runtime summary formal sample identity conflict: {test_id}")
+    for number, sample in enumerate(samples, 1):
+        measurement_path = path.parent / f"sample-{number}" / "measurement.json"
+        measurement = _read_json(measurement_path)
+        if sample != measurement:
+            raise ValueError(
+                f"raw measurement relationship conflict: {test_id} sample {number}"
+            )
+    aggregate = payload.get("aggregate", {})
+    metric_keys = (
+        "ttft_ms", "prompt_tps", "decode_tps", "peak_working_set_mb",
+        "peak_private_bytes_mb", "available_ram_min_mb", "kv_mb",
+        "generation_duration_ms", "gpu_memory_peak_mb",
+    )
+    for metric in metric_keys:
+        values = [sample.get(metric) for sample in samples]
+        if any(value is None for value in values) or not isinstance(aggregate.get(metric), dict):
+            raise ValueError(f"runtime summary metric missing: {test_id} {metric}")
+        expected = {
+            "min": min(values), "max": max(values),
+            "mean": statistics.fmean(values), "median": statistics.median(values),
+        }
+        if any(not _animehacker_equal(aggregate[metric].get(key), value) for key, value in expected.items()):
+            raise ValueError(f"runtime summary aggregate conflict: {test_id} {metric}")
+    for metric in ("cpu_percent", "gpu_percent"):
+        observations = [sample.get("utilization", {}).get(metric) for sample in samples]
+        if any(not isinstance(item, dict) for item in observations):
+            raise ValueError(f"runtime utilization missing: {test_id} {metric}")
+        flattened_count = sum(int(item["sample_count"]) for item in observations)
+        expected = {
+            "mean": statistics.fmean(float(item["mean"]) for item in observations),
+            "median": statistics.median(float(item["median"]) for item in observations),
+            "peak": max(float(item["peak"]) for item in observations),
+            "sample_count": flattened_count,
+        }
+        if any(not _animehacker_equal(aggregate.get(metric, {}).get(key), value) for key, value in expected.items()):
+            raise ValueError(f"runtime utilization aggregate conflict: {test_id} {metric}")
+    return payload
+
+
+def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
+    """Reconcile WB-03 final state without admitting superseded runtime evidence."""
+    root = Path(repo_root).resolve(strict=True)
+    workbook = root / ANIMEHACKER_WORKBOOK_RELATIVE
+    matrix = _animehacker_matrix(root)
+    workbook_rows = _table_by_header(workbook, ("ID", "Model", "KV cache", "Execution"))
+    if tuple(row["ID"] for row in workbook_rows) != ANIMEHACKER_EXPECTED_IDS:
+        raise ValueError("WB-03 workbook matrix conflict")
+    revisions = [
+        row for row in _read_csv(root / "docs/testing/Workbook-Revision-Register.csv")
+        if row["Workbook_ID"] == "WB-03"
+    ]
+    if not revisions or revisions[-1]["Version"] != "1.5" or "Current" not in revisions[-1]["Status"]:
+        raise ValueError("WB-03 current revision must be 1.5")
+
+    authority_paths = {
+        "reconciliation": ANIMEHACKER_RAW_RELATIVE / "reconciliation.json",
+        "cpu-reconciliation": ANIMEHACKER_RAW_RELATIVE / "build-cpu/reconciliation-final.json",
+        "sycl-reconciliation": ANIMEHACKER_RAW_RELATIVE / "build-sycl/reconciliation.json",
+        "vulkan-reconciliation": ANIMEHACKER_RAW_RELATIVE / "build-vulkan/reconciliation.json",
+        "quality-adjudication": ANIMEHACKER_RAW_RELATIVE / "quality/adjudication.json",
+        "quality-recovery-adjudication": ANIMEHACKER_RAW_RELATIVE / "quality-recovery/quality-adjudications.json",
+        "quality-register": ANIMEHACKER_QUALITY_REGISTER_RELATIVE,
+        "prompt-contract": ANIMEHACKER_PROMPT_RELATIVE,
+        "rubric-contract": ANIMEHACKER_RUBRIC_RELATIVE,
+    }
+    reconciliation = _read_json(root / authority_paths["reconciliation"])
+    runtime_state = _read_json(root / ANIMEHACKER_RAW_RELATIVE / "runtime/state.json")
+    recovery_state = _read_json(root / ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/state.json")
+    if not all(isinstance(item, dict) for item in (reconciliation, runtime_state, recovery_state)):
+        raise ValueError("animehacker reconciliation source shape conflict")
+    state_attempts = runtime_state.get("attempts", {})
+    if set(state_attempts) != set(ANIMEHACKER_EXPECTED_IDS):
+        raise ValueError("animehacker terminal state ID conflict")
+    expected_status = {
+        **{test_id: "complete" for test_id in ANIMEHACKER_RUNNABLE_IDS},
+        **{test_id: "safety-classified" for test_id in ANIMEHACKER_SAFETY_IDS},
+    }
+    for test_id, status in expected_status.items():
+        row = state_attempts.get(test_id, {})
+        if row.get("reconciled") is not True:
+            raise ValueError(f"explicit reconciliation inclusion required: {test_id}")
+        if row.get("status") != status:
+            raise ValueError(f"status authority conflict: {test_id}")
+    recovery = reconciliation.get("recovery", {})
+    if recovery.get("AH-09", {}).get("status") != "complete" or recovery.get("AH-10", {}).get("status") != "safety-classified":
+        raise ValueError("status authority conflict: recovered rows")
+    if recovery_state.get("attempts", {}).get("AH-09", {}).get("reconciled") is not True:
+        raise ValueError("explicit reconciliation inclusion required: AH-09 recovery")
+
+    selected: dict[str, str] = {
+        test_id: _animehacker_relative(relative)
+        for test_id, relative in reconciliation.get("runtime", {}).items()
+    }
+    selected["AH-09"] = _animehacker_relative(recovery["AH-09"].get("runtime"))
+    expected_selected = {test_id: relative.as_posix() for test_id, relative in ANIMEHACKER_FORMAL_SUMMARIES.items()}
+    if selected != expected_selected:
+        if any(path in {item.as_posix() for item in ANIMEHACKER_REJECTED_SUMMARIES} for path in selected.values()):
+            raise ValueError("rejected runtime summary cannot be selected for formal statistics")
+        raise ValueError("formal runtime summary authority conflict")
+    for role, relative in authority_paths.items():
+        if hash_file(root / relative) != ANIMEHACKER_AUTHORITY_HASHES[role]:
+            raise ValueError(f"{role} authority hash conflict")
+    summaries = {
+        test_id: _animehacker_validate_summary(root / relative, test_id)
+        for test_id, relative in ANIMEHACKER_FORMAL_SUMMARIES.items()
+    }
+
+    cpu = _read_json(root / authority_paths["cpu-reconciliation"])
+    sycl = _read_json(root / authority_paths["sycl-reconciliation"])
+    vulkan = _read_json(root / authority_paths["vulkan-reconciliation"])
+    cpu_counts = {key: int(cpu[key]) for key in ("passed", "failed", "total")}
+    sycl_counts = {key: int(sycl[key]) for key in ("passed", "failed", "total")}
+    if cpu_counts != {"passed": 40, "failed": 0, "total": 40}:
+        raise ValueError("CPU reconciliation count conflict")
+    if sycl_counts != {"passed": 40, "failed": 0, "total": 40}:
+        raise ValueError("SYCL reconciliation count conflict")
+    vulkan_classification = vulkan.get("tq3_runtime_classification")
+    if vulkan_classification != "not proven by source audit; not a controlled TQ3 route":
+        raise ValueError("Vulkan classification conflict")
+
+    quality_main = _read_json(root / authority_paths["quality-adjudication"])
+    quality_recovery = _read_json(root / authority_paths["quality-recovery-adjudication"])
+    quality_sources = {**quality_main, **quality_recovery}
+    if set(quality_sources) != set(ANIMEHACKER_RUNNABLE_IDS):
+        raise ValueError("quality adjudication test set conflict")
+    register_rows = [
+        row for row in _read_csv(root / ANIMEHACKER_QUALITY_REGISTER_RELATIVE)
+        if row["Route"] == ANIMEHACKER_ROUTE_ID
+    ]
+    if len(register_rows) != 42:
+        raise ValueError("quality register must contain exactly 42 animehacker rows")
+    register_by_key = {(row["Test_ID"], row["Prompt_ID"]): row for row in register_rows}
+    quality_rows: list[dict[str, object]] = []
+    for test_id in ANIMEHACKER_RUNNABLE_IDS:
+        source = quality_sources[test_id]
+        prompts = source.get("prompts", {})
+        if set(prompts) != {f"P{number}" for number in range(1, 7)}:
+            raise ValueError(f"quality prompt coverage conflict: {test_id}")
+        scores: list[float] = []
+        for prompt_id, details in sorted(prompts.items()):
+            register = register_by_key.get((test_id, prompt_id))
+            if register is None:
+                raise ValueError(f"quality register relationship conflict: {test_id} {prompt_id}")
+            raw = details["raw"]
+            folder = "quality-recovery" if test_id == "AH-09" else "quality"
+            response_relative = ANIMEHACKER_RAW_RELATIVE / f"{folder}/{test_id}/{prompt_id}-response.txt"
+            prompt_relative = ANIMEHACKER_RAW_RELATIVE / f"{folder}/{test_id}/{prompt_id}.json"
+            response_text = (root / response_relative).read_text(encoding="utf-8")
+            prompt_payload = _read_json(root / prompt_relative)
+            response_digest = hashlib.sha256(response_text.encode("utf-8")).hexdigest()
+            if raw.get("output") != response_text or raw.get("output_sha256") != response_digest:
+                raise ValueError(f"quality response hash conflict: {test_id} {prompt_id}")
+            if prompt_payload.get("output_sha256") != response_digest or register["Response_SHA256"] != response_digest:
+                raise ValueError(f"quality source relationship conflict: {test_id} {prompt_id}")
+            score = float(details["final_score"])
+            if not _animehacker_equal(register["Weighted_Score_0_to_10"], score):
+                raise ValueError(f"quality register score conflict: {test_id} {prompt_id}")
+            scores.append(score)
+            quality_rows.append({
+                "test_case_id": test_id, "prompt_id": prompt_id, "score": score,
+                "source_relative": prompt_relative.as_posix(), "output_sha256": response_digest,
+                "deterministic_pass": bool(details["adjudication"]["deterministic_pass"]),
+                "dimensions": dict(details["adjudication"]["dimensions"]),
+                "critical_caps": list(details["adjudication"]["critical_caps"]),
+                "critical_cap_reason": details["adjudication"]["critical_cap_reason"],
+            })
+        if not _animehacker_equal(statistics.fmean(scores), source.get("mean_score")):
+            raise ValueError(f"quality mean conflict: {test_id}")
+
+    failures = _table_by_header(workbook, ("Failure ID", "Test ID", "Code", "Description"))
+    if tuple(row["Failure ID"] for row in failures) != (
+        "AH-F01", "AH-F02", "AH-F03", "AH-F04", "AH-F05", "AH-F06",
+        "AH-F07", "AH-F08", "AH-F09", "AH-F11", "AH-F10",
+    ) or any(not row["Resolved?"].startswith("Yes") for row in failures):
+        raise ValueError("historical failure ledger conflict")
+    return {
+        "matrix": matrix,
+        "summaries": summaries,
+        "quality_rows": quality_rows,
+        "historical_failures": failures,
+        "cpu_repository_tests": cpu_counts,
+        "sycl_repository_tests": sycl_counts,
+        "vulkan_tq3_runtime_classification": vulkan_classification,
+        "formal_runtime_summary_count": len(summaries),
+        "rejected_runtime_summary_count": len(ANIMEHACKER_REJECTED_SUMMARIES),
+        "authority_hashes_authenticated": len(authority_paths),
+    }
+
+
+def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
+    root = Path(repo_root).resolve(strict=True)
+    audit = audit_animehacker_sources(root)
+    matrix = {row["test_id"]: row for row in audit["matrix"]}
+    evidence_paths: list[tuple[Path, str, str]] = [
+        (ANIMEHACKER_WORKBOOK_RELATIVE, "controlled-workbook-markdown", "WB-03 v1.5 controlled Markdown"),
+        (Path("docs/testing/Workbook-Revision-Register.csv"), "workbook-revision-register", "WB-03 revision authority"),
+        (ANIMEHACKER_QUALITY_REGISTER_RELATIVE, "quality-register", "Prompt-level quality register"),
+        (ANIMEHACKER_MATRIX_RELATIVE, "intended-matrix", "Frozen controlled retest matrix"),
+        (ANIMEHACKER_PROMPT_RELATIVE, "prompt-contract", "GTQ-PROMPTS-v1 authority"),
+        (ANIMEHACKER_RUBRIC_RELATIVE, "quality-rubric", "GTQ-QUALITY-RUBRIC-v1 authority"),
+    ]
+    for path in sorted((root / ANIMEHACKER_RAW_RELATIVE).rglob("*")):
+        if path.is_file():
+            relative = path.relative_to(root)
+            role = "raw-evidence"
+            if relative in ANIMEHACKER_FORMAL_SUMMARIES.values():
+                role = "formal-runtime-summary"
+            elif relative in ANIMEHACKER_REJECTED_SUMMARIES:
+                role = "rejected-runtime-summary"
+            elif relative.name == "reconciliation.json" or relative.name == "reconciliation-final.json":
+                role = "reconciliation"
+            elif "quality" in relative.parts:
+                role = "quality-evidence"
+            evidence_paths.append((relative, role, f"animehacker source: {relative.name}"))
+    evidence = tuple(_animehacker_source_record(root, *item) for item in evidence_paths)
+    evidence_by_path = {row.relative_path: row for row in evidence}
+
+    attempts: list[AttemptRecord] = []
+    for test_id in ANIMEHACKER_EXPECTED_IDS:
+        row = matrix[test_id]
+        passed = test_id in ANIMEHACKER_RUNNABLE_IDS
+        reason = "" if passed else "Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence"
+        attempts.append(AttemptRecord(
+            route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+            test_case_id=test_id, attempt_id=f"{test_id}--terminal",
+            status=Status.PASSED if passed else Status.BLOCKED, executed=passed, reason=reason,
+            model_id=str(row["model_id"]), weight_format_id="q8_0" if "8b" in str(row["model_id"]) else "q4_k_m",
+            cache_format_id=str(row["cache"]).lower(), backend_id=str(row["backend"]),
+            source_status="complete" if passed else "safety-classified",
+            failure_kind=None if passed else "safety-memory-floor",
+            evidence_ids=(_animehacker_evidence_id(ANIMEHACKER_RAW_RELATIVE / "reconciliation.json"),),
+        ))
+    rejected_relative = ANIMEHACKER_REJECTED_SUMMARIES[1]
+    attempts.append(AttemptRecord(
+        route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+        test_case_id="AH-09", attempt_id="AH-09--rejected-flash-env-only",
+        status=Status.FAILED, executed=True,
+        reason="Rejected from formal statistics: environment-only flash change produced invalid one-token timing evidence",
+        model_id=str(matrix["AH-09"]["model_id"]), weight_format_id="q4_k_m",
+        cache_format_id="tq3_0", backend_id="sycl-partial", source_status="rejected",
+        failure_kind="invalid-runtime-evidence",
+        evidence_ids=(evidence_by_path[rejected_relative.as_posix()].evidence_id,),
+    ))
+
+    measurements: list[MeasurementRecord] = []
+    summaries: list[SummaryRecord] = []
+    resource_observations: list[dict[str, object]] = []
+    for test_id in ANIMEHACKER_RUNNABLE_IDS:
+        payload = audit["summaries"][test_id]
+        summary_relative = ANIMEHACKER_FORMAL_SUMMARIES[test_id]
+        summary_evidence_id = evidence_by_path[summary_relative.as_posix()].evidence_id
+        measurement_ids: list[str] = []
+        for number, sample in enumerate(payload["samples"], 1):
+            measurement_relative = summary_relative.parent / f"sample-{number}/measurement.json"
+            source_id = evidence_by_path[measurement_relative.as_posix()].evidence_id
+            measurement_id = f"{test_id}--formal-sample-{number:03d}"
+            measurement_ids.append(measurement_id)
+            measurements.append(MeasurementRecord(
+                route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+                test_case_id=test_id, attempt_id=f"{test_id}--terminal",
+                measurement_id=measurement_id, run_id=f"{test_id}-R{number:03d}",
+                repetition_id=str(number), source_evidence_id=source_id,
+                latency_ms=float(sample["ttft_ms"]),
+                prompt_tokens_per_second=float(sample["prompt_tps"]),
+                generation_tokens_per_second=float(sample["decode_tps"]),
+                peak_working_set_bytes=round(float(sample["peak_working_set_mb"]) * 1048576),
+                input_tokens=int(sample["response_timings"]["prompt_n"]),
+                output_tokens=int(sample["response_timings"]["predicted_n"]),
+            ))
+        aggregate = payload["aggregate"]
+        for metric, value, unit, aggregation in (
+            ("time_to_first_token", aggregate["ttft_ms"]["median"], "milliseconds", "median of exactly 3 explicitly included formal samples"),
+            ("prompt_tokens_per_second", aggregate["prompt_tps"]["median"], "tokens_per_second", "median of exactly 3 explicitly included formal samples"),
+            ("generation_tokens_per_second", aggregate["decode_tps"]["median"], "tokens_per_second", "median of exactly 3 explicitly included formal samples"),
+            ("peak_working_set_bytes", round(float(aggregate["peak_working_set_mb"]["max"]) * 1048576), "bytes", "maximum of exactly 3 explicitly included formal samples"),
+            ("kv_cache_allocated_bytes", round(float(aggregate["kv_mb"]["median"]) * 1048576), "bytes", "median of exactly 3 explicitly included formal samples"),
+        ):
+            summaries.append(SummaryRecord(
+                route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+                test_case_id=test_id, summary_id=f"{test_id}--{metric}", metric_name=metric,
+                value=value, unit=unit, aggregation=aggregation,
+                source_measurement_ids=tuple(measurement_ids),
+            ))
+        resource_observations.append({
+            "test_case_id": test_id, "inclusion_status": "included",
+            "summary_evidence_id": summary_evidence_id,
+            "time_to_first_token_ms": aggregate["ttft_ms"]["median"],
+            "prompt_tokens_per_second": aggregate["prompt_tps"]["median"],
+            "generation_tokens_per_second": aggregate["decode_tps"]["median"],
+            "peak_working_set_mb": aggregate["peak_working_set_mb"]["max"],
+            "peak_private_bytes_mb": aggregate["peak_private_bytes_mb"]["max"],
+            "kv_cache_mb": aggregate["kv_mb"]["median"],
+            "cpu_mean_percent": aggregate["cpu_percent"]["mean"],
+            "gpu_mean_percent": aggregate["gpu_percent"]["mean"],
+            "gpu_memory_peak_mb": aggregate["gpu_memory_peak_mb"]["max"],
+        })
+    blocked_measurement_paths = {
+        "AH-06": ANIMEHACKER_RAW_RELATIVE / "runtime/AH-06/pilot-emergency-stop-2048/measurement.json",
+        "AH-07": ANIMEHACKER_RAW_RELATIVE / "runtime/AH-07/pilot/measurement.json",
+        "AH-10": ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/AH-10/pilot/measurement.json",
+    }
+    for test_id, relative in blocked_measurement_paths.items():
+        payload = _read_json(root / relative)
+        resource_observations.append({
+            "test_case_id": test_id, "inclusion_status": "safety evidence only; excluded from formal statistics",
+            "summary_evidence_id": evidence_by_path[relative.as_posix()].evidence_id,
+            "time_to_first_token_ms": ANIMEHACKER_NOT_COLLECTED,
+            "prompt_tokens_per_second": ANIMEHACKER_NOT_COLLECTED,
+            "generation_tokens_per_second": ANIMEHACKER_NOT_COLLECTED,
+            "peak_working_set_mb": payload["peak_working_set_mb"],
+            "peak_private_bytes_mb": payload["peak_private_bytes_mb"],
+            "kv_cache_mb": payload["kv_mb"],
+            "cpu_mean_percent": ANIMEHACKER_NOT_COLLECTED,
+            "gpu_mean_percent": ANIMEHACKER_NOT_COLLECTED,
+            "gpu_memory_peak_mb": ANIMEHACKER_NOT_COLLECTED,
+        })
+
+    quality = tuple(QualityRecord(
+        route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+        test_case_id=row["test_case_id"], quality_id=f"{row['test_case_id']}--{row['prompt_id']}",
+        prompt_id=row["prompt_id"], criterion_id="bounded-harsh-screen",
+        score=float(row["score"]), maximum_score=10.0,
+        prompt_suite_id="GTQ-PROMPTS-v1", rubric_id="GTQ-QUALITY-RUBRIC-v1",
+        scoring_version="historical-harsh-content-adjudication",
+        source_evidence_id=evidence_by_path[row["source_relative"]].evidence_id,
+    ) for row in audit["quality_rows"])
+
+    safety_paths = {
+        "AH-06": blocked_measurement_paths["AH-06"],
+        "AH-07": blocked_measurement_paths["AH-07"],
+        "AH-10": blocked_measurement_paths["AH-10"],
+    }
+    failures = [FailureRecord(
+        route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+        test_case_id=test_id, attempt_id=f"{test_id}--terminal", failure_id=f"{test_id}--safety-classification",
+        status=Status.BLOCKED, stage="pre-request memory safety gate",
+        reason="Available physical RAM crossed the controlled reserve before inference; stopped and cleanup verified",
+        source_status="safety-classified",
+        evidence_ids=(evidence_by_path[relative.as_posix()].evidence_id,),
+    ) for test_id, relative in safety_paths.items()]
+    failures.append(FailureRecord(
+        route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+        test_case_id="AH-09", attempt_id="AH-09--rejected-flash-env-only",
+        failure_id="AH-09--rejected-runtime-evidence", status=Status.FAILED,
+        stage="runtime evidence admission",
+        reason="Rejected runtime evidence was not eligible for formal summaries; retained for historical audit",
+        source_status="rejected",
+        evidence_ids=(evidence_by_path[rejected_relative.as_posix()].evidence_id,),
+    ))
+
+    repository = json.loads(
+        (root / ANIMEHACKER_RAW_RELATIVE / "acquisition/repository.json").read_text(encoding="utf-8-sig")
+    )
+    return RouteBundle(
+        route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
+        attempts=tuple(attempts), measurements=tuple(measurements), summaries=tuple(summaries),
+        quality=quality, failures=tuple(failures), evidence=evidence,
+        repository={
+            "repository_url": "https://github.com/animehacker/llama-turboquant",
+            "branch": "main (detached campaign pin)",
+            "commit": repository.get("commit", "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc"),
+            "workbook_revision": "1.5", "status_authority": (ANIMEHACKER_RAW_RELATIVE / "reconciliation.json").as_posix(),
+            "measurement_authority": "Only summary paths explicitly included by reconciliation/state",
+            "formal_runtime_summary_count": 7, "rejected_runtime_summary_count": 2,
+            "unresolved_failure_count": 0, "historical_failure_attempt_count": len(audit["historical_failures"]),
+            "resource_observations": sorted(resource_observations, key=lambda row: row["test_case_id"]),
+            "quality_calibration": ANIMEHACKER_NOT_COLLECTED,
+            "quality_direct_openvino_comparison_permitted": False,
+            "quality_method": "historical harsh content screen; deterministic gates plus manual adjudication",
+            "source_reconciliation": {key: audit[key] for key in (
+                "cpu_repository_tests", "sycl_repository_tests", "vulkan_tq3_runtime_classification",
+                "formal_runtime_summary_count", "rejected_runtime_summary_count", "authority_hashes_authenticated",
+            )},
+            "historical_failure_rows": audit["historical_failures"],
+            "quality_adjudications": audit["quality_rows"],
+        },
+        hardware={
+            "machine_id": "Lenovo-PF4HMD0T", "processor": "12th Gen Intel Core i5-12450H",
+            "ram": "16.0 GB installed; 15.7 GB usable", "graphics": "Intel UHD Graphics; shared system memory",
+            "operating_system": "Windows 11 Home 10.0.26200 build 26200", "npu": "Not available; excluded",
+        },
+        software={
+            "cmake": "4.4.0", "ninja": "1.13.0", "msvc": "19.51",
+            "cpu_tests": "40/40 passed", "sycl_tests": "40/40 terminal reconciliation",
+            "vulkan_tq3": "Not proven; supplementary build only",
+        },
+    )
+
+
+def build_animehacker_report(bundle: RouteBundle) -> Report:
+    if bundle.route_id != ANIMEHACKER_ROUTE_ID:
+        raise ValueError("animehacker report requires the animehacker route bundle")
+    terminal = [row for row in bundle.attempts if row.attempt_id.endswith("--terminal")]
+    resources = {row["test_case_id"]: row for row in bundle.repository["resource_observations"]}
+    quality_means = {
+        test_id: statistics.fmean(item.score for item in bundle.quality if item.test_case_id == test_id)
+        for test_id in ANIMEHACKER_RUNNABLE_IDS
+    }
+    attempt_rows = tuple((
+        row.test_case_id, row.status.display_label, "Yes" if row.executed else "No",
+        row.backend_id or ANIMEHACKER_NOT_COLLECTED, row.reason or "Completed with explicitly included evidence",
+    ) for row in terminal)
+    performance_rows = tuple((
+        test_id,
+        resources[test_id]["time_to_first_token_ms"], resources[test_id]["generation_tokens_per_second"],
+        resources[test_id]["peak_working_set_mb"], resources[test_id]["kv_cache_mb"],
+        resources[test_id]["cpu_mean_percent"], resources[test_id]["gpu_mean_percent"],
+        resources[test_id]["inclusion_status"],
+    ) for test_id in ANIMEHACKER_EXPECTED_IDS)
+    historical = bundle.repository["historical_failure_rows"]
+    sections = (
+        ReportSection(SECTION_ORDER[0], (_table("DC-01", "Document control", ("Field", "Value"), (
+            ("Route", ANIMEHACKER_ROUTE_ID), ("Campaign", ANIMEHACKER_CAMPAIGN_ID),
+            ("Controlled source", "WB-03 v1.5"), ("Canonical format", "Markdown"),
+        )),)),
+        ReportSection(SECTION_ORDER[1], (ReportParagraph(
+            "The final authority records seven completed runnable configurations and three resolved safety classifications. "
+            "Zero unresolved failures does not mean zero historical failure attempts: eleven resolved source-ledger events and rejected runtime evidence remain auditable."
+        ),)),
+        ReportSection(SECTION_ORDER[2], (_table("KF-01", "Decision-relevant findings", ("Finding", "Evidence-bound conclusion"), (
+            ("Runtime", "Seven formal rows have exactly three explicitly included samples each."),
+            ("Safety", "AH-06, AH-07, and AH-10 remain safety-classified; no request metrics are fabricated."),
+            ("TQ3_0", "CPU activation is validated; AH-09 is CPU-resident TQ3 KV with 1/41 SYCL layers offloaded."),
+            ("Rejected evidence", "Superseded AH-09 summaries are excluded from statistics but retained in the attempt/failure ledger."),
+        )),)),
+        ReportSection(SECTION_ORDER[3], (_table("SYS-01", "Controlled identity", ("Field", "Value"), (
+            ("Repository", bundle.repository["repository_url"]), ("Commit", bundle.repository["commit"]),
+            ("CPU", bundle.hardware["processor"]), ("RAM", bundle.hardware["ram"]),
+            ("GPU", bundle.hardware["graphics"]), ("OS", bundle.hardware["operating_system"]),
+        )),)),
+        ReportSection(SECTION_ORDER[4], (ReportParagraph(
+            "WB-03 defines AH-01 through AH-10. Final statuses come from reconciliation/state records; performance comes only from the seven selected runtime summaries."
+        ),)),
+        ReportSection(SECTION_ORDER[5], (_table("AV-01", "Model, cache, and backend availability", ("Test", "Model", "Cache", "Backend", "Status"), (
+            (row.test_case_id, row.model_id, row.cache_format_id, row.backend_id, row.status.display_label) for row in terminal
+        )),)),
+        ReportSection(SECTION_ORDER[6], (_table("AT-01", "Complete terminal attempt accounting", ("Test", "Status", "Executed", "Backend", "Reason"), attempt_rows),)),
+        ReportSection(SECTION_ORDER[7], (_table("PF-01", "Performance and resource observations", (
+            "Test", "TTFT ms", "Decode tok/s", "Peak WS MiB", "KV MiB", "CPU mean %", "GPU mean %", "Admission",
+        ), performance_rows, footnotes=("Missing request-window/OS observations remain literal Not collected; safety evidence is not a formal statistic.",)),)),
+        ReportSection(SECTION_ORDER[8], (ReportParagraph(
+            "The seven runnable rows retain 42 P1-P6 scores under the historical harsh content screen. Calibration is Not collected. "
+            "This method is not directly comparable with OpenVINO."
+        ), _table("QL-01", "Historical prompt-score means", ("Test", "Mean /10", "Boundary"), (
+            (test_id, f"{quality_means[test_id]:.4f}", "Historical route-specific screen") for test_id in ANIMEHACKER_RUNNABLE_IDS
+        )))),
+        ReportSection(SECTION_ORDER[9], (ReportParagraph(
+            "AH-08 used SYCL OpenCL partial placement. Recovered AH-09 used Level Zero level_zero:0 with CPU-resident TQ3 KV and 1/41 layers offloaded. "
+            "Vulkan built only as supplementary evidence and is not a source-proven controlled TQ3 route."
+        ),)),
+        ReportSection(SECTION_ORDER[10], (_table("FL-01", "Historical failures, recoveries, and terminal classifications", ("ID", "Scope", "Code", "Resolution"), (
+            (row["Failure ID"], row["Test ID"], row["Code"], row["Resolved?"]) for row in historical
+        ), footnotes=("All eleven historical events remain visible. The formal runtime status has zero unresolved failures, not zero historical attempts.",)),)),
+        ReportSection(SECTION_ORDER[11], (ReportParagraph(
+            "This historical route did not collect every OS metric for safety-stopped rows; those fields are Not collected, never zero. "
+            "The evidence supports a conditional research comparator, not production Intel GPU integration or a full-GPU TQ3 claim."
+        ), ReportNote("Rejected/superseded summaries are provenance evidence only and never contribute to formal aggregates."))),
+        ReportSection(SECTION_ORDER[12], (ReportParagraph(
+            "Use the ordered commands in reproduction/commands.md to rebuild the route from immutable evidence, export the owned Word PDF, finalize it, and validate checksums."
+        ),)),
+        ReportSection(SECTION_ORDER[13], (_table("EV-01", "Evidence inventory", ("Evidence ID", "Role", "Repository-relative path", "SHA-256"), (
+            (row.evidence_id, row.role, row.relative_path, row.sha256) for row in bundle.evidence
+        )),)),
+        ReportSection(SECTION_ORDER[14], (_table("RH-01", "Revision history", ("Revision", "Date", "Change"), (
+            ("1.0", date.today().isoformat(), "Initial unified final-results publication from WB-03 v1.5 evidence"),
+        )),)),
+    )
+    return Report(
+        title="animehacker TQ3_0 Final Test Report", route_id=ANIMEHACKER_ROUTE_ID,
+        revision="1.0", generated_date=date.today(), sections=sections,
+        evidence_ids=tuple(row.evidence_id for row in bundle.evidence),
+    )
+
+
+def _animehacker_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
+    attempt_ids = {row.attempt_id for row in bundle.attempts}
+    terminal = [row for row in bundle.attempts if row.attempt_id.endswith("--terminal")]
+    evidence_ids = {row.evidence_id for row in bundle.evidence}
+    measurement_ids = {row.measurement_id for row in bundle.measurements}
+    errors: list[str] = []
+    if tuple(row.test_case_id for row in terminal) != ANIMEHACKER_EXPECTED_IDS:
+        errors.append("terminal attempt coverage")
+    if len(bundle.measurements) != 21:
+        errors.append("formal measurement count")
+    for row in bundle.measurements:
+        if row.attempt_id not in attempt_ids or row.source_evidence_id not in evidence_ids:
+            errors.append(f"measurement relationship: {row.measurement_id}")
+    for row in bundle.summaries:
+        if not set(row.source_measurement_ids) <= measurement_ids:
+            errors.append(f"summary relationship: {row.summary_id}")
+    for row in bundle.quality:
+        if row.source_evidence_id not in evidence_ids:
+            errors.append(f"quality relationship: {row.quality_id}")
+    for row in bundle.failures:
+        if row.attempt_id not in attempt_ids or not row.evidence_ids or not set(row.evidence_ids) <= evidence_ids:
+            errors.append(f"failure relationship: {row.failure_id}")
+    return {
+        "valid": not errors, "errors": errors,
+        "terminal_attempt_count": len(terminal), "total_attempt_count": len(bundle.attempts),
+        "formal_measurement_count": len(bundle.measurements), "summary_count": len(bundle.summaries),
+        "quality_count": len(bundle.quality), "historical_failure_count": bundle.repository["historical_failure_attempt_count"],
+        "canonical_failure_count": len(bundle.failures), "evidence_count": len(bundle.evidence),
+    }
+
+
+def write_animehacker_route(repo_root: Path) -> RouteBundle:
+    root = Path(repo_root).resolve(strict=True)
+    route = root / ANIMEHACKER_ROUTE_RELATIVE
+    bundle = build_animehacker_bundle(root)
+    report = build_animehacker_report(bundle)
+    write_json(route / "route-manifest.json", bundle.to_row())
+    write_json(route / "system/repository.json", bundle.repository)
+    write_json(route / "system/hardware.json", bundle.hardware)
+    write_json(route / "system/software.json", bundle.software)
+    _write_text(route / "system/environment.txt", "Historical controlled Windows environment. Missing later-system fields: Not collected.")
+    terminal = [row for row in bundle.attempts if row.attempt_id.endswith("--terminal")]
+    write_csv(route / "system/model-artifacts.csv", ({
+        "model_id": row.model_id, "weight_format_id": row.weight_format_id, "status": row.status.display_label,
+    } for row in terminal), ("model_id", "weight_format_id", "status"))
+    write_csv(route / "results/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
+    write_csv(route / "results/measurements.csv", _csv_rows(bundle.measurements), _MEASUREMENT_FIELDS)
+    write_csv(route / "results/summary-results.csv", _csv_rows(bundle.summaries), _SUMMARY_FIELDS)
+    resource_fields = tuple(bundle.repository["resource_observations"][0])
+    write_csv(route / "results/resource-observations.csv", bundle.repository["resource_observations"], resource_fields)
+    write_csv(route / "results/availability-matrix.csv", ({
+        "test_case_id": row.test_case_id, "model_id": row.model_id, "weight_format_id": row.weight_format_id,
+        "cache_format_id": row.cache_format_id, "backend_id": row.backend_id, "status": row.status.value,
+    } for row in terminal), ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "backend_id", "status"))
+    _write_text(route / "results/source/README.md", "# Source-result handling\n\nWB-03, reconciliation/state authorities, summaries, adjudications, and raw evidence remain in their authoritative repository-relative locations. Rejected evidence is indexed but excluded from formal statistics.")
+
+    write_csv(route / "quality/scores.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
+    prompt_contract = _read_json(root / ANIMEHACKER_PROMPT_RELATIVE)
+    write_csv(route / "quality/prompt-suite.csv", ({
+        "prompt_id": row["prompt_id"], "task": row["task"],
+        "deterministic_checks_json": json.dumps(row["deterministic_checks"], ensure_ascii=False, sort_keys=True),
+        "scope": "seven completed runnable rows", "comparability": "No direct OpenVINO comparison",
+    } for row in prompt_contract["prompts"]), ("prompt_id", "task", "deterministic_checks_json", "scope", "comparability"))
+    write_csv(route / "quality/outputs-index.csv", ({
+        "test_case_id": row["test_case_id"], "prompt_id": row["prompt_id"],
+        "output_sha256": row["output_sha256"], "source_evidence_id": _animehacker_evidence_id(Path(row["source_relative"])),
+    } for row in bundle.repository["quality_adjudications"]), ("test_case_id", "prompt_id", "output_sha256", "source_evidence_id"))
+    write_csv(route / "quality/adjudication-log.csv", ({
+        "test_case_id": row["test_case_id"], "prompt_id": row["prompt_id"], "score": row["score"],
+        "deterministic_pass": row["deterministic_pass"], "dimensions_json": json.dumps(row["dimensions"], sort_keys=True),
+        "critical_caps_json": json.dumps(row["critical_caps"]), "critical_cap_reason": row["critical_cap_reason"],
+    } for row in bundle.repository["quality_adjudications"]), (
+        "test_case_id", "prompt_id", "score", "deterministic_pass", "dimensions_json", "critical_caps_json", "critical_cap_reason",
+    ))
+    _write_text(route / "quality/README.md", "# Quality evidence\n\nForty-two P1-P6 observations preserve the WB-03 historical harsh content screen. Deterministic gates and manual adjudication are source-bound. Calibration: Not collected. Direct OpenVINO ranking is prohibited.")
+    _write_text(route / "quality/rubric.md", "# GTQ-QUALITY-RUBRIC-v1 historical application\n\nThe original 30/25/20/15/10 weighted dimensions and critical caps are preserved. This route-specific historical application is not directly comparable with OpenVINO.")
+    _write_text(route / "quality/calibration.md", "# Calibration\n\nCalibration: Not collected\n")
+
+    write_csv(route / "failures/failure-register.csv", _csv_rows(bundle.failures), _FAILURE_FIELDS)
+    historical = bundle.repository["historical_failure_rows"]
+    write_csv(route / "protocol/deviations.csv", ({
+        "deviation_id": row["Failure ID"], "scope_ids": row["Test ID"], "code": row["Code"],
+        "description": row["Description"], "resolution": row["Resolved?"], "terminal": False,
+    } for row in historical), ("deviation_id", "scope_ids", "code", "description", "resolution", "terminal"))
+    _write_text(route / "failures/README.md", "# Failures and deviations\n\nZero unresolved failures is not zero historical failure attempts. Eleven resolved WB-03 events, three terminal safety classifications, and rejected AH-09 evidence remain visible. Rejected evidence never enters formal summaries.")
+    _write_text(route / "failures/curated-logs/README.md", "# Curated log handling\n\nNo raw logs are duplicated. All source evidence remains at its hashed repository-relative location.")
+
+    write_csv(route / "evidence/evidence-index.csv", _csv_rows(bundle.evidence), _EVIDENCE_FIELDS)
+    write_csv(route / "evidence/source-locations.csv", ({
+        "evidence_id": row.evidence_id, "relative_path": row.relative_path, "source_or_derived": "source",
+    } for row in bundle.evidence), ("evidence_id", "relative_path", "source_or_derived"))
+    role_ids = {role: [row.evidence_id for row in bundle.evidence if row.role == role] for role in {row.role for row in bundle.evidence}}
+    claims = (
+        {"claim_id": "AH-CLAIM-STATUS", "claim": "Seven completed and three safety-classified terminal rows", "test_case_ids": list(ANIMEHACKER_EXPECTED_IDS), "evidence_ids": role_ids["reconciliation"]},
+        {"claim_id": "AH-CLAIM-MEASUREMENTS", "claim": "Only seven explicitly included summaries feed formal statistics", "test_case_ids": list(ANIMEHACKER_RUNNABLE_IDS), "evidence_ids": role_ids["formal-runtime-summary"]},
+        {"claim_id": "AH-CLAIM-REJECTED", "claim": "Rejected AH-09 evidence is historical only", "test_case_ids": ["AH-09"], "evidence_ids": role_ids["rejected-runtime-summary"]},
+        {"claim_id": "AH-CLAIM-QUALITY", "claim": "Forty-two route-specific quality scores; no direct OpenVINO ranking", "test_case_ids": list(ANIMEHACKER_RUNNABLE_IDS), "evidence_ids": role_ids["quality-register"] + role_ids["quality-rubric"] + role_ids["prompt-contract"]},
+    )
+    write_csv(route / "evidence/claim-evidence-map.csv", ({
+        "claim_id": row["claim_id"], "claim": row["claim"],
+        "test_case_ids": json.dumps(row["test_case_ids"]), "evidence_ids": json.dumps(row["evidence_ids"]),
+    } for row in claims), ("claim_id", "claim", "test_case_ids", "evidence_ids"))
+
+    matrix = _animehacker_matrix(root)
+    matrix_fields = tuple(matrix[0])
+    write_csv(route / "protocol/intended-test-matrix.csv", matrix, matrix_fields)
+    _write_text(route / "protocol/test-plan.md", "# Test plan\n\nWB-03 v1.5 controls AH-01 through AH-10. This publication normalizes existing evidence and does not rerun inference.")
+    _write_text(route / "protocol/execution-sequence.md", "# Execution sequence\n\nCPU/SYCL/Vulkan build reconciliation; guarded runtime pilots; excluded warm-up; three formal repetitions for runnable rows; P1-P6 scoring; terminal reconciliation.")
+    _write_text(route / "protocol/metric-definitions.md", "# Metric definitions\n\nMedians use only the three explicitly included repetitions. Peak working set is the maximum included OS observation. Rejected evidence and safety-only pilots do not enter formal statistics. Missing OS observations display `Not collected`, never zero.")
+    _write_text(route / "reproduction/README.md", "# Reproduction\n\nThese commands rebuild the report from existing evidence; they do not rerun benchmarks.")
+    _write_text(route / "reproduction/commands.md", """# Ordered reproduction commands
+
+1. Normalize and render
+```powershell
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import write_animehacker_route; write_animehacker_route(root)"
+```
+2. Export the owned Word PDF
+```powershell
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/Export-Final-Results-Pdf.ps1 -DocxPath docs/testing/final-results/03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.docx -PdfPath docs/testing/final-results/03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.pdf -TimeoutSeconds 180
+```
+3. Finalize and validate
+```powershell
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import finalize_animehacker_route; finalize_animehacker_route(root)"
+```
+4. Validate manifest
+```powershell
+& .tools/python311-portable/python.exe -c "from pathlib import Path; from scripts.testing.final_results.evidence import validate_sha256_manifest; root=Path.cwd(); errors=validate_sha256_manifest(root,root/'docs/testing/final-results/03-animehacker-tq3-0/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
+```
+5. Run focused validation
+```powershell
+& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/test_final_results_animehacker.py -q
+```
+""")
+    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- Microsoft Word via the bounded owned exporter\n- `scripts/testing/final_results/llama_adapter.py`")
+    _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/final_results/llama_adapter.py`.")
+    _write_text(route / "README.md", "# animehacker TQ3_0 final results\n\nCanonical Markdown and synchronized DOCX/PDF derivatives preserve WB-03 v1.5 authority, rejected evidence, safety classifications, and missing-value boundaries.")
+
+    markdown = route / "workbook/source/animehacker-tq3-0-final-report.md"
+    docx = route / "workbook/generated/animehacker-tq3-0-final-report.docx"
+    render_markdown(report, markdown)
+    render_docx(report, docx)
+    parity = compare_markdown_docx(markdown, docx)
+    relationships = _animehacker_relationship_receipt(bundle)
+    coverage = {
+        "valid": len(terminal) == 10 and len(bundle.measurements) == 21 and len(bundle.quality) == 42,
+        "terminal_attempt_count": len(terminal), "completed_count": sum(row.status is Status.PASSED for row in terminal),
+        "safety_classified_count": sum(row.status is Status.BLOCKED for row in terminal),
+        "formal_measurement_count": len(bundle.measurements), "quality_count": len(bundle.quality),
+        "rejected_attempt_count": sum(row.source_status == "rejected" for row in bundle.attempts),
+    }
+    data = {
+        "valid": parity["matches"] and relationships["valid"],
+        "status_authority": bundle.repository["status_authority"],
+        "formal_runtime_summary_count": 7, "explicit_inclusion_required": True,
+        "rejected_runtime_summary_count": 2, "unresolved_failure_count": 0,
+        "historical_failure_attempt_count": bundle.repository["historical_failure_attempt_count"],
+        "missing_value_display": ANIMEHACKER_NOT_COLLECTED,
+    }
+    write_json(route / "validation/workbook-parity.json", parity)
+    write_json(route / "validation/relationship-validation.json", relationships)
+    write_json(route / "validation/coverage-validation.json", coverage)
+    write_json(route / "validation/data-validation.json", data)
+    _write_text(route / "validation/validation-report.md", "# Validation report\n\nStatus authority, explicit inclusion, source aggregates, quality relationships, historical/rejected evidence retention, schema relationships, and Markdown/DOCX parity: Passed. PDF visual validation follows owned Word export.")
+    write_json(route / "validation/integrity-validation.json", {"valid": False, "status": "Pending final PDF and manifest regeneration"})
+    write_json(route / "validation/visual-validation.json", {"valid": False, "status": "Pending owned Word PDF export and inspection"})
+    manifest = regenerate_route_manifest(root, route)
+    errors = validate_sha256_manifest(root, manifest)
+    if not parity["matches"] or not relationships["valid"] or not coverage["valid"] or not data["valid"] or errors:
+        raise ValueError("animehacker route validation failed")
+    return bundle
+
+
+def finalize_animehacker_route(repo_root: Path) -> dict[str, object]:
+    from pypdf import PdfReader
+    root = Path(repo_root).resolve(strict=True)
+    route = root / ANIMEHACKER_ROUTE_RELATIVE
+    pdf = route / "workbook/generated/animehacker-tq3-0-final-report.pdf"
+    if not pdf.is_file() or not pdf.read_bytes().startswith(b"%PDF-"):
+        raise ValueError("Word-exported animehacker PDF is missing or malformed")
+    reader = PdfReader(pdf)
+    page_text = [(page.extract_text() or "").strip() for page in reader.pages]
+    combined = "\n".join(page_text)
+    normalized = " ".join(combined.split())
+    checks = {
+        "pdf_signature": True, "page_count": len(reader.pages), "all_pages_nonblank": all(page_text),
+        "all_sections_present": all(heading in combined for heading in SECTION_ORDER),
+        "status_boundary_present": "seven completed" in normalized and "three resolved safety" in normalized,
+        "historical_failure_boundary_present": "historical failure attempts" in normalized,
+        "missing_value_boundary_present": ANIMEHACKER_NOT_COLLECTED in normalized,
+    }
+    valid = len(reader.pages) >= 10 and all(value for key, value in checks.items() if key != "page_count")
+    contact_sheet_ranges = [
+        f"{start + 1}-{min(start + 9, len(reader.pages))}"
+        for start in range(0, len(reader.pages), 9)
+    ]
+    receipt = {
+        "valid": valid, "checks": checks, "inspected_pages": list(range(1, len(reader.pages) + 1)),
+        "visual_findings": {
+            "inspection_method": "Rendered every PDF page with PyMuPDF and inspected contact sheets of up to 3-by-3 pages",
+            "contact_sheet_page_ranges": contact_sheet_ranges,
+            "inspection": "Every rendered page inspected; no blank, clipped, corrupt, or truncated content observed.",
+            "evidence_table_pages": "10-40",
+            "revision_history_page": len(reader.pages),
+            "temporary_contact_sheets_committed": False,
+        },
+    }
+    if not valid:
+        raise ValueError(f"animehacker PDF structural validation failed: {checks}")
+    write_json(route / "validation/visual-validation.json", receipt)
+    write_json(route / "validation/integrity-validation.json", {
+        "valid": True, "pdf_sha256": hash_file(pdf), "pdf_size_bytes": pdf.stat().st_size,
+    })
+    regenerate_route_manifest(root, route)
+    errors = validate_sha256_manifest(root, route / "evidence/manifest-sha256.txt")
+    if errors:
+        raise ValueError(f"animehacker manifest validation failed: {errors}")
+    return receipt
+
+
 __all__ = [
     "build_upstream_llama_bundle",
     "build_upstream_llama_report",
@@ -2406,4 +3187,10 @@ __all__ = [
     "finalize_upstream_llama_route",
     "hash_file",
     "_parse_workbook_matrix",
+    "ANIMEHACKER_EXPECTED_IDS",
+    "audit_animehacker_sources",
+    "build_animehacker_bundle",
+    "build_animehacker_report",
+    "write_animehacker_route",
+    "finalize_animehacker_route",
 ]

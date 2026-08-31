@@ -1,0 +1,7 @@
+prompt_id,task,deterministic_checks_json,scope,comparability
+P1,Sanity explanation,"{""exact_bullet_count"": 5, ""maximum_words"": 89, ""required_semantic_slots"": [""two benefits"", ""two limitations"", ""one check""], ""required_substrings"": [""KV cache"", ""offline"", ""memory""]}",seven completed runnable rows,No direct OpenVINO comparison
+P2,Instruction following,"{""exact_nonempty_lines"": 3, ""line_prefixes"": [""BENEFIT:"", ""LIMITATION:"", ""CHECK:""], ""prohibit_extra_text"": true}",seven completed runnable rows,No direct OpenVINO comparison
+P3,Exact JSON structure,"{""all_other_values_type"": ""string"", ""exact_top_level_keys"": [""optimisation"", ""memory_effect"", ""quality_risk"", ""verification""], ""exact_values"": {""optimisation"": ""TurboQuant""}, ""prohibit_markdown_fence"": true, ""valid_json"": true}",seven completed runnable rows,No direct OpenVINO comparison
+P4,Summarisation and fact retention,"{""exact_sentences"": 2, ""required_facts"": [""IBM Granite 4.1 3B"", ""upstream llama.cpp"", ""Q4_K_M"", ""Q8_0 K cache"", ""Q8_0 V cache"", ""4096"", ""local Windows Intel"", ""TurboQuant not active""], ""unsupported_fact_count_expected"": 0}",seven completed runnable rows,No direct OpenVINO comparison
+P5,Long-context exact retrieval,"{""exact_nonempty_lines"": 1, ""exact_output"": ""MARKER:IXN-TQ-7319""}",seven completed runnable rows,No direct OpenVINO comparison
+P6,Multi-turn stability,"{""turn_1_exact_output"": ""SAVED"", ""turn_2_exact_output"": ""amber:4821""}",seven completed runnable rows,No direct OpenVINO comparison

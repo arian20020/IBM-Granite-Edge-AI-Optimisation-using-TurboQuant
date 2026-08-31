@@ -1,0 +1,11 @@
+test_case_id,inclusion_status,summary_evidence_id,time_to_first_token_ms,prompt_tokens_per_second,generation_tokens_per_second,peak_working_set_mb,peak_private_bytes_mb,kv_cache_mb,cpu_mean_percent,gpu_mean_percent,gpu_memory_peak_mb
+AH-01,included,animehacker-2c8711c6ef06a0aae448,140.3925,95.31484225393606,46.32343893629804,929.48828125,730.87109375,26.0,56.9017584,0.0,0.0
+AH-02,included,animehacker-7be5a350bf466da3eaaf,137.7451,81.5128790348875,37.74895880703853,911.0625,712.9140625,5.6899999999999995,58.43756383333332,0.0,0.0
+AH-03,included,animehacker-ff5d663228531b9bb284,274.9168,45.68887399770033,15.871533821308601,3663.23046875,1944.08203125,160.0,62.038622076923076,0.0,0.0
+AH-04,included,animehacker-f57e698215bd476a2ed4,243.2251,52.02800841119469,15.819049843601503,3672.13671875,1933.171875,170.0,61.971243034188035,0.0,0.0
+AH-05,included,animehacker-2fdd99f74f84583010bc,252.5695,50.690446118167884,11.535865275513414,3575.02734375,1838.03515625,70.0,62.70475638997821,0.0,0.0
+AH-06,safety evidence only; excluded from formal statistics,animehacker-57d0c768549edab36e5f,Not collected,Not collected,Not collected,8913.6484375,4317.8671875,320.0,Not collected,Not collected,Not collected
+AH-07,safety evidence only; excluded from formal statistics,animehacker-cd9e81def3ebb64f18ec,Not collected,Not collected,Not collected,8737.703125,4137.68359375,140.0,Not collected,Not collected,Not collected
+AH-08,included,animehacker-9718cbe662f09c02b2f6,309.9542,40.92755481734373,15.18407067615497,3130.69140625,1289.58203125,320.0,62.03087522649573,16.30982905982906,408.109375
+AH-09,included,animehacker-7fa35879b72853a189cc,491.0024,40.9038105989954,12.10940430529057,2891.65625,1040.0859375,70.0,63.13879183790849,12.605228758169934,411.628906
+AH-10,safety evidence only; excluded from formal statistics,animehacker-993c82e73a1b79e1b4ee,Not collected,Not collected,Not collected,8969.625,1145.53515625,70.0,Not collected,Not collected,Not collected
