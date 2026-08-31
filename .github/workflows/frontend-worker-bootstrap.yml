@@ -41,24 +41,42 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Check out full history
-        uses: actions/checkout@v4
+      - name: Enable Windows long paths
+        shell: pwsh
+        run: git config --global core.longpaths true
+
+      - name: Check out the frontend-worker surface
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            AGENTS.md
+            .agents/
+            .codex/
+            .frontend-worker/
+            .github/workflows/frontend-worker-bootstrap.yml
+            plugins/granite-native-frontend-worker/
+            scripts/
+            tools/GraniteFrontendGuard/
+            docs/frontend-worker/
+            docs/superpowers/specs/2026-08-31-granite-native-frontend-worker-v2-design.md
+            docs/superpowers/plans/2026-08-31-granite-native-frontend-worker-v2-bootstrap.md
 
       - name: Set up .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
       - name: Fetch protected base branch
         shell: pwsh
-        run: git fetch origin integration/ucl-cross-route-native-validation-v1
+        run: git fetch --no-tags origin +refs/heads/integration/ucl-cross-route-native-validation-v1:refs/remotes/origin/integration/ucl-cross-route-native-validation-v1
 
       - name: Parse JSON, YAML, and TOML metadata
         shell: pwsh
@@ -88,11 +106,12 @@ jobs:
           for path in yaml_files:
               yaml.safe_load(path.read_text(encoding='utf-8'))
 
-          for path in (root / '.codex/agents').glob('*.toml'):
+          toml_files = list((root / '.codex/agents').glob('*.toml'))
+          for path in toml_files:
               with path.open('rb') as handle:
                   tomllib.load(handle)
 
-          print(f'Parsed {len(json_files)} JSON, {len(yaml_files)} YAML, and {len(list((root / ".codex/agents").glob("*.toml")))} TOML files.')
+          print(f'Parsed {len(json_files)} JSON, {len(yaml_files)} YAML, and {len(toml_files)} TOML files.')
           '@ | python -
 
       - name: Run structural, isolation, and guard regression verification
