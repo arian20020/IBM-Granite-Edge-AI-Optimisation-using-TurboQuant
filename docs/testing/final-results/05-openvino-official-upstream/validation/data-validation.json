@@ -369,6 +369,11 @@
       "expected": [],
       "passed": true
     },
+    "source_location_evidence_consistency": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
     "summary_count": {
       "actual": 45,
       "expected": 45,

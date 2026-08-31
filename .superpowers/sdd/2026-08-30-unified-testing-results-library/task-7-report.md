@@ -85,7 +85,7 @@ coverage receipt valid true; data receipt valid true
 Draft 2020-12 schema errors 0 across 2,418 canonical records
 manifest entries 22; validation errors []
 evidence records 92; source locations 94
-coverage receipt checks 8/8 passed; data receipt checks 20/20 passed
+coverage receipt checks 8/8 passed; data receipt checks 21/21 passed
 ```
 
 Workbook verification:
@@ -177,6 +177,45 @@ The official, experimental, models, Markdown, evidence, and CSV non-Word regress
 ```
 
 Mutation coverage includes all five cache activation contracts (`tbq3` TURBO/u3, `tbq4` TURBO/u4, `u4` SCALAR/u4, `u8` SCALAR/u8, and unquantized `f16`), synchronized prompt/quality/output identity remapping, conversion-log unlinking, preflight dependency unlinking, and source-location alias digest mutation.
+
+## Fix round 2/5
+
+### Reviewer findings addressed
+
+- The shared benchmark input is now hashed from its actual bytes during every official bundle build. Every passed raw case must declare the exact repository-relative benchmark-input path and that actual digest in all three repetitions and its selected benchmark record.
+- The fv1 preflight receipt is parsed before evidence construction. Its three captures must reference exactly the two recovered preflight input files, and every embedded `prompt_path`/`prompt_sha256` pair must resolve to the actual file and digest. The preflight receipt links the corresponding two `EvidenceRecord` identities.
+- All three physical `source-models.json` aliases must have one identical `(SHA-256, size)` identity before bundle construction. A divergent alias is rejected before route writing.
+- The data receipt now independently checks every source-location row against its referenced `EvidenceRecord` and exact physical file. It rejects unindexed/duplicate paths, missing evidence IDs, role/hash/size mismatches, physical-content mismatches, and anything other than all three source-model paths sharing one content evidence identity.
+
+### RED evidence
+
+Byte mutations to the benchmark input, each preflight input, and one source-model alias were all accepted before implementation. Five independent source-location field mutations also exposed the absent explicit consistency receipt:
+
+```text
+9 failed in 6.51s
+```
+
+### GREEN evidence
+
+The new mutation subset passed:
+
+```text
+9 passed in 4.75s
+```
+
+The complete official suite passed:
+
+```text
+32 passed in 18.64s
+```
+
+The official, experimental, models, Markdown, evidence, and CSV non-Word regression passed:
+
+```text
+168 passed in 78.37s
+```
+
+The unchanged frozen data still produces 92 evidence records and 94 source locations. Only `validation/data-validation.json` and the checksum manifest required route regeneration; the receipt now has 21/21 passing checks. Draft 2020-12 validation remains zero errors across 2,418 canonical records, and the 22-entry checksum manifest validates without errors.
 
 ## Concerns
 

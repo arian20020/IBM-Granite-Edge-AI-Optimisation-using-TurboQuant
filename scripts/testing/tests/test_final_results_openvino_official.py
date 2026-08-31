@@ -330,6 +330,44 @@ def test_official_rejects_missing_required_log_alias_or_preflight_input(tmp_path
             build_official_bundle(repo)
 
 
+def test_official_rejects_changed_shared_benchmark_input_bytes(tmp_path):
+    repo = _isolated_official_repo(tmp_path)
+    relative = (
+        FV1
+        / "inputs/f2b9e8f0f10053f3a04e1532ecd1e66d026ba1f37e7cde636bc2b5e2748c301c.txt"
+    )
+    path = repo / relative
+    path.write_bytes(path.read_bytes() + b"\nchanged benchmark input")
+
+    with pytest.raises(ValueError, match="benchmark input.*hash|hash.*benchmark input"):
+        build_official_bundle(repo)
+
+
+@pytest.mark.parametrize(
+    "name",
+    (
+        "314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3.txt",
+        "ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0.txt",
+    ),
+)
+def test_official_rejects_changed_preflight_input_bytes(tmp_path, name):
+    repo = _isolated_official_repo(tmp_path)
+    path = repo / FV1 / "preflight/inputs" / name
+    path.write_bytes(path.read_bytes() + b"\nchanged preflight input")
+
+    with pytest.raises(ValueError, match="preflight input.*hash|hash.*preflight input"):
+        build_official_bundle(repo)
+
+
+def test_official_rejects_changed_source_model_alias_bytes(tmp_path):
+    repo = _isolated_official_repo(tmp_path)
+    path = repo / FV2 / "guarded-retry-001/source-models.json"
+    path.write_bytes(path.read_bytes() + b" ")
+
+    with pytest.raises(ValueError, match="source-model alias.*conflict"):
+        build_official_bundle(repo)
+
+
 @pytest.mark.parametrize(
     ("case_id", "algorithm", "precision"),
     (
@@ -571,6 +609,40 @@ def test_official_validation_rejects_each_published_entity_type_mutation():
     )
     assert coverage["checks"]["conversion_log_coverage"]["passed"] is False
     assert data["checks"]["failure_entities"]["passed"] is False
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("evidence_id", "openvino-official-upstream-36d151562886"),
+        ("role", "conversion-log"),
+        ("sha256", "0" * 64),
+        ("size_bytes", "7933"),
+        (
+            "relative_path",
+            (
+                FV1
+                / "inputs/f2b9e8f0f10053f3a04e1532ecd1e66d026ba1f37e7cde636bc2b5e2748c301c.txt"
+            ).as_posix(),
+        ),
+    ),
+)
+def test_official_validation_rejects_source_location_evidence_mismatch(
+    field, replacement
+):
+    bundle = build_official_bundle(REPO_ROOT)
+    rows = _rows(ROUTE / "evidence/source-locations.csv")
+    alias = next(
+        row for row in rows
+        if row["relative_path"].endswith("guarded-retry-001/source-models.json")
+    )
+    alias[field] = replacement
+
+    _, data = build_official_validation_receipts(
+        REPO_ROOT, bundle, source_location_rows=rows
+    )
+
+    assert data["checks"]["source_location_evidence_consistency"]["passed"] is False
 
 
 def test_official_rejects_a_passed_fv2_case_without_fv1_raw_evidence(tmp_path):

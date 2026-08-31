@@ -1023,7 +1023,10 @@ def _validate_official_cache_source_row(row: Mapping[str, str], source: str) -> 
 
 
 def _validate_official_raw_cache_semantics(
-    case_id: str, cache_codec: str, raw_payload: Mapping[str, object]
+    case_id: str,
+    cache_codec: str,
+    raw_payload: Mapping[str, object],
+    repo_root: Path,
 ) -> None:
     _, _, expected = _official_cache_semantics(cache_codec)
     if raw_payload.get("runtime_properties") != expected:
@@ -1040,13 +1043,52 @@ def _validate_official_raw_cache_semantics(
     if isinstance(selected, dict):
         benchmark_runs.append(selected)
     expected_path = _OFFICIAL_BENCHMARK_INPUT.as_posix()
-    expected_sha = _OFFICIAL_BENCHMARK_INPUT.stem
+    expected_sha = hash_file(repo_root / _OFFICIAL_BENCHMARK_INPUT)
     for run in benchmark_runs:
         if not isinstance(run, dict):
             raise ValueError(f"{case_id}: malformed benchmark input evidence")
         actual_path = _portable_source_path(str(run.get("prompt_path", "")))
-        if actual_path != expected_path or run.get("prompt_sha256") != expected_sha:
-            raise ValueError(f"{case_id}: benchmark input evidence conflict")
+        if actual_path != expected_path:
+            raise ValueError(f"{case_id}: benchmark input path conflict")
+        if run.get("prompt_sha256") != expected_sha:
+            raise ValueError(f"{case_id}: benchmark input hash conflict")
+
+
+def _validate_official_preflight_inputs(repo_root: Path) -> tuple[Path, ...]:
+    receipt_path = repo_root / _OFFICIAL_FV1_RELATIVE / "preflight/preflight-receipt.json"
+    payload = _read_json(receipt_path)
+    captures = payload.get("captures") if isinstance(payload, dict) else None
+    if not isinstance(captures, dict) or not captures:
+        raise ValueError("official preflight receipt lacks capture input evidence")
+    expected = {relative.as_posix(): relative for relative in _OFFICIAL_PREFLIGHT_INPUTS}
+    referenced: set[str] = set()
+    for capture_id, capture in captures.items():
+        if not isinstance(capture, dict):
+            raise ValueError(f"official preflight capture {capture_id} is malformed")
+        relative_path = _portable_source_path(str(capture.get("prompt_path", "")))
+        relative = expected.get(relative_path)
+        if relative is None:
+            raise ValueError(
+                f"official preflight input path conflict for capture {capture_id}"
+            )
+        actual_sha = hash_file(repo_root / relative)
+        if capture.get("prompt_sha256") != actual_sha:
+            raise ValueError(
+                f"official preflight input hash conflict for capture {capture_id}"
+            )
+        referenced.add(relative_path)
+    if referenced != set(expected):
+        raise ValueError("official preflight receipt does not reference both input files")
+    return tuple(relative for relative in _OFFICIAL_PREFLIGHT_INPUTS)
+
+
+def _validate_official_source_model_aliases(repo_root: Path) -> None:
+    identities = {
+        (hash_file(repo_root / relative), (repo_root / relative).stat().st_size)
+        for relative in _OFFICIAL_SOURCE_MODEL_ALIASES
+    }
+    if len(identities) != 1:
+        raise ValueError("official source-model alias content conflict")
 
 
 def _validate_official_tables(
@@ -1059,7 +1101,7 @@ def _validate_official_tables(
     fv1_coverage: list[dict[str, str]],
     fv1_quality: list[dict[str, str]],
     repo_root: Path,
-) -> None:
+) -> tuple[Path, ...]:
     required_evidence = (
         *_OFFICIAL_PREFLIGHT_INPUTS,
         _OFFICIAL_BENCHMARK_INPUT,
@@ -1069,6 +1111,8 @@ def _validate_official_tables(
     for relative in required_evidence:
         if not (repo_root / relative).is_file():
             raise FileNotFoundError(f"required official evidence is missing: {relative.as_posix()}")
+    preflight_inputs = _validate_official_preflight_inputs(repo_root)
+    _validate_official_source_model_aliases(repo_root)
     if len(fv2_detailed) != 45 or len({row["case_id"] for row in fv2_detailed}) != 45:
         raise ValueError("official fv2 detailed results must contain 45 unique cases")
     expected_statuses = Counter(
@@ -1331,6 +1375,7 @@ def _validate_official_tables(
         raise ValueError("official fv1 quality evidence must have three criteria per prompt")
     if set(Counter(case for case, _ in quality_counts).values()) != {48}:
         raise ValueError("official fv1 quality evidence must have 48 prompts per passed case")
+    return preflight_inputs
 
 
 def build_official_bundle(repo_root: Path) -> RouteBundle:
@@ -1356,7 +1401,7 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
     fv1_comparison = _read_csv(fv1_comparison_path)
     fv1_coverage = _read_csv(fv1_coverage_path)
     fv1_quality = _read_csv(fv1_quality_path)
-    _validate_official_tables(
+    preflight_input_relatives = _validate_official_tables(
         fv2_detailed,
         fv2_comparison,
         fv2_coverage,
@@ -1377,7 +1422,7 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
             f"fv1 preflight input {relative.name}",
             evidence,
         )
-        for relative in _OFFICIAL_PREFLIGHT_INPUTS
+        for relative in preflight_input_relatives
     ]
     benchmark_input_record = _record_official_evidence(
         root,
@@ -1498,7 +1543,7 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
             if not isinstance(raw_payload, dict) or raw_payload.get("case_id") != case_id:
                 raise ValueError(f"{case_id}: fv1 raw-result identity mismatch")
             _validate_official_raw_cache_semantics(
-                case_id, row["cache_codec"], raw_payload
+                case_id, row["cache_codec"], raw_payload, root
             )
             raw_by_case[case_id] = raw_payload
             raw_evidence_by_case[case_id] = raw_record
@@ -1983,6 +2028,59 @@ def _official_source_location_rows(
             }
         )
     return sorted(rows, key=lambda row: (str(row["relative_path"]), str(row["evidence_id"])))
+
+
+def _official_source_location_consistency_errors(
+    repo_root: Path,
+    bundle: RouteBundle,
+    rows: Sequence[Mapping[str, object]],
+) -> list[str]:
+    errors: list[str] = []
+    evidence_by_id = {item.evidence_id: item for item in bundle.evidence}
+    alias_paths = {relative.as_posix() for relative in _OFFICIAL_SOURCE_MODEL_ALIASES}
+    allowed_paths = {item.relative_path for item in bundle.evidence} | alias_paths
+    seen_paths: set[str] = set()
+    observed_aliases: list[tuple[str, str, str, int]] = []
+    for row in rows:
+        relative = str(row.get("relative_path", ""))
+        evidence_id = str(row.get("evidence_id", ""))
+        role = str(row.get("role", ""))
+        digest = str(row.get("sha256", ""))
+        try:
+            size = int(row.get("size_bytes", 0))
+        except (TypeError, ValueError):
+            errors.append(f"{relative}: invalid source-location size")
+            continue
+        if relative in seen_paths:
+            errors.append(f"{relative}: duplicate source-location path")
+        seen_paths.add(relative)
+        record = evidence_by_id.get(evidence_id)
+        if record is None:
+            errors.append(f"{relative}: source-location evidence ID is not indexed")
+            continue
+        if relative not in allowed_paths:
+            errors.append(f"{relative}: source-location path is not indexed")
+            continue
+        if role != record.role or digest != record.sha256 or size != record.size_bytes:
+            errors.append(f"{relative}: source-location differs from evidence record")
+        is_alias = relative in alias_paths
+        if is_alias:
+            observed_aliases.append((relative, evidence_id, digest, size))
+            if role != "missing-model-source-inventory":
+                errors.append(f"{relative}: source-model alias role conflict")
+        elif relative != record.relative_path:
+            errors.append(f"{relative}: source-location path differs from evidence record")
+        physical = repo_root / Path(relative)
+        if not physical.is_file():
+            errors.append(f"{relative}: physical source-location file is missing")
+            continue
+        if hash_file(physical) != digest or physical.stat().st_size != size:
+            errors.append(f"{relative}: physical source-location content conflict")
+    if {item[0] for item in observed_aliases} != alias_paths:
+        errors.append("source-model aliases do not preserve all three physical paths")
+    if len({(item[1], item[2], item[3]) for item in observed_aliases}) != 1:
+        errors.append("source-model aliases do not share one content evidence identity")
+    return errors
 
 
 def _availability_rows(bundle: RouteBundle) -> list[dict[str, object]]:
@@ -3383,7 +3481,7 @@ def _official_frozen_validation_expectations(repo_root: Path) -> dict[str, objec
     fv1_comparison = _read_csv(paths["fv1-comparison"])
     fv1_coverage = _read_csv(paths["fv1-coverage"])
     fv1_quality = _read_csv(paths["fv1-quality"])
-    _validate_official_tables(
+    preflight_input_relatives = _validate_official_tables(
         fv2_detailed,
         fv2_comparison,
         fv2_coverage,
@@ -3442,7 +3540,7 @@ def _official_frozen_validation_expectations(repo_root: Path) -> dict[str, objec
             "preflight-input",
             f"fv1 preflight input {relative.name}",
         )
-        for relative in _OFFICIAL_PREFLIGHT_INPUTS
+        for relative in preflight_input_relatives
     ]
     benchmark_input_id = add_evidence(
         repo_root / _OFFICIAL_BENCHMARK_INPUT,
@@ -3539,7 +3637,7 @@ def _official_frozen_validation_expectations(repo_root: Path) -> dict[str, objec
             if not isinstance(raw_payload, dict):
                 raise ValueError(f"{case_id}: frozen raw result is not an object")
             _validate_official_raw_cache_semantics(
-                case_id, row["cache_codec"], raw_payload
+                case_id, row["cache_codec"], raw_payload, repo_root
             )
             raw_payloads[case_id] = raw_payload
             measurement_ids: list[str] = []
@@ -4001,6 +4099,9 @@ def build_official_validation_receipts(
         }
         for row in expected["source_location_entities"]
     ]
+    source_location_consistency_errors = _official_source_location_consistency_errors(
+        root, bundle, source_location_rows
+    )
 
     attempts_by_id = {item.attempt_id: item for item in bundle.attempts}
     evidence_by_id = {item.evidence_id: item for item in bundle.evidence}
@@ -4123,6 +4224,9 @@ def build_official_validation_receipts(
                 ("relative_path",),
             ),
         },
+        "source_location_evidence_consistency": _receipt_check(
+            source_location_consistency_errors, []
+        ),
         "route_metadata": _receipt_check(bundle.to_row(), expected["route_manifest"]),
         "same_case_typed_references": _receipt_check(
             same_case_typed_references, True
