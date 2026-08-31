@@ -1,0 +1,4 @@
+interface:
+  display_name: "Granite Native Frontend Worker"
+  short_description: "Redesign WinUI 3 surfaces without backend changes"
+  default_prompt: "Initialise and verify the Granite Native Frontend Worker v2. Do not implement UI until explicitly authorised."

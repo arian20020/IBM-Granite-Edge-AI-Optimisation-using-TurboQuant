@@ -1,0 +1,38 @@
+version: 2
+source_provider: cyxzdev/Uncodixfy
+mode: adapted-read-only
+retain:
+  - "Avoid nested cards without real hierarchy."
+  - "Avoid turning every section into a rounded panel."
+  - "Avoid fake metrics, charts, progress and status data."
+  - "Avoid decorative eyebrow labels and filler copy."
+  - "Avoid generic dashboard hero areas inside operational screens."
+  - "Avoid indiscriminate large radii, gradients, glows and glass panels."
+  - "Avoid overpadding, pill overload and ornamental motion."
+  - "Avoid mixed icon families and misleading affordances."
+override:
+  font:
+    original: "Avoid Segoe UI."
+    winui_rule: "Segoe UI Variable is the default native Windows UI font. Existing licensed Inter is a reviewed branded exception."
+  blue:
+    original: "Avoid blue."
+    winui_rule: "A reviewed IBM/Granite blue is valid when represented by semantic theme resources and accessible contrast."
+  headings:
+    original: "Avoid headlines."
+    winui_rule: "Use a restrained Windows type hierarchy with meaningful page and section headings."
+  asymmetry:
+    original: "Avoid creative asymmetry."
+    winui_rule: "Permit asymmetry when it supports task hierarchy and adapts correctly."
+  motion:
+    original: "Avoid transform motion."
+    winui_rule: "Permit restrained native opacity and translation motion that communicates an existing state transition."
+  materials:
+    original: "Avoid glass-like materials."
+    winui_rule: "Mica is valid once at the window backdrop level; Acrylic is limited to transient surfaces."
+reject:
+  - "No headlines of any sort."
+  - "No blue."
+  - "Never use Segoe UI."
+  - "Never use asymmetry."
+  - "Any CSS-specific rule applied literally to XAML."
+  - "Any rule that conflicts with accessibility or a native control contract."

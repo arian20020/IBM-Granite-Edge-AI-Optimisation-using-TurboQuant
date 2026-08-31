@@ -1,0 +1,83 @@
+version: 2
+default_classification: blocked
+classifications:
+  P0_immutable:
+    description: "Operational, contract, packaging, runtime, worker, backend, or project-structure files."
+    patterns:
+      - "shared/**"
+      - "infrastructure/**"
+      - "runtime/**"
+      - "workers/**"
+      - "experiments/**"
+      - "**/Contracts/**"
+      - "**/Domain/**"
+      - "**/Application/**"
+      - "**/Infrastructure/**"
+      - "**/Runtime/**"
+      - "**/Execution/**"
+      - "**/Storage/**"
+      - "**/QuickScan/**"
+      - "**/*WorkerClient*/**"
+      - "**/*Protocol*/**"
+      - "**/*.targets"
+      - "**/*.csproj"
+      - "**/*.sln"
+      - "**/*.slnx"
+      - "**/Package.appxmanifest"
+      - "**/app.manifest"
+      - "**/App.xaml.cs"
+    action: reject
+  P1_behavior_sensitive_ui:
+    description: "UI orchestration that can change behaviour. Frozen unless individually approved."
+    patterns:
+      - "**/MainWindow.xaml.cs"
+      - "**/*.xaml.cs"
+      - "**/ViewModels/**"
+      - "**/Controllers/**"
+      - "**/Coordinators/**"
+      - "**/*Scheduler.cs"
+      - "**/*StateMachine.cs"
+      - "**/*Session.cs"
+    action: require_explicit_manifest_and_guard_review
+  P2_presentation_logic:
+    description: "Presentation models, factories, copy, visual state, animation and mapping code."
+    patterns:
+      - "**/Presentation/**/*.cs"
+      - "**/*Presentation*.cs"
+      - "**/*Display*.cs"
+      - "**/*CopyCatalog.cs"
+      - "**/*ViewState.cs"
+    action: require_manifest_and_output_contract_review
+  P3_visual_surface:
+    description: "Normal visual implementation zone after authorization."
+    patterns:
+      - "**/*.xaml"
+      - "**/Presentation/**/*.xaml"
+      - "**/Themes/**/*.xaml"
+      - "**/Styles/**/*.xaml"
+      - "**/Assets/Branding/**"
+      - "**/Assets/Illustrations/**"
+      - "**/Strings/**"
+    action: allow_only_after_authorization
+  P4_fixture_evidence:
+    description: "Debug fixture, UI test, evidence and frontend documentation."
+    patterns:
+      - "**/DebugFixtures/**"
+      - "tests/**/UI/**"
+      - "tests/**/Presentation/**"
+      - "docs/frontend-worker/**"
+      - ".frontend-worker/**"
+      - "plugins/granite-native-frontend-worker/**"
+      - ".agents/plugins/**"
+      - ".agents/skills/**"
+      - ".codex/skills/**"
+      - ".codex/agents/**"
+      - "scripts/frontend-worker/**"
+      - "AGENTS.md"
+    action: allow_initialization
+semantic_prohibitions:
+  - "No new or changed backend call."
+  - "No changed validation, scanning, parsing, compatibility, optimisation, persistence, networking or filesystem semantics."
+  - "No changed cancellation, retry, stale-result or navigation semantics."
+  - "No package, project reference, worker packaging or protocol change."
+  - "No action may become enabled, disabled, automatic or blocking under different conditions."

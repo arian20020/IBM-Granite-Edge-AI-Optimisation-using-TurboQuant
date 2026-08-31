@@ -1,0 +1,44 @@
+version: 2
+strengths:
+  MUST:
+    definition: "User contract, backend preservation, accessibility, security or Windows platform correctness."
+    exception: "None unless the human changes the contract."
+  SHOULD:
+    definition: "Recommended native implementation unless a documented screen-specific reason is stronger."
+    exception: "Record rationale and evidence."
+  MAY:
+    definition: "Deliberate visual choice."
+    exception: "No formal exception required, but it must remain accessible and contract-safe."
+rules:
+  - id: SCOPE-001
+    strength: MUST
+    authority: user-contract
+    rule: "No backend or operational behaviour change."
+  - id: WRITE-001
+    strength: MUST
+    authority: repository-contract
+    rule: "Only xaml_surface_implementer may write production application files."
+  - id: WINUI-001
+    strength: MUST
+    authority: microsoft
+    rule: "Microsoft WinUI guidance outranks third-party aesthetic advice."
+  - id: RESOURCE-001
+    strength: SHOULD
+    authority: microsoft
+    rule: "Keep App.xaml minimal and feature-specific resources feature-scoped."
+  - id: CONTROL-001
+    strength: SHOULD
+    authority: microsoft
+    rule: "Prefer built-in WinUI controls and lightweight style overrides before custom templates."
+  - id: A11Y-001
+    strength: MUST
+    authority: microsoft
+    rule: "Keyboard, UI Automation, contrast themes, text scaling and animations-disabled behaviour are blocking acceptance criteria."
+  - id: EVIDENCE-001
+    strength: MUST
+    authority: repository-contract
+    rule: "Visual completion requires rendered evidence from the current revision."
+  - id: GENERIC-001
+    strength: SHOULD
+    authority: adapted-third-party
+    rule: "Apply the Uncodixfy WinUI v2 anti-generic audit without overriding native platform conventions."

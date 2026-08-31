@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "profile": "native-winui",
+  "generatedAt": "2026-08-31",
+  "providers": [
+    {
+      "id": "microsoft-winui",
+      "required": true,
+      "kind": "codex-marketplace-plugin",
+      "repository": "microsoft/win-dev-skills",
+      "ref": "68ae65d5c65ee87c3265a7f5abe3aaf97c7e6932",
+      "marketplace": "microsoft-winui",
+      "plugin": "winui",
+      "reviewedVersion": "0.6.0",
+      "authority": "implementation-platform",
+      "writeAuthority": false
+    },
+    {
+      "id": "stark",
+      "required": true,
+      "kind": "codex-marketplace-plugin",
+      "repository": "f0d010c/stark",
+      "ref": "ff94e5b4e1c98d259f3cde9f806406c4528deed4",
+      "distributionRepository": "hashgraph-online/awesome-codex-plugins",
+      "distributionRef": "0ff99e11ba9c2ef21446dc9960033c5c18183a97",
+      "marketplace": "awesome-codex-plugins",
+      "plugin": "stark",
+      "reviewedVersion": "0.7.2",
+      "authority": "read-only-design-adviser",
+      "writeAuthority": false
+    },
+    {
+      "id": "uncodixfy",
+      "required": true,
+      "kind": "project-skill",
+      "repository": "cyxzdev/Uncodixfy",
+      "ref": "e0e028058b5259debdd94b78147c6d6c77bf7da2",
+      "skill": "uncodixfy",
+      "authority": "read-only-anti-generic-audit",
+      "adapter": "uncodixfy-winui-v2",
+      "writeAuthority": false
+    },
+    {
+      "id": "ui-ux-pro-max",
+      "required": true,
+      "kind": "project-skill-cli",
+      "repository": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "ref": "f23267105ad1f4ccd94af45d382584ad45b586f7",
+      "npmPackage": "ui-ux-pro-max-cli",
+      "npmVersion": "2.5.0",
+      "skill": "ui-ux-pro-max",
+      "authority": "read-only-targeted-design-intelligence",
+      "writeAuthority": false
+    },
+    {
+      "id": "figma",
+      "required": false,
+      "kind": "official-codex-plugin",
+      "repository": "openai/plugins",
+      "ref": "1e285826e604f66f7208f7ac4dba0fe8341d1f57",
+      "marketplace": "openai-curated",
+      "plugin": "figma",
+      "reviewedVersion": "2.0.20",
+      "authority": "approved-visual-source",
+      "writeAuthority": false,
+      "notes": "Optional. Use read/inspect workflows only unless the user separately requests a Figma write."
+    },
+    {
+      "id": "product-design",
+      "required": false,
+      "kind": "codex-marketplace-plugin",
+      "repository": "openai/role-specific-plugins",
+      "ref": "fe5608d2512a7d6a7b9821ce8a88c48464ecd6e4",
+      "marketplace": "role-specific-plugins",
+      "plugin": "product-design",
+      "reviewedVersion": "0.1.50",
+      "authority": "concept-phase-only",
+      "writeAuthority": false
+    }
+  ]
+}

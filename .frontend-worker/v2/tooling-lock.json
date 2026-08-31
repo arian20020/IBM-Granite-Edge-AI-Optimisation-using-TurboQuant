@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "profile": "native-winui",
+  "tools": [
+    {
+      "id": "codex-cli",
+      "requiredForInitialization": true,
+      "command": "codex",
+      "authority": "plugin-and-skill-host",
+      "automaticInstall": false,
+      "notes": "Use the already authenticated Codex installation."
+    },
+    {
+      "id": "git",
+      "requiredForInitialization": true,
+      "command": "git",
+      "authority": "source-control",
+      "automaticInstall": false
+    },
+    {
+      "id": "node-npm",
+      "requiredForInitialization": true,
+      "command": "npm",
+      "authority": "UI/UX Pro Max installer",
+      "automaticInstall": false
+    },
+    {
+      "id": "python",
+      "requiredForInitialization": true,
+      "commands": [
+        "py -3",
+        "python",
+        "python3"
+      ],
+      "authority": "UI/UX Pro Max search runtime",
+      "automaticInstall": false,
+      "notes": "UI/UX Pro Max documents Python 3.x as a prerequisite."
+    },
+    {
+      "id": "dotnet-sdk",
+      "requiredForInitialization": false,
+      "requiredBeforeImplementation": true,
+      "command": "dotnet",
+      "minimumVersion": "8.0.100",
+      "authority": "WinUI application build",
+      "automaticInstall": false
+    },
+    {
+      "id": "winapp-cli",
+      "requiredForInitialization": false,
+      "requiredBeforeImplementation": true,
+      "command": "winapp",
+      "minimumVersion": "0.6.0",
+      "authority": "grounded WinUI sample discovery, build/run and UI automation",
+      "automaticInstall": false,
+      "humanApprovedInstallCommand": "winget install --id Microsoft.WinAppCli --exact --source winget"
+    },
+    {
+      "id": "accessibility-insights-windows",
+      "requiredForInitialization": false,
+      "requiredBeforeReleaseGate": true,
+      "authority": "native Windows accessibility inspection and FastPass",
+      "automaticInstall": false,
+      "humanApprovedInstallPage": "https://accessibilityinsights.io/downloads/"
+    },
+    {
+      "id": "windows-developer-mode",
+      "requiredForInitialization": false,
+      "requiredWhenRuntimeAutomationNeedsIt": true,
+      "automaticInstall": false,
+      "notes": "Never enable through an unattended bootstrap. Request human approval before any elevation or registry change."
+    }
+  ]
+}

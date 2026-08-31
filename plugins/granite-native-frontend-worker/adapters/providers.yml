@@ -1,0 +1,62 @@
+version: 2
+providers:
+  microsoft-winui:
+    stage: all-native-technical-stages
+    required: true
+    authority: implementation-platform
+    may_write: false
+    required_skills:
+      - winui-design
+      - winui-dev-workflow
+      - winui-code-review
+      - winui-ui-testing
+    fallback: block-implementation
+  figma:
+    stage: approved-reference
+    required: false
+    authority: visual-source
+    may_write: false
+    restrictions:
+      - "Read and inspect only unless the user separately requests a Figma write."
+      - "Figma cannot override backend, accessibility or native platform contracts."
+  stark:
+    stage: design-direction
+    required: true
+    authority: advisory
+    may_write: false
+    routes:
+      - windows-design
+      - ux-design
+      - design-tokens
+  uncodixfy:
+    stage: post-direction-anti-generic-audit
+    required: true
+    authority: advisory
+    may_write: false
+    adapter: rules/uncodixfy-winui-v2.yml
+  ui-ux-pro-max:
+    stage: narrow-question-only
+    required: true
+    authority: advisory
+    may_write: false
+    stack: winui
+    maximum_queries_per_surface: 3
+  product-design:
+    stage: concept-exploration-only
+    required: false
+    authority: advisory
+    may_write: false
+    forbidden_after_approval: true
+conflict_resolution:
+  - backend-and-security-contracts
+  - existing-behaviour-and-fixtures
+  - windows-accessibility-and-platform-correctness
+  - human-approved-screen-specification
+  - repository-architecture
+  - microsoft-winui
+  - approved-figma-reference
+  - granite-design-system
+  - stark
+  - uncodixfy-winui-v2
+  - ui-ux-pro-max
+  - generic-model-preference

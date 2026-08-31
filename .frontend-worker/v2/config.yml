@@ -1,0 +1,31 @@
+version: 2
+profile: native-winui
+repository: arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant
+target_base_branch: integration/ucl-cross-route-native-validation-v1
+project_path: "IBM Granite with TurboQuant (Intel)"
+bootstrap_branch: chore/granite-native-frontend-worker-v2-bootstrap
+phase: initialization-only
+machine_provider_install_completed: false
+production_ui_changes_allowed: false
+authorization_phrase: "START GRANITE FRONTEND IMPLEMENTATION V2"
+primary_plugin: granite-native-frontend-worker@granite-native-frontend
+required_local_files:
+  - docs/frontend-worker/GRANITE-NATIVE-FRONTEND-WORKER-V2-MASTER-PROMPT.md
+  - .frontend-worker/v2/implementation-lock.yml
+  - .frontend-worker/v2/boundary-policy.yml
+  - .frontend-worker/v2/provider-lock.json
+  - .frontend-worker/v2/tooling-lock.json
+  - AGENTS.md
+  - plugins/granite-native-frontend-worker/skills/granite-native-frontend-master/SKILL.md
+provider_policy:
+  pin_external_revisions: true
+  no_floating_latest: true
+  no_provider_write_authority: true
+  microsoft_winui_is_technical_authority: true
+  figma_is_visual_authority_only_when_approved: true
+workflow:
+  one_production_writer: true
+  design_approval_required_for_redesign: true
+  rendered_evidence_required: true
+  accessibility_is_blocking: true
+  backend_contract_verification_required: true

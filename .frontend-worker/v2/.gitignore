@@ -1,0 +1,5 @@
+providers/
+provider-status.json
+evidence/
+baselines/
+*.local.json
