@@ -9,11 +9,12 @@ Implemented the official OpenVINO adapter and generated the canonical route at `
 - Added `build_official_bundle(repo_root)`, `build_official_validation_receipts(repo_root, bundle, ...)`, and `write_official_route(repo_root)` in `scripts/testing/final_results/openvino_adapter.py`.
 - Kept fv2 consolidated detailed/comparison/coverage/rows evidence authoritative for all 45 final attempts: 15 `passed`, 5 `conversion_failed`, and 25 `hardware_preflight_blocked`.
 - Joined fv1 performance, repetition, quality, prompt, and output evidence only to the 15 fv2-passed cases. A passed fv2 case without fv1 raw evidence is rejected. Any published observation on a non-passed fv2 row is rejected.
-- Preserved the exact fv2 failure status, stage, and reason. The five 3B FP16 conversion failures link to the final guarded-retry-002 `conversion_failed` manifest; the 25 preflight blocks link to their final model/weight manifests. Earlier/intermediate attempt manifests remain separately indexed.
+- Preserved the exact fv2 failure status, stage, and reason. The five 3B FP16 conversion failures link to both the final guarded-retry-002 `conversion_failed` manifest and its `conversion.log`; the 25 preflight blocks link to their final model/weight manifests. Earlier/intermediate attempt manifests remain separately indexed.
 - Restricted the official matrix to the frozen five cache formats; the only TurboQuant formats are `tbq3` and `tbq4`. PolarQuant and QJL are rejected.
 - Reconciled each passed case against three raw benchmark repetitions, the complete selected median-decode repetition, repetition stdout, all selected/envelope metrics, 48 quality prompts, three weighted criteria per prompt, prompt metadata and hashes, output text and stdout, objective scoring schema, and case-level quality score.
 - Normalized 45 attempts, 45 measurements, 45 summaries, 2,160 criterion-level quality records, and 30 failures. Non-passed cases publish no performance or quality observations.
-- Added source-rebuilt full-entity validation for attempts, measurements, summaries, quality, failures, evidence, prompts, outputs, availability, and model artifacts, plus exact same-case typed references and non-passed observation exclusions.
+- Added an independent source-rebuilt full-entity validator for attempts, measurements, summaries, quality, failures, evidence, prompts, outputs, availability, model artifacts, source locations, and route metadata, plus exact same-case typed references and non-passed observation exclusions. The validator never calls `build_official_bundle` to construct its expected values.
+- Indexed the two fv1 preflight inputs and linked them to the preflight receipt. Indexed the shared fv1 benchmark prompt and linked it to all 15 raw-result evidence records. Indexed the guarded-retry conversion log and retained all three physical `source-models.json` locations as validated aliases of one content identity.
 - Copied `Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx` byte-for-byte as the primary workbook. Indexed the original fv1 workbook as prior evidence without copying it.
 - Generated the common canonical route structure, reproduction instructions, coverage/data receipts, and a non-destructive SHA-256 manifest.
 - Parameterized only the route/campaign fields of the reviewed shared benchmark-normalization helper; experimental callers retain their original defaults.
@@ -40,7 +41,7 @@ The first post-implementation focused run reported:
 2 passed, 11 failed in 1.95s
 ```
 
-Those failures exposed duplicate byte-identical source-inventory content, synchronized mutation-fixture requirements, dangling preflight-input symlinks in isolated fixtures, and a non-JSON set in a validation receipt. Corrections retained all distinct attempt manifests, content-deduplicated identical source inventories, synchronized source mutations across authorities, excluded only unused dangling links from test clones, and published sorted receipt values.
+Those failures exposed duplicate byte-identical source-inventory content, synchronized mutation-fixture requirements, Windows long-path failures in isolated fixture copies, and a non-JSON set in a validation receipt. Corrections retained all distinct attempt manifests, content-deduplicated identical source inventories, synchronized source mutations across authorities, copied every ordinary evidence file through an extended-length fixture path, and published sorted receipt values.
 
 The focused suite then progressed through 8 passed/5 failed and 12 passed/1 failed before reaching:
 
@@ -68,6 +69,12 @@ The final fresh combined regression run after the expanded mutation coverage pas
 150 passed in 81.97s
 ```
 
+After fix round 1/5 expanded the evidence inventory, independent validator, cache-semantics mutations, and source-location mutations, the current combined non-Word regression passed:
+
+```text
+159 passed in 72.86s
+```
+
 Independent generated-data and schema verification reported:
 
 ```text
@@ -75,9 +82,10 @@ attempts 45: passed/true 15, failed/false 5, blocked/false 25
 measurements 45; summaries 45; quality 2160; failures 30
 prompts 48; outputs 720
 coverage receipt valid true; data receipt valid true
-Draft 2020-12 schema errors 0 across 2,416 canonical records
+Draft 2020-12 schema errors 0 across 2,418 canonical records
 manifest entries 22; validation errors []
-source locations 88
+evidence records 92; source locations 94
+coverage receipt checks 8/8 passed; data receipt checks 20/20 passed
 ```
 
 Workbook verification:
@@ -136,8 +144,42 @@ fv1 comparison 67c0561509680cdee3ecead830215c93cd4530bc31a39ed0604a387afb53fde7
 - The original fv1 workbook remains outside the route and is referenced by its repository-relative path and hash only.
 - Existing unrelated recovered changes and source evidence were not staged or modified.
 
+## Fix round 1/5
+
+### RED evidence
+
+The new tests first proved that the shared benchmark input was not indexed and that deleting it was accepted:
+
+```text
+2 failed, 6 passed in 5.34s
+```
+
+The earlier fix-round RED for conversion-log linkage, preflight inputs, alias locations, independent validation, and cache activation was:
+
+```text
+8 failed, 12 passed in 20.78s
+```
+
+Three failures in that first run were fixture-only Windows path-length errors. After the honest all-file fixture copy was corrected, the five genuine acceptance failures remained and drove the implementation.
+
+### GREEN evidence
+
+The complete official suite now passes:
+
+```text
+23 passed in 12.55s
+```
+
+The official, experimental, models, Markdown, evidence, and CSV non-Word regression passes:
+
+```text
+159 passed in 72.86s
+```
+
+Mutation coverage includes all five cache activation contracts (`tbq3` TURBO/u3, `tbq4` TURBO/u4, `u4` SCALAR/u4, `u8` SCALAR/u8, and unquantized `f16`), synchronized prompt/quality/output identity remapping, conversion-log unlinking, preflight dependency unlinking, and source-location alias digest mutation.
+
 ## Concerns
 
-- The shared digest-derived evidence-ID contract represents the three byte-identical `source-models.json` copies as one content entity. One verified source location is published; the two redundant path aliases are not separate `EvidenceRecord` rows. All eight distinct final/intermediate attempt manifests and all three distinct attempt summaries are retained.
-- Two fv1 preflight input paths are dangling symlinks in the recovered evidence tree. The complete preflight receipt that embeds their commands, paths, and hashes is indexed and hashed; the dangling targets are not claimed as standalone evidence. Mutation fixtures exclude only those unused dangling links.
+- The three byte-identical `source-models.json` files intentionally share one content `EvidenceRecord`, while `source-locations.csv` preserves and validates all three physical paths, sizes, hashes, labels, and their shared content evidence ID. No physical source location is lost to content deduplication.
+- The two fv1 preflight inputs are ordinary recovered files, not dangling links. Both are independently indexed and linked as inputs of the preflight receipt; isolated mutation fixtures copy them without exclusions.
 - Task 8 will add report/workbook artifacts. It must deliberately regenerate the currently exact 22-entry route checksum manifest after the planned output set is complete; the non-destructive API is expected to reject a changed set during routine reruns.

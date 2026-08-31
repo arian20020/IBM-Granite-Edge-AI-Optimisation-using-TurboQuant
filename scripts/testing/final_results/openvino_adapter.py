@@ -65,6 +65,25 @@ _OFFICIAL_V2_WORKBOOK_RELATIVE = Path(
 _OFFICIAL_ROUTE_RELATIVE = Path(
     "docs/testing/final-results/05-openvino-official-upstream"
 )
+_OFFICIAL_PREFLIGHT_INPUTS = (
+    _OFFICIAL_FV1_RELATIVE
+    / "preflight/inputs/314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3.txt",
+    _OFFICIAL_FV1_RELATIVE
+    / "preflight/inputs/ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0.txt",
+)
+_OFFICIAL_BENCHMARK_INPUT = (
+    _OFFICIAL_FV1_RELATIVE
+    / "inputs/f2b9e8f0f10053f3a04e1532ecd1e66d026ba1f37e7cde636bc2b5e2748c301c.txt"
+)
+_OFFICIAL_SOURCE_MODEL_ALIASES = (
+    _OFFICIAL_FV2_RELATIVE / "guarded-retry-001/source-models.json",
+    _OFFICIAL_FV2_RELATIVE / "guarded-retry-002/source-models.json",
+    _OFFICIAL_FV2_RELATIVE / "source-models.json",
+)
+_OFFICIAL_CONVERSION_LOG_RELATIVE = (
+    _OFFICIAL_FV2_RELATIVE
+    / "guarded-retry-002/attempts/granite-3b__fp16/conversion.log"
+)
 
 _DETAILED_NAME = "experimental-openvino-detailed-results.csv"
 _COMPARISON_NAME = "experimental-openvino-comparison.csv"
@@ -130,10 +149,18 @@ def _output_id(case_id: str, prompt_id: str) -> str:
 
 
 def _next_evidence_id(digest: str, used_ids: set[str]) -> str:
-    compact = f"{_EXPERIMENTAL_ROUTE_ID}-{digest[:12]}"
+    return _next_evidence_id_for_route(
+        _EXPERIMENTAL_ROUTE_ID, digest, used_ids
+    )
+
+
+def _next_evidence_id_for_route(
+    route_id: str, digest: str, used_ids: set[str]
+) -> str:
+    compact = f"{route_id}-{digest[:12]}"
     if compact not in used_ids:
         return compact
-    expanded = f"{_EXPERIMENTAL_ROUTE_ID}-{digest}"
+    expanded = f"{route_id}-{digest}"
     if expanded in used_ids:
         raise ValueError(f"duplicate frozen evidence identity: {expanded}")
     return expanded
@@ -899,6 +926,8 @@ def _record_official_evidence(
     role: str,
     source_label: str,
     records: list[EvidenceRecord],
+    *,
+    input_evidence_ids: Sequence[str] = (),
 ) -> EvidenceRecord:
     record = build_evidence_record(
         repo_root=repo_root,
@@ -907,6 +936,7 @@ def _record_official_evidence(
         campaign_id=_OFFICIAL_CAMPAIGN_ID,
         role=role,
         source_label=source_label,
+        input_evidence_ids=input_evidence_ids,
         existing_evidence_ids={item.evidence_id for item in records},
     )
     records.append(record)
@@ -922,6 +952,103 @@ def _official_terminal_manifest_relative(row: Mapping[str, str]) -> Path:
     return _OFFICIAL_FV2_RELATIVE / "attempts" / model_weight / "manifest.json"
 
 
+def _official_cache_semantics(cache_codec: str) -> tuple[str, str, dict[str, str]]:
+    semantics = {
+        "tbq3": (
+            "TURBO",
+            "u3",
+            {
+                "ATTENTION_BACKEND": "SDPA",
+                "KEY_CACHE_PRECISION": "u3",
+                "KEY_CACHE_QUANT_ALG": "TURBO",
+                "VALUE_CACHE_PRECISION": "u3",
+                "VALUE_CACHE_QUANT_ALG": "TURBO",
+            },
+        ),
+        "tbq4": (
+            "TURBO",
+            "u4",
+            {
+                "ATTENTION_BACKEND": "SDPA",
+                "KEY_CACHE_PRECISION": "u4",
+                "KEY_CACHE_QUANT_ALG": "TURBO",
+                "VALUE_CACHE_PRECISION": "u4",
+                "VALUE_CACHE_QUANT_ALG": "TURBO",
+            },
+        ),
+        "u4": (
+            "SCALAR",
+            "u4",
+            {
+                "ATTENTION_BACKEND": "SDPA",
+                "KEY_CACHE_PRECISION": "u4",
+                "KEY_CACHE_QUANT_ALG": "SCALAR",
+                "VALUE_CACHE_PRECISION": "u4",
+                "VALUE_CACHE_QUANT_ALG": "SCALAR",
+            },
+        ),
+        "u8": (
+            "SCALAR",
+            "u8",
+            {
+                "ATTENTION_BACKEND": "SDPA",
+                "KEY_CACHE_PRECISION": "u8",
+                "KEY_CACHE_QUANT_ALG": "SCALAR",
+                "VALUE_CACHE_PRECISION": "u8",
+                "VALUE_CACHE_QUANT_ALG": "SCALAR",
+            },
+        ),
+        "f16": ("", "f16", {"ATTENTION_BACKEND": "SDPA"}),
+    }
+    try:
+        return semantics[cache_codec]
+    except KeyError as error:
+        raise ValueError(f"unsupported official cache codec: {cache_codec}") from error
+
+
+def _validate_official_cache_source_row(row: Mapping[str, str], source: str) -> None:
+    algorithm, precision, _ = _official_cache_semantics(row["cache_codec"])
+    actual = (
+        row["key_cache_algorithm"],
+        row["value_cache_algorithm"],
+        row["key_cache_precision"],
+        row["value_cache_precision"],
+    )
+    expected = (algorithm, algorithm, precision, precision)
+    if actual != expected:
+        raise ValueError(
+            f"{row['case_id']}: {source} cache activation semantics conflict: "
+            f"{actual!r} != {expected!r}"
+        )
+
+
+def _validate_official_raw_cache_semantics(
+    case_id: str, cache_codec: str, raw_payload: Mapping[str, object]
+) -> None:
+    _, _, expected = _official_cache_semantics(cache_codec)
+    if raw_payload.get("runtime_properties") != expected:
+        raise ValueError(f"{case_id}: raw cache activation semantics conflict")
+    runs = list(raw_payload.get("benchmark_runs", [])) + list(
+        raw_payload.get("quality_runs", [])
+    )
+    for run in runs:
+        result = run.get("result") if isinstance(run, dict) else None
+        if not isinstance(result, dict) or result.get("runtime_properties") != expected:
+            raise ValueError(f"{case_id}: run cache activation semantics conflict")
+    benchmark_runs = list(raw_payload.get("benchmark_runs", []))
+    selected = raw_payload.get("benchmark")
+    if isinstance(selected, dict):
+        benchmark_runs.append(selected)
+    expected_path = _OFFICIAL_BENCHMARK_INPUT.as_posix()
+    expected_sha = _OFFICIAL_BENCHMARK_INPUT.stem
+    for run in benchmark_runs:
+        if not isinstance(run, dict):
+            raise ValueError(f"{case_id}: malformed benchmark input evidence")
+        actual_path = _portable_source_path(str(run.get("prompt_path", "")))
+        if actual_path != expected_path or run.get("prompt_sha256") != expected_sha:
+            raise ValueError(f"{case_id}: benchmark input evidence conflict")
+
+
 def _validate_official_tables(
     fv2_detailed: list[dict[str, str]],
     fv2_comparison: list[dict[str, str]],
@@ -933,6 +1060,15 @@ def _validate_official_tables(
     fv1_quality: list[dict[str, str]],
     repo_root: Path,
 ) -> None:
+    required_evidence = (
+        *_OFFICIAL_PREFLIGHT_INPUTS,
+        _OFFICIAL_BENCHMARK_INPUT,
+        *_OFFICIAL_SOURCE_MODEL_ALIASES,
+        _OFFICIAL_CONVERSION_LOG_RELATIVE,
+    )
+    for relative in required_evidence:
+        if not (repo_root / relative).is_file():
+            raise FileNotFoundError(f"required official evidence is missing: {relative.as_posix()}")
     if len(fv2_detailed) != 45 or len({row["case_id"] for row in fv2_detailed}) != 45:
         raise ValueError("official fv2 detailed results must contain 45 unique cases")
     expected_statuses = Counter(
@@ -963,6 +1099,8 @@ def _validate_official_tables(
         for row in fv2_detailed
     ):
         raise ValueError("official fv2 unexpectedly contains PolarQuant or QJL")
+    for row in fv2_detailed:
+        _validate_official_cache_source_row(row, "fv2")
 
     if not isinstance(fv2_rows_payload, dict) or not isinstance(
         fv2_rows_payload.get("rows"), list
@@ -1118,6 +1256,8 @@ def _validate_official_tables(
 
     if len(fv1_detailed) != 45 or len({row["case_id"] for row in fv1_detailed}) != 45:
         raise ValueError("official fv1 detailed results must contain 45 unique cases")
+    for row in fv1_detailed:
+        _validate_official_cache_source_row(row, "fv1")
     fv1_by_case = {row["case_id"]: row for row in fv1_detailed}
     if set(fv1_by_case) != set(by_case):
         raise ValueError("official fv1/fv2 case matrices differ")
@@ -1229,6 +1369,23 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
     )
 
     evidence: list[EvidenceRecord] = []
+    preflight_input_records = [
+        _record_official_evidence(
+            root,
+            root / relative,
+            "preflight-input",
+            f"fv1 preflight input {relative.name}",
+            evidence,
+        )
+        for relative in _OFFICIAL_PREFLIGHT_INPUTS
+    ]
+    benchmark_input_record = _record_official_evidence(
+        root,
+        root / _OFFICIAL_BENCHMARK_INPUT,
+        "benchmark-prompt-input",
+        "fv1 shared benchmark prompt input",
+        evidence,
+    )
     core_sources: dict[str, EvidenceRecord] = {}
     for key, path, role, label in (
         ("fv2-detailed", fv2_detailed_path, "source-results", "fv2 final detailed results"),
@@ -1245,7 +1402,19 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
         ("fv2-workbook", root / _OFFICIAL_V2_WORKBOOK_RELATIVE, "source-workbook", "fv2 revised final workbook"),
         ("fv1-workbook", root / _OFFICIAL_V1_WORKBOOK_RELATIVE, "indexed-prior-workbook", "fv1 original workbook"),
     ):
-        core_sources[key] = _record_official_evidence(root, path, role, label, evidence)
+        input_ids = (
+            tuple(item.evidence_id for item in preflight_input_records)
+            if key == "fv1-preflight"
+            else ()
+        )
+        core_sources[key] = _record_official_evidence(
+            root,
+            path,
+            role,
+            label,
+            evidence,
+            input_evidence_ids=input_ids,
+        )
 
     manifest_evidence_by_path: dict[str, EvidenceRecord] = {}
     indexed_digests = {item.sha256 for item in evidence}
@@ -1274,6 +1443,14 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
         )
         manifest_evidence_by_path[relative] = record
         indexed_digests.add(record.sha256)
+
+    conversion_log_record = _record_official_evidence(
+        root,
+        root / _OFFICIAL_CONVERSION_LOG_RELATIVE,
+        "conversion-log",
+        "fv2 guarded-retry-002 conversion log",
+        evidence,
+    )
 
     fv1_by_case = {row["case_id"]: row for row in fv1_detailed}
     quality_by_case_prompt: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
@@ -1310,11 +1487,19 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
             if hash_file(raw_path) != fv1_row["raw_result_sha256"]:
                 raise ValueError(f"{case_id}: fv1 raw-result hash conflict")
             raw_record = _record_official_evidence(
-                root, raw_path, "raw-case-result", f"fv1 raw result {case_id}", evidence
+                root,
+                raw_path,
+                "raw-case-result",
+                f"fv1 raw result {case_id}",
+                evidence,
+                input_evidence_ids=(benchmark_input_record.evidence_id,),
             )
             raw_payload = _read_json(raw_path)
             if not isinstance(raw_payload, dict) or raw_payload.get("case_id") != case_id:
                 raise ValueError(f"{case_id}: fv1 raw-result identity mismatch")
+            _validate_official_raw_cache_semantics(
+                case_id, row["cache_codec"], raw_payload
+            )
             raw_by_case[case_id] = raw_payload
             raw_evidence_by_case[case_id] = raw_record
             attempt_evidence_ids.extend(
@@ -1396,6 +1581,8 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
             if manifest_record is None:
                 raise ValueError(f"{case_id}: final manifest evidence was not indexed")
             attempt_evidence_ids.append(manifest_record.evidence_id)
+            if row["model"] == "granite-3b" and row["weight_precision"] == "fp16":
+                attempt_evidence_ids.append(conversion_log_record.evidence_id)
             failures.append(
                 FailureRecord(
                     route_id=_OFFICIAL_ROUTE_ID,
@@ -1752,6 +1939,50 @@ def _official_model_artifact_rows(repo_root: Path) -> list[dict[str, object]]:
             }
         )
     return rows
+
+
+def _official_source_location_rows(
+    repo_root: Path, bundle: RouteBundle
+) -> list[dict[str, object]]:
+    rows = [
+        {
+            "evidence_id": item.evidence_id,
+            "role": item.role,
+            "relative_path": item.relative_path,
+            "sha256": item.sha256,
+            "size_bytes": item.size_bytes,
+            "source_label": item.source_label,
+        }
+        for item in bundle.evidence
+        if item.role != "missing-model-source-inventory"
+    ]
+    content = next(
+        item
+        for item in bundle.evidence
+        if item.role == "missing-model-source-inventory"
+    )
+    for relative in _OFFICIAL_SOURCE_MODEL_ALIASES:
+        path = repo_root / relative
+        digest = hash_file(path)
+        size = path.stat().st_size
+        if digest != content.sha256 or size != content.size_bytes:
+            raise ValueError(
+                f"source-model alias content conflict: {relative.as_posix()}"
+            )
+        rows.append(
+            {
+                "evidence_id": content.evidence_id,
+                "role": content.role,
+                "relative_path": relative.as_posix(),
+                "sha256": digest,
+                "size_bytes": size,
+                "source_label": (
+                    "fv2 source-model inventory alias "
+                    f"{relative.relative_to(_OFFICIAL_FV2_RELATIVE).as_posix()}"
+                ),
+            }
+        )
+    return sorted(rows, key=lambda row: (str(row["relative_path"]), str(row["evidence_id"])))
 
 
 def _availability_rows(bundle: RouteBundle) -> list[dict[str, object]]:
@@ -3125,6 +3356,522 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
     return bundle
 
 
+def _official_frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
+    """Independently reconstruct official published entities from frozen evidence."""
+    fv1 = repo_root / _OFFICIAL_FV1_RELATIVE
+    consolidated = repo_root / _OFFICIAL_FV2_RELATIVE / "consolidated"
+    paths = {
+        "fv2-detailed": consolidated / "official-openvino-detailed-results.csv",
+        "fv2-comparison": consolidated / "official-openvino-comparison.csv",
+        "fv2-coverage": consolidated / "official-openvino-coverage.csv",
+        "fv2-rows": consolidated / "rows.json",
+        "fv1-detailed": fv1 / "official-openvino-detailed-results.csv",
+        "fv1-comparison": fv1 / "official-openvino-comparison.csv",
+        "fv1-coverage": fv1 / "official-openvino-coverage.csv",
+        "fv1-quality": fv1 / "experimental-openvino-quality-details.csv",
+        "fv1-rows": fv1 / "rows.json",
+        "fv1-audit": fv1 / "audit-report.json",
+        "fv1-preflight": fv1 / "preflight/preflight-receipt.json",
+        "fv2-workbook": repo_root / _OFFICIAL_V2_WORKBOOK_RELATIVE,
+        "fv1-workbook": repo_root / _OFFICIAL_V1_WORKBOOK_RELATIVE,
+    }
+    fv2_detailed = _read_csv(paths["fv2-detailed"])
+    fv2_comparison = _read_csv(paths["fv2-comparison"])
+    fv2_coverage = _read_csv(paths["fv2-coverage"])
+    fv2_rows = _read_json(paths["fv2-rows"])
+    fv1_detailed = _read_csv(paths["fv1-detailed"])
+    fv1_comparison = _read_csv(paths["fv1-comparison"])
+    fv1_coverage = _read_csv(paths["fv1-coverage"])
+    fv1_quality = _read_csv(paths["fv1-quality"])
+    _validate_official_tables(
+        fv2_detailed,
+        fv2_comparison,
+        fv2_coverage,
+        fv2_rows,
+        fv1_detailed,
+        fv1_comparison,
+        fv1_coverage,
+        fv1_quality,
+        repo_root,
+    )
+
+    evidence_entities: dict[str, dict[str, object]] = {}
+    evidence_by_path: dict[str, str] = {}
+    evidence_by_digest: dict[str, str] = {}
+    used_evidence_ids: set[str] = set()
+
+    def add_evidence(
+        path: Path,
+        role: str,
+        source_label: str,
+        *,
+        input_evidence_ids: Sequence[str] = (),
+        deduplicate_digest: bool = False,
+    ) -> str:
+        relative = path.relative_to(repo_root).as_posix()
+        if relative in evidence_by_path:
+            return evidence_by_path[relative]
+        digest = hash_file(path)
+        if deduplicate_digest and digest in evidence_by_digest:
+            evidence_by_path[relative] = evidence_by_digest[digest]
+            return evidence_by_digest[digest]
+        evidence_id = _next_evidence_id_for_route(
+            _OFFICIAL_ROUTE_ID, digest, used_evidence_ids
+        )
+        used_evidence_ids.add(evidence_id)
+        entity = {
+            "route_id": _OFFICIAL_ROUTE_ID,
+            "campaign_id": _OFFICIAL_CAMPAIGN_ID,
+            "evidence_id": evidence_id,
+            "role": role,
+            "relative_path": relative,
+            "sha256": digest,
+            "size_bytes": path.stat().st_size,
+            "source_label": source_label,
+            "derived": False,
+            "input_evidence_ids": list(input_evidence_ids),
+        }
+        evidence_entities[evidence_id] = entity
+        evidence_by_path[relative] = evidence_id
+        evidence_by_digest.setdefault(digest, evidence_id)
+        return evidence_id
+
+    preflight_input_ids = [
+        add_evidence(
+            repo_root / relative,
+            "preflight-input",
+            f"fv1 preflight input {relative.name}",
+        )
+        for relative in _OFFICIAL_PREFLIGHT_INPUTS
+    ]
+    benchmark_input_id = add_evidence(
+        repo_root / _OFFICIAL_BENCHMARK_INPUT,
+        "benchmark-prompt-input",
+        "fv1 shared benchmark prompt input",
+    )
+    core_definitions = (
+        ("fv2-detailed", "source-results", "fv2 final detailed results"),
+        ("fv2-comparison", "source-results", "fv2 final comparison results"),
+        ("fv2-coverage", "source-coverage", "fv2 final coverage"),
+        ("fv2-rows", "source-ledger", "fv2 final source rows"),
+        ("fv1-detailed", "prior-source-results", "fv1 passed measurement index"),
+        ("fv1-comparison", "prior-source-results", "fv1 comparison index"),
+        ("fv1-coverage", "prior-source-coverage", "fv1 coverage index"),
+        ("fv1-quality", "source-quality", "fv1 quality details"),
+        ("fv1-rows", "prior-source-ledger", "fv1 source rows"),
+        ("fv1-audit", "source-validation", "fv1 audit report"),
+        ("fv1-preflight", "source-preflight", "fv1 TurboQuant preflight"),
+        ("fv2-workbook", "source-workbook", "fv2 revised final workbook"),
+        ("fv1-workbook", "indexed-prior-workbook", "fv1 original workbook"),
+    )
+    core_ids: dict[str, str] = {}
+    for key, role, label in core_definitions:
+        core_ids[key] = add_evidence(
+            paths[key],
+            role,
+            label,
+            input_evidence_ids=(
+                preflight_input_ids if key == "fv1-preflight" else ()
+            ),
+        )
+
+    fv2_root = repo_root / _OFFICIAL_FV2_RELATIVE
+    manifest_ids: dict[str, str] = {}
+    for path in sorted(fv2_root.rglob("*.json")):
+        relative = path.relative_to(repo_root).as_posix()
+        if relative in evidence_by_path:
+            continue
+        if path.name == "manifest.json":
+            role = "missing-model-attempt-manifest"
+        elif path.name == "attempt-summary.json":
+            role = "missing-model-attempt-summary"
+        elif path.name == "source-models.json":
+            role = "missing-model-source-inventory"
+        else:
+            role = "missing-model-evidence"
+        evidence_id = add_evidence(
+            path,
+            role,
+            f"fv2 missing-model evidence {path.relative_to(fv2_root).as_posix()}",
+            deduplicate_digest=True,
+        )
+        if path.name == "manifest.json":
+            manifest_ids[relative] = evidence_id
+    conversion_log_id = add_evidence(
+        repo_root / _OFFICIAL_CONVERSION_LOG_RELATIVE,
+        "conversion-log",
+        "fv2 guarded-retry-002 conversion log",
+    )
+
+    fv1_by_case = {row["case_id"]: row for row in fv1_detailed}
+    attempt_entities: dict[str, dict[str, object]] = {}
+    failure_entities: dict[str, dict[str, object]] = {}
+    measurement_entities: dict[str, dict[str, object]] = {}
+    summary_entities: dict[str, dict[str, object]] = {}
+    quality_entities: dict[str, dict[str, object]] = {}
+    prompt_entities: dict[str, dict[str, object]] = {}
+    output_entities: dict[str, dict[str, object]] = {}
+    availability_entities: list[dict[str, object]] = []
+    raw_payloads: dict[str, Mapping[str, object]] = {}
+    raw_evidence_ids: dict[str, str] = {}
+    runtime_versions: set[str] = set()
+    runtime_properties: set[tuple[tuple[str, str], ...]] = set()
+
+    for row in fv2_detailed:
+        case_id = row["case_id"]
+        status = Status.from_source(row["status"])
+        executed = _bool(row["executed"])
+        attempt_id = _attempt_id(case_id)
+        linked_evidence = [core_ids["fv2-detailed"], core_ids["fv2-rows"]]
+        if executed:
+            fv1_row = fv1_by_case[case_id]
+            raw_relative = _portable_source_path(fv1_row["raw_result_path"])
+            raw_path = repo_root / Path(raw_relative)
+            raw_evidence_id = add_evidence(
+                raw_path,
+                "raw-case-result",
+                f"fv1 raw result {case_id}",
+                input_evidence_ids=(benchmark_input_id,),
+            )
+            raw_evidence_ids[case_id] = raw_evidence_id
+            linked_evidence.extend([core_ids["fv1-detailed"], raw_evidence_id])
+            raw_payload = _read_json(raw_path)
+            if not isinstance(raw_payload, dict):
+                raise ValueError(f"{case_id}: frozen raw result is not an object")
+            _validate_official_raw_cache_semantics(
+                case_id, row["cache_codec"], raw_payload
+            )
+            raw_payloads[case_id] = raw_payload
+            measurement_ids: list[str] = []
+            decode_values: list[float] = []
+            latency_values: list[float] = []
+            peak_values: list[int] = []
+            for repetition, raw_run in enumerate(raw_payload["benchmark_runs"], start=1):
+                result = json.loads(str(raw_run["stdout"]))
+                if result != raw_run["result"]:
+                    raise ValueError(
+                        f"{case_id}: frozen repetition {repetition} stdout/result conflict"
+                    )
+                measurement_id, run_id, repetition_id = _measurement_identity(
+                    case_id, repetition
+                )
+                peak = _working_set_bytes(raw_run.get("peak_working_set_mb"))
+                if peak is None:
+                    raise ValueError(f"{case_id}: frozen repetition lacks peak memory")
+                measurement_entities[measurement_id] = {
+                    "route_id": _OFFICIAL_ROUTE_ID,
+                    "campaign_id": _OFFICIAL_CAMPAIGN_ID,
+                    "test_case_id": case_id,
+                    "attempt_id": attempt_id,
+                    "measurement_id": measurement_id,
+                    "run_id": run_id,
+                    "repetition_id": repetition_id,
+                    "source_evidence_id": raw_evidence_id,
+                    "latency_ms": float(result["ttft_ms"]),
+                    "prompt_tokens_per_second": None,
+                    "generation_tokens_per_second": float(result["decode_tps"]),
+                    "peak_working_set_bytes": peak,
+                    "input_tokens": _optional_int(result.get("input_tokens")),
+                    "output_tokens": _optional_int(result.get("generated_tokens")),
+                }
+                measurement_ids.append(measurement_id)
+                decode_values.append(float(result["decode_tps"]))
+                latency_values.append(float(result["ttft_ms"]))
+                peak_values.append(peak)
+            median_decode = statistics.median(decode_values)
+            selected_index = decode_values.index(median_decode)
+            values = {
+                "generation_tokens_per_second": median_decode,
+                "time_to_first_token": latency_values[selected_index],
+                "peak_working_set_bytes": max(peak_values),
+            }
+            for metric_name, value in values.items():
+                summary_id = _summary_id(case_id, metric_name)
+                _, unit, aggregation = _SUMMARY_CONTRACTS[metric_name]
+                summary_entities[summary_id] = {
+                    "route_id": _OFFICIAL_ROUTE_ID,
+                    "campaign_id": _OFFICIAL_CAMPAIGN_ID,
+                    "test_case_id": case_id,
+                    "summary_id": summary_id,
+                    "metric_name": metric_name,
+                    "value": value,
+                    "unit": unit,
+                    "aggregation": aggregation,
+                    "source_measurement_ids": list(measurement_ids),
+                }
+            selected = raw_payload["benchmark"]["result"]
+            runtime_versions.add(str(selected["openvino_version"]))
+            runtime_properties.add(
+                tuple(
+                    sorted(
+                        (str(key), str(value))
+                        for key, value in raw_payload["runtime_properties"].items()
+                    )
+                )
+            )
+        else:
+            manifest_relative = _official_terminal_manifest_relative(row).as_posix()
+            linked_evidence.append(manifest_ids[manifest_relative])
+            if row["model"] == "granite-3b" and row["weight_precision"] == "fp16":
+                linked_evidence.append(conversion_log_id)
+            failure_id = f"{case_id}--{row['status']}"
+            failure_entities[failure_id] = {
+                "route_id": _OFFICIAL_ROUTE_ID,
+                "campaign_id": _OFFICIAL_CAMPAIGN_ID,
+                "test_case_id": case_id,
+                "attempt_id": attempt_id,
+                "failure_id": failure_id,
+                "status": status.value,
+                "stage": row["failure_stage"],
+                "reason": row["failure_reason"],
+                "source_status": row["status"],
+                "evidence_ids": list(linked_evidence),
+            }
+        attempt_entities[attempt_id] = {
+            "route_id": _OFFICIAL_ROUTE_ID,
+            "campaign_id": _OFFICIAL_CAMPAIGN_ID,
+            "test_case_id": case_id,
+            "attempt_id": attempt_id,
+            "status": status.value,
+            "executed": executed,
+            "reason": row["failure_reason"],
+            "model_id": row["model"],
+            "weight_format_id": row["weight_precision"],
+            "cache_format_id": row["cache_codec"],
+            "backend_id": None,
+            "source_status": row["status"],
+            "failure_kind": row["failure_stage"] or None,
+            "evidence_ids": list(linked_evidence),
+        }
+        availability_entities.append(
+            {
+                "test_case_id": case_id,
+                "model_id": row["model"],
+                "weight_format_id": row["weight_precision"],
+                "cache_format_id": row["cache_codec"],
+                "status": status.value,
+                "executed": executed,
+                "reason": row["failure_reason"],
+            }
+        )
+
+    for case_id, raw_payload in raw_payloads.items():
+        raw_evidence_id = raw_evidence_ids[case_id]
+        prompt_suite_id = str(raw_payload["quality_prompt_set_id"])
+        for run in raw_payload["quality_runs"]:
+            prompt_id = str(run["prompt_id"])
+            prompt_relative = _portable_source_path(str(run["prompt_path"]))
+            prompt_evidence_id = add_evidence(
+                repo_root / Path(prompt_relative),
+                "quality-prompt-input",
+                f"fv1 prompt input {prompt_id}",
+            )
+            prompt = {
+                "prompt_suite_id": prompt_suite_id,
+                "prompt_id": prompt_id,
+                "domain": str(run["domain"]),
+                "prompt_length": str(run["prompt_length"]),
+                "input_evidence_id": prompt_evidence_id,
+                "relative_path": prompt_relative,
+                "sha256": str(run["prompt_sha256"]),
+            }
+            if prompt_id in prompt_entities and prompt_entities[prompt_id] != prompt:
+                raise ValueError(f"frozen official prompt definition differs: {prompt_id}")
+            prompt_entities[prompt_id] = prompt
+            quality = run["quality"]
+            result = json.loads(str(run["stdout"]))
+            if result != run["result"]:
+                raise ValueError(f"{case_id}/{prompt_id}: frozen output stdout conflict")
+            answer = str(result.get("text", ""))
+            output_id = _output_id(case_id, prompt_id)
+            output_entities[output_id] = {
+                "output_id": output_id,
+                "test_case_id": case_id,
+                "prompt_id": prompt_id,
+                "domain": str(run["domain"]),
+                "prompt_length": str(run["prompt_length"]),
+                "status": str(result["status"]),
+                "valid_output": bool(quality["valid_output"]),
+                "critical_failure": bool(quality["critical_failure"]),
+                "prompt_score": float(quality["score"]),
+                "output_sha256": hashlib.sha256(answer.encode("utf-8")).hexdigest(),
+                "source_evidence_id": raw_evidence_id,
+            }
+            for criterion in quality["criteria"]:
+                category = str(criterion["category"])
+                criterion_id = str(criterion["id"])
+                quality_id = _quality_id(case_id, prompt_id, category, criterion_id)
+                quality_entities[quality_id] = {
+                    "route_id": _OFFICIAL_ROUTE_ID,
+                    "campaign_id": _OFFICIAL_CAMPAIGN_ID,
+                    "test_case_id": case_id,
+                    "quality_id": quality_id,
+                    "prompt_id": prompt_id,
+                    "criterion_id": f"{category}:{criterion_id}",
+                    "score": float(criterion["points_awarded"]),
+                    "maximum_score": float(criterion["weight"]),
+                    "prompt_suite_id": prompt_suite_id,
+                    "rubric_id": "objective-quality-weighted-5-3-2-output-health-gate",
+                    "scoring_version": str(quality["schema"]),
+                    "source_evidence_id": raw_evidence_id,
+                }
+
+    quality_projection = {
+        _quality_id(row["case_id"], row["prompt_id"], row["category"], row["criterion_id"]): (
+            float(row["points_awarded"]),
+            float(row["weight"]),
+            row["prompt_set_id"],
+        )
+        for row in fv1_quality
+    }
+    expected_projection = {
+        identity: (
+            entity["score"],
+            entity["maximum_score"],
+            entity["prompt_suite_id"],
+        )
+        for identity, entity in quality_entities.items()
+    }
+    if quality_projection != expected_projection:
+        raise ValueError("official frozen raw quality differs from fv1 quality details")
+
+    grouped: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
+    for row in fv2_detailed:
+        grouped[(row["model"], row["weight_precision"])].append(row)
+    model_artifact_entities: list[dict[str, object]] = []
+    for (model_id, weight_id), source_rows in sorted(grouped.items()):
+        executed = [row for row in source_rows if _bool(row["executed"])]
+        fv1_rows = [fv1_by_case[row["case_id"]] for row in executed]
+        names = {
+            PureWindowsPath(row["model_path"]).name
+            for row in fv1_rows
+            if row["model_path"]
+        }
+        hashes = {row["model_sha256"] for row in fv1_rows}
+        sizes = {int(row["model_size_bytes"]) for row in fv1_rows}
+        source_status = source_rows[0]["status"]
+        model_artifact_entities.append(
+            {
+                "model_id": model_id,
+                "weight_format_id": weight_id,
+                "status": "available" if executed else Status.from_source(source_status).value,
+                "executed_case_count": len(executed),
+                "artifact_label": next(iter(names), ""),
+                "sha256": next(iter(hashes), ""),
+                "size_bytes": next(iter(sizes), None),
+                "reason": "" if executed else source_rows[0]["failure_reason"],
+            }
+        )
+
+    source_location_entities = [
+        {
+            "evidence_id": entity["evidence_id"],
+            "role": entity["role"],
+            "relative_path": entity["relative_path"],
+            "sha256": entity["sha256"],
+            "size_bytes": entity["size_bytes"],
+            "source_label": entity["source_label"],
+        }
+        for entity in evidence_entities.values()
+        if entity["role"] != "missing-model-source-inventory"
+    ]
+    inventory_entity = next(
+        entity
+        for entity in evidence_entities.values()
+        if entity["role"] == "missing-model-source-inventory"
+    )
+    for relative in _OFFICIAL_SOURCE_MODEL_ALIASES:
+        path = repo_root / relative
+        source_location_entities.append(
+            {
+                "evidence_id": inventory_entity["evidence_id"],
+                "role": "missing-model-source-inventory",
+                "relative_path": relative.as_posix(),
+                "sha256": hash_file(path),
+                "size_bytes": path.stat().st_size,
+                "source_label": (
+                    "fv2 source-model inventory alias "
+                    f"{relative.relative_to(_OFFICIAL_FV2_RELATIVE).as_posix()}"
+                ),
+            }
+        )
+    source_location_entities.sort(
+        key=lambda row: (str(row["relative_path"]), str(row["evidence_id"]))
+    )
+
+    terminal_manifests = [
+        _read_json(repo_root / _official_terminal_manifest_relative(row))
+        for row in fv2_detailed
+        if not _bool(row["executed"])
+    ]
+    hardware = {
+        "status": "source-recorded",
+        "emergency_ram_floor_bytes": 2_147_483_648,
+        "conversion_preflight_by_model_weight": {
+            str(item["case_id"]): item["preflight"]
+            for item in terminal_manifests
+            if isinstance(item, dict) and isinstance(item.get("preflight"), dict)
+        },
+    }
+    software = {
+        "openvino_versions": sorted(runtime_versions),
+        "runtime_properties": [dict(items) for items in sorted(runtime_properties)],
+        "missing_model_attempt_tool_versions": {
+            key: value
+            for payload in terminal_manifests
+            if isinstance(payload, dict)
+            for key, value in dict(payload.get("tool_versions", {})).items()
+        },
+    }
+    repository = {
+        "openvino": {
+            "url": _ensure_uniform(fv2_detailed, "openvino_url"),
+            "commit": _ensure_uniform(fv2_detailed, "openvino_commit"),
+        },
+        "openvino_genai": {
+            "url": _ensure_uniform(fv2_detailed, "openvino_genai_url"),
+            "commit": _ensure_uniform(fv2_detailed, "openvino_genai_commit"),
+        },
+        "turboquant_merge_commit": _ensure_uniform(
+            fv2_detailed, "turboquant_merge_commit"
+        ),
+        "source_campaign": "fv2 status joined to fv1 passed evidence",
+        "source_date": "2026-08-30",
+    }
+    return {
+        "attempt_entities": list(attempt_entities.values()),
+        "measurement_entities": list(measurement_entities.values()),
+        "summary_entities": list(summary_entities.values()),
+        "quality_entities": list(quality_entities.values()),
+        "failure_entities": list(failure_entities.values()),
+        "evidence_entities": list(evidence_entities.values()),
+        "prompt_entities": list(prompt_entities.values()),
+        "output_entities": list(output_entities.values()),
+        "availability_entities": availability_entities,
+        "model_artifact_entities": model_artifact_entities,
+        "source_location_entities": source_location_entities,
+        "repository": repository,
+        "hardware": hardware,
+        "software": software,
+        "route_manifest": {
+            "route_id": _OFFICIAL_ROUTE_ID,
+            "campaign_id": _OFFICIAL_CAMPAIGN_ID,
+            "attempt_count": len(attempt_entities),
+            "measurement_count": len(measurement_entities),
+            "summary_count": len(summary_entities),
+            "quality_count": len(quality_entities),
+            "failure_count": len(failure_entities),
+            "evidence_count": len(evidence_entities),
+            "repository": repository,
+            "hardware": hardware,
+            "software": software,
+        },
+        "executed_ids": sorted(
+            row["case_id"] for row in fv2_detailed if _bool(row["executed"])
+        ),
+    }
+
+
 def build_official_validation_receipts(
     repo_root: Path,
     bundle: RouteBundle,
@@ -3133,11 +3880,11 @@ def build_official_validation_receipts(
     output_rows: Sequence[Mapping[str, object]] | None = None,
     availability_rows: Sequence[Mapping[str, object]] | None = None,
     model_artifact_rows: Sequence[Mapping[str, object]] | None = None,
+    source_location_rows: Sequence[Mapping[str, object]] | None = None,
 ) -> tuple[dict[str, object], dict[str, object]]:
     """Rebuild official expectations from frozen sources and compare every entity."""
     root = Path(repo_root).resolve(strict=True)
-    expected = build_official_bundle(root)
-    expected_prompts, expected_outputs = _official_prompt_and_output_rows(root, expected)
+    expected = _official_frozen_validation_expectations(root)
     if prompt_rows is None or output_rows is None:
         generated_prompts, generated_outputs = _official_prompt_and_output_rows(root, bundle)
         if prompt_rows is None:
@@ -3146,18 +3893,17 @@ def build_official_validation_receipts(
             output_rows = generated_outputs
     if availability_rows is None:
         availability_rows = _availability_rows(bundle)
-    expected_availability = _availability_rows(expected)
     if model_artifact_rows is None:
         model_artifact_rows = _official_model_artifact_rows(root)
-    expected_model_artifacts = _official_model_artifact_rows(root)
+    if source_location_rows is None:
+        source_location_rows = _official_source_location_rows(root, bundle)
 
     status_counts = Counter(item.status.value for item in bundle.attempts)
     executed_ids = sorted(item.test_case_id for item in bundle.attempts if item.executed)
-    expected_executed_ids = sorted(
-        item.test_case_id for item in expected.attempts if item.executed
-    )
+    expected_executed_ids = expected["executed_ids"]
     cache_ids = sorted({str(item.cache_format_id) for item in bundle.attempts})
     terminal_manifest_links = []
+    conversion_log_links = []
     evidence_by_id = {item.evidence_id: item for item in bundle.evidence}
     for failure in bundle.failures:
         linked = [evidence_by_id.get(item) for item in failure.evidence_ids]
@@ -3168,6 +3914,13 @@ def build_official_validation_receipts(
                 for record in linked
             )
         )
+        if failure.test_case_id.startswith("granite-3b__fp16__"):
+            conversion_log_links.append(
+                any(
+                    record is not None and record.role == "conversion-log"
+                    for record in linked
+                )
+            )
     coverage_checks = {
         "attempt_count": _receipt_check(len(bundle.attempts), 45),
         "status_counts": _receipt_check(
@@ -3188,15 +3941,17 @@ def build_official_validation_receipts(
         "terminal_manifest_coverage": _receipt_check(
             terminal_manifest_links, [True] * 30
         ),
+        "conversion_log_coverage": _receipt_check(
+            conversion_log_links, [True] * 5
+        ),
     }
 
     def entity_check(
         actual_records: Iterable[object],
-        expected_records: Iterable[object],
+        expected_rows: Sequence[Mapping[str, object]],
         key_fields: tuple[str, ...],
     ) -> dict[str, object]:
         actual_rows = [item.to_row() for item in actual_records]
-        expected_rows = [item.to_row() for item in expected_records]
         diagnostics = _entity_set_diagnostics(actual_rows, expected_rows, key_fields)
         return {
             "actual": diagnostics,
@@ -3205,18 +3960,46 @@ def build_official_validation_receipts(
         }
 
     prompt_actual = [_published_prompt_entity(row) for row in prompt_rows]
-    prompt_expected = [_published_prompt_entity(row) for row in expected_prompts]
+    prompt_expected = [
+        _published_prompt_entity(row) for row in expected["prompt_entities"]
+    ]
     output_actual = [_published_output_entity(row) for row in output_rows]
-    output_expected = [_published_output_entity(row) for row in expected_outputs]
+    output_expected = [
+        _published_output_entity(row) for row in expected["output_entities"]
+    ]
     availability_actual = [_published_availability_entity(row) for row in availability_rows]
     availability_expected = [
-        _published_availability_entity(row) for row in expected_availability
+        _published_availability_entity(row)
+        for row in expected["availability_entities"]
     ]
     model_actual = [
         _published_model_artifact_entity(row) for row in model_artifact_rows
     ]
     model_expected = [
-        _published_model_artifact_entity(row) for row in expected_model_artifacts
+        _published_model_artifact_entity(row)
+        for row in expected["model_artifact_entities"]
+    ]
+    source_location_actual = [
+        {
+            "evidence_id": str(row.get("evidence_id", "")),
+            "role": str(row.get("role", "")),
+            "relative_path": str(row.get("relative_path", "")),
+            "sha256": str(row.get("sha256", "")),
+            "size_bytes": int(row.get("size_bytes", 0)),
+            "source_label": str(row.get("source_label", "")),
+        }
+        for row in source_location_rows
+    ]
+    source_location_expected = [
+        {
+            "evidence_id": str(row["evidence_id"]),
+            "role": str(row["role"]),
+            "relative_path": str(row["relative_path"]),
+            "sha256": str(row["sha256"]),
+            "size_bytes": int(row["size_bytes"]),
+            "source_label": str(row["source_label"]),
+        }
+        for row in expected["source_location_entities"]
     ]
 
     attempts_by_id = {item.attempt_id: item for item in bundle.attempts}
@@ -3270,22 +4053,22 @@ def build_official_validation_receipts(
     )
     data_checks = {
         "attempt_entities": entity_check(
-            bundle.attempts, expected.attempts, ("attempt_id",)
+            bundle.attempts, expected["attempt_entities"], ("attempt_id",)
         ),
         "measurement_entities": entity_check(
-            bundle.measurements, expected.measurements, ("measurement_id",)
+            bundle.measurements, expected["measurement_entities"], ("measurement_id",)
         ),
         "summary_entities": entity_check(
-            bundle.summaries, expected.summaries, ("summary_id",)
+            bundle.summaries, expected["summary_entities"], ("summary_id",)
         ),
         "quality_entities": entity_check(
-            bundle.quality, expected.quality, ("quality_id",)
+            bundle.quality, expected["quality_entities"], ("quality_id",)
         ),
         "failure_entities": entity_check(
-            bundle.failures, expected.failures, ("failure_id",)
+            bundle.failures, expected["failure_entities"], ("failure_id",)
         ),
         "evidence_entities": entity_check(
-            bundle.evidence, expected.evidence, ("evidence_id",)
+            bundle.evidence, expected["evidence_entities"], ("evidence_id",)
         ),
         "prompt_entities": {
             "actual": _entity_set_diagnostics(
@@ -3327,6 +4110,20 @@ def build_official_validation_receipts(
                 ("model_id", "weight_format_id"),
             ),
         },
+        "source_location_entities": {
+            "actual": _entity_set_diagnostics(
+                source_location_actual,
+                source_location_expected,
+                ("relative_path",),
+            ),
+            "expected": [],
+            "passed": not _entity_set_diagnostics(
+                source_location_actual,
+                source_location_expected,
+                ("relative_path",),
+            ),
+        },
+        "route_metadata": _receipt_check(bundle.to_row(), expected["route_manifest"]),
         "same_case_typed_references": _receipt_check(
             same_case_typed_references, True
         ),
@@ -3466,17 +4263,7 @@ def write_official_route(repo_root: Path) -> RouteBundle:
         _csv_rows(bundle.evidence),
         _EVIDENCE_FIELDS,
     )
-    source_location_rows = [
-        {
-            "evidence_id": item.evidence_id,
-            "role": item.role,
-            "relative_path": item.relative_path,
-            "sha256": item.sha256,
-            "size_bytes": item.size_bytes,
-            "source_label": item.source_label,
-        }
-        for item in bundle.evidence
-    ]
+    source_location_rows = _official_source_location_rows(root, bundle)
     write_csv(
         route / "evidence/source-locations.csv",
         source_location_rows,
@@ -3562,6 +4349,7 @@ def write_official_route(repo_root: Path) -> RouteBundle:
         output_rows=output_rows,
         availability_rows=availability_rows,
         model_artifact_rows=model_artifacts,
+        source_location_rows=source_location_rows,
     )
     write_json(route / "validation/coverage-validation.json", coverage)
     write_json(route / "validation/data-validation.json", data)

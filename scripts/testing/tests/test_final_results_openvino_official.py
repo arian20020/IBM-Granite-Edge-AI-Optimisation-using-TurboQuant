@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.testing.final_results.models import Status
+import scripts.testing.final_results.openvino_adapter as openvino_adapter
 from scripts.testing.final_results.openvino_adapter import (
     build_official_bundle,
     build_official_validation_receipts,
@@ -52,21 +53,10 @@ def _write_rows(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 def _isolated_official_repo(tmp_path: Path) -> Path:
-    repo = tmp_path / "repo"
+    native_repo = (tmp_path / "repo").resolve()
+    repo = Path(f"\\\\?\\{native_repo}") if os.name == "nt" else native_repo
     (repo / FV1.parent).mkdir(parents=True)
-
-    def ignore_broken_preflight_inputs(directory: str, names: list[str]) -> set[str]:
-        if Path(directory).name == "preflight" and "inputs" in names:
-            return {"inputs"}
-        return set()
-
-    shutil.copytree(
-        REPO_ROOT / FV1,
-        repo / FV1,
-        symlinks=True,
-        ignore_dangling_symlinks=True,
-        ignore=ignore_broken_preflight_inputs,
-    )
+    shutil.copytree(REPO_ROOT / FV1, repo / FV1)
     shutil.copytree(REPO_ROOT / FV2, repo / FV2)
     for relative in (V1_WORKBOOK, V2_WORKBOOK):
         target = repo / relative
@@ -251,6 +241,189 @@ def test_official_generation_writes_common_route_and_copies_only_primary_workboo
     assert all(check["passed"] for check in data["checks"].values())
 
 
+def test_official_evidence_inventory_covers_logs_aliases_and_preflight_inputs():
+    bundle = write_official_route(REPO_ROOT)
+    by_path = {item.relative_path: item for item in bundle.evidence}
+    conversion_path = (
+        FV2 / "guarded-retry-002/attempts/granite-3b__fp16/conversion.log"
+    ).as_posix()
+    conversion = by_path[conversion_path]
+    assert conversion.role == "conversion-log"
+    assert conversion.sha256 == "36d15156288619f17c972b5f0af9bc5380fe363cab90a8356feac4e5ca579d65"
+    assert all(
+        conversion.evidence_id in failure.evidence_ids
+        for failure in bundle.failures
+        if failure.test_case_id.startswith("granite-3b__fp16__")
+    )
+
+    preflight_paths = {
+        (FV1 / "preflight/inputs/314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3.txt").as_posix():
+        "314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3",
+        (FV1 / "preflight/inputs/ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0.txt").as_posix():
+        "ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0",
+    }
+    preflight_ids = []
+    for path, digest in preflight_paths.items():
+        item = by_path[path]
+        assert item.role == "preflight-input"
+        assert item.sha256 == digest
+        preflight_ids.append(item.evidence_id)
+    receipt = next(item for item in bundle.evidence if item.role == "source-preflight")
+    assert set(receipt.input_evidence_ids) == set(preflight_ids)
+
+    benchmark_path = (
+        FV1
+        / "inputs/f2b9e8f0f10053f3a04e1532ecd1e66d026ba1f37e7cde636bc2b5e2748c301c.txt"
+    ).as_posix()
+    benchmark = by_path[benchmark_path]
+    assert benchmark.role == "benchmark-prompt-input"
+    assert benchmark.sha256 == benchmark_path.rsplit("/", 1)[-1].removesuffix(".txt")
+    raw_records = [item for item in bundle.evidence if item.role == "raw-case-result"]
+    assert raw_records
+    assert all(benchmark.evidence_id in item.input_evidence_ids for item in raw_records)
+
+    source_model_paths = {
+        (FV2 / "source-models.json").as_posix(),
+        (FV2 / "guarded-retry-001/source-models.json").as_posix(),
+        (FV2 / "guarded-retry-002/source-models.json").as_posix(),
+    }
+    locations = _rows(ROUTE / "evidence/source-locations.csv")
+    aliases = [
+        row for row in locations
+        if row["role"] == "missing-model-source-inventory"
+    ]
+    assert {row["relative_path"] for row in aliases} == source_model_paths
+    assert {row["sha256"] for row in aliases} == {
+        "5f3981b202e5b968533739c66f1dc998bb50311dc89ada3ef3da13db9c2afae4"
+    }
+    assert {int(row["size_bytes"]) for row in aliases} == {7_932}
+    assert len({row["evidence_id"] for row in aliases}) == 1
+    assert all(row["source_label"] for row in aliases)
+    content_id = aliases[0]["evidence_id"]
+    assert any(item.evidence_id == content_id for item in bundle.evidence)
+
+
+def test_official_validation_expectations_do_not_call_bundle_builder(monkeypatch):
+    bundle = build_official_bundle(REPO_ROOT)
+
+    def forbidden_builder(_repo_root):
+        raise AssertionError("validation must not call build_official_bundle")
+
+    monkeypatch.setattr(openvino_adapter, "build_official_bundle", forbidden_builder)
+    coverage, data = build_official_validation_receipts(REPO_ROOT, bundle)
+
+    assert coverage["valid"] is True
+    assert data["valid"] is True
+
+
+def test_official_rejects_missing_required_log_alias_or_preflight_input(tmp_path):
+    paths = (
+        FV2 / "guarded-retry-002/attempts/granite-3b__fp16/conversion.log",
+        FV2 / "source-models.json",
+        FV1 / "preflight/inputs/314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3.txt",
+        FV1 / "inputs/f2b9e8f0f10053f3a04e1532ecd1e66d026ba1f37e7cde636bc2b5e2748c301c.txt",
+    )
+    for index, relative in enumerate(paths):
+        repo = _isolated_official_repo(tmp_path / str(index))
+        (repo / relative).unlink()
+        with pytest.raises((FileNotFoundError, ValueError), match="evidence|conversion|source-models|preflight"):
+            build_official_bundle(repo)
+
+
+@pytest.mark.parametrize(
+    ("case_id", "algorithm", "precision"),
+    (
+        ("granite-3b__int4__tbq3", "SCALAR", "u3"),
+        ("granite-3b__int4__tbq4", "SCALAR", "u4"),
+        ("granite-3b__int4__u4", "TURBO", "u4"),
+        ("granite-3b__int4__u8", "SCALAR", "u4"),
+        ("granite-3b__int4__f16", "SCALAR", "f16"),
+    ),
+)
+def test_official_rejects_synchronized_cache_activation_mislabeling(
+    tmp_path, case_id, algorithm, precision
+):
+    repo = _isolated_official_repo(tmp_path)
+
+    def mutate_raw(payload):
+        properties = {"ATTENTION_BACKEND": "SDPA"}
+        properties.update(
+            {
+                "KEY_CACHE_QUANT_ALG": algorithm,
+                "VALUE_CACHE_QUANT_ALG": algorithm,
+                "KEY_CACHE_PRECISION": precision,
+                "VALUE_CACHE_PRECISION": precision,
+            }
+        )
+        payload["runtime_properties"] = properties
+        for run in payload["benchmark_runs"] + payload["quality_runs"]:
+            run["result"]["runtime_properties"] = dict(properties)
+            run["stdout"] = json.dumps(run["result"], separators=(",", ":")) + "\n"
+        payload["benchmark"] = next(
+            run for run in payload["benchmark_runs"]
+            if run["result"]["decode_tps"]
+            == sorted(item["result"]["decode_tps"] for item in payload["benchmark_runs"])[1]
+        )
+
+    _rewrite_raw(repo, case_id, mutate_raw)
+    for relative in (
+        FV1 / "official-openvino-detailed-results.csv",
+        FV2 / "consolidated/official-openvino-detailed-results.csv",
+    ):
+        path = repo / relative
+        rows = _rows(path)
+        target = next(row for row in rows if row["case_id"] == case_id)
+        target["key_cache_algorithm"] = algorithm
+        target["value_cache_algorithm"] = algorithm
+        target["key_cache_precision"] = precision
+        target["value_cache_precision"] = precision
+        _write_rows(path, rows)
+
+    with pytest.raises(ValueError, match="cache activation semantics"):
+        build_official_bundle(repo)
+
+
+def test_official_validation_rejects_synchronized_prompt_identity_mapping():
+    bundle = build_official_bundle(REPO_ROOT)
+    first, second = "Q01", "Q02"
+    remap = {first: second, second: first}
+    quality = tuple(
+        replace(
+            item,
+            prompt_id=remap.get(str(item.prompt_id), item.prompt_id),
+            quality_id=(
+                item.quality_id.replace(f"--{item.prompt_id}--", f"--{remap[item.prompt_id]}--")
+                if item.prompt_id in remap
+                else item.quality_id
+            ),
+        )
+        for item in bundle.quality
+    )
+    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    for row in prompts:
+        row["prompt_id"] = remap.get(row["prompt_id"], row["prompt_id"])
+    for row in outputs:
+        old = row["prompt_id"]
+        row["prompt_id"] = remap.get(old, old)
+        if old in remap:
+            row["output_id"] = row["output_id"].replace(
+                f"--{old}--", f"--{remap[old]}--"
+            )
+
+    _, data = build_official_validation_receipts(
+        REPO_ROOT,
+        replace(bundle, quality=quality),
+        prompt_rows=prompts,
+        output_rows=outputs,
+    )
+
+    assert data["valid"] is False
+    assert data["checks"]["prompt_entities"]["passed"] is False
+    assert data["checks"]["output_entities"]["passed"] is False
+    assert data["checks"]["quality_entities"]["passed"] is False
+
+
 def test_official_validation_rejects_full_entity_and_typed_cross_case_mutations():
     bundle = build_official_bundle(REPO_ROOT)
     attempt = list(bundle.attempts)
@@ -354,6 +527,50 @@ def test_official_validation_rejects_each_published_entity_type_mutation():
         REPO_ROOT, bundle, model_artifact_rows=artifact_rows
     )
     assert data["checks"]["model_artifact_entities"]["passed"] is False
+
+    source_locations = _rows(ROUTE / "evidence/source-locations.csv")
+    alias = next(
+        row for row in source_locations
+        if row["relative_path"].endswith("guarded-retry-001/source-models.json")
+    )
+    alias["sha256"] = "0" * 64
+    _, data = build_official_validation_receipts(
+        REPO_ROOT, bundle, source_location_rows=source_locations
+    )
+    assert data["checks"]["source_location_entities"]["passed"] is False
+
+    evidence = list(bundle.evidence)
+    preflight_index = next(
+        i for i, item in enumerate(evidence) if item.role == "source-preflight"
+    )
+    evidence[preflight_index] = replace(
+        evidence[preflight_index], input_evidence_ids=()
+    )
+    _, data = build_official_validation_receipts(
+        REPO_ROOT, replace(bundle, evidence=tuple(evidence))
+    )
+    assert data["checks"]["evidence_entities"]["passed"] is False
+
+    failures = list(bundle.failures)
+    conversion_index = next(
+        i for i, item in enumerate(failures)
+        if item.test_case_id.startswith("granite-3b__fp16__")
+    )
+    conversion_evidence_id = next(
+        item.evidence_id for item in bundle.evidence if item.role == "conversion-log"
+    )
+    failures[conversion_index] = replace(
+        failures[conversion_index],
+        evidence_ids=tuple(
+            item for item in failures[conversion_index].evidence_ids
+            if item != conversion_evidence_id
+        ),
+    )
+    coverage, data = build_official_validation_receipts(
+        REPO_ROOT, replace(bundle, failures=tuple(failures))
+    )
+    assert coverage["checks"]["conversion_log_coverage"]["passed"] is False
+    assert data["checks"]["failure_entities"]["passed"] is False
 
 
 def test_official_rejects_a_passed_fv2_case_without_fv1_raw_evidence(tmp_path):

@@ -1,7 +1,7 @@
 {
   "attempt_count": 45,
   "campaign_id": "fv2-2026-08-30",
-  "evidence_count": 88,
+  "evidence_count": 92,
   "failure_count": 30,
   "hardware": {
     "conversion_preflight_by_model_weight": {
