@@ -32,6 +32,7 @@ public sealed class E1EndToEndRunnerInvocationTests
             ["-IntegrationCandidateRemoteRef", "refs/heads/integration/not-the-issued-candidate"],
             ["-ImplementationCommit", new string('0', 40)],
             ["-ImplementationTree", new string('0', 40)],
+            ["-IntegrationCandidateRemote", "https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant.git"],
         ];
 
         foreach (string[] mutation in mutations)
@@ -40,6 +41,19 @@ public sealed class E1EndToEndRunnerInvocationTests
             Assert.AreNotEqual(0, result.ExitCode, $"Mutation unexpectedly passed: {string.Join(' ', mutation)}");
         }
 
+        Assert.IsFalse(File.Exists(fixture.DotNetLog));
+        Assert.IsFalse(File.Exists(fixture.VsTestLog));
+        Assert.IsFalse(Directory.Exists(fixture.LockPath));
+    }
+
+    [TestMethod]
+    public void Native_stage_requires_every_exact_manifest_before_build_or_lock()
+    {
+        using RunnerFixture fixture = RunnerFixture.Create();
+
+        ProcessResult result = fixture.RunExact(["-Stage", "Smoke"]);
+
+        Assert.AreNotEqual(0, result.ExitCode);
         Assert.IsFalse(File.Exists(fixture.DotNetLog));
         Assert.IsFalse(File.Exists(fixture.VsTestLog));
         Assert.IsFalse(Directory.Exists(fixture.LockPath));
@@ -59,6 +73,16 @@ public sealed class E1EndToEndRunnerInvocationTests
         StringAssert.Contains(invocations[1], "/TestCaseFilter:TestCategory=PostAcceptance");
         Assert.IsFalse(File.Exists(fixture.DotNetLog));
         Assert.IsFalse(Directory.Exists(fixture.LockPath));
+        string[] environments = File.ReadAllLines(fixture.EnvironmentLog);
+        Assert.AreEqual(2, environments.Length);
+        foreach (string environment in environments)
+        {
+            StringAssert.Contains(environment, $"candidate={CandidateCommit}/{CandidateTree}");
+            StringAssert.Contains(environment, $"implementation={fixture.ImplementationCommit}/{fixture.ImplementationTree}");
+            StringAssert.Contains(environment, "remote=origin/refs/heads/integration/ucl-r4-e1-issued-base-v2");
+            StringAssert.Contains(environment, $"root={fixture.RepositoryRoot}");
+            Assert.IsFalse(environment.Contains("stale", StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     private sealed class RunnerFixture : IDisposable
@@ -88,6 +112,7 @@ public sealed class E1EndToEndRunnerInvocationTests
             }));
             DotNetLog = Path.Combine(directory.Path, "dotnet.log");
             VsTestLog = Path.Combine(directory.Path, "vstest.log");
+            EnvironmentLog = Path.Combine(directory.Path, "environment.log");
             DotNetPath = WriteRecorder("dotnet.cmd", "E1_RUNNER_DOTNET_LOG");
             VsTestPath = WriteRecorder("vstest.cmd", "E1_RUNNER_VSTEST_LOG");
             LockPath = Path.Combine(directory.Path, "native.lock");
@@ -99,6 +124,10 @@ public sealed class E1EndToEndRunnerInvocationTests
         internal string VsTestLog { get; }
         internal string VsTestPath { get; }
         internal string LockPath { get; }
+        internal string EnvironmentLog { get; }
+        internal string ImplementationCommit => _implementationCommit;
+        internal string ImplementationTree => _implementationTree;
+        internal string RepositoryRoot => _repositoryRoot;
 
         internal static RunnerFixture Create()
         {
@@ -146,6 +175,11 @@ public sealed class E1EndToEndRunnerInvocationTests
             };
             start.Environment["E1_RUNNER_DOTNET_LOG"] = DotNetLog;
             start.Environment["E1_RUNNER_VSTEST_LOG"] = VsTestLog;
+            start.Environment["E1_RUNNER_ENV_LOG"] = EnvironmentLog;
+            start.Environment["GRANITE_E2E_ASSET_MANIFEST"] = "C:\\stale\\asset.json";
+            start.Environment["GRANITE_E2E_H1_MANIFEST"] = "C:\\stale\\h1.json";
+            start.Environment["GRANITE_E2E_M1_MANIFEST"] = "C:\\stale\\m1.json";
+            start.Environment["GRANITE_E2E_Q1_MANIFEST"] = "C:\\stale\\q1.json";
             start.ArgumentList.Add("-NoProfile");
             start.ArgumentList.Add("-NonInteractive");
             start.ArgumentList.Add("-ExecutionPolicy");
@@ -162,7 +196,11 @@ public sealed class E1EndToEndRunnerInvocationTests
         private string WriteRecorder(string name, string variable)
         {
             string path = Path.Combine(_directory.Path, name);
-            File.WriteAllText(path, $"@echo off{Environment.NewLine}echo %*>>\"%{variable}%\"{Environment.NewLine}exit /b 0{Environment.NewLine}");
+            File.WriteAllText(path,
+                $"@echo off{Environment.NewLine}" +
+                $"echo %*>>\"%{variable}%\"{Environment.NewLine}" +
+                "echo candidate=%GRANITE_E2E_CANDIDATE_COMMIT%/%GRANITE_E2E_CANDIDATE_TREE%^|implementation=%GRANITE_E2E_IMPLEMENTATION_COMMIT%/%GRANITE_E2E_IMPLEMENTATION_TREE%^|remote=%GRANITE_E2E_CANDIDATE_REMOTE%/%GRANITE_E2E_CANDIDATE_REMOTE_REF%^|root=%GRANITE_E2E_REPOSITORY_ROOT%^|optional=%GRANITE_E2E_ASSET_MANIFEST%,%GRANITE_E2E_H1_MANIFEST%,%GRANITE_E2E_M1_MANIFEST%,%GRANITE_E2E_Q1_MANIFEST%>>\"%E1_RUNNER_ENV_LOG%\"" + Environment.NewLine +
+                $"exit /b 0{Environment.NewLine}");
             return path;
         }
 

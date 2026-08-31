@@ -24,6 +24,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $repositoryRoot = (Resolve-Path (Join-Path $projectRoot '..\..\..')).Path
+foreach ($name in @('GRANITE_E2E_ASSET_MANIFEST', 'GRANITE_E2E_H1_MANIFEST', 'GRANITE_E2E_M1_MANIFEST', 'GRANITE_E2E_Q1_MANIFEST')) {
+    Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+}
 $dotnet = if ($DotNetHostPath) {
     (Resolve-Path -LiteralPath $DotNetHostPath).Path
 } else {
@@ -43,6 +46,10 @@ function Invoke-CheckedGit([string[]] $Arguments) {
 
 if ($CandidateCommit -ne $issuedCandidateCommit -or $CandidateTree -ne $issuedCandidateTree) {
     throw 'Candidate commit/tree must equal the immutable E1 v2 issued candidate.'
+}
+if ($IntegrationCandidateRemote -ne 'origin' -or
+    $IntegrationCandidateRemoteRef -ne 'refs/heads/integration/ucl-r4-e1-issued-base-v2') {
+    throw 'Candidate remote/ref must equal the dispatched immutable origin ref.'
 }
 if ((Invoke-CheckedGit @('rev-parse', "$requiredCommit^{tree}")) -ne $requiredTree) { throw 'E1 frozen source tree mismatch.' }
 if ((Invoke-CheckedGit @('rev-parse', "$CandidateCommit^{tree}")) -ne $CandidateTree) { throw 'Issued candidate commit/tree mismatch.' }
@@ -102,6 +109,41 @@ if ($Stage -eq 'Evidence') {
         if ($LASTEXITCODE -ne 0) { throw "Authoritative $category evaluator failed with exit code $LASTEXITCODE." }
     }
     return
+}
+
+if ($Stage -in @('Smoke', 'Failure', 'Acceptance', 'All')) {
+    $nativeInputs = [ordered]@{
+        Asset = $AssetManifest
+        H1 = $H1Manifest
+        M1 = $M1Manifest
+        Q1 = $Q1Manifest
+    }
+    foreach ($entry in $nativeInputs.GetEnumerator()) {
+        if ([string]::IsNullOrWhiteSpace([string]$entry.Value)) {
+            throw "Blocked: native stage requires the exact $($entry.Key) manifest before build or lock."
+        }
+    }
+    $asset = Get-Content -Raw -LiteralPath $env:GRANITE_E2E_ASSET_MANIFEST | ConvertFrom-Json
+    if ($asset.schemaVersion -ne 1 -or -not $asset.assets -or @($asset.assets).Count -eq 0) {
+        throw 'Blocked: asset manifest schema or asset inventory is invalid.'
+    }
+    foreach ($assetRow in @($asset.assets)) {
+        if ($assetRow.route -notin @('gguf', 'openvino') -or
+            [string]$assetRow.sha256 -notmatch '^[0-9a-f]{64}$' -or [long]$assetRow.bytes -lt 0) {
+            throw 'Blocked: asset manifest contains an invalid route, digest, or byte count.'
+        }
+    }
+    foreach ($worker in @('H1', 'M1', 'Q1')) {
+        $manifestVariable = "GRANITE_E2E_${worker}_MANIFEST"
+        $producer = Get-Content -Raw -LiteralPath ([Environment]::GetEnvironmentVariable($manifestVariable)) | ConvertFrom-Json
+        if ($producer.workerId -ne $worker -or $producer.frozenSourceCommit -ne $requiredCommit -or
+            [string]$producer.evidenceSubjectCommit -notmatch '^[0-9a-f]{40}$' -or
+            [string]$producer.evidenceSubjectTree -notmatch '^[0-9a-f]{40}$' -or
+            (Invoke-CheckedGit @('rev-parse', "$($producer.evidenceSubjectCommit)^{tree}")) -ne $producer.evidenceSubjectTree) {
+            throw "Blocked: $worker producer evidence identity is invalid."
+        }
+        [void](Invoke-CheckedGit @('merge-base', '--is-ancestor', [string]$producer.evidenceSubjectCommit, $CandidateCommit))
+    }
 }
 
 $resultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260829\E1'

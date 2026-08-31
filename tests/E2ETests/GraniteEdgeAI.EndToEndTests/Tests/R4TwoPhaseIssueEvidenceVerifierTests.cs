@@ -101,7 +101,15 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
         string receipt = WritePostReceipt(directory, mutate: (value, _, _) => value["externalBlock"] = new Dictionary<string, object?>
         {
             ["kind"] = "appControlFailure", ["commandId"] = "APP-CONTROL-GATE",
-            ["errorCode"] = "0x800711C7", ["observed"] = true,
+            ["errorCode"] = "0x800711C7", ["observationId"] = "external-observation.json",
+        }, mutateObservation: observation =>
+        {
+            observation["kind"] = "appControlFailure";
+            observation.Remove("prerequisite");
+            observation.Remove("observedAbsent");
+            observation["commandId"] = "APP-CONTROL-GATE";
+            observation["errorCode"] = "0x800711C7";
+            observation["observedFailure"] = true;
         });
         R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
         Assert.IsTrue(result.ClosesR3_020);
@@ -164,6 +172,19 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
+    public void Unbound_or_mismatched_external_observation_cannot_close_R3_020()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string unbound = WritePostReceipt(directory, mutate: (receipt, _, _) =>
+            ((Dictionary<string, object?>)receipt["externalBlock"]!)["observationId"] = "missing-observation.json");
+        string mismatch = WritePostReceipt(directory, mutateObservation: observation =>
+            observation["prerequisite"] = "assetManifest");
+
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(unbound, directory.Path));
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(mismatch, directory.Path));
+    }
+
+    [TestMethod]
     public void Zero_package_or_lock_execution_cannot_close_R3_022()
     {
         using TestDirectory directory = TestDirectory.Create();
@@ -187,11 +208,13 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     private static string WritePostReceipt(
         TestDirectory directory,
         bool approvedEvidence = false,
-        Action<Dictionary<string, object?>, Dictionary<string, object?>, Dictionary<string, object?>>? mutate = null)
+        Action<Dictionary<string, object?>, Dictionary<string, object?>, Dictionary<string, object?>>? mutate = null,
+        Action<Dictionary<string, object?>>? mutateObservation = null)
     {
         string report = Path.Combine(directory.Path, "report.md");
         string manifestPath = Path.Combine(directory.Path, $"manifest-{Guid.NewGuid():N}.json");
         string reviewPath = Path.Combine(directory.Path, $"review-{Guid.NewGuid():N}.json");
+        string observationPath = Path.Combine(directory.Path, "external-observation.json");
         File.WriteAllText(report, "evidence");
         long passed = approvedEvidence ? 1 : 0;
         long failed = approvedEvidence ? 0 : 1;
@@ -208,6 +231,15 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
             ManifestGate("APP-CONTROL-GATE", passed, failed),
             ManifestGate("NATIVE-GATE", passed, failed),
             ManifestGate("E2E-GATE", passed, failed),
+        };
+        if (!approvedEvidence) commands.Add(ManifestGate("EXTERNAL-PREREQUISITE-PREFLIGHT", 0, 1));
+        var observation = new Dictionary<string, object?>
+        {
+            ["schemaVersion"] = 1, ["observer"] = "E1",
+            ["candidateCommit"] = new string('a', 40), ["candidateTree"] = new string('b', 40),
+            ["implementationSubjectCommit"] = new string('c', 40), ["implementationSubjectTree"] = new string('d', 40),
+            ["kind"] = "missingPrerequisite", ["prerequisite"] = "candidateManifest",
+            ["observedAbsent"] = true, ["observedAtUtc"] = "2026-08-31T20:00:00Z",
         };
         var manifest = new Dictionary<string, object?>
         {
@@ -241,12 +273,22 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
             ["externalBlock"] = approvedEvidence ? null : MissingPrerequisite("candidateManifest"),
         };
         mutate?.Invoke(receipt, manifest, review);
+        mutateObservation?.Invoke(observation);
         File.WriteAllText(reviewPath, JsonSerializer.Serialize(review));
+        if (!approvedEvidence) File.WriteAllText(observationPath, JsonSerializer.Serialize(observation));
         ((List<Dictionary<string, object?>>)manifest["outputs"]!).Add(new Dictionary<string, object?>
         {
             ["kind"] = "independent-final-review", ["id"] = Path.GetFileName(reviewPath),
             ["sha256"] = Digest(reviewPath), ["bytes"] = new FileInfo(reviewPath).Length, ["evidenceGrade"] = "verified",
         });
+        if (!approvedEvidence)
+        {
+            ((List<Dictionary<string, object?>>)manifest["outputs"]!).Add(new Dictionary<string, object?>
+            {
+                ["kind"] = "external-block-observation", ["id"] = Path.GetFileName(observationPath),
+                ["sha256"] = Digest(observationPath), ["bytes"] = new FileInfo(observationPath).Length, ["evidenceGrade"] = "verified",
+            });
+        }
         File.WriteAllText(manifestPath, JsonSerializer.Serialize(manifest));
         receipt["evidenceManifest"] = FileBinding(manifestPath);
         string path = Path.Combine(directory.Path, $"receipt-{Guid.NewGuid():N}.json");
@@ -256,7 +298,8 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
 
     private static Dictionary<string, object?> MissingPrerequisite(string prerequisite) => new()
     {
-        ["kind"] = "missingPrerequisite", ["prerequisite"] = prerequisite, ["observed"] = true,
+        ["kind"] = "missingPrerequisite", ["prerequisite"] = prerequisite,
+        ["commandId"] = "EXTERNAL-PREREQUISITE-PREFLIGHT", ["observationId"] = "external-observation.json",
     };
 
     private static Dictionary<string, object?> ManifestGate(string id, long passed, long failed) => new()
