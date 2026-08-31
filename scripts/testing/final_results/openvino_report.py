@@ -42,6 +42,10 @@ _ROUTE_TITLES = {
     "openvino-experimental-fork": "Experimental OpenVINO fork final results",
     "openvino-official-upstream": "Official upstream OpenVINO final results",
 }
+_ROUTE_DIRECTORIES = {
+    "openvino-experimental-fork": "04-openvino-experimental-fork",
+    "openvino-official-upstream": "05-openvino-official-upstream",
+}
 
 _STATUS_ORDER = (
     Status.PASSED,
@@ -407,8 +411,10 @@ def build_openvino_report(bundle: RouteBundle) -> Report:
     """Construct an OpenVINO master report solely from one normalized bundle."""
     try:
         title = _ROUTE_TITLES[bundle.route_id]
+        route_directory = _ROUTE_DIRECTORIES[bundle.route_id]
     except KeyError as error:
         raise ValueError(f"unsupported OpenVINO route: {bundle.route_id!r}") from error
+    route_root = f"docs/testing/final-results/{route_directory}"
     source_date = date.fromisoformat(str(bundle.repository["source_date"]))
     counts = _status_counts(bundle)
     suite, rubric, scoring_version, prompts = _quality_metadata(bundle)
@@ -719,18 +725,18 @@ def build_openvino_report(bundle: RouteBundle) -> Report:
             SECTION_ORDER[12],
             (
                 ReportParagraph(
-                    f"Use the frozen evidence and normalization instructions in docs/testing/final-results/{bundle.route_id}/reproduction/README.md. Regeneration validates source identities and normalizes existing evidence; it does not rerun inference."
+                    f"Use the frozen evidence and normalization instructions in {route_root}/reproduction/README.md. Regeneration validates source identities and normalizes existing evidence; it does not rerun inference."
                 ),
                 _table(
                     "RE-01",
                     "Reproduction inputs and outputs",
                     ("Item", "Repository-relative location"),
                     (
-                        ("Canonical attempts", f"docs/testing/final-results/{bundle.route_id}/results/attempts.csv"),
-                        ("Canonical measurements", f"docs/testing/final-results/{bundle.route_id}/results/measurements.csv"),
-                        ("Canonical quality", f"docs/testing/final-results/{bundle.route_id}/quality/scores.csv"),
-                        ("Evidence index", f"docs/testing/final-results/{bundle.route_id}/evidence/evidence-index.csv"),
-                        ("Source workbook", f"docs/testing/final-results/{bundle.route_id}/results/source/"),
+                        ("Canonical attempts", f"{route_root}/results/attempts.csv"),
+                        ("Canonical measurements", f"{route_root}/results/measurements.csv"),
+                        ("Canonical quality", f"{route_root}/quality/scores.csv"),
+                        ("Evidence index", f"{route_root}/evidence/evidence-index.csv"),
+                        ("Source workbook", f"{route_root}/results/source/"),
                     ),
                 ),
             ),

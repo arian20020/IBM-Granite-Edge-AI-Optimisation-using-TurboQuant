@@ -512,17 +512,17 @@ Within-route ranking is valid only on the same model, weight format, cache forma
 
 ## 13. Reproduction guidance
 
-Use the frozen evidence and normalization instructions in docs/testing/final-results/openvino-experimental-fork/reproduction/README.md. Regeneration validates source identities and normalizes existing evidence; it does not rerun inference.
+Use the frozen evidence and normalization instructions in docs/testing/final-results/04-openvino-experimental-fork/reproduction/README.md. Regeneration validates source identities and normalizes existing evidence; it does not rerun inference.
 
 ### RE-01 — Reproduction inputs and outputs
 
 | Item | Repository-relative location |
 | --- | --- |
-| Canonical attempts | docs/testing/final-results/openvino-experimental-fork/results/attempts.csv |
-| Canonical measurements | docs/testing/final-results/openvino-experimental-fork/results/measurements.csv |
-| Canonical quality | docs/testing/final-results/openvino-experimental-fork/quality/scores.csv |
-| Evidence index | docs/testing/final-results/openvino-experimental-fork/evidence/evidence-index.csv |
-| Source workbook | docs/testing/final-results/openvino-experimental-fork/results/source/ |
+| Canonical attempts | docs/testing/final-results/04-openvino-experimental-fork/results/attempts.csv |
+| Canonical measurements | docs/testing/final-results/04-openvino-experimental-fork/results/measurements.csv |
+| Canonical quality | docs/testing/final-results/04-openvino-experimental-fork/quality/scores.csv |
+| Evidence index | docs/testing/final-results/04-openvino-experimental-fork/evidence/evidence-index.csv |
+| Source workbook | docs/testing/final-results/04-openvino-experimental-fork/results/source/ |
 
 ## 14. Evidence index and hashes
 

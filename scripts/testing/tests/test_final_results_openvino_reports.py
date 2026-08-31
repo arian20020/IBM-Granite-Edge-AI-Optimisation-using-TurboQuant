@@ -67,6 +67,16 @@ def _tables(report) -> dict[str, ReportTable]:
     }
 
 
+def _local_repo_paths(report) -> set[str]:
+    roots = ("docs/", "experiments/", "outputs/")
+    candidates: set[str] = set()
+    for value in _text(report).split():
+        candidate = value.rstrip(".,;:")
+        if candidate.startswith(roots):
+            candidates.add(candidate)
+    return candidates
+
+
 def test_reports_follow_the_approved_sections_and_derive_campaign_accounting():
     build = _module().build_openvino_report
 
@@ -194,6 +204,29 @@ def test_report_states_aggregation_comparison_boundaries_evidence_and_revision()
     assert tables["RV-01"].rows == (("R1", "2026-08-30", "Initial evidence-bound master report publication"),)
     assert set(report.evidence_ids).issubset({record.evidence_id for record in build_official_bundle(REPOSITORY_ROOT).evidence})
     assert report.evidence_ids
+
+
+def test_all_generated_local_paths_use_the_verified_route_directory_and_exist():
+    build = _module().build_openvino_report
+
+    for bundle, route_directory in (
+        (build_experimental_bundle(REPOSITORY_ROOT), "04-openvino-experimental-fork"),
+        (build_official_bundle(REPOSITORY_ROOT), "05-openvino-official-upstream"),
+    ):
+        report = build(bundle)
+        local_paths = _local_repo_paths(report)
+        route_paths = {
+            path for path in local_paths if path.startswith("docs/testing/final-results/")
+        }
+
+        assert route_paths
+        assert all(
+            path.startswith(f"docs/testing/final-results/{route_directory}/")
+            for path in route_paths
+        )
+        assert [
+            path for path in sorted(local_paths) if not (REPOSITORY_ROOT / path).exists()
+        ] == []
 
 
 def test_route_manifest_regeneration_is_exact_and_hash_valid(tmp_path):

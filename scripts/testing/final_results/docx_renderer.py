@@ -26,6 +26,7 @@ NAVY = "0F2747"
 TEAL = "0F766E"
 BLUE = "0B63CE"
 WHITE = RGBColor(255, 255, 255)
+DARK_TEXT = RGBColor(31, 31, 31)
 PORTRAIT_WIDTH = Inches(8.27)
 PORTRAIT_HEIGHT = Inches(11.69)
 
@@ -194,11 +195,15 @@ def _style_table(table: Table) -> None:
                     for run in paragraph.runs:
                         run.font.bold = True
                         run.font.color.rgb = WHITE
-            elif row_index % 2 == 0:
-                _shade_cell(cell, "EEF4F8")
-            status_fill = _STATUS_FILLS.get(cell.text.strip().casefold())
-            if status_fill is not None:
-                _shade_cell(cell, status_fill)
+            else:
+                if row_index % 2 == 0:
+                    _shade_cell(cell, "EEF4F8")
+                status_fill = _STATUS_FILLS.get(cell.text.strip().casefold())
+                if status_fill is not None:
+                    _shade_cell(cell, status_fill)
+                    for paragraph in cell.paragraphs:
+                        for run in paragraph.runs:
+                            run.font.color.rgb = DARK_TEXT
 
 
 def _add_table(document: DocumentObject, columns: tuple[str, ...], rows: tuple[tuple[str, ...], ...]) -> None:

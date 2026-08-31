@@ -136,3 +136,12 @@ The five Task 8 additions per route are:
 - Complete evidence indexes make the audit reports long (54 and 52 pages), but exact values and hashes remain readable, searchable, and available without a second document.
 - All temporary inspection PNG directories were removed after validation; no inspection image is present in the repository, staged set, or route manifests.
 - Existing unrelated recovered worktree changes were not staged or modified.
+
+## Fix round 1
+
+- Corrected reproduction and route-artifact references to use the verified numbered route directories: `04-openvino-experimental-fork` and `05-openvino-official-upstream`. A generated-report regression extracts every repository-local path and verifies that it exists.
+- Restricted DOCX status fills to data rows. Header cells remain blue with white text even when their labels are `Passed`, `Failed`, `Blocked`, or `Artifact unavailable`; status data cells retain their controlled fills with explicit dark text and at least 4.5:1 contrast.
+- Path-integrity TDD produced the expected prefix RED (`1 failed`) and GREEN (`1 passed`). Header/data-style TDD produced the expected header-fill RED (`E2F0D9 != 0B63CE`) and GREEN (`3 passed` with the existing controlled-label checks).
+- Regenerated both canonical Markdown, DOCX, PDF, and parity artifacts. The owned Word exporter preserved baseline PID 5032.
+- Re-rendered and inspected all 106 PDF pages in contact sheets. Availability pages 6 and 7 in each report and representative experimental/official status-data pages were reviewed at full resolution; no clipping, overflow, blank page, orphan heading, or status-colour regression was found.
+- Focused report/DOCX verification passed 16 tests; the relevant final-results regression passed 184 tests in 88.35 seconds.

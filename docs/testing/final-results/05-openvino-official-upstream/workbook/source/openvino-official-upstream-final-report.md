@@ -387,17 +387,17 @@ Within-route ranking is valid only on the same model, weight format, cache forma
 
 ## 13. Reproduction guidance
 
-Use the frozen evidence and normalization instructions in docs/testing/final-results/openvino-official-upstream/reproduction/README.md. Regeneration validates source identities and normalizes existing evidence; it does not rerun inference.
+Use the frozen evidence and normalization instructions in docs/testing/final-results/05-openvino-official-upstream/reproduction/README.md. Regeneration validates source identities and normalizes existing evidence; it does not rerun inference.
 
 ### RE-01 — Reproduction inputs and outputs
 
 | Item | Repository-relative location |
 | --- | --- |
-| Canonical attempts | docs/testing/final-results/openvino-official-upstream/results/attempts.csv |
-| Canonical measurements | docs/testing/final-results/openvino-official-upstream/results/measurements.csv |
-| Canonical quality | docs/testing/final-results/openvino-official-upstream/quality/scores.csv |
-| Evidence index | docs/testing/final-results/openvino-official-upstream/evidence/evidence-index.csv |
-| Source workbook | docs/testing/final-results/openvino-official-upstream/results/source/ |
+| Canonical attempts | docs/testing/final-results/05-openvino-official-upstream/results/attempts.csv |
+| Canonical measurements | docs/testing/final-results/05-openvino-official-upstream/results/measurements.csv |
+| Canonical quality | docs/testing/final-results/05-openvino-official-upstream/quality/scores.csv |
+| Evidence index | docs/testing/final-results/05-openvino-official-upstream/evidence/evidence-index.csv |
+| Source workbook | docs/testing/final-results/05-openvino-official-upstream/results/source/ |
 
 ## 14. Evidence index and hashes
 

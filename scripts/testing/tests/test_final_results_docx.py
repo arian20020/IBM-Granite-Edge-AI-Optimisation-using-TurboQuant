@@ -194,6 +194,71 @@ def test_render_docx_styles_the_controlled_artifact_unavailable_label_neutral_gr
     assert shading.get("{%s}fill" % WORD_NAMESPACE["w"]) == "E7E6E6"
 
 
+def test_render_docx_keeps_status_headers_blue_and_styles_only_data_status_cells(tmp_path):
+    statuses = ("Passed", "Failed", "Blocked", "Artifact unavailable")
+    report = Report(
+        title="Status contrast",
+        route_id="status-test",
+        revision="R1",
+        generated_date=date(2026, 8, 30),
+        sections=(
+            ReportSection(
+                title="Status table",
+                blocks=(
+                    ReportTable(
+                        table_id="T-01",
+                        title="Status header and data distinction",
+                        columns=statuses,
+                        rows=(statuses,),
+                    ),
+                ),
+            ),
+        ),
+    )
+    output = tmp_path / "status-header-and-data.docx"
+
+    _renderer()(report, output)
+
+    table = Document(output).tables[1]
+    expected_data_fills = ("E2F0D9", "FCE4D6", "FFF2CC", "E7E6E6")
+
+    def fill(cell) -> str:
+        shading = cell._tc.get_or_add_tcPr().find("{%s}shd" % WORD_NAMESPACE["w"])
+        assert shading is not None
+        return shading.get("{%s}fill" % WORD_NAMESPACE["w"])
+
+    def colours(cell) -> set[str]:
+        return {
+            str(run.font.color.rgb)
+            for paragraph in cell.paragraphs
+            for run in paragraph.runs
+        }
+
+    def contrast_ratio(first: str, second: str) -> float:
+        def luminance(colour: str) -> float:
+            channels = [int(colour[index : index + 2], 16) / 255 for index in (0, 2, 4)]
+            linear = [
+                channel / 12.92
+                if channel <= 0.04045
+                else ((channel + 0.055) / 1.055) ** 2.4
+                for channel in channels
+            ]
+            return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+        light, dark = sorted((luminance(first), luminance(second)), reverse=True)
+        return (light + 0.05) / (dark + 0.05)
+
+    for cell in table.rows[0].cells:
+        assert fill(cell) == "0B63CE"
+        assert colours(cell) == {"FFFFFF"}
+        assert contrast_ratio("0B63CE", "FFFFFF") >= 4.5
+
+    for cell, expected_fill in zip(table.rows[1].cells, expected_data_fills, strict=True):
+        assert fill(cell) == expected_fill
+        assert colours(cell) == {"1F1F1F"}
+        assert contrast_ratio(expected_fill, "1F1F1F") >= 4.5
+
+
 def test_render_docx_normalizes_package_timestamps_and_bytes(tmp_path):
     first = tmp_path / "first.docx"
     second = tmp_path / "second.docx"

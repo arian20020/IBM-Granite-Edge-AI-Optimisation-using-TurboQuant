@@ -4,7 +4,7 @@
 
 Status: **Passed**
 
-The canonical Markdown and generated DOCX are semantically identical according to `workbook-parity.json`. Microsoft Word exported the generated DOCX through the owned-process exporter with a 180-second timeout. The pre-existing Word process baseline remained one process (PID 5032) before and after export; no additional Word process remained.
+The canonical Markdown and generated DOCX are semantically identical according to `workbook-parity.json`. Every repository-local path emitted by the report resolves to an existing artifact, including the verified `04-openvino-experimental-fork` route directory. Microsoft Word exported the generated DOCX through the owned-process exporter with a 180-second timeout. The pre-existing Word process baseline remained one process (PID 5032) before and after export; no additional Word process remained.
 
 ## PDF structural checks
 
@@ -19,7 +19,7 @@ The canonical Markdown and generated DOCX are semantically identical according t
 
 ## Visual inspection
 
-Every PDF page was rendered to a temporary PNG at 1.5x scale with PyMuPDF. All pages were inspected in numbered contact sheets; title and wide landscape tables were also reviewed at full-page resolution. After the controlled `Artifact unavailable` status fill was corrected, every final page was rendered again and the affected status pages were reinspected. Temporary PNGs were not retained in the repository.
+Every PDF page was rendered to a temporary PNG at 1.5x scale with PyMuPDF. All 54 pages were inspected in numbered contact sheets; title and wide landscape tables were also reviewed at full-page resolution. Availability-table pages 6 and 7 and representative attempt-ledger pages were reinspected at full resolution after the status-header correction. Temporary PNGs were removed after inspection and were not retained in the repository.
 
 | Finding | Result |
 | --- | --- |
@@ -29,8 +29,9 @@ Every PDF page was rendered to a temporary PNG at 1.5x scale with PyMuPDF. All p
 | Blank pages | None |
 | Orphan headings | None after contextual lead paragraphs were added before landscape-table transitions |
 | Repeated table headers | Present on continuation pages |
+| Status-table headers | Blue fill with white text, including headers named `Passed`, `Failed`, `Blocked`, and `Artifact unavailable` |
 | Status text | Explicit `Passed` and `Artifact unavailable` text present; colour is not the sole signal |
-| Status colour | Passed is green; Artifact unavailable is neutral grey |
+| Status colour | Data-cell Passed is green; data-cell Artifact unavailable is neutral grey; dark text retains at least 4.5:1 contrast |
 | Dense evidence and attempt tables | Landscape, within margins, searchable, and complete |
 
 ## Claim and status boundary checks
