@@ -6,6 +6,12 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
 namespace GraniteEdgeAI.Features.ModelOptimization.Storage;
 
+internal sealed class GgufExportCleanupException : InvalidOperationException
+{
+    internal GgufExportCleanupException()
+        : base("The temporary GGUF export could not be removed safely.") { }
+}
+
 internal static class OptimizationExporter
 {
     internal static async Task<bool> ExportGgufAsync(
@@ -93,7 +99,7 @@ internal static class OptimizationExporter
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                // Cleanup is intentionally bounded to this exact temporary sibling.
+                throw new GgufExportCleanupException();
             }
         }
     }
