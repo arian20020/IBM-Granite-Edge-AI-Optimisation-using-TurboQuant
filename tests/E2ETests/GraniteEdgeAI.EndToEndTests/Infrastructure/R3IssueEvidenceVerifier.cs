@@ -169,7 +169,7 @@ internal static class R3IssueEvidenceVerifier
         long passed = JsonContract.RequiredInt64(root, "managedPassed");
         long failed = JsonContract.RequiredInt64(root, "managedFailed");
         long skipped = JsonContract.RequiredInt64(root, "managedSkipped");
-        if (executed < 0 || passed < 0 || failed < 0 || skipped < 0 || executed != passed + failed + skipped
+        if (!HasExactNonnegativeSum(executed, passed, failed, skipped)
             || RequiredBoolean(root, "blockedGatesCountedAsPasses"))
         {
             throw new InvalidDataException("Post-acceptance execution arithmetic is invalid.");
@@ -201,10 +201,10 @@ internal static class R3IssueEvidenceVerifier
         {
             throw new InvalidDataException("Cleanup cannot pass without execution.");
         }
-        long gateExecuted = package.Executed + appControl.Executed + native.Executed + e2e.Executed;
-        long gatePassed = package.Passed + appControl.Passed + native.Passed + e2e.Passed;
-        long gateFailed = package.Failed + appControl.Failed + native.Failed + e2e.Failed;
-        long gateSkipped = package.Skipped + appControl.Skipped + native.Skipped + e2e.Skipped;
+        long gateExecuted = ExactSumOrThrow(package.Executed, appControl.Executed, native.Executed, e2e.Executed);
+        long gatePassed = ExactSumOrThrow(package.Passed, appControl.Passed, native.Passed, e2e.Passed);
+        long gateFailed = ExactSumOrThrow(package.Failed, appControl.Failed, native.Failed, e2e.Failed);
+        long gateSkipped = ExactSumOrThrow(package.Skipped, appControl.Skipped, native.Skipped, e2e.Skipped);
         if (executed != gateExecuted || passed != gatePassed || failed != gateFailed || skipped != gateSkipped)
         {
             throw new InvalidDataException("Managed counters must exactly reconcile the discrete gate evidence.");
@@ -277,8 +277,8 @@ internal static class R3IssueEvidenceVerifier
             long commandSkipped = JsonContract.RequiredInt64(command, "skipped");
             string commandDisposition = JsonContract.RequiredString(command, "disposition");
             long exitCode = JsonContract.RequiredInt64(command, "exitCode");
-            if (discovered < 0 || commandExecuted < 0 || commandPassed < 0 || commandFailed < 0 || commandSkipped < 0
-                || discovered != commandExecuted || commandExecuted != commandPassed + commandFailed + commandSkipped
+            if (discovered < 0 || discovered != commandExecuted
+                || !HasExactNonnegativeSum(commandExecuted, commandPassed, commandFailed, commandSkipped)
                 || !commands.TryAdd(id, new GateEvidence(
                     id, commandExecuted, commandPassed, commandFailed, commandSkipped, exitCode, commandDisposition,
                     ReadOptionalSha256(command, "resultSha256"))))
@@ -348,7 +348,7 @@ internal static class R3IssueEvidenceVerifier
         long passed = JsonContract.RequiredInt64(gate, "passed");
         long failed = JsonContract.RequiredInt64(gate, "failed");
         long skipped = JsonContract.RequiredInt64(gate, "skipped");
-        if (executed < 0 || passed < 0 || failed < 0 || skipped < 0 || executed != passed + failed + skipped
+        if (!HasExactNonnegativeSum(executed, passed, failed, skipped)
             || executed != command.Executed || passed != command.Passed || failed != command.Failed || skipped != command.Skipped)
         {
             throw new InvalidDataException($"Gate '{name}' differs from its candidate-bound manifest command.");
@@ -528,6 +528,35 @@ internal static class R3IssueEvidenceVerifier
         string digest = property.GetString() ?? string.Empty;
         JsonContract.RequireSha256(digest, name);
         return digest;
+    }
+
+    private static bool HasExactNonnegativeSum(long total, params long[] values)
+    {
+        if (total < 0 || values.Any(value => value < 0)) return false;
+        try
+        {
+            long sum = 0;
+            foreach (long value in values) sum = checked(sum + value);
+            return total == sum;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static long ExactSumOrThrow(params long[] values)
+    {
+        try
+        {
+            long sum = 0;
+            foreach (long value in values) sum = checked(sum + value);
+            return sum;
+        }
+        catch (OverflowException error)
+        {
+            throw new InvalidDataException("Post-acceptance gate arithmetic overflowed Int64.", error);
+        }
     }
 
     private static void RequireExactObject(JsonElement root, string name, string expected)

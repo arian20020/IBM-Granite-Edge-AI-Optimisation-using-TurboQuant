@@ -256,6 +256,52 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
+    public void Approval_rejects_wrapped_Int64_gate_and_aggregate_arithmetic()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, approvedEvidence: true, mutate: (value, manifest, _) =>
+        {
+            long[] counts = [long.MaxValue, long.MaxValue, 4L, 1L];
+            string[] gateNames = ["package", "appControl", "native", "e2e"];
+            string[] commandIds = ["PACKAGE-GATE", "APP-CONTROL-GATE", "NATIVE-GATE", "E2E-GATE"];
+            for (int index = 0; index < counts.Length; index++)
+            {
+                SetGateCounts(Gate(value, gateNames[index]), counts[index], counts[index], 0, 0);
+                SetManifestCounts(ManifestCommand(manifest, commandIds[index]), counts[index], counts[index], 0, 0);
+            }
+            value["managedExecuted"] = 3L;
+            value["managedPassed"] = 3L;
+        });
+
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, directory.Path));
+    }
+
+    [TestMethod]
+    public void Missing_prerequisite_evidence_rejects_the_App_Control_zero_command_shape()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, appControlZeroEvidence: true,
+            mutate: (value, manifest, _) =>
+            {
+                value["externalBlock"] = MissingPrerequisite("candidateManifest");
+                ((List<Dictionary<string, object?>>)manifest["commands"]!).Add(
+                    ManifestGate("EXTERNAL-PREREQUISITE-PREFLIGHT", 0, 0, zeroBlocked: true));
+            },
+            mutateObservation: observation =>
+            {
+                foreach (string property in new[] { "commandId", "attempted", "discovered", "executed", "passed", "failed", "skipped", "exitCode", "errorCode", "observedFailure", "assemblySha256", "assemblyBytes" })
+                {
+                    observation.Remove(property);
+                }
+                observation["kind"] = "missingPrerequisite";
+                observation["prerequisite"] = "candidateManifest";
+                observation["observedAbsent"] = true;
+            });
+
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, directory.Path));
+    }
+
+    [TestMethod]
     public void Aggregate_only_or_missing_E2E_evidence_cannot_approve()
     {
         using TestDirectory directory = TestDirectory.Create();
