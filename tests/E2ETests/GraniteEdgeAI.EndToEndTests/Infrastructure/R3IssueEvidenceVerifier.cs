@@ -45,6 +45,8 @@ internal sealed record R4TwoPhaseIssueEvidence(
         && PendingPostAcceptanceIds.SequenceEqual(["R3-020", "R3-022"], StringComparer.Ordinal);
 }
 
+internal sealed record R4PostAcceptanceEvidence(string Disposition, bool ClosesR3_020, bool ClosesR3_022);
+
 internal static class R3IssueEvidenceVerifier
 {
     private static readonly string[] RequiredIssueIds =
@@ -130,6 +132,87 @@ internal static class R3IssueEvidenceVerifier
 
         ParsePolicies(closure, closed.Select(item => item.FindingId), pending);
         return new R4TwoPhaseIssueEvidence(closed, pending, catalogBlob, catalogCommit, catalogTree);
+    }
+
+    internal static R4PostAcceptanceEvidence VerifyPostAcceptance(
+        string receiptPath,
+        string evidenceRoot,
+        string expectedBaseCommit,
+        string expectedBaseTree,
+        string expectedSubjectCommit,
+        string expectedSubjectTree)
+    {
+        using JsonDocument document = JsonContract.Open(receiptPath);
+        JsonElement root = document.RootElement;
+        JsonContract.RequireOnly(root, "schemaVersion", "workerId", "baseCommit", "baseTree",
+            "implementationSubjectCommit", "implementationSubjectTree", "disposition", "report",
+            "evidenceManifest", "nativeLockAcquisitions", "cleanupVerified", "packageAttempted",
+            "appControlChecked", "managedExecuted", "managedPassed", "managedFailed", "managedSkipped",
+            "blockedGatesCountedAsPasses", "externalBlock");
+        if (JsonContract.RequiredInt64(root, "schemaVersion") != 1
+            || JsonContract.RequiredString(root, "workerId") != "E1")
+        {
+            throw new InvalidDataException("Post-acceptance evidence is not an E1 schema-v1 receipt.");
+        }
+        RequireExactObject(root, "baseCommit", expectedBaseCommit);
+        RequireExactObject(root, "baseTree", expectedBaseTree);
+        RequireExactObject(root, "implementationSubjectCommit", expectedSubjectCommit);
+        RequireExactObject(root, "implementationSubjectTree", expectedSubjectTree);
+        VerifyFileBinding(RequiredObject(root, "report"), evidenceRoot);
+        VerifyFileBinding(RequiredObject(root, "evidenceManifest"), evidenceRoot);
+
+        string disposition = JsonContract.RequiredString(root, "disposition");
+        if (disposition is not ("APPROVED FOR MAIN INTEGRATION" or "CHANGES REQUIRED" or "BLOCKED BY EXTERNAL ENVIRONMENT"))
+        {
+            throw new InvalidDataException("Post-acceptance disposition is invalid.");
+        }
+        long executed = JsonContract.RequiredInt64(root, "managedExecuted");
+        long passed = JsonContract.RequiredInt64(root, "managedPassed");
+        long failed = JsonContract.RequiredInt64(root, "managedFailed");
+        long skipped = JsonContract.RequiredInt64(root, "managedSkipped");
+        if (executed <= 0 || executed != passed + failed + skipped || failed != 0 || skipped != 0
+            || RequiredBoolean(root, "blockedGatesCountedAsPasses") || !RequiredBoolean(root, "cleanupVerified")
+            || !RequiredBoolean(root, "appControlChecked"))
+        {
+            throw new InvalidDataException("Post-acceptance execution arithmetic or cleanup is invalid.");
+        }
+        bool packageAttempted = RequiredBoolean(root, "packageAttempted");
+        long lockAcquisitions = JsonContract.RequiredInt64(root, "nativeLockAcquisitions");
+        string externalBlock = JsonContract.RequiredString(root, "externalBlock");
+        if (disposition == "BLOCKED BY EXTERNAL ENVIRONMENT"
+            && (packageAttempted || lockAcquisitions != 0 || string.IsNullOrWhiteSpace(externalBlock)))
+        {
+            throw new InvalidDataException("External pre-lock block evidence is inconsistent.");
+        }
+        return new R4PostAcceptanceEvidence(disposition, ClosesR3_020: true, ClosesR3_022: true);
+    }
+
+    private static void RequireExactObject(JsonElement root, string name, string expected)
+    {
+        JsonContract.RequireGitObject(expected, name);
+        if (JsonContract.RequiredString(root, name) != expected)
+        {
+            throw new InvalidDataException($"Post-acceptance {name} mismatch.");
+        }
+    }
+
+    private static void VerifyFileBinding(JsonElement binding, string evidenceRoot)
+    {
+        JsonContract.RequireOnly(binding, "path", "sha256", "bytes");
+        string relative = RequireRepositoryPathValue(JsonContract.RequiredString(binding, "path"));
+        string root = Path.GetFullPath(evidenceRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        string path = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
+        if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
+        {
+            throw new InvalidDataException("Post-acceptance file binding is absent or escaping.");
+        }
+        byte[] bytes = File.ReadAllBytes(path);
+        string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
+        if (JsonContract.RequiredString(binding, "sha256") != digest
+            || JsonContract.RequiredInt64(binding, "bytes") != bytes.LongLength)
+        {
+            throw new InvalidDataException("Post-acceptance file binding differs from disk.");
+        }
     }
 
     private static R4ClosedFinding ParseClosed(

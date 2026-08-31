@@ -64,6 +64,60 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
+    public void Verify_post_acceptance_binds_receipt_and_keeps_blocked_gates_out_of_passes()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string report = Path.Combine(directory.Path, "report.md");
+        string manifest = Path.Combine(directory.Path, "manifest.json");
+        File.WriteAllText(report, "blocked");
+        File.WriteAllText(manifest, "{}");
+        string receipt = Path.Combine(directory.Path, "receipt.json");
+        File.WriteAllText(receipt, JsonSerializer.Serialize(new
+        {
+            schemaVersion = 1,
+            workerId = "E1",
+            baseCommit = new string('a', 40),
+            baseTree = new string('b', 40),
+            implementationSubjectCommit = new string('c', 40),
+            implementationSubjectTree = new string('d', 40),
+            disposition = "BLOCKED BY EXTERNAL ENVIRONMENT",
+            report = FileBinding(report),
+            evidenceManifest = FileBinding(manifest),
+            nativeLockAcquisitions = 0,
+            cleanupVerified = true,
+            packageAttempted = false,
+            appControlChecked = true,
+            managedExecuted = 311,
+            managedPassed = 311,
+            managedFailed = 0,
+            managedSkipped = 0,
+            blockedGatesCountedAsPasses = false,
+            externalBlock = "exact native prerequisites absent before lock"
+        }));
+
+        R4PostAcceptanceEvidence result = R3IssueEvidenceVerifier.VerifyPostAcceptance(
+            receipt, directory.Path, new string('a', 40), new string('b', 40),
+            new string('c', 40), new string('d', 40));
+
+        Assert.AreEqual("BLOCKED BY EXTERNAL ENVIRONMENT", result.Disposition);
+        Assert.IsTrue(result.ClosesR3_020);
+        Assert.IsTrue(result.ClosesR3_022);
+
+        string mutated = File.ReadAllText(receipt).Replace(
+            "\"blockedGatesCountedAsPasses\":false", "\"blockedGatesCountedAsPasses\":true");
+        File.WriteAllText(receipt, mutated);
+        Assert.ThrowsExactly<InvalidDataException>(() => R3IssueEvidenceVerifier.VerifyPostAcceptance(
+            receipt, directory.Path, new string('a', 40), new string('b', 40),
+            new string('c', 40), new string('d', 40)));
+    }
+
+    private static object FileBinding(string path)
+    {
+        byte[] bytes = File.ReadAllBytes(path);
+        return new { path = Path.GetFileName(path), sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant(), bytes = bytes.LongLength };
+    }
+
+    [TestMethod]
     [TestCategory("Preflight")]
     public void Exact_schema_v4_candidate_closure_and_catalog_are_committed_and_pushed()
     {
@@ -78,6 +132,22 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
             RequireEnvironment("GRANITE_E2E_CANDIDATE_REMOTE_REF"));
 
         Assert.IsTrue(result.CanStartAcceptanceMatrix);
+    }
+
+    [TestMethod]
+    [TestCategory("PostAcceptance")]
+    public void Exact_E1_post_acceptance_evidence_is_candidate_bound_and_fail_closed()
+    {
+        string repositoryRoot = RequireEnvironment("GRANITE_E2E_REPOSITORY_ROOT");
+        R4PostAcceptanceEvidence result = R3IssueEvidenceVerifier.VerifyPostAcceptance(
+            Path.Combine(repositoryRoot, "docs/audits/2026-08-30/evidence/E1-r4-post-acceptance-v2.json"),
+            repositoryRoot,
+            "b5d2cd34c57368efb9b122cddf16c2ffa2d3895e",
+            "a3e4d82095caa9688f30d2463fa5971c788fd33f",
+            RequireEnvironment("GRANITE_E2E_IMPLEMENTATION_COMMIT"),
+            RequireEnvironment("GRANITE_E2E_IMPLEMENTATION_TREE"));
+        Assert.IsTrue(result.ClosesR3_020);
+        Assert.IsTrue(result.ClosesR3_022);
     }
 
     private static Fixture WriteFixture(
