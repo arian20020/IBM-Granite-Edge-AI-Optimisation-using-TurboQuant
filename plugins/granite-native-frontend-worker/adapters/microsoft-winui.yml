@@ -1,0 +1,25 @@
+provider: microsoft-winui
+required: true
+stage:
+  - repository-discovery
+  - native-design
+  - xaml-implementation
+  - code-review
+  - runtime-ui-testing
+authority: highest-technical-authority
+pinned_revision: 68ae65d5c65ee87c3265a7f5abe3aaf97c7e6932
+skills:
+  required_before_xaml:
+    - winui-design
+  implementation:
+    - winui-dev-workflow
+  review:
+    - winui-code-review
+  runtime:
+    - winui-ui-testing
+rules:
+  - Search grounded WinUI Gallery, Toolkit, and core samples before creating a custom control.
+  - Prefer native WinUI controls, ThemeResource, High Contrast support, UI Automation, and Windows interaction conventions.
+  - Do not invoke setup, packaging, migration, or dependency-changing workflows unless the user separately authorises them.
+  - Preview outputs are reviewed before use; the provider cannot override the repository boundary policy.
+fallback: block_xaml_implementation_and_report_missing_required_provider
