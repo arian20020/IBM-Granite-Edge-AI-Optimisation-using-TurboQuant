@@ -19,17 +19,29 @@ def _split_markdown_row(line: str) -> list[str]:
     index = 0
     while index < len(content):
         character = content[index]
-        if character == "\\" and index + 1 < len(content) and content[index + 1] == "|":
-            cell.append("|")
+        if content.startswith("\\<br>", index):
+            cell.append("<br>")
+            index += 5
+            continue
+        if content.startswith("<br>", index):
+            cell.append("\n")
+            index += 4
+            continue
+        if (
+            character == "\\"
+            and index + 1 < len(content)
+            and content[index + 1] in ("\\", "|")
+        ):
+            cell.append(content[index + 1])
             index += 2
             continue
         if character == "|":
-            cells.append("".join(cell).strip().replace("<br>", "\n"))
+            cells.append("".join(cell).strip())
             cell = []
         else:
             cell.append(character)
         index += 1
-    cells.append("".join(cell).strip().replace("<br>", "\n"))
+    cells.append("".join(cell).strip())
     return cells
 
 
@@ -46,13 +58,15 @@ def _markdown_semantics(path: Path) -> tuple[list[str], list[list[list[str]]]]:
             continue
         if lines[index].strip().startswith("|") and lines[index].strip().endswith("|"):
             table: list[list[str]] = []
+            raw_row_index = 0
             while index < len(lines):
                 candidate = lines[index].strip()
                 if not (candidate.startswith("|") and candidate.endswith("|")):
                     break
                 row = _split_markdown_row(candidate)
-                if not all(_SEPARATOR.fullmatch(cell) for cell in row):
+                if raw_row_index != 1 or not all(_SEPARATOR.fullmatch(cell) for cell in row):
                     table.append(row)
+                raw_row_index += 1
                 index += 1
             tables.append(table)
             continue

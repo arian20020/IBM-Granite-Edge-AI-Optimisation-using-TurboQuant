@@ -55,7 +55,8 @@ def _report() -> Report:
                         columns=("Case", "Status", "Evidence"),
                         rows=(
                             ("granite|3b", "Passed", "EV-001"),
-                            ("granite-8b", "Not collected", "EV-002\nsee limitation"),
+                            ("granite-8b", "Not collected", "EV-002<br>literal\nsee limitation"),
+                            ("---", ":---:", "---"),
                         ),
                         footnotes=("Not collected means the campaign did not record the metric.",),
                     ),
@@ -94,7 +95,8 @@ def test_render_docx_applies_professional_accessible_document_structure(tmp_path
         for table in document.tables
     ]
     assert ["granite|3b", "Passed", "EV-001"] in table_text[1]
-    assert ["granite-8b", "Not collected", "EV-002\nsee limitation"] in table_text[1]
+    assert ["granite-8b", "Not collected", "EV-002<br>literal\nsee limitation"] in table_text[1]
+    assert ["---", ":---:", "---"] in table_text[1]
     assert ["1", "2", "3", "4", "5", "6", "Blocked"] in table_text[2]
 
     rows = document_xml.xpath("//w:tbl/w:tr", namespaces=WORD_NAMESPACE)

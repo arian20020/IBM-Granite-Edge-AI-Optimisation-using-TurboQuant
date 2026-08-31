@@ -8,11 +8,12 @@ from .report_model import Report, ReportNote, ReportParagraph, ReportTable
 
 
 def _escape_markdown_cell(value: str) -> str:
-    """Escape the table delimiters Markdown cannot represent verbatim."""
+    """Encode canonical table controls without losing literal cell text."""
+    normalized = value.replace("\r\n", "\n").replace("\r", "\n")
     return (
-        value.replace("|", "\\|")
-        .replace("\r\n", "\n")
-        .replace("\r", "\n")
+        normalized.replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("<br>", "\\<br>")
         .replace("\n", "<br>")
     )
 

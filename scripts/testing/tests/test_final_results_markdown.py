@@ -42,7 +42,7 @@ def test_render_markdown_writes_canonical_two_section_report(tmp_path):
                         columns=("Case", "Status", "Evidence"),
                         rows=(
                             ("granite|3b", "Passed", "EV-001"),
-                            ("granite-8b", "Not collected", "EV-002\nsee limitation"),
+                            ("granite-8b", "Not collected", "EV-002<br>literal\nsee limitation"),
                         ),
                         footnotes=("`Not collected` means the historical campaign did not record the metric.",),
                     ),
@@ -79,7 +79,7 @@ def test_render_markdown_writes_canonical_two_section_report(tmp_path):
         "| Case | Status | Evidence |\n"
         "| --- | --- | --- |\n"
         "| granite\\|3b | Passed | EV-001 |\n"
-        "| granite-8b | Not collected | EV-002<br>see limitation |\n"
+        "| granite-8b | Not collected | EV-002\\<br>literal<br>see limitation |\n"
         "\n"
         "*`Not collected` means the historical campaign did not record the metric.*\n"
     )
