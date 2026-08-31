@@ -150,7 +150,7 @@ if ($Stage -eq 'Evidence') {
         $arguments = New-E1AuthoritativeVSTestArguments -AssemblyPath $assemblyPath -ExpectedClass $test[0] -ExpectedMethod $test[1] -ResultsRoot $evidenceResultRoot -TrxFileName $trxName
         & $vstestExecutable @arguments
         if ($LASTEXITCODE -ne 0) { throw "Authoritative $($test[2]) evaluator failed with exit code $LASTEXITCODE." }
-        Assert-E1AuthoritativeTrx -Path $trxPath -ExpectedResultsRoot $evidenceResultRoot -ExpectedClass $test[0] -ExpectedMethod $test[1] -InvocationStartedUtc $startedUtc
+        Assert-E1AuthoritativeTrx -Path $trxPath -ExpectedResultsRoot $evidenceResultRoot -RepositoryRoot $repositoryRoot -ExpectedClass $test[0] -ExpectedMethod $test[1] -InvocationStartedUtc $startedUtc
     }
     return
 }

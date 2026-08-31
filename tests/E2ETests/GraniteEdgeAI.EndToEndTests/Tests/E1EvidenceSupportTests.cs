@@ -90,10 +90,10 @@ public sealed class E1EvidenceSupportTests
             $ErrorActionPreference = 'Stop'
             Import-Module '{{SupportModule}}' -Force
             $started = ([DateTimeOffset]'{{started:o}}').UtcDateTime
-            Assert-E1AuthoritativeTrx -Path '{{Ps(valid)}}' -ExpectedResultsRoot '{{Ps(directory.Path)}}' -ExpectedClass '{{PreflightClass}}' -ExpectedMethod '{{PreflightMethod}}' -InvocationStartedUtc $started
+            Assert-E1AuthoritativeTrx -Path '{{Ps(valid)}}' -ExpectedResultsRoot '{{Ps(directory.Path)}}' -RepositoryRoot '{{Ps(directory.Path)}}' -ExpectedClass '{{PreflightClass}}' -ExpectedMethod '{{PreflightMethod}}' -InvocationStartedUtc $started
             $rejected = 0
             foreach ($path in @('{{Ps(stale)}}','{{Ps(wrong)}}','{{Ps(failed)}}','{{Ps(skipped)}}','{{Ps(missing)}}')) {
-                try { Assert-E1AuthoritativeTrx -Path $path -ExpectedResultsRoot '{{Ps(directory.Path)}}' -ExpectedClass '{{PreflightClass}}' -ExpectedMethod '{{PreflightMethod}}' -InvocationStartedUtc $started; throw 'case unexpectedly accepted' }
+                try { Assert-E1AuthoritativeTrx -Path $path -ExpectedResultsRoot '{{Ps(directory.Path)}}' -RepositoryRoot '{{Ps(directory.Path)}}' -ExpectedClass '{{PreflightClass}}' -ExpectedMethod '{{PreflightMethod}}' -InvocationStartedUtc $started; throw 'case unexpectedly accepted' }
                 catch { if ($_.Exception.Message -eq 'case unexpectedly accepted') { throw }; $rejected++ }
             }
             if ($rejected -ne 5) { throw 'negative TRX matrix was incomplete' }
@@ -117,7 +117,34 @@ public sealed class E1EvidenceSupportTests
             string command = $$"""
                 $ErrorActionPreference = 'Stop'
                 Import-Module '{{SupportModule}}' -Force
-                Assert-E1AuthoritativeTrx -Path '{{Ps(Path.Combine(junction, "result.trx"))}}' -ExpectedResultsRoot '{{Ps(junction)}}' -ExpectedClass '{{PreflightClass}}' -ExpectedMethod '{{PreflightMethod}}' -InvocationStartedUtc ([DateTime]::UtcNow.AddMinutes(-1))
+                Assert-E1AuthoritativeTrx -Path '{{Ps(Path.Combine(junction, "result.trx"))}}' -ExpectedResultsRoot '{{Ps(junction)}}' -RepositoryRoot '{{Ps(directory.Path)}}' -ExpectedClass '{{PreflightClass}}' -ExpectedMethod '{{PreflightMethod}}' -InvocationStartedUtc ([DateTime]::UtcNow.AddMinutes(-1))
+                """;
+            ProcessResult result = PowerShell(command, FindRepositoryRoot());
+            Assert.AreNotEqual(0, result.ExitCode, result.Output);
+        }
+        finally
+        {
+            if (Directory.Exists(junction)) Directory.Delete(junction);
+        }
+    }
+
+    [TestMethod]
+    public void Trx_with_a_reparse_parent_above_the_results_root_is_rejected()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string target = Path.Combine(directory.Path, "target");
+        string junction = Path.Combine(directory.Path, "TestResults");
+        string results = Path.Combine(target, "Audit", "Evidence");
+        Directory.CreateDirectory(results);
+        WriteTrx(results, "result.trx", PreflightClass, PreflightMethod, "Passed", "Completed", 1, 1, 1, 0, 0);
+        CreateJunction(junction, target);
+        try
+        {
+            string logicalResults = Path.Combine(junction, "Audit", "Evidence");
+            string command = $$"""
+                $ErrorActionPreference = 'Stop'
+                Import-Module '{{SupportModule}}' -Force
+                Assert-E1AuthoritativeTrx -Path '{{Ps(Path.Combine(logicalResults, "result.trx"))}}' -ExpectedResultsRoot '{{Ps(logicalResults)}}' -RepositoryRoot '{{Ps(directory.Path)}}' -ExpectedClass '{{PreflightClass}}' -ExpectedMethod '{{PreflightMethod}}' -InvocationStartedUtc ([DateTime]::UtcNow.AddMinutes(-1))
                 """;
             ProcessResult result = PowerShell(command, FindRepositoryRoot());
             Assert.AreNotEqual(0, result.ExitCode, result.Output);
@@ -194,7 +221,7 @@ public sealed class E1EvidenceSupportTests
                 $arguments = New-E1AuthoritativeVSTestArguments -AssemblyPath '{{Ps(assembly)}}' -ExpectedClass $case[0] -ExpectedMethod $case[1] -ResultsRoot '{{Ps(directory.Path)}}' -TrxFileName $case[2]
                 & $vstest @arguments
                 if ($LASTEXITCODE -ne 0) { throw "VSTest failed: $LASTEXITCODE" }
-                Assert-E1AuthoritativeTrx -Path (Join-Path '{{Ps(directory.Path)}}' $case[2]) -ExpectedResultsRoot '{{Ps(directory.Path)}}' -ExpectedClass $case[0] -ExpectedMethod $case[1] -InvocationStartedUtc $started
+                Assert-E1AuthoritativeTrx -Path (Join-Path '{{Ps(directory.Path)}}' $case[2]) -ExpectedResultsRoot '{{Ps(directory.Path)}}' -RepositoryRoot '{{Ps(directory.Path)}}' -ExpectedClass $case[0] -ExpectedMethod $case[1] -InvocationStartedUtc $started
             }
             """;
 

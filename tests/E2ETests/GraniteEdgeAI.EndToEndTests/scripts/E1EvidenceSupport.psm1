@@ -174,15 +174,19 @@ function Assert-E1AuthoritativeTrx {
     param(
         [Parameter(Mandatory = $true)] [string] $Path,
         [Parameter(Mandatory = $true)] [string] $ExpectedResultsRoot,
+        [Parameter(Mandatory = $true)] [string] $RepositoryRoot,
         [Parameter(Mandatory = $true)] [string] $ExpectedClass,
         [Parameter(Mandatory = $true)] [string] $ExpectedMethod,
         [Parameter(Mandatory = $true)] [DateTime] $InvocationStartedUtc
     )
+    $repository = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
     $root = [IO.Path]::GetFullPath($ExpectedResultsRoot).TrimEnd('\')
     $full = [IO.Path]::GetFullPath($Path)
+    if (-not $root.Equals($repository, [StringComparison]::OrdinalIgnoreCase) -and
+        -not $root.StartsWith($repository + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Authoritative TRX results root is outside the repository.' }
     if (-not $full.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Authoritative TRX is outside its validated results root.' }
     $item = Assert-E1RegularFile -Path $Path
-    Assert-E1NoReparseChain -Path $item.FullName -Boundary $root
+    Assert-E1NoReparseChain -Path $item.FullName -Boundary $repository
     if ($item.LastWriteTimeUtc -lt $InvocationStartedUtc.AddSeconds(-2)) { throw 'Authoritative TRX is stale.' }
     try { [xml]$document = Get-Content -Raw -LiteralPath $item.FullName -ErrorAction Stop }
     catch { throw 'Authoritative TRX is unreadable or malformed.' }
