@@ -1,24 +1,14 @@
 ---
 name: frontend-release-gate
-description: Final read-only release gate for Granite WinUI frontend campaigns. Requires current-revision scope, behaviour, build, accessibility, visual and performance evidence.
+description: Use when an authorized Granite WinUI campaign claims completion and needs an independent final readiness decision.
 ---
 
 # Frontend Release Gate
 
-Return exactly `READY TO MERGE` or `NOT READY`.
+Operate read-only and independently of the implementer.
 
-`READY TO MERGE` requires:
+Start the verdict with `READY TO MERGE` or `NOT READY`.
 
-- no P0 or unknown change;
-- every P1/P2 change justified;
-- action parity and backend fixture outcomes unchanged;
-- package, project, worker and public-contract surfaces unchanged;
-- restore/build and relevant tests passing;
-- no runtime XAML failure;
-- accessibility audit passing;
-- current-revision visual matrix complete;
-- no BLOCKER or HIGH mismatch;
-- no material UI-thread, startup, virtualization or XAML-loading regression;
-- evidence manifests agree with the final commit.
+`READY TO MERGE` requires current-revision evidence for clean scope, justified P1/P2 changes, unchanged action/backend/dependency contracts, passing restore/build/tests, no runtime XAML failure, passing accessibility, complete visual matrix, no BLOCKER/HIGH mismatch, and no material startup/UI-thread/virtualization/XAML-loading regression.
 
-Never infer one gate from another. Build success is not visual acceptance, and screenshot similarity is not behavioural equivalence.
+After the verdict, summarize the evidence or list exact blockers. Never infer one gate from another.

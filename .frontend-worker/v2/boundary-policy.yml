@@ -1,14 +1,25 @@
 version: 2
 default_classification: blocked
+precedence:
+  - P0_immutable
+  - P1_behavior_sensitive_ui
+  - P2_presentation_logic
+  - P3_visual_surface
+  - P4_existing_fixture_evidence
+  - P4_worker_infrastructure
 classifications:
   P0_immutable:
-    description: "Operational, contract, packaging, runtime, worker, backend, or project-structure files."
+    description: "Backend, operational, contract, runtime, worker, project, packaging, existing test, research-evidence, or model files."
     patterns:
       - "shared/**"
       - "infrastructure/**"
       - "runtime/**"
       - "workers/**"
       - "experiments/**"
+      - "models/**"
+      - "tests/**"
+      - "research/**"
+      - "release-evidence/**"
       - "**/Contracts/**"
       - "**/Domain/**"
       - "**/Application/**"
@@ -28,56 +39,69 @@ classifications:
       - "**/App.xaml.cs"
     action: reject
   P1_behavior_sensitive_ui:
-    description: "UI orchestration that can change behaviour. Frozen unless individually approved."
+    description: "UI orchestration that can alter product behaviour."
     patterns:
       - "**/MainWindow.xaml.cs"
       - "**/*.xaml.cs"
       - "**/ViewModels/**"
       - "**/Controllers/**"
       - "**/Coordinators/**"
+      - "**/Navigation/**"
       - "**/*Scheduler.cs"
       - "**/*StateMachine.cs"
       - "**/*Session.cs"
-    action: require_explicit_manifest_and_guard_review
+    action: require_explicit_manifest_guard_review_and_behavior_evidence
   P2_presentation_logic:
-    description: "Presentation models, factories, copy, visual state, animation and mapping code."
+    description: "Presentation models, factories, display mapping, copy, visual-state, focus, accessibility announcement, and animation logic."
     patterns:
       - "**/Presentation/**/*.cs"
       - "**/*Presentation*.cs"
       - "**/*Display*.cs"
       - "**/*CopyCatalog.cs"
       - "**/*ViewState.cs"
+      - "**/*Behavior.cs"
+      - "**/*Converter.cs"
     action: require_manifest_and_output_contract_review
   P3_visual_surface:
-    description: "Normal visual implementation zone after authorization."
+    description: "Direct XAML, scoped resources, styles, localization, and approved visual assets."
     patterns:
-      - "**/*.xaml"
-      - "**/Presentation/**/*.xaml"
-      - "**/Themes/**/*.xaml"
-      - "**/Styles/**/*.xaml"
-      - "**/Assets/Branding/**"
-      - "**/Assets/Illustrations/**"
-      - "**/Strings/**"
-    action: allow_only_after_authorization
-  P4_fixture_evidence:
-    description: "Debug fixture, UI test, evidence and frontend documentation."
+      - "IBM Granite with TurboQuant (Intel)/**/*.xaml"
+      - "IBM Granite with TurboQuant (Intel)/**/Themes/**/*.xaml"
+      - "IBM Granite with TurboQuant (Intel)/**/Styles/**/*.xaml"
+      - "IBM Granite with TurboQuant (Intel)/**/Assets/Branding/**"
+      - "IBM Granite with TurboQuant (Intel)/**/Assets/Illustrations/**"
+      - "IBM Granite with TurboQuant (Intel)/**/Strings/**"
+    action: allow_only_after_authorization_and_exact_file_manifest
+  P4_existing_fixture_evidence:
+    description: "Existing application fixture galleries and UI evidence. Read-only by default; expected backend outcomes remain frozen."
     patterns:
-      - "**/DebugFixtures/**"
+      - "IBM Granite with TurboQuant (Intel)/**/DebugFixtures/**"
       - "tests/**/UI/**"
       - "tests/**/Presentation/**"
-      - "docs/frontend-worker/**"
-      - ".frontend-worker/**"
-      - "plugins/granite-native-frontend-worker/**"
+    action: require_explicit_manifest_and_no_backend_outcome_change
+  P4_worker_infrastructure:
+    description: "Frontend-worker policy, plugin, scripts, semantic guard, documentation, and dedicated bootstrap CI."
+    patterns:
+      - "AGENTS.md"
       - ".agents/plugins/**"
       - ".agents/skills/**"
-      - ".codex/skills/**"
       - ".codex/agents/**"
+      - ".frontend-worker/**"
+      - "plugins/granite-native-frontend-worker/**"
+      - "scripts/Initialize-GraniteNativeFrontendWorkerV2.ps1"
+      - "scripts/Test-GraniteNativeFrontendWorkerV2.ps1"
+      - "scripts/Authorize-GraniteNativeFrontendWorkerV2.ps1"
       - "scripts/frontend-worker/**"
-      - "AGENTS.md"
-    action: allow_initialization
+      - "tools/GraniteFrontendGuard/**"
+      - "docs/frontend-worker/**"
+      - "docs/superpowers/specs/2026-08-31-granite-native-frontend-worker-v2-design.md"
+      - "docs/superpowers/plans/2026-08-31-granite-native-frontend-worker-v2-bootstrap.md"
+      - ".github/workflows/frontend-worker-bootstrap.yml"
+    action: allow_initialization_only
 semantic_prohibitions:
-  - "No new or changed backend call."
-  - "No changed validation, scanning, parsing, compatibility, optimisation, persistence, networking or filesystem semantics."
-  - "No changed cancellation, retry, stale-result or navigation semantics."
-  - "No package, project reference, worker packaging or protocol change."
-  - "No action may become enabled, disabled, automatic or blocking under different conditions."
+  - "No new, removed, reordered, or retargeted backend call."
+  - "No changed validation, scanning, parsing, compatibility, optimisation, persistence, networking, process, or filesystem semantics."
+  - "No changed cancellation, retry, stale-result, confirmation, default-selection, enabled-state, or navigation semantics."
+  - "No package, project reference, worker packaging, target, manifest, protocol, or serialization change."
+  - "No existing test or fixture expectation may be weakened to conceal a regression."
+  - "No unavailable capability may be presented as operational."

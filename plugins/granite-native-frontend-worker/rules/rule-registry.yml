@@ -1,18 +1,21 @@
-version: 2
+version: 3
 strengths:
   MUST:
-    definition: "User contract, backend preservation, accessibility, security or Windows platform correctness."
-    exception: "None unless the human changes the contract."
+    definition: "Human contract, backend preservation, accessibility, security, or Windows platform correctness."
+    exception: "Only a new explicit human contract may change it."
   SHOULD:
     definition: "Recommended native implementation unless a documented screen-specific reason is stronger."
     exception: "Record rationale and evidence."
   MAY:
-    definition: "Deliberate visual choice."
-    exception: "No formal exception required, but it must remain accessible and contract-safe."
+    definition: "Deliberate visual choice that remains accessible and contract-safe."
 rules:
+  - id: AUTH-001
+    strength: MUST
+    authority: human-contract
+    rule: "Production implementation requires matching active-human authorization and ignored local campaign state."
   - id: SCOPE-001
     strength: MUST
-    authority: user-contract
+    authority: human-contract
     rule: "No backend or operational behaviour change."
   - id: WRITE-001
     strength: MUST
@@ -29,16 +32,16 @@ rules:
   - id: CONTROL-001
     strength: SHOULD
     authority: microsoft
-    rule: "Prefer built-in WinUI controls and lightweight style overrides before custom templates."
+    rule: "Prefer existing or built-in WinUI controls and lightweight styling before custom templates."
   - id: A11Y-001
     strength: MUST
     authority: microsoft
-    rule: "Keyboard, UI Automation, contrast themes, text scaling and animations-disabled behaviour are blocking acceptance criteria."
+    rule: "Keyboard, UI Automation, contrast themes, text scaling, Narrator, and disabled-motion behaviour are blocking acceptance criteria."
   - id: EVIDENCE-001
     strength: MUST
     authority: repository-contract
-    rule: "Visual completion requires rendered evidence from the current revision."
+    rule: "Completion requires same-revision behavioural, build, accessibility, visual, and performance evidence."
   - id: GENERIC-001
     strength: SHOULD
     authority: adapted-third-party
-    rule: "Apply the Uncodixfy WinUI v2 anti-generic audit without overriding native platform conventions."
+    rule: "Apply the Uncodixfy WinUI v2 audit without overriding native platform conventions."

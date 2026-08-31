@@ -1,32 +1,14 @@
 ---
 name: winui-runtime-visual-qa
-description: Read-only runtime visual QA for Granite WinUI 3. Reuses repository fixture galleries and captures current-revision evidence across states, themes and window sizes.
+description: Use when a Granite WinUI implementation needs independent rendered review across fixtures, states, themes, text scales, and window sizes.
 ---
 
 # WinUI Runtime Visual QA
 
 Operate read-only.
 
-## Evidence sources
+Prefer existing fixture catalogues and galleries, then existing observers/comparers, safe real journeys, and targeted native automation.
 
-Prefer, in order:
+Capture every material state at minimum, compact, normal, large, and maximized windows; Light, Dark, and High Contrast; representative display scale; default and stress text scale; motion enabled/disabled; and long-content, error, cancellation, retry, and stale-session fixtures.
 
-1. Existing feature fixture catalogue and gallery.
-2. Existing screen observer/comparer infrastructure.
-3. Safe real user journey.
-4. Targeted native UI automation.
-
-## Matrix
-
-Capture every material state at:
-
-- minimum supported, compact, normal, large and maximized windows;
-- Light, Dark and High Contrast;
-- representative display scale;
-- default and stress text scale;
-- motion enabled and disabled where relevant;
-- long text, filenames, metadata, error, cancellation, retry and stale-session fixtures.
-
-Inspect layout, hierarchy, typography, clipping, wrapping, focus, state clarity, iconography, density, native fidelity, misleading affordances and generic-AI patterns.
-
-Do not update baselines automatically. Every screenshot must identify the current commit and fixture. Return a mismatch ledger ordered BLOCKER, HIGH, MEDIUM, LOW.
+Inspect hierarchy, alignment, spacing, typography, clipping, wrapping, focus, state clarity, iconography, density, native fidelity, misleading affordances, and generic-AI patterns. Never auto-update baselines. Return a current-commit mismatch ledger ordered BLOCKER, HIGH, MEDIUM, LOW.

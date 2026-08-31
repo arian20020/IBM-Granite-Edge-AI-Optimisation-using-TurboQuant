@@ -1,4 +1,4 @@
 interface:
   display_name: "Granite Native Frontend Worker"
-  short_description: "Redesign WinUI 3 surfaces without backend changes"
-  default_prompt: "Initialise and verify the Granite Native Frontend Worker v2. Do not implement UI until explicitly authorised."
+  short_description: "Locked WinUI 3 design and implementation workflow"
+  default_prompt: "Read the canonical Granite Native Frontend Worker v2 prompt, verify authorization, and route this WinUI frontend task through the repo-local master skill."

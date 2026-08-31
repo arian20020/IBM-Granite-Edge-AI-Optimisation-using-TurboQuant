@@ -1,55 +1,52 @@
-version: 2
+version: 3
 providers:
   microsoft-winui:
-    stage: all-native-technical-stages
     required: true
+    stage: all-native-technical-stages
     authority: implementation-platform
     may_write: false
-    required_skills:
-      - winui-design
-      - winui-dev-workflow
-      - winui-code-review
-      - winui-ui-testing
     fallback: block-implementation
-  figma:
-    stage: approved-reference
-    required: false
-    authority: visual-source
+  superpowers:
+    required: true
+    stage: development-methodology
+    authority: methodology-only
     may_write: false
-    restrictions:
-      - "Read and inspect only unless the user separately requests a Figma write."
-      - "Figma cannot override backend, accessibility or native platform contracts."
+    fallback: block-implementation
+  uncodixfy-winui-v2:
+    required: true
+    stage:
+      - post-direction-audit
+      - post-render-audit
+    authority: bundled-heuristic-audit
+    may_write: false
+    fallback: block-design-acceptance
   stark:
-    stage: design-direction
-    required: true
-    authority: advisory
-    may_write: false
-    routes:
-      - windows-design
-      - ux-design
-      - design-tokens
-  uncodixfy:
-    stage: post-direction-anti-generic-audit
-    required: true
-    authority: advisory
-    may_write: false
-    adapter: rules/uncodixfy-winui-v2.yml
-  ui-ux-pro-max:
-    stage: narrow-question-only
-    required: true
-    authority: advisory
-    may_write: false
-    stack: winui
-    maximum_queries_per_surface: 3
-  product-design:
-    stage: concept-exploration-only
     required: false
+    stage: design-direction
     authority: advisory
     may_write: false
-    forbidden_after_approval: true
+    fallback: local-winui-design-director
+  ui-ux-pro-max:
+    required: false
+    stage: narrow-question-only
+    authority: advisory
+    may_write: false
+    fallback: continue-without-provider
+  figma:
+    required: false
+    stage: approved-reference
+    authority: approved-visual-source
+    may_write: false
+    fallback: approved-screenshots-and-screen-spec
+  product-design:
+    required: false
+    stage: concept-exploration-only
+    authority: advisory
+    may_write: false
+    fallback: local-winui-design-director
 conflict_resolution:
-  - backend-and-security-contracts
-  - existing-behaviour-and-fixtures
+  - backend-security-and-behaviour-contracts
+  - existing-fixtures-and-product-truth
   - windows-accessibility-and-platform-correctness
   - human-approved-screen-specification
   - repository-architecture

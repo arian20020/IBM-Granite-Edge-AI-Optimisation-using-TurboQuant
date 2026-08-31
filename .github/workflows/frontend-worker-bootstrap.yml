@@ -1,0 +1,103 @@
+name: Frontend Worker Bootstrap
+
+on:
+  push:
+    branches:
+      - chore/granite-native-frontend-worker-v2-bootstrap
+    paths:
+      - AGENTS.md
+      - .agents/**
+      - .codex/**
+      - .frontend-worker/**
+      - plugins/granite-native-frontend-worker/**
+      - scripts/*GraniteNativeFrontendWorkerV2.ps1
+      - scripts/frontend-worker/**
+      - tools/GraniteFrontendGuard/**
+      - docs/frontend-worker/**
+      - docs/superpowers/specs/2026-08-31-granite-native-frontend-worker-v2-design.md
+      - docs/superpowers/plans/2026-08-31-granite-native-frontend-worker-v2-bootstrap.md
+      - .github/workflows/frontend-worker-bootstrap.yml
+  pull_request:
+    paths:
+      - AGENTS.md
+      - .agents/**
+      - .codex/**
+      - .frontend-worker/**
+      - plugins/granite-native-frontend-worker/**
+      - scripts/*GraniteNativeFrontendWorkerV2.ps1
+      - scripts/frontend-worker/**
+      - tools/GraniteFrontendGuard/**
+      - docs/frontend-worker/**
+      - docs/superpowers/specs/2026-08-31-granite-native-frontend-worker-v2-design.md
+      - docs/superpowers/plans/2026-08-31-granite-native-frontend-worker-v2-bootstrap.md
+      - .github/workflows/frontend-worker-bootstrap.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch protected base branch
+        shell: pwsh
+        run: git fetch origin integration/ucl-cross-route-native-validation-v1
+
+      - name: Parse JSON, YAML, and TOML metadata
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check PyYAML==6.0.2
+          @'
+          import json
+          import pathlib
+          import tomllib
+          import yaml
+
+          root = pathlib.Path('.')
+          json_files = [
+              root / '.agents/plugins/marketplace.json',
+              root / '.frontend-worker/v2/authorization.template.json',
+              root / '.frontend-worker/v2/provider-lock.json',
+              root / '.frontend-worker/v2/tooling-lock.json',
+              root / 'plugins/granite-native-frontend-worker/.codex-plugin/plugin.json',
+          ]
+          for path in json_files:
+              json.loads(path.read_text(encoding='utf-8'))
+
+          yaml_files = list((root / '.frontend-worker/v2').glob('*.yml'))
+          yaml_files += list((root / 'plugins/granite-native-frontend-worker/adapters').glob('*.yml'))
+          yaml_files += list((root / 'plugins/granite-native-frontend-worker/rules').glob('*.yml'))
+          yaml_files += [root / 'plugins/granite-native-frontend-worker/agents/openai.yaml']
+          for path in yaml_files:
+              yaml.safe_load(path.read_text(encoding='utf-8'))
+
+          for path in (root / '.codex/agents').glob('*.toml'):
+              with path.open('rb') as handle:
+                  tomllib.load(handle)
+
+          print(f'Parsed {len(json_files)} JSON, {len(yaml_files)} YAML, and {len(list((root / ".codex/agents").glob("*.toml")))} TOML files.')
+          '@ | python -
+
+      - name: Run structural, isolation, and guard regression verification
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File scripts/Test-GraniteNativeFrontendWorkerV2.ps1 `
+            -StructureOnly `
+            -BaseRef origin/integration/ucl-cross-route-native-validation-v1

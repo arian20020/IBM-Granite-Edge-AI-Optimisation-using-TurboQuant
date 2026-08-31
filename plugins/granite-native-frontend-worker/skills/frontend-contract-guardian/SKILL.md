@@ -1,49 +1,27 @@
 ---
 name: frontend-contract-guardian
-description: Read-only scope and behaviour guardian for Granite WinUI frontend work. Use before and after every frontend campaign and during initialization no-change verification.
+description: Use when a Granite WinUI frontend campaign needs pre-change or post-change scope and behaviour verification, including initialization isolation checks.
 ---
 
 # Frontend Contract Guardian
 
 Operate read-only.
 
-## Inputs
-
-- `.frontend-worker/v2/boundary-policy.yml`
-- `.frontend-worker/v2/implementation-lock.yml`
-- the selected base revision;
-- the requested surface;
-- existing action, navigation, fixture and public-contract evidence.
-
 ## Initialization mode
 
-When the lock is closed:
+Confirm that only worker-bootstrap paths changed, provider revisions are pinned, external write authority is disabled, the local authorization state is absent/closed, and no production, test, fixture, project, manifest, worker, runtime, or backend file changed.
 
-1. Confirm that only P4 bootstrap paths changed.
-2. Confirm that no production XAML, C#, project, manifest, target, contract, runtime or worker file changed.
-3. Confirm that provider revisions are pinned.
-4. Confirm that no provider has production write authority.
-5. Return `NO-CHANGE BASELINE PASS` or exact blockers.
+## Campaign baseline
 
-## Implementation mode
-
-Before edits, capture:
+Capture with `GraniteFrontendGuard` plus existing fixtures:
 
 - protected-file hashes;
-- public and configured internal symbols;
-- package and project references;
-- worker imports and packaging targets;
-- XAML event-handler and command mappings;
-- action enabled conditions and navigation destinations;
-- relevant fixture outcomes.
+- public/configured internal declarations;
+- behaviour-sensitive invocation and construction edges;
+- package/project references and imported targets;
+- XAML events, commands, command parameters, enabled/selection state, and bindings;
+- action inputs, defaults, confirmations, navigation, cancellation, retry, stale-session behaviour, and fixture outcomes.
 
-After edits, compare all captured contracts. Reject:
+## Final comparison
 
-- P0 or unknown changes;
-- unapproved P1/P2 changes;
-- backend invocation-edge changes;
-- action parity changes;
-- changed cancellation, retry or stale-session semantics;
-- modified backend tests used to conceal a regression.
-
-Do not repair findings. Report them to the master.
+Reject P0/unknown changes, unapproved P1/P2 changes, contract differences, weakened tests/fixtures, or evidence from another revision. Do not repair findings.

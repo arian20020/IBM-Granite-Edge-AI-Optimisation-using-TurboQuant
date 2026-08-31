@@ -1,132 +1,44 @@
 # Granite Native Frontend Worker v2 Bootstrap Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to execute future implementation campaigns task-by-task.
 
-**Goal:** Initialise the repo-local WinUI 3 frontend worker, its pinned design providers, safety policies, master prompt and verification commands without modifying production UI or backend code.
+**Goal:** Initialise a contract-protected WinUI 3 frontend worker without modifying production UI or backend code.
 
-**Architecture:** A local Codex marketplace exposes one master plugin containing routed specialist skills. External providers remain pinned and read-only; a repository implementation lock prevents production XAML/C# edits until explicit human authorization. A no-change guardian and verification script prove that bootstrap work remains outside the application.
+**Architecture:** A repo-local Codex plugin routes one master, one sole writer, and independent reviewers. Required providers are pinned, optional advisers degrade safely, authorization is local and ignored, and a repository-owned semantic guard plus Windows CI verifies isolation.
 
-**Tech Stack:** OpenAI Codex plugins and skills, PowerShell 7, Git, JSON, YAML, WinUI 3 repository conventions.
+**Tech Stack:** Codex plugins/skills, PowerShell 7, Git, JSON/YAML/TOML, .NET 8, Roslyn, WinUI 3 repository conventions.
 
-**Spec:** `docs/frontend-worker/GRANITE-NATIVE-FRONTEND-WORKER-V2-MASTER-PROMPT.md`
+**Spec:** `docs/superpowers/specs/2026-08-31-granite-native-frontend-worker-v2-design.md`
 
-## Global Constraints
+## Global constraints
 
-- Production UI changes are forbidden during bootstrap.
-- Backend, runtime, worker, contract, project, manifest and packaging files are immutable.
-- External provider revisions are pinned.
-- External providers have no production write authority.
+- No production application, backend, test, fixture, project, manifest, target, or worker change during bootstrap.
+- The exact future phrase is `AUTHORIZE GRANITE FRONTEND V2 IMPLEMENTATION`.
+- Authorization state is ignored and local, never committed.
 - Microsoft WinUI guidance is the native technical authority.
-- The implementation lock remains closed.
-- The exact later authorization phrase is `START GRANITE FRONTEND IMPLEMENTATION V2`.
+- External providers have no production write authority.
+- Optional providers cannot block native implementation when their documented fallback exists.
 
----
+## Completed bootstrap tasks
 
-### Task 1: Register the local Codex marketplace and plugin
+- [x] Register the repo-local marketplace and plugin.
+- [x] Add routed master, guardian, design, implementation, accessibility, visual-QA, and release-gate skills.
+- [x] Add repo-local custom agents with one production writer.
+- [x] Add one canonical master prompt and root routing instructions.
+- [x] Add one local authorization-state policy and exact start command.
+- [x] Pin Microsoft WinUI, Superpowers, Uncodixfy source provenance, Stark, UI/UX Pro Max, Figma, and Product Design.
+- [x] Mark Stark, UI/UX Pro Max, Figma, and Product Design optional with explicit fallbacks.
+- [x] Add semantic P0–P4 boundary policy with explicit precedence.
+- [x] Add deterministic authorization, initialization, and verification scripts.
+- [x] Add a Roslyn/XAML semantic guard that compares protected hashes, declarations, invocations, XAML contracts, and dependencies.
+- [x] Add guard regression tests.
+- [x] Add dedicated Windows bootstrap CI.
 
-**Files:**
-- Create: `.agents/plugins/marketplace.json`
-- Create: `plugins/granite-native-frontend-worker/.codex-plugin/plugin.json`
-- Create: `plugins/granite-native-frontend-worker/agents/openai.yaml`
+## Machine initialization still required
 
-**Interfaces:**
-- Produces: `granite-native-frontend-worker@granite-native-frontend`
+- [ ] Run `pwsh -File scripts/Initialize-GraniteNativeFrontendWorkerV2.ps1 -Install` on the Windows development machine.
+- [ ] Start a fresh Codex session after provider installation.
+- [ ] Run `pwsh -File scripts/Test-GraniteNativeFrontendWorkerV2.ps1`.
+- [ ] Confirm the initialization guardian reports no production change.
 
-- [x] Define the local marketplace.
-- [x] Define plugin identity, capabilities and skill root.
-- [x] Define the Codex-facing interface metadata.
-
-### Task 2: Add the master and specialist skills
-
-**Files:**
-- Create: `plugins/granite-native-frontend-worker/skills/**/SKILL.md`
-
-**Interfaces:**
-- Produces: master, guardian, design, implementation, accessibility, runtime-QA and release-gate skills.
-
-- [x] Add the initialization hard lock.
-- [x] Add one-writer routing.
-- [x] Add backend preservation and evidence gates.
-- [x] Add native WinUI implementation requirements.
-
-### Task 3: Add custom agents
-
-**Files:**
-- Create: `.codex/agents/*.toml`
-
-**Interfaces:**
-- Produces: one master, one sole writer and independent read-only reviewers.
-
-- [x] Add the master agent.
-- [x] Add the contract guardian.
-- [x] Add the design director.
-- [x] Add the sole XAML implementer.
-- [x] Add accessibility and visual auditors.
-
-### Task 4: Add pinned provider and scope policy
-
-**Files:**
-- Create: `.frontend-worker/v2/provider-lock.json`
-- Create: `.frontend-worker/v2/tooling-lock.json`
-- Create: `AGENTS.md`
-- Create: `.frontend-worker/v2/config.yml`
-- Create: `.frontend-worker/v2/implementation-lock.yml`
-- Create: `.frontend-worker/v2/boundary-policy.yml`
-- Create: `plugins/granite-native-frontend-worker/adapters/providers.yml`
-- Create: `plugins/granite-native-frontend-worker/rules/*.yml`
-
-**Interfaces:**
-- Produces: machine-readable provider authority, immutable scope and authorization contract.
-
-- [x] Pin every reviewed external provider.
-- [x] Deny external production write authority.
-- [x] Classify P0–P4 scope.
-- [x] Record WinUI-specific Uncodixfy overrides.
-- [x] Keep implementation authorization false.
-- [x] Route future Codex frontend tasks through root AGENTS.md.
-- [x] Record initialization and later-stage native tooling prerequisites.
-
-### Task 5: Add deterministic initialization and verification commands
-
-**Files:**
-- Create: `scripts/frontend-worker/Initialize-GraniteNativeFrontendWorkerV2.ps1`
-- Create: `scripts/frontend-worker/Test-GraniteNativeFrontendWorkerV2.ps1`
-
-**Interfaces:**
-- Produces: idempotent provider installation/verification and a no-production-change structural gate.
-
-- [x] Register local and external marketplaces.
-- [x] Install required providers at pinned revisions.
-- [x] Install the pinned project-level Uncodixfy skill.
-- [x] Install UI/UX Pro Max CLI 2.5.0 for Codex.
-- [x] Generate local provider status.
-- [x] Verify plugin identity, provider pins, write authority and lock state.
-
-### Task 6: Add the full worker prompt and operator documentation
-
-**Files:**
-- Create: `docs/frontend-worker/GRANITE-NATIVE-FRONTEND-WORKER-V2-MASTER-PROMPT.md`
-- Create: `plugins/granite-native-frontend-worker/README.md`
-- Create: `plugins/granite-native-frontend-worker/THIRD_PARTY_NOTICES.md`
-
-**Interfaces:**
-- Produces: the complete prompt the user can give to the Codex worker.
-
-- [x] Document initialization-only execution.
-- [x] Document later authorization and implementation workflow.
-- [x] Document native WinUI standards and evidence requirements.
-- [x] Document provider provenance and licences.
-
-### Task 7: Verify the bootstrap branch
-
-**Files:**
-- Test: all bootstrap files on the branch.
-
-**Interfaces:**
-- Consumes: Tasks 1–6.
-- Produces: a draft PR containing no production application changes.
-
-- [ ] Run `pwsh -File scripts/frontend-worker/Test-GraniteNativeFrontendWorkerV2.ps1` in a local checkout.
-- [ ] Run the initialization script with `-Install` on the Windows development machine.
-- [ ] Start a fresh Codex thread and run the master prompt in initialization mode.
-- [ ] Confirm the contract guardian reports no production change.
+No UI implementation begins as part of this plan.

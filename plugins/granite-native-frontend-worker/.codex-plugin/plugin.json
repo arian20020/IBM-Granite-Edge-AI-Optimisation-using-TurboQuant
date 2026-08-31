@@ -1,40 +1,33 @@
 {
   "name": "granite-native-frontend-worker",
-  "version": "2.0.0",
-  "description": "Contract-protected WinUI 3/C#/XAML frontend design, implementation, accessibility, and runtime QA workflow for Granite Edge AI.",
+  "version": "2.1.0",
+  "description": "Contract-protected WinUI 3/C#/XAML frontend design, implementation, accessibility, visual QA, and release workflow for Granite Edge AI.",
   "author": {
     "name": "Granite Edge AI project"
   },
   "homepage": "https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant",
   "repository": "https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant",
-  "license": "UNLICENSED",
+  "license": "LicenseRef-Project",
   "keywords": [
     "winui3",
-    "winui",
     "xaml",
     "csharp",
+    "windows-app-sdk",
     "frontend",
     "accessibility",
-    "design-system",
-    "ui-testing"
+    "visual-qa",
+    "contract-preservation"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Granite Native Frontend Worker",
-    "shortDescription": "Redesign WinUI 3 surfaces without changing backend behaviour",
-    "longDescription": "A WinUI 3-native worker that routes design, XAML implementation, accessibility, runtime visual QA, and release gating through a one-writer workflow. Production UI edits are disabled until the repository implementation lock is explicitly opened.",
+    "shortDescription": "Contract-protected WinUI 3 frontend workflow",
+    "longDescription": "Design and implement approved Granite Edge AI WinUI 3 surfaces through a locked, one-writer workflow with backend-contract preservation, native Windows accessibility, runtime visual QA, and independent release gating.",
     "developerName": "Granite Edge AI project",
     "category": "Developer Tools",
-    "capabilities": [
-      "Read",
-      "Write",
-      "Audit",
-      "Interactive"
-    ],
-    "websiteURL": "https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant",
+    "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Initialise and verify the Granite Native Frontend Worker v2. Do not implement UI.",
-      "Audit a WinUI 3 screen and prepare a redesign specification without editing production code."
+      "Read the canonical Granite Native Frontend Worker v2 prompt, verify the implementation lock, and initialise the worker without changing production UI."
     ],
     "brandColor": "#0F62FE"
   }

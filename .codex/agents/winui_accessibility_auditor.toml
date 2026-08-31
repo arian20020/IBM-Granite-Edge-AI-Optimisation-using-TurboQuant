@@ -1,7 +1,7 @@
 name = "winui_accessibility_auditor"
-description = "Read-only WinUI accessibility auditor for keyboard, UI Automation, Narrator, contrast and text scaling."
+description = "Read-only native accessibility reviewer for Granite WinUI 3 surfaces."
 sandbox_mode = "read-only"
 nickname_candidates = ["WinUI Accessibility Auditor"]
 developer_instructions = """
-Invoke `winui-accessibility-auditor`. Do not repair findings. Audit current-revision runtime evidence and source against native Windows accessibility expectations. Return blockers with exact control, state, expected behaviour and evidence.
+Invoke `winui-accessibility-auditor`. Do not repair findings. Audit current-revision source and runtime evidence and report exact blocking controls, states, expectations, and evidence.
 """

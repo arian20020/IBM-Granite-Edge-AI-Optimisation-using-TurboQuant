@@ -1,53 +1,46 @@
 # Granite Native Frontend Worker v2
 
-Repo-local Codex plugin for contract-protected WinUI 3, C# and XAML frontend work. Root `AGENTS.md` routes every frontend task through this worker automatically.
+Repo-local Codex plugin for contract-protected WinUI 3, C#, and XAML frontend work. Root `AGENTS.md` routes frontend tasks through the canonical master prompt and `granite-native-frontend-master` skill.
 
-## Current state
+## Default state
 
-The implementation lock is closed. This package can initialise and verify providers, prepare design specifications and run read-only audits. It must not modify production application files until the human supplies:
+Implementation is closed unless the ignored local authorization state declared by `.frontend-worker/v2/implementation-lock.yml` is valid and matches the active human instruction.
 
-`START GRANITE FRONTEND IMPLEMENTATION V2`
+The exact future phrase is:
 
-## Install
+`AUTHORIZE GRANITE FRONTEND V2 IMPLEMENTATION`
 
-From the repository root:
+The phrase alone is insufficient: campaign ID, bounded surfaces, approved base revision, visual source, guardian baseline, approved screen specification, and exact file manifest are also required.
 
-```powershell
-pwsh -File scripts/frontend-worker/Initialize-GraniteNativeFrontendWorkerV2.ps1 -Install
-```
+## Initialise
 
-Start a new Codex thread after installation.
-
-The bootstrap also records readiness for Codex, Git, npm, Python, .NET, WinApp CLI and Accessibility Insights without silently enabling Developer Mode or performing elevated installs.
-
-Verify:
+From the repository root on Windows:
 
 ```powershell
-pwsh -File scripts/frontend-worker/Test-GraniteNativeFrontendWorkerV2.ps1
+pwsh -File scripts/Initialize-GraniteNativeFrontendWorkerV2.ps1 -Install
 ```
 
-## Invoke
+Start a fresh Codex session after plugin installation, then verify:
 
-Select the `granite_native_frontend_master` custom agent or invoke the `granite-native-frontend-master` skill.
-
-For the present bootstrap phase, use:
-
-```text
-Read docs/frontend-worker/GRANITE-NATIVE-FRONTEND-WORKER-V2-MASTER-PROMPT.md.
-Initialise and verify every required provider.
-Do not modify production XAML or C#.
-Return INITIALIZATION READY or exact blockers, then stop.
+```powershell
+pwsh -File scripts/Test-GraniteNativeFrontendWorkerV2.ps1
 ```
+
+The initializer never enables Developer Mode, elevates privileges, changes application dependencies, or modifies production application files.
 
 ## Provider roles
 
-- Microsoft WinUI: native implementation authority.
-- Stark: read-only Windows/UX design adviser.
-- Uncodixfy: adapted read-only anti-generic audit.
-- UI/UX Pro Max: targeted WinUI design intelligence.
-- Figma: optional approved visual reference.
-- Product Design: optional concept exploration only.
+Required:
 
-Only `xaml_surface_implementer` may write production application files after explicit authorization.
+- Microsoft WinUI Skills — native technical authority.
+- Superpowers — planning, TDD, debugging, and verification methodology.
+- Bundled Uncodixfy WinUI v2 adapter — anti-generic design audit.
 
-Custom-agent TOML files are included for Codex surfaces that support them. On surfaces that expose only skills, the master executes the same roles sequentially and retains the one-writer/reviewer separation.
+Optional:
+
+- Stark — native product/design adviser.
+- UI/UX Pro Max — narrow WinUI research.
+- Figma — approved visual source.
+- Product Design — concept exploration before approval.
+
+Only `xaml_surface_implementer` may write production application files after every campaign gate passes.

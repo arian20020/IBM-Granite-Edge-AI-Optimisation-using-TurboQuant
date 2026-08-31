@@ -1,48 +1,47 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "profile": "native-winui",
   "tools": [
     {
-      "id": "codex-cli",
+      "id": "powershell-7",
       "requiredForInitialization": true,
-      "command": "codex",
-      "authority": "plugin-and-skill-host",
-      "automaticInstall": false,
-      "notes": "Use the already authenticated Codex installation."
+      "command": "pwsh",
+      "minimumVersion": "7.4.0",
+      "automaticInstall": false
     },
     {
       "id": "git",
       "requiredForInitialization": true,
       "command": "git",
-      "authority": "source-control",
       "automaticInstall": false
     },
     {
-      "id": "node-npm",
+      "id": "codex-cli",
       "requiredForInitialization": true,
-      "command": "npm",
-      "authority": "UI/UX Pro Max installer",
-      "automaticInstall": false
-    },
-    {
-      "id": "python",
-      "requiredForInitialization": true,
-      "commands": [
-        "py -3",
-        "python",
-        "python3"
-      ],
-      "authority": "UI/UX Pro Max search runtime",
+      "command": "codex",
       "automaticInstall": false,
-      "notes": "UI/UX Pro Max documents Python 3.x as a prerequisite."
+      "notes": "Use an already authenticated Codex installation with plugin support enabled."
     },
     {
       "id": "dotnet-sdk",
-      "requiredForInitialization": false,
-      "requiredBeforeImplementation": true,
+      "requiredForInitialization": true,
       "command": "dotnet",
       "minimumVersion": "8.0.100",
-      "authority": "WinUI application build",
+      "automaticInstall": false,
+      "notes": "Required to build and self-test GraniteFrontendGuard."
+    },
+    {
+      "id": "node-npm",
+      "requiredForInitialization": false,
+      "requiredWhenProviderEnabled": "ui-ux-pro-max",
+      "command": "npm",
+      "automaticInstall": false
+    },
+    {
+      "id": "python-3",
+      "requiredForInitialization": false,
+      "requiredWhenProviderEnabled": "ui-ux-pro-max",
+      "commands": ["py -3", "python", "python3"],
       "automaticInstall": false
     },
     {
@@ -51,7 +50,6 @@
       "requiredBeforeImplementation": true,
       "command": "winapp",
       "minimumVersion": "0.6.0",
-      "authority": "grounded WinUI sample discovery, build/run and UI automation",
       "automaticInstall": false,
       "humanApprovedInstallCommand": "winget install --id Microsoft.WinAppCli --exact --source winget"
     },
@@ -59,16 +57,14 @@
       "id": "accessibility-insights-windows",
       "requiredForInitialization": false,
       "requiredBeforeReleaseGate": true,
-      "authority": "native Windows accessibility inspection and FastPass",
-      "automaticInstall": false,
-      "humanApprovedInstallPage": "https://accessibilityinsights.io/downloads/"
+      "automaticInstall": false
     },
     {
       "id": "windows-developer-mode",
       "requiredForInitialization": false,
       "requiredWhenRuntimeAutomationNeedsIt": true,
       "automaticInstall": false,
-      "notes": "Never enable through an unattended bootstrap. Request human approval before any elevation or registry change."
+      "notes": "Never enable unattended; request human approval before elevation or registry changes."
     }
   ]
 }

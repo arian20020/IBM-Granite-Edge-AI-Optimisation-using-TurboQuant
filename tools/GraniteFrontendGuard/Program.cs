@@ -11,10 +11,12 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 internal static class Program
 {
-    private const string SchemaVersion = "2";
+    private const string SchemaVersion = "3";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
         WriteIndented = true
     };
 
@@ -27,16 +29,37 @@ internal static class Program
         "PasswordChanged", "ValueChanged", "Checked", "Unchecked", "Toggled",
         "QuerySubmitted", "SuggestionChosen", "Closing", "Closed", "Opened",
         "SizeChanged", "LayoutUpdated", "Navigated", "NavigationFailed",
-        "GettingFocus", "LosingFocus", "GotFocus", "LostFocus"
+        "GettingFocus", "LosingFocus", "GotFocus", "LostFocus", "AccessKeyInvoked"
+    };
+
+    private static readonly HashSet<string> XamlContractProperties = new(StringComparer.Ordinal)
+    {
+        "Command", "CommandParameter", "IsEnabled", "IsChecked", "IsOn",
+        "SelectedItem", "SelectedIndex", "SelectedValue", "IsOpen", "Visibility"
+    };
+
+    private static readonly string[] ProtectedRootPrefixes =
+    {
+        "shared/", "infrastructure/", "runtime/", "workers/", "experiments/",
+        "models/", "tests/", "research/", "release-evidence/"
+    };
+
+    private static readonly string[] ProtectedSegments =
+    {
+        "/Contracts/", "/Domain/", "/Application/", "/Infrastructure/", "/Runtime/",
+        "/Execution/", "/Storage/", "/QuickScan/", "/WorkerClient/", "/Protocol/"
     };
 
     private static readonly string[] BootstrapAllowedPrefixes =
     {
+        ".agents/plugins/",
+        ".agents/skills/",
+        ".codex/agents/",
         ".frontend-worker/",
         "plugins/granite-native-frontend-worker/",
-        "docs/superpowers/specs/",
-        "docs/superpowers/plans/",
-        "tools/GraniteFrontendGuard/"
+        "scripts/frontend-worker/",
+        "tools/GraniteFrontendGuard/",
+        "docs/frontend-worker/"
     };
 
     public static int Main(string[] args)
@@ -74,8 +97,9 @@ internal static class Program
         Console.WriteLine($"Snapshot written: {Path.GetFullPath(outputPath)}");
         Console.WriteLine($"HEAD: {snapshot.HeadCommit}");
         Console.WriteLine($"Protected files: {snapshot.ProtectedFileHashes.Count}");
-        Console.WriteLine($"C# contract files: {snapshot.DeclaredSymbols.Count}");
-        Console.WriteLine($"XAML contract files: {snapshot.XamlBindings.Count}");
+        Console.WriteLine($"Declaration files: {snapshot.DeclaredSymbols.Count}");
+        Console.WriteLine($"Behaviour-sensitive files: {snapshot.InvocationEdges.Count}");
+        Console.WriteLine($"XAML contract files: {snapshot.XamlContracts.Count}");
         return 0;
     }
 
@@ -87,11 +111,16 @@ internal static class Program
 
         FrontendSnapshot before = ReadJson<FrontendSnapshot>(beforePath);
         FrontendSnapshot after = ReadJson<FrontendSnapshot>(afterPath);
+        if (before.SchemaVersion != SchemaVersion || after.SchemaVersion != SchemaVersion)
+        {
+            throw new InvalidDataException("Snapshot schema is stale or unsupported.");
+        }
 
         List<ContractDifference> differences = new();
         CompareDictionary("protectedFileHashes", before.ProtectedFileHashes, after.ProtectedFileHashes, differences);
         CompareDictionary("declaredSymbols", before.DeclaredSymbols, after.DeclaredSymbols, differences);
-        CompareDictionary("xamlBindings", before.XamlBindings, after.XamlBindings, differences);
+        CompareDictionary("invocationEdges", before.InvocationEdges, after.InvocationEdges, differences);
+        CompareDictionary("xamlContracts", before.XamlContracts, after.XamlContracts, differences);
         CompareSequence("packageReferences", before.PackageReferences, after.PackageReferences, differences);
         CompareSequence("projectReferences", before.ProjectReferences, after.ProjectReferences, differences);
         CompareSequence("imports", before.Imports, after.Imports, differences);
@@ -110,7 +139,7 @@ internal static class Program
 
         if (comparison.Passed)
         {
-            Console.WriteLine("PASS: protected files, declared contracts, XAML action bindings, and project dependencies are unchanged.");
+            Console.WriteLine("PASS: protected files, declarations, behaviour-sensitive invocations, XAML contracts, and project dependencies are unchanged.");
             return 0;
         }
 
@@ -128,32 +157,28 @@ internal static class Program
     {
         string repositoryRoot = ResolveRepositoryRoot(GetOption(args, "--repo"));
         string baseRef = GetOption(args, "--base") ?? "integration/ucl-cross-route-native-validation-v1";
-        string authorizationPath = GetOption(args, "--authorization")
-            ?? Path.Combine(repositoryRoot, ".frontend-worker", "v2", "authorization.json");
+        string? explicitAuthorizationPath = GetOption(args, "--authorization");
         string? outputPath = GetOption(args, "--output");
 
-        using JsonDocument authorization = JsonDocument.Parse(File.ReadAllText(authorizationPath));
-        JsonElement root = authorization.RootElement;
-        bool implementationAuthorized = root.GetProperty("implementation_authorized").GetBoolean();
-        int authorizedSurfaceCount = root.GetProperty("authorized_surfaces").GetArrayLength();
-
         List<string> failures = new();
-        if (implementationAuthorized)
+        string authorizationPath = explicitAuthorizationPath
+            ?? ResolveAuthorizationStatePath(repositoryRoot);
+
+        if (File.Exists(authorizationPath))
         {
-            failures.Add("Implementation lock is open during bootstrap.");
-        }
-        if (authorizedSurfaceCount != 0)
-        {
-            failures.Add("Bootstrap authorization contains one or more production surfaces.");
+            using JsonDocument authorization = JsonDocument.Parse(File.ReadAllText(authorizationPath));
+            JsonElement root = authorization.RootElement;
+            bool implementationAuthorized = root.TryGetProperty("implementationAuthorized", out JsonElement authorized)
+                && authorized.ValueKind == JsonValueKind.True;
+            int surfaceCount = root.TryGetProperty("authorizedSurfaces", out JsonElement surfaces)
+                && surfaces.ValueKind == JsonValueKind.Array
+                ? surfaces.GetArrayLength()
+                : 0;
+            if (implementationAuthorized) failures.Add("Implementation authorization is open during bootstrap.");
+            if (surfaceCount != 0) failures.Add("Bootstrap authorization contains one or more production surfaces.");
         }
 
-        string diffText = RunGit(repositoryRoot, "diff", "--name-only", $"{baseRef}...HEAD");
-        string[] changedFiles = diffText
-            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(NormalizePath)
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
-
+        string[] changedFiles = GetChangedPaths(repositoryRoot, baseRef);
         foreach (string path in changedFiles)
         {
             if (!IsAllowedBootstrapPath(path))
@@ -177,7 +202,7 @@ internal static class Program
 
         if (report.Passed)
         {
-            Console.WriteLine("PASS: bootstrap paths are isolated and the implementation lock is closed.");
+            Console.WriteLine("PASS: bootstrap changes are isolated and implementation authorization is closed.");
             return 0;
         }
 
@@ -193,21 +218,22 @@ internal static class Program
         SortedDictionary<string, string> protectedFileHashes = new(StringComparer.Ordinal);
         SortedDictionary<string, string[]> declaredSymbols = new(StringComparer.Ordinal);
         SortedDictionary<string, string[]> invocationEdges = new(StringComparer.Ordinal);
-        SortedDictionary<string, string[]> xamlBindings = new(StringComparer.Ordinal);
+        SortedDictionary<string, string[]> xamlContracts = new(StringComparer.Ordinal);
 
-        foreach (string filePath in EnumerateRepositoryFiles(repositoryRoot))
+        foreach (string relativePath in EnumerateRepositoryFiles(repositoryRoot))
         {
-            string relativePath = NormalizePath(Path.GetRelativePath(repositoryRoot, filePath));
+            string fullPath = Path.Combine(repositoryRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(fullPath)) continue;
 
             if (IsProtectedPath(relativePath))
             {
-                protectedFileHashes[relativePath] = HashFile(filePath);
+                protectedFileHashes[relativePath] = HashFile(fullPath);
             }
 
-            string extension = Path.GetExtension(filePath);
+            string extension = Path.GetExtension(relativePath);
             if (extension.Equals(".cs", StringComparison.OrdinalIgnoreCase))
             {
-                SyntaxTree tree = CSharpSyntaxTree.ParseText(File.ReadAllText(filePath), path: relativePath);
+                SyntaxTree tree = CSharpSyntaxTree.ParseText(File.ReadAllText(fullPath), path: relativePath);
                 SyntaxNode root = tree.GetRoot();
 
                 string[] symbols = ExtractDeclaredSymbols(root);
@@ -218,25 +244,24 @@ internal static class Program
 
                 if (IsBehaviourSensitivePath(relativePath))
                 {
-                    string[] invocations = ExtractInvocationEdges(root);
-                    if (invocations.Length > 0)
+                    string[] edges = ExtractBehaviourEdges(root);
+                    if (edges.Length > 0)
                     {
-                        invocationEdges[relativePath] = invocations;
+                        invocationEdges[relativePath] = edges;
                     }
                 }
             }
             else if (extension.Equals(".xaml", StringComparison.OrdinalIgnoreCase))
             {
-                string[] bindings = ExtractXamlBindings(filePath);
-                if (bindings.Length > 0)
+                string[] contracts = ExtractXamlContracts(fullPath);
+                if (contracts.Length > 0)
                 {
-                    xamlBindings[relativePath] = bindings;
+                    xamlContracts[relativePath] = contracts;
                 }
             }
         }
 
         ProjectDependencySnapshot dependencies = ExtractProjectDependencies(repositoryRoot);
-
         return new FrontendSnapshot(
             SchemaVersion,
             repositoryRoot,
@@ -244,32 +269,22 @@ internal static class Program
             protectedFileHashes,
             declaredSymbols,
             invocationEdges,
-            xamlBindings,
+            xamlContracts,
             dependencies.PackageReferences,
             dependencies.ProjectReferences,
             dependencies.Imports);
     }
 
-    private static IEnumerable<string> EnumerateRepositoryFiles(string repositoryRoot)
+    private static string[] EnumerateRepositoryFiles(string repositoryRoot)
     {
-        foreach (string path in Directory.EnumerateFiles(repositoryRoot, "*", SearchOption.AllDirectories))
-        {
-            string relativePath = NormalizePath(Path.GetRelativePath(repositoryRoot, path));
-            if (IsExcludedPath(relativePath)) continue;
-
-            string extension = Path.GetExtension(path);
-            if (extension.Equals(".cs", StringComparison.OrdinalIgnoreCase)
-                || extension.Equals(".xaml", StringComparison.OrdinalIgnoreCase)
-                || extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase)
-                || extension.Equals(".targets", StringComparison.OrdinalIgnoreCase)
-                || extension.Equals(".sln", StringComparison.OrdinalIgnoreCase)
-                || extension.Equals(".slnx", StringComparison.OrdinalIgnoreCase)
-                || Path.GetFileName(path).Equals("Package.appxmanifest", StringComparison.OrdinalIgnoreCase)
-                || Path.GetFileName(path).Equals("app.manifest", StringComparison.OrdinalIgnoreCase))
-            {
-                yield return path;
-            }
-        }
+        string output = RunGit(repositoryRoot, "ls-files", "-z", "--cached", "--others", "--exclude-standard");
+        return output
+            .Split('\0', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(NormalizePath)
+            .Where(path => !IsExcludedPath(path))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static bool IsExcludedPath(string path)
@@ -279,22 +294,26 @@ internal static class Program
             || wrapped.Contains("/bin/", StringComparison.OrdinalIgnoreCase)
             || wrapped.Contains("/obj/", StringComparison.OrdinalIgnoreCase)
             || wrapped.Contains("/.worktrees/", StringComparison.OrdinalIgnoreCase)
-            || wrapped.Contains("/TestResults/", StringComparison.OrdinalIgnoreCase);
+            || wrapped.Contains("/TestResults/", StringComparison.OrdinalIgnoreCase)
+            || wrapped.Contains("/.frontend-worker/v2/.state/", StringComparison.OrdinalIgnoreCase)
+            || wrapped.Contains("/.frontend-worker/v2/providers/", StringComparison.OrdinalIgnoreCase)
+            || wrapped.Contains("/.frontend-worker/v2/evidence/", StringComparison.OrdinalIgnoreCase)
+            || wrapped.Contains("/.frontend-worker/v2/baselines/", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsProtectedPath(string path)
     {
         string normalized = NormalizePath(path);
-        string[] rootPrefixes = { "shared/", "infrastructure/", "runtime/", "workers/", "experiments/" };
-        if (rootPrefixes.Any(prefix => normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))) return true;
+        if (ProtectedRootPrefixes.Any(prefix => normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
 
         string wrapped = $"/{normalized}/";
-        string[] protectedSegments =
+        if (ProtectedSegments.Any(segment => wrapped.Contains(segment, StringComparison.OrdinalIgnoreCase)))
         {
-            "/Contracts/", "/Domain/", "/Application/", "/Infrastructure/", "/Runtime/",
-            "/Execution/", "/Storage/", "/QuickScan/", "/Worker", "/Protocol"
-        };
-        if (protectedSegments.Any(segment => wrapped.Contains(segment, StringComparison.OrdinalIgnoreCase))) return true;
+            return true;
+        }
 
         string fileName = Path.GetFileName(normalized);
         string extension = Path.GetExtension(normalized);
@@ -316,8 +335,9 @@ internal static class Program
         return fileName.EndsWith(".xaml.cs", StringComparison.OrdinalIgnoreCase)
             || fileName.Equals("MainWindow.xaml.cs", StringComparison.OrdinalIgnoreCase)
             || wrapped.Contains("/ViewModels/", StringComparison.OrdinalIgnoreCase)
-            || fileName.EndsWith("Controller.cs", StringComparison.OrdinalIgnoreCase)
-            || fileName.EndsWith("Coordinator.cs", StringComparison.OrdinalIgnoreCase)
+            || wrapped.Contains("/Controllers/", StringComparison.OrdinalIgnoreCase)
+            || wrapped.Contains("/Coordinators/", StringComparison.OrdinalIgnoreCase)
+            || wrapped.Contains("/Navigation/", StringComparison.OrdinalIgnoreCase)
             || fileName.EndsWith("Scheduler.cs", StringComparison.OrdinalIgnoreCase)
             || fileName.EndsWith("StateMachine.cs", StringComparison.OrdinalIgnoreCase)
             || fileName.EndsWith("Session.cs", StringComparison.OrdinalIgnoreCase)
@@ -330,120 +350,155 @@ internal static class Program
 
         foreach (BaseTypeDeclarationSyntax type in root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>())
         {
-            if (!HasProtectedVisibility(type.Modifiers)) continue;
-            string kind = type.Kind().ToString();
-            string typeParameters = type switch
-            {
-                TypeDeclarationSyntax declaration => declaration.TypeParameterList?.ToString() ?? string.Empty,
-                _ => string.Empty
-            };
-            symbols.Add($"{kind}:{ContainingTypePrefix(type)}{type.Identifier}{typeParameters}|{NormalizeModifiers(type.Modifiers)}");
+            if (!HasContractVisibility(type.Modifiers)) continue;
+            string typeParameters = type is TypeDeclarationSyntax declaration
+                ? declaration.TypeParameterList?.ToString() ?? string.Empty
+                : string.Empty;
+            symbols.Add($"Type:{type.Kind()}:{ContainingTypePrefix(type)}{type.Identifier}{typeParameters}|{NormalizeModifiers(type.Modifiers)}");
         }
 
         foreach (DelegateDeclarationSyntax declaration in root.DescendantNodes().OfType<DelegateDeclarationSyntax>())
         {
-            if (!HasProtectedVisibility(declaration.Modifiers)) continue;
+            if (!HasContractVisibility(declaration.Modifiers)) continue;
             symbols.Add($"Delegate:{ContainingTypePrefix(declaration)}{declaration.Identifier}{declaration.TypeParameterList}({NormalizeParameters(declaration.ParameterList)}):{declaration.ReturnType}|{NormalizeModifiers(declaration.Modifiers)}");
         }
 
         foreach (MethodDeclarationSyntax method in root.DescendantNodes().OfType<MethodDeclarationSyntax>())
         {
-            if (!HasProtectedVisibility(method.Modifiers)) continue;
+            if (!HasContractVisibility(method.Modifiers)) continue;
             symbols.Add($"Method:{ContainingTypePrefix(method)}{method.Identifier}{method.TypeParameterList}({NormalizeParameters(method.ParameterList)}):{method.ReturnType}|{NormalizeModifiers(method.Modifiers)}");
         }
 
         foreach (ConstructorDeclarationSyntax constructor in root.DescendantNodes().OfType<ConstructorDeclarationSyntax>())
         {
-            if (!HasProtectedVisibility(constructor.Modifiers)) continue;
+            if (!HasContractVisibility(constructor.Modifiers)) continue;
             symbols.Add($"Constructor:{ContainingTypePrefix(constructor)}{constructor.Identifier}({NormalizeParameters(constructor.ParameterList)})|{NormalizeModifiers(constructor.Modifiers)}");
         }
 
         foreach (PropertyDeclarationSyntax property in root.DescendantNodes().OfType<PropertyDeclarationSyntax>())
         {
-            if (!HasProtectedVisibility(property.Modifiers)) continue;
+            if (!HasContractVisibility(property.Modifiers)) continue;
             string accessors = property.AccessorList is null
                 ? "expression"
                 : string.Join(',', property.AccessorList.Accessors.Select(accessor => accessor.Keyword.Text));
             symbols.Add($"Property:{ContainingTypePrefix(property)}{property.Identifier}:{property.Type}|{accessors}|{NormalizeModifiers(property.Modifiers)}");
         }
 
-        foreach (EventDeclarationSyntax @event in root.DescendantNodes().OfType<EventDeclarationSyntax>())
+        foreach (IndexerDeclarationSyntax indexer in root.DescendantNodes().OfType<IndexerDeclarationSyntax>())
         {
-            if (!HasProtectedVisibility(@event.Modifiers)) continue;
-            symbols.Add($"Event:{ContainingTypePrefix(@event)}{@event.Identifier}:{@event.Type}|{NormalizeModifiers(@event.Modifiers)}");
+            if (!HasContractVisibility(indexer.Modifiers)) continue;
+            symbols.Add($"Indexer:{ContainingTypePrefix(indexer)}[{NormalizeBracketedParameters(indexer.ParameterList)}]:{indexer.Type}|{NormalizeModifiers(indexer.Modifiers)}");
+        }
+
+        foreach (EventDeclarationSyntax eventDeclaration in root.DescendantNodes().OfType<EventDeclarationSyntax>())
+        {
+            if (!HasContractVisibility(eventDeclaration.Modifiers)) continue;
+            symbols.Add($"Event:{ContainingTypePrefix(eventDeclaration)}{eventDeclaration.Identifier}:{eventDeclaration.Type}|{NormalizeModifiers(eventDeclaration.Modifiers)}");
         }
 
         foreach (EventFieldDeclarationSyntax eventField in root.DescendantNodes().OfType<EventFieldDeclarationSyntax>())
         {
-            if (!HasProtectedVisibility(eventField.Modifiers)) continue;
+            if (!HasContractVisibility(eventField.Modifiers)) continue;
             foreach (VariableDeclaratorSyntax variable in eventField.Declaration.Variables)
             {
                 symbols.Add($"EventField:{ContainingTypePrefix(eventField)}{variable.Identifier}:{eventField.Declaration.Type}|{NormalizeModifiers(eventField.Modifiers)}");
             }
         }
 
+        foreach (FieldDeclarationSyntax field in root.DescendantNodes().OfType<FieldDeclarationSyntax>())
+        {
+            if (!HasContractVisibility(field.Modifiers)) continue;
+            foreach (VariableDeclaratorSyntax variable in field.Declaration.Variables)
+            {
+                symbols.Add($"Field:{ContainingTypePrefix(field)}{variable.Identifier}:{field.Declaration.Type}|{NormalizeModifiers(field.Modifiers)}");
+            }
+        }
+
+        foreach (OperatorDeclarationSyntax operatorDeclaration in root.DescendantNodes().OfType<OperatorDeclarationSyntax>())
+        {
+            if (!HasContractVisibility(operatorDeclaration.Modifiers)) continue;
+            symbols.Add($"Operator:{ContainingTypePrefix(operatorDeclaration)}{operatorDeclaration.OperatorToken}({NormalizeParameters(operatorDeclaration.ParameterList)}):{operatorDeclaration.ReturnType}|{NormalizeModifiers(operatorDeclaration.Modifiers)}");
+        }
+
+        foreach (ConversionOperatorDeclarationSyntax conversion in root.DescendantNodes().OfType<ConversionOperatorDeclarationSyntax>())
+        {
+            if (!HasContractVisibility(conversion.Modifiers)) continue;
+            symbols.Add($"Conversion:{ContainingTypePrefix(conversion)}{conversion.ImplicitOrExplicitKeyword}:{conversion.Type}({NormalizeParameters(conversion.ParameterList)})|{NormalizeModifiers(conversion.Modifiers)}");
+        }
+
         foreach (EnumDeclarationSyntax enumeration in root.DescendantNodes().OfType<EnumDeclarationSyntax>())
         {
-            if (!HasProtectedVisibility(enumeration.Modifiers)) continue;
+            if (!HasContractVisibility(enumeration.Modifiers)) continue;
             foreach (EnumMemberDeclarationSyntax member in enumeration.Members)
             {
                 symbols.Add($"EnumMember:{ContainingTypePrefix(enumeration)}{enumeration.Identifier}.{member.Identifier}={member.EqualsValue?.Value.ToString() ?? "implicit"}");
             }
         }
 
-        return symbols.Distinct(StringComparer.Ordinal).OrderBy(value => value, StringComparer.Ordinal).ToArray();
+        return CountValues(symbols);
     }
 
-    private static string[] ExtractInvocationEdges(SyntaxNode root)
+    private static string[] ExtractBehaviourEdges(SyntaxNode root)
     {
-        IEnumerable<string> invocations = root.DescendantNodes()
-            .OfType<InvocationExpressionSyntax>()
-            .Select(invocation => $"call:{NormalizeCode(invocation.Expression.ToString())}");
-
-        IEnumerable<string> constructions = root.DescendantNodes()
-            .OfType<ObjectCreationExpressionSyntax>()
-            .Select(creation => $"new:{NormalizeCode(creation.Type.ToString())}");
-
-        return invocations.Concat(constructions)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(value => value, StringComparer.Ordinal)
-            .ToArray();
+        List<string> edges = new();
+        edges.AddRange(root.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Select(invocation => $"call:{NormalizeCode(invocation.ToString())}"));
+        edges.AddRange(root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>()
+            .Select(creation => $"new:{NormalizeCode(creation.ToString())}"));
+        edges.AddRange(root.DescendantNodes().OfType<ImplicitObjectCreationExpressionSyntax>()
+            .Select(creation => $"new:{NormalizeCode(creation.ToString())}"));
+        edges.AddRange(root.DescendantNodes().OfType<AssignmentExpressionSyntax>()
+            .Select(assignment => $"assign:{NormalizeCode(assignment.ToString())}"));
+        edges.AddRange(root.DescendantNodes().OfType<PrefixUnaryExpressionSyntax>()
+            .Where(expression => expression.IsKind(SyntaxKind.PreIncrementExpression) || expression.IsKind(SyntaxKind.PreDecrementExpression))
+            .Select(expression => $"mutate:{NormalizeCode(expression.ToString())}"));
+        edges.AddRange(root.DescendantNodes().OfType<PostfixUnaryExpressionSyntax>()
+            .Where(expression => expression.IsKind(SyntaxKind.PostIncrementExpression) || expression.IsKind(SyntaxKind.PostDecrementExpression))
+            .Select(expression => $"mutate:{NormalizeCode(expression.ToString())}"));
+        return CountValues(edges);
     }
 
-    private static string[] ExtractXamlBindings(string filePath)
+    private static string[] ExtractXamlContracts(string filePath)
     {
         try
         {
-            XDocument document = XDocument.Load(filePath, LoadOptions.SetLineInfo | LoadOptions.PreserveWhitespace);
-            List<string> bindings = new();
-
+            XDocument document = XDocument.Load(filePath, LoadOptions.PreserveWhitespace);
+            List<string> contracts = new();
             foreach (XElement element in document.Descendants())
             {
+                string? identity = element.Attributes()
+                    .FirstOrDefault(attribute => attribute.Name.LocalName is "Name" or "Uid")?.Value.Trim();
+                string elementKey = string.IsNullOrWhiteSpace(identity)
+                    ? element.Name.LocalName
+                    : $"{element.Name.LocalName}[{identity}]";
+
                 foreach (XAttribute attribute in element.Attributes())
                 {
                     if (attribute.IsNamespaceDeclaration) continue;
-
                     string name = attribute.Name.LocalName;
                     string value = attribute.Value.Trim();
-                    bool isContractAttribute = KnownXamlEvents.Contains(name)
-                        || name is "Command" or "CommandParameter" or "IsEnabled" or "SelectedItem"
+                    bool contractAttribute = KnownXamlEvents.Contains(name)
+                        || XamlContractProperties.Contains(name)
                         || value.Contains("{x:Bind", StringComparison.Ordinal)
                         || value.Contains("{Binding", StringComparison.Ordinal);
-
-                    if (!isContractAttribute) continue;
-
-                    int line = (element as IXmlLineInfo)?.LineNumber ?? 0;
-                    bindings.Add($"line:{line}|{element.Name.LocalName}.{name}={NormalizeCode(value)}");
+                    if (!contractAttribute) continue;
+                    contracts.Add($"{elementKey}.{name}={NormalizeCode(value)}");
                 }
             }
-
-            return bindings.Distinct(StringComparer.Ordinal).OrderBy(value => value, StringComparer.Ordinal).ToArray();
+            return CountValues(contracts);
         }
         catch (Exception exception) when (exception is XmlException or IOException)
         {
-            return new[] { $"parse-error:{exception.GetType().Name}:{exception.Message}" };
+            return new[] { $"count:1|parse-error:{exception.GetType().Name}:{NormalizeCode(exception.Message)}" };
         }
     }
+
+    private static string[] CountValues(IEnumerable<string> values) =>
+        values
+            .GroupBy(value => value, StringComparer.Ordinal)
+            .Select(group => $"count:{group.Count()}|{group.Key}")
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
 
     private static ProjectDependencySnapshot ExtractProjectDependencies(string repositoryRoot)
     {
@@ -451,14 +506,11 @@ internal static class Program
         SortedSet<string> projects = new(StringComparer.Ordinal);
         SortedSet<string> imports = new(StringComparer.Ordinal);
 
-        IEnumerable<string> projectFiles = Directory.EnumerateFiles(repositoryRoot, "*.csproj", SearchOption.AllDirectories)
-            .Where(path => !IsExcludedPath(NormalizePath(Path.GetRelativePath(repositoryRoot, path))));
-
-        foreach (string projectFile in projectFiles)
+        foreach (string relative in EnumerateRepositoryFiles(repositoryRoot)
+            .Where(path => Path.GetExtension(path).Equals(".csproj", StringComparison.OrdinalIgnoreCase)))
         {
-            string relative = NormalizePath(Path.GetRelativePath(repositoryRoot, projectFile));
+            string projectFile = Path.Combine(repositoryRoot, relative.Replace('/', Path.DirectorySeparatorChar));
             XDocument document = XDocument.Load(projectFile, LoadOptions.None);
-
             foreach (XElement element in document.Descendants())
             {
                 string? include = GetAttributeByLocalName(element, "Include") ?? GetAttributeByLocalName(element, "Update");
@@ -484,10 +536,50 @@ internal static class Program
         return new ProjectDependencySnapshot(packages.ToArray(), projects.ToArray(), imports.ToArray());
     }
 
+    private static string[] GetChangedPaths(string repositoryRoot, string baseRef)
+    {
+        string baseCommit = RunGit(repositoryRoot, "rev-parse", "--verify", $"{baseRef}^{{commit}}").Trim();
+        string mergeBase = RunGit(repositoryRoot, "merge-base", "HEAD", baseCommit).Trim();
+        List<string> paths = new();
+        paths.AddRange(SplitLines(RunGit(repositoryRoot, "diff", "--name-only", $"{mergeBase}...HEAD")));
+        paths.AddRange(SplitLines(RunGit(repositoryRoot, "diff", "--name-only")));
+        paths.AddRange(SplitLines(RunGit(repositoryRoot, "diff", "--cached", "--name-only")));
+        paths.AddRange(SplitLines(RunGit(repositoryRoot, "ls-files", "--others", "--exclude-standard")));
+        return paths.Select(NormalizePath).Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();
+    }
+
+    private static IEnumerable<string> SplitLines(string value) =>
+        value.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static string ResolveAuthorizationStatePath(string repositoryRoot)
+    {
+        string policyPath = Path.Combine(repositoryRoot, ".frontend-worker", "v2", "implementation-lock.yml");
+        if (!File.Exists(policyPath)) throw new FileNotFoundException("Missing implementation-lock.yml.", policyPath);
+        Match match = Regex.Match(File.ReadAllText(policyPath), "(?m)^state_file:\\s*(.+?)\\s*$");
+        if (!match.Success) throw new InvalidDataException("implementation-lock.yml does not declare state_file.");
+        string relative = match.Groups[1].Value.Trim().Trim('"', '\'');
+        return Path.GetFullPath(Path.Combine(repositoryRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
+    }
+
+    private static bool IsAllowedBootstrapPath(string path)
+    {
+        if (path is "AGENTS.md"
+            or "scripts/Authorize-GraniteNativeFrontendWorkerV2.ps1"
+            or "scripts/Initialize-GraniteNativeFrontendWorkerV2.ps1"
+            or "scripts/Test-GraniteNativeFrontendWorkerV2.ps1"
+            or "docs/superpowers/specs/2026-08-31-granite-native-frontend-worker-v2-design.md"
+            or "docs/superpowers/plans/2026-08-31-granite-native-frontend-worker-v2-bootstrap.md"
+            or ".github/workflows/frontend-worker-bootstrap.yml")
+        {
+            return true;
+        }
+        return BootstrapAllowedPrefixes.Any(prefix => path.StartsWith(prefix, StringComparison.Ordinal));
+    }
+
     private static string? GetAttributeByLocalName(XElement element, string localName) =>
         element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == localName)?.Value.Trim();
 
-    private static bool HasProtectedVisibility(SyntaxTokenList modifiers) =>
+    private static bool HasContractVisibility(SyntaxTokenList modifiers) =>
         modifiers.Any(token => token.IsKind(SyntaxKind.PublicKeyword)
             || token.IsKind(SyntaxKind.InternalKeyword)
             || token.IsKind(SyntaxKind.ProtectedKeyword));
@@ -496,6 +588,10 @@ internal static class Program
         string.Join(' ', modifiers.Select(token => token.Text).OrderBy(value => value, StringComparer.Ordinal));
 
     private static string NormalizeParameters(ParameterListSyntax parameterList) =>
+        string.Join(',', parameterList.Parameters.Select(parameter =>
+            $"{string.Join(' ', parameter.Modifiers.Select(modifier => modifier.Text))}:{parameter.Type}:{parameter.Identifier}:{parameter.Default?.Value}"));
+
+    private static string NormalizeBracketedParameters(BracketedParameterListSyntax parameterList) =>
         string.Join(',', parameterList.Parameters.Select(parameter =>
             $"{string.Join(' ', parameter.Modifiers.Select(modifier => modifier.Text))}:{parameter.Type}:{parameter.Identifier}:{parameter.Default?.Value}"));
 
@@ -515,13 +611,6 @@ internal static class Program
     {
         using FileStream stream = File.OpenRead(path);
         return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
-    }
-
-    private static bool IsAllowedBootstrapPath(string path)
-    {
-        if (path is "AGENTS.md" or ".agents/plugins/marketplace.json") return true;
-        if (BootstrapAllowedPrefixes.Any(prefix => path.StartsWith(prefix, StringComparison.Ordinal))) return true;
-        return Regex.IsMatch(path, "^scripts/(Initialize|Test|Authorize)-GraniteNativeFrontendWorkerV2\\.ps1$", RegexOptions.CultureInvariant);
     }
 
     private static void CompareDictionary<T>(
@@ -571,9 +660,7 @@ internal static class Program
 
     private static string ResolveRepositoryRoot(string? supplied)
     {
-        string candidate = supplied ?? Environment.CurrentDirectory;
-        candidate = Path.GetFullPath(candidate);
-
+        string candidate = Path.GetFullPath(supplied ?? Environment.CurrentDirectory);
         string root = RunGit(candidate, "rev-parse", "--show-toplevel").Trim();
         if (string.IsNullOrWhiteSpace(root)) throw new InvalidOperationException("Unable to resolve repository root.");
         return Path.GetFullPath(root);
@@ -593,9 +680,12 @@ internal static class Program
 
         using Process process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Unable to start git.");
-        string stdout = process.StandardOutput.ReadToEnd();
-        string stderr = process.StandardError.ReadToEnd();
+        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync();
         process.WaitForExit();
+        Task.WaitAll(stdoutTask, stderrTask);
+        string stdout = stdoutTask.Result;
+        string stderr = stderrTask.Result;
         if (process.ExitCode != 0)
         {
             throw new InvalidOperationException($"git {string.Join(' ', arguments)} failed: {stderr.Trim()}");
@@ -634,7 +724,7 @@ internal static class Program
         SortedDictionary<string, string> ProtectedFileHashes,
         SortedDictionary<string, string[]> DeclaredSymbols,
         SortedDictionary<string, string[]> InvocationEdges,
-        SortedDictionary<string, string[]> XamlBindings,
+        SortedDictionary<string, string[]> XamlContracts,
         string[] PackageReferences,
         string[] ProjectReferences,
         string[] Imports);

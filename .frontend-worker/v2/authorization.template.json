@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "phase": "initialized",
+  "implementationAuthorized": false,
+  "authorizationPhrase": "AUTHORIZE GRANITE FRONTEND V2 IMPLEMENTATION",
+  "campaignId": null,
+  "authorizedSurfaces": [],
+  "approvedBaseRevision": null,
+  "approvedBaseCommit": null,
+  "approvedVisualSource": null,
+  "authorizedAtUtc": null,
+  "authorizationSource": null
+}
