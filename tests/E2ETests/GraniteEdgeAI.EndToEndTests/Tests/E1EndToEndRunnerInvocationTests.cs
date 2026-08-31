@@ -62,7 +62,7 @@ public sealed class E1EndToEndRunnerInvocationTests
     [TestMethod]
     public void Structurally_invalid_candidate_asset_or_producer_manifest_fails_before_build_or_lock()
     {
-        foreach (string mutation in new[] { "candidate-extra", "asset-duplicate", "producer-ledger" })
+        foreach (string mutation in new[] { "candidate-extra", "candidate-drive-root-relative", "asset-duplicate", "producer-ledger" })
         {
             using RunnerFixture fixture = RunnerFixture.Create();
             fixture.ApplyManifestMutation(mutation);
@@ -200,6 +200,14 @@ public sealed class E1EndToEndRunnerInvocationTests
             {
                 Dictionary<string, object?> candidate = JsonSerializer.Deserialize<Dictionary<string, object?>>(File.ReadAllText(CandidateManifest))!;
                 candidate["unexpected"] = true;
+                File.WriteAllText(CandidateManifest, JsonSerializer.Serialize(candidate));
+                return;
+            }
+            if (mutation == "candidate-drive-root-relative")
+            {
+                Dictionary<string, object?> candidate = JsonSerializer.Deserialize<Dictionary<string, object?>>(File.ReadAllText(CandidateManifest))!;
+                string executable = ((JsonElement)candidate["executablePath"]!).GetString()!;
+                candidate["executablePath"] = executable[2..];
                 File.WriteAllText(CandidateManifest, JsonSerializer.Serialize(candidate));
                 return;
             }
