@@ -130,6 +130,10 @@ if ($Stage -eq 'Evidence') {
     if ($dotnetItem.PSIsContainer -or ($dotnetItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
         $dotnetItem.Name -ne 'dotnet.exe') { throw 'The approved x64 dotnet host is invalid.' }
     $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
+    $buildRoot = Join-Path $repositoryRoot "TestResults\Audit-20260830\E1-Build\$([Guid]::NewGuid().ToString('N'))"
+    $buildOutputRoot = Join-Path $buildRoot 'bin'
+    $buildIntermediateRoot = Join-Path $buildRoot 'obj'
+    New-Item -ItemType Directory -Force -Path $buildOutputRoot, $buildIntermediateRoot | Out-Null
     $buildStartedUtc = [DateTime]::UtcNow
     $buildEnvironmentNames = @(@(
         'MSBuildSDKsPath', 'MSBuildExtensionsPath', 'MSBuildExtensionsPath32', 'MSBuildExtensionsPath64',
@@ -149,15 +153,19 @@ if ($Stage -eq 'Evidence') {
         $env:MSBuildSDKsPath = $evidenceSdkRoot
         $env:DOTNET_ROOT = [IO.Path]::GetDirectoryName($dotnetItem.FullName)
         $env:DOTNET_MULTILEVEL_LOOKUP = '0'
-        & $dotnetItem.FullName $evidenceMSBuild $project /restore /t:Rebuild /m:1 /p:Configuration=Debug /p:RuntimeIdentifier=win-x64 "/p:SourceRevisionId=$ImplementationCommit" /v:minimal
+        & $dotnetItem.FullName $evidenceMSBuild $project /restore /t:Rebuild /m:1 /p:Configuration=Debug /p:RuntimeIdentifier=win-x64 "/p:SourceRevisionId=$ImplementationCommit" "/p:BaseOutputPath=$buildOutputRoot\" "/p:BaseIntermediateOutputPath=$buildIntermediateRoot\" "/p:MSBuildProjectExtensionsPath=$buildIntermediateRoot\" /v:minimal
         if ($LASTEXITCODE -ne 0) { throw "E1 evidence build failed with exit code $LASTEXITCODE." }
+    }
+    catch {
+        Remove-Item -LiteralPath $buildRoot -Recurse -Force -ErrorAction SilentlyContinue
+        throw
     }
     finally {
         foreach ($name in $buildEnvironmentNames) {
             [Environment]::SetEnvironmentVariable($name, $savedBuildEnvironment[$name], 'Process')
         }
     }
-    $expectedOutputRoot = Join-Path $projectRoot 'bin\Debug'
+    $expectedOutputRoot = $buildOutputRoot
     $assemblyCandidates = @(Get-ChildItem $expectedOutputRoot -Filter 'GraniteEdgeAI.EndToEndTests.dll' -Recurse -File |
         Where-Object { $_.FullName -match '[\\/]net8\.0-windows10\.0\.19041\.0[\\/]win-x64[\\/]' -and $_.LastWriteTimeUtc -ge $buildStartedUtc.AddSeconds(-2) })
     if ($assemblyCandidates.Count -ne 1) { throw 'Evidence build did not produce exactly one fresh expected E1 assembly.' }
@@ -190,6 +198,7 @@ if ($Stage -eq 'Evidence') {
         foreach ($name in $runtimeEnvironmentNames) {
             [Environment]::SetEnvironmentVariable($name, $savedRuntimeEnvironment[$name], 'Process')
         }
+        Remove-Item -LiteralPath $buildRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
     return
 }
