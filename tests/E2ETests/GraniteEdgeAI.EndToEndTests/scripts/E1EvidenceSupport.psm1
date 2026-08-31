@@ -93,6 +93,27 @@ function Get-E1TrustedDotNet {
     return $item.FullName
 }
 
+function Get-E1TrustedMSBuild {
+    $programFiles = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
+    if ([string]::IsNullOrWhiteSpace($programFiles)) { throw 'Blocked: canonical Windows Program Files is unavailable.' }
+    $dotnetRoot = Join-Path $programFiles 'dotnet'
+    $sdkRoot = Join-Path $dotnetRoot 'sdk'
+    $sdkCandidates = @(Get-ChildItem -LiteralPath $sdkRoot -Directory -Force -ErrorAction Stop | ForEach-Object {
+        $parsed = [Version]::new()
+        if ([Version]::TryParse($_.Name, [ref]$parsed)) {
+            [pscustomobject]@{ Version = $parsed; Directory = $_ }
+        }
+    } | Sort-Object Version -Descending)
+    if ($sdkCandidates.Count -eq 0) { throw 'Blocked: no stable canonical .NET SDK is installed.' }
+    $sdkDirectory = $sdkCandidates[0].Directory
+    if (($sdkDirectory.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Blocked: canonical .NET SDK directory is a reparse point.' }
+    $path = Join-Path $sdkDirectory.FullName 'MSBuild.dll'
+    $item = Assert-E1RegularFile -Path $path
+    if ($item.Name -ne 'MSBuild.dll' -or $item.Extension -ne '.dll') { throw 'Blocked: approved MSBuild identity is invalid.' }
+    Assert-E1NoReparseChain -Path $item.FullName -Boundary $dotnetRoot
+    return $item.FullName
+}
+
 function Assert-E1EvidenceAssembly {
     param(
         [Parameter(Mandatory = $true)] [string] $Path,
@@ -212,4 +233,4 @@ function Assert-E1AuthoritativeTrx {
     }
 }
 
-Export-ModuleMember -Function Get-E1TrustedVSTest, Get-E1TrustedDotNet, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx
+Export-ModuleMember -Function Get-E1TrustedVSTest, Get-E1TrustedDotNet, Get-E1TrustedMSBuild, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx

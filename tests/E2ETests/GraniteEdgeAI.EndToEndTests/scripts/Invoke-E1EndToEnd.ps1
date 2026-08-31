@@ -124,12 +124,13 @@ if ($Q1Manifest) { $env:GRANITE_E2E_Q1_MANIFEST = (Resolve-Path -LiteralPath $Q1
 if ($Stage -eq 'Evidence') {
     Assert-E1ImplementationBoundary -RepositoryRoot $repositoryRoot -ImplementationCommit $ImplementationCommit
     $evidenceDotNet = Get-E1TrustedDotNet
+    $evidenceMSBuild = Get-E1TrustedMSBuild
     $dotnetItem = Get-Item -LiteralPath $evidenceDotNet -Force -ErrorAction Stop
     if ($dotnetItem.PSIsContainer -or ($dotnetItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
         $dotnetItem.Name -ne 'dotnet.exe') { throw 'The approved x64 dotnet host is invalid.' }
     $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
     $buildStartedUtc = [DateTime]::UtcNow
-    & $dotnetItem.FullName build $project --configuration Debug --arch x64 --disable-build-servers --no-incremental -m:1 "-p:SourceRevisionId=$ImplementationCommit"
+    & $dotnetItem.FullName $evidenceMSBuild $project /restore /t:Rebuild /m:1 /p:Configuration=Debug /p:RuntimeIdentifier=win-x64 "/p:SourceRevisionId=$ImplementationCommit" /v:minimal
     if ($LASTEXITCODE -ne 0) { throw "E1 evidence build failed with exit code $LASTEXITCODE." }
     $expectedOutputRoot = Join-Path $projectRoot 'bin\Debug'
     $assemblyCandidates = @(Get-ChildItem $expectedOutputRoot -Filter 'GraniteEdgeAI.EndToEndTests.dll' -Recurse -File |

@@ -61,12 +61,14 @@ public sealed class E1EvidenceSupportTests
             Import-Module '{{SupportModule}}' -Force
             $trustedVSTest = Get-E1TrustedVSTest
             $trustedDotNet = Get-E1TrustedDotNet
+            $trustedMSBuild = Get-E1TrustedMSBuild
             $env:ProgramFiles = '{{Ps(directory.Path)}}'
             ${env:ProgramFiles(x86)} = '{{Ps(directory.Path)}}'
             $observedVSTest = Get-E1TrustedVSTest
             $observedDotNet = Get-E1TrustedDotNet
-            if ($observedVSTest -ne $trustedVSTest -or $observedDotNet -ne $trustedDotNet) { throw 'environment redirected trusted executable discovery' }
-            if ($observedVSTest.StartsWith('{{Ps(directory.Path)}}') -or $observedDotNet.StartsWith('{{Ps(directory.Path)}}')) { throw 'poisoned root was trusted' }
+            $observedMSBuild = Get-E1TrustedMSBuild
+            if ($observedVSTest -ne $trustedVSTest -or $observedDotNet -ne $trustedDotNet -or $observedMSBuild -ne $trustedMSBuild) { throw 'environment redirected trusted tool discovery' }
+            if ($observedVSTest.StartsWith('{{Ps(directory.Path)}}') -or $observedDotNet.StartsWith('{{Ps(directory.Path)}}') -or $observedMSBuild.StartsWith('{{Ps(directory.Path)}}')) { throw 'poisoned root was trusted' }
             """;
 
         ProcessResult result = PowerShell(command, FindRepositoryRoot());
