@@ -90,17 +90,24 @@ internal static class OptimizationExporter
         }
         finally
         {
-            try
-            {
-                if (File.Exists(temporary))
-                {
-                    File.Delete(temporary);
-                }
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                throw new GgufExportCleanupException();
-            }
+            CleanupTemporary(temporary);
+        }
+    }
+
+    private static void CleanupTemporary(string temporary)
+    {
+        if (!File.Exists(temporary))
+        {
+            return;
+        }
+        try
+        {
+            File.Delete(temporary);
+        }
+        catch (Exception exception) when (exception is IOException
+                                          or UnauthorizedAccessException)
+        {
+            throw new GgufExportCleanupException();
         }
     }
 }
