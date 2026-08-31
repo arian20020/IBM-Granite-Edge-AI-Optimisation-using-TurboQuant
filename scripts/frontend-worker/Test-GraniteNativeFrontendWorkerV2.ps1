@@ -242,7 +242,7 @@ try {
     Write-Host 'Bootstrap isolation and no production/backend changes: PASS'
     Write-Host 'GraniteFrontendGuard build and regression tests: PASS'
     if (-not $StructureOnly) { Write-Host 'Required machine providers and tools: PASS' }
-    exit 0
+    return
 }
 finally {
     Pop-Location
