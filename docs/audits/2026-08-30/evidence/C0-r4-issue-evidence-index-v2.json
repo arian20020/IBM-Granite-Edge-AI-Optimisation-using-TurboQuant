@@ -1,0 +1,338 @@
+{
+  "schemaVersion": 1,
+  "coordinator": "C0",
+  "createdAtUtc": "2026-08-31T05:01:08Z",
+  "productSubject": {
+    "commit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+    "tree": "2e92e172679d1558972846694306d28ad56e2cf4"
+  },
+  "evidenceBase": {
+    "commit": "c6028db9d785a4edd0e10956af3bf57586d95ac1",
+    "tree": "102f2d917f7330db2ef6cfdf496daa7fb276a73e",
+    "manifest": {
+      "path": "docs/audits/2026-08-30/evidence/C0-r4-specialist-reconciliation.json",
+      "sha256": "92e08f9b94249b7aa5f0c760eedb5ecb6100e61f94cd06fba0a9e23105299979",
+      "bytes": 4429
+    }
+  },
+  "commands": {
+    "C0-OPENVINO-OPTIMIZATION": { "evidenceType": "behavioralTest", "discovered": 55, "executed": 55, "passed": 55, "failed": 0, "skipped": 0 },
+    "C0-OPENVINO-CONTRACTS": { "evidenceType": "behavioralTest", "discovered": 202, "executed": 202, "passed": 202, "failed": 0, "skipped": 0 },
+    "C0-OPENVINO-WORKERCLIENT": { "evidenceType": "behavioralTest", "discovered": 17, "executed": 17, "passed": 17, "failed": 0, "skipped": 0 },
+    "C0-GGUF-CONTRACTS": { "evidenceType": "behavioralTest", "discovered": 7, "executed": 7, "passed": 7, "failed": 0, "skipped": 0 },
+    "C0-GGUF-WORKERCLIENT": { "evidenceType": "behavioralTest", "discovered": 19, "executed": 19, "passed": 19, "failed": 0, "skipped": 0 },
+    "C0-Q1-IDENTITY": { "evidenceType": "behavioralTest", "discovered": 51, "executed": 51, "passed": 51, "failed": 0, "skipped": 0 },
+    "C0-CROSSFEATURE": { "evidenceType": "behavioralTest", "discovered": 115, "executed": 115, "passed": 115, "failed": 0, "skipped": 0 },
+    "C0-SECURITY-AUDIT": { "evidenceType": "behavioralTest", "discovered": 12, "executed": 12, "passed": 12, "failed": 0, "skipped": 0 },
+    "C0-CLEANUP-INVENTORY": { "evidenceType": "behavioralTest", "discovered": 3, "executed": 3, "passed": 3, "failed": 0, "skipped": 0 }
+  },
+  "issues": [
+    {
+      "issueId": "R3-001",
+      "title": "Correct M1 handoff and evidence arithmetic",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CLEANUP-INVENTORY"],
+      "sourceArtifacts": [
+        "docs/audits/2026-08-28/M1-model-inspection-remediation-r3.md",
+        "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/M1R3AuditEvidenceContractTests.cs"
+      ]
+    },
+    {
+      "issueId": "R3-002",
+      "title": "Reject unresolved package expressions",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-SECURITY-AUDIT"],
+      "sourceArtifacts": [
+        "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/M1R3PackageClosureContractTests.cs",
+        "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/ModelInspectionFixtureBuildBoundaryContractTests.cs"
+      ]
+    },
+    {
+      "issueId": "R3-003",
+      "title": "Cover every production DebugFixtures root",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-SECURITY-AUDIT"],
+      "sourceArtifacts": [
+        "tests/ContractTests/GraniteEdgeAI.ModelInspection.Contracts.Tests/M1R3DebugFixtureRootContractTests.cs",
+        "docs/reviews/model-inspection-cleanup-inventory.md"
+      ]
+    },
+    {
+      "issueId": "R3-004",
+      "title": "Reach schema-v2 projection through live production routes",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CROSSFEATURE"],
+      "productionReachability": {
+        "definition": "shared/GraniteEdgeAI.ModelInspection.Contracts/Evidence/ModelInspectionProjectionV2.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Inspection/ModelInspectionProjectionFactory.OpenVino.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs",
+        "behavioralRegressionTest": "tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/ModelInspectionHandoffIntegrationTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-005",
+      "title": "Compose the approved recommended-model download backend",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CROSSFEATURE"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/ModelDownloadComposition.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml",
+        "behavioralRegressionTest": "tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/RemediationGapContractTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-006",
+      "title": "Prevent retired-page download completion from mutating UI",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CROSSFEATURE"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/ModelDownloadCoordinator.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.Selection.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml.cs",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelDownload/ModelDownloadCoordinatorTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-007",
+      "title": "Observe and cancel export and download operations during navigation",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CROSSFEATURE"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelDownload/ModelDownloadCard.xaml.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.Selection.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelImport/ModelImportPage.xaml.cs",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelImport/ModelDownload/ModelDownloadCardTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-008",
+      "title": "Connect F1 and Q1 service contracts in production",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CROSSFEATURE"],
+      "productionReachability": {
+        "definition": "shared/GraniteEdgeAI.CrossFeature.Contracts/ExactOptimizationResultContracts.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.OptimizationDestinations.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs",
+        "behavioralRegressionTest": "tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/RemediationGapContractTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-009",
+      "title": "Accept a genuine user-selected OpenVINO export destination",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-OPENVINO-OPTIMIZATION"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/ExportDestinationGuard.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Optimization/OpenVinoPublishedOutputRegistry.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/OptimizationBackendCompositionFactory.cs",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/Optimization/OpenVinoOptimizationTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-010",
+      "title": "Validate storage custody before child traversal",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-OPENVINO-OPTIMIZATION"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/StagedSourceSnapshot.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Optimization/OpenVinoPublishedOutputRegistry.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/OptimizationBackendCompositionFactory.cs",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/Optimization/OpenVinoOptimizationTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-011",
+      "title": "Check every existing path ancestor",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-OPENVINO-OPTIMIZATION"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/StagedSourceSnapshot.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/OptimizationSourceResolver.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/OptimizationBackendCompositionFactory.cs",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationSourceResolverTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-012",
+      "title": "Make temporary-output cleanup failure observable",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-OPENVINO-OPTIMIZATION"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Optimization/TemporaryExportDirectory.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/OpenVinoRoute/Optimization/OpenVinoPublishedOutputRegistry.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/OptimizationBackendCompositionFactory.cs",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.OpenVino.Tests/Optimization/OpenVinoOptimizationTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-013",
+      "title": "Keep large-file identity work cancellation-sensitive",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-OPENVINO-OPTIMIZATION"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/OptimizationSourceResolver.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/StagedSourceSnapshot.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/OptimizationBackendCompositionFactory.cs",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationSourceResolverTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-014",
+      "title": "Bind live OpenVINO Chat to the exact result rather than ambient output",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-Q1-IDENTITY", "C0-CROSSFEATURE"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/OptimizationDestinationFacade.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.OptimizationDestinations.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/OptimizationBackendCompositionFactory.cs",
+        "behavioralRegressionTest": "tests/IntegrationTests/GraniteEdgeAI.Q1.Identity.Tests/OptimizationDestinationFacadeTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-015",
+      "title": "Reject intermediate quantizer package reparse points",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-GGUF-WORKERCLIENT"],
+      "productionReachability": {
+        "definition": "infrastructure/GraniteEdgeAI.GgufQuantization.WorkerClient/GgufQuantizerPackageVerifier.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Infrastructure/GgufOptimizationProductionAuthority.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/OptimizationBackendCompositionFactory.cs",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.GgufQuantization.WorkerClient.Tests/GgufQuantizationWorkerClientTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-016",
+      "title": "Reject unresolved expressions from GGUF package closure",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-GGUF-CONTRACTS", "C0-SECURITY-AUDIT"],
+      "productionReachability": {
+        "definition": "scripts/gguf-quantization/Test-GgufQuantizerPackage.ps1",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/IBM Granite with TurboQuant (Intel).csproj",
+        "registrationPoint": "Directory.Build.props",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.GgufQuantization.Capabilities.Tests/GgufQuantizerPackagingTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-017",
+      "title": "Give each backend authority one live production registration",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CROSSFEATURE"],
+      "productionReachability": {
+        "definition": "IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Application/OptimizationBackendCompositionFactory.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/ModelHardwareCompatibility/Application/CompatibilityEvaluationOrchestrator.cs",
+        "behavioralRegressionTest": "tests/UnitTests/GraniteEdgeAI.UnitTests/Features/ModelOptimization/OptimizationBackendCompositionFactoryTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-018",
+      "title": "Reach download and exact OpenVINO Chat requirements through production",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CROSSFEATURE", "C0-Q1-IDENTITY"],
+      "productionReachability": {
+        "definition": "shared/GraniteEdgeAI.CrossFeature.Contracts/ExactOptimizationResultContracts.cs",
+        "productionCaller": "IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.OptimizationDestinations.cs",
+        "registrationPoint": "IBM Granite with TurboQuant (Intel)/Features/Onboarding/OnboardingShellPage.xaml.cs",
+        "behavioralRegressionTest": "tests/IntegrationTests/GraniteEdgeAI.CrossFeature.IntegrationTests/RemediationGapContractTests.cs",
+        "observedRegistrations": 1
+      }
+    },
+    {
+      "issueId": "R3-019",
+      "title": "Close the H1 to M1 to Q1 dependency and native ordering contract",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CROSSFEATURE"],
+      "sourceArtifacts": [
+        "docs/audits/2026-08-30/evidence/C0-r4-worker-register.json",
+        "docs/audits/2026-08-30/evidence/C0-r4-specialist-reconciliation.json"
+      ]
+    },
+    {
+      "issueId": "R3-020",
+      "title": "Obtain current integrated-candidate E1 receipt and native acceptance",
+      "phase": "postAcceptance",
+      "state": "PENDING_E1_ACCEPTANCE",
+      "acceptanceOwner": "E1",
+      "requiredEvidence": [
+        "exact replacement candidate commit/tree/ref equality",
+        "schema-valid candidate-bound E1 receipt",
+        "native or package execution only when the approved lock and prerequisites are available",
+        "honest external-block disposition when native prerequisites remain unavailable"
+      ]
+    },
+    {
+      "issueId": "R3-021",
+      "title": "Make evidence reproducible solely from committed Git blobs",
+      "phase": "preflight",
+      "state": "CLOSED",
+      "commandIds": ["C0-CLEANUP-INVENTORY"],
+      "sourceArtifacts": [
+        "docs/audits/2026-08-30/evidence/C0-r4-specialist-reconciliation.json",
+        "docs/audits/2026-08-30/evidence/C0-r4-worker-register.json"
+      ]
+    },
+    {
+      "issueId": "R3-022",
+      "title": "Complete package, App Control, native, cleanup, and E2E acceptance",
+      "phase": "postAcceptance",
+      "state": "PENDING_E1_ACCEPTANCE",
+      "acceptanceOwner": "E1",
+      "requiredEvidence": [
+        "package and App Control attempts against the exact replacement candidate",
+        "native lock acquisition before any native or packaged execution",
+        "post-run owned-process, listener, filesystem, and environment cleanup",
+        "managed E2E and release-veto arithmetic",
+        "no pass claim for blocked or unexecuted gates"
+      ]
+    }
+  ],
+  "r4Findings": [
+    { "findingId": "R4-C0-001", "state": "CLOSED", "title": "Reject duplicate Chat admission without replacement", "commandIds": ["C0-Q1-IDENTITY"] },
+    { "findingId": "R4-C0-002", "state": "CLOSED", "title": "Close admission before retirement cancellation and join", "commandIds": ["C0-Q1-IDENTITY"] },
+    { "findingId": "R4-C0-003", "state": "CLOSED", "title": "Converge Dispose and ShutdownAsync on one ordered task", "commandIds": ["C0-Q1-IDENTITY"] },
+    { "findingId": "R4-C0-004", "state": "CLOSED", "title": "Bound and report optimization intent faults", "commandIds": ["C0-Q1-IDENTITY"] },
+    { "findingId": "R4-C0-005", "state": "CLOSED", "title": "Close and join the handoff gate during shutdown", "commandIds": ["C0-Q1-IDENTITY"] },
+    { "findingId": "R4-C0-006", "state": "CLOSED", "title": "Keep Cancel concurrent with Confirm", "commandIds": ["C0-Q1-IDENTITY"] },
+    { "findingId": "R4-C0-007", "state": "CLOSED", "title": "Prevent throwing cancellation callbacks from stranding shutdown", "commandIds": ["C0-Q1-IDENTITY"] },
+    { "findingId": "R4-C0-008", "state": "CLOSED", "title": "Share lease gate and exact revalidation across Chat, Back, and Done", "commandIds": ["C0-Q1-IDENTITY", "C0-CROSSFEATURE"] }
+  ],
+  "nonClaims": [
+    "R3-020 and R3-022 are not closed by C0 and cannot be used as pre-native entry gates.",
+    "No native, signed-package, App Control, visual, accessibility, performance, or final release acceptance is claimed by this index.",
+    "The replacement candidate changes evidence and dispatch documentation only; its product subject remains 429298d3328a62d4fcf2f5f3f12821342be4a23c."
+  ]
+}
