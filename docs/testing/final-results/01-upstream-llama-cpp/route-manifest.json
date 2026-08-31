@@ -1,8 +1,8 @@
 {
   "attempt_count": 13,
   "campaign_id": "wb-01-v1.4-2026-07-16",
-  "evidence_count": 651,
-  "failure_count": 7,
+  "evidence_count": 656,
+  "failure_count": 5,
   "hardware": {
     "cpu": "12th Gen Intel Core i5-12450H; 8 cores; 12 logical processors",
     "gpu": "Intel UHD Graphics; driver 32.0.101.7076",
@@ -17,6 +17,243 @@
     "best_observed_cpu_test_id": "UL-08",
     "best_observed_intel_gpu_test_id": "UL-10",
     "commit": "2d973636e292ee6f75fadcf08d29cb33511f509f",
+    "deviation_rows": [
+      {
+        "code": "REPRO",
+        "description": "R001 cache validator reported failure although required keys existed.",
+        "deviation_id": "UL-DEV-HIST-01",
+        "disposition": "Yes, R002/R003",
+        "evidence_ids": [
+          "upstream-llama-cpp-1d7c7f12ccbf"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-B05"
+        ],
+        "scope_type": "setup",
+        "source_failure_id": "UL-F01"
+      },
+      {
+        "code": "DEP",
+        "description": "Vulkan repository suite initially passed 51/52.",
+        "deviation_id": "UL-DEV-HIST-02",
+        "disposition": "Yes, 52/52",
+        "evidence_ids": [
+          "upstream-llama-cpp-bbb63ecd783d"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-B05"
+        ],
+        "scope_type": "setup",
+        "source_failure_id": "UL-F02"
+      },
+      {
+        "code": "GPU",
+        "description": "SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes.",
+        "deviation_id": "UL-DEV-HIST-03",
+        "disposition": "Project workload resolved; edge tests unresolved",
+        "evidence_ids": [
+          "upstream-llama-cpp-b9f424464ca0"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-B06",
+          "UL-13"
+        ],
+        "scope_type": "mixed",
+        "source_failure_id": "UL-F03"
+      },
+      {
+        "code": "QUAL",
+        "description": "Long-context output omitted required literal prefix.",
+        "deviation_id": "UL-DEV-HIST-04",
+        "disposition": "No",
+        "evidence_ids": [
+          "EVID-c7b93a7337fba1ef57e3"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-05"
+        ],
+        "scope_type": "prompt",
+        "source_failure_id": "UL-F04"
+      },
+      {
+        "code": "QUAL",
+        "description": "Multi-turn exact value degraded from `amber:4821` to `4821`.",
+        "deviation_id": "UL-DEV-HIST-05",
+        "disposition": "No",
+        "evidence_ids": [
+          "EVID-b4a16bd806a44a4651e9"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-05"
+        ],
+        "scope_type": "prompt",
+        "source_failure_id": "UL-F05"
+      },
+      {
+        "code": "PERF",
+        "description": "Full Vulkan offload reduced decode throughput relative to one-layer offload.",
+        "deviation_id": "UL-DEV-HIST-06",
+        "disposition": "Configuration issue, not test failure",
+        "evidence_ids": [
+          "EVID-922fe80006d168c5c124"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-10",
+          "UL-12"
+        ],
+        "scope_type": "multi-test",
+        "source_failure_id": "UL-F06"
+      },
+      {
+        "code": "MEM",
+        "description": "Initial run omitted peak RAM, KV MB and TTFT because llama-bench does not emit all three.",
+        "deviation_id": "UL-DEV-HIST-07",
+        "disposition": "Yes",
+        "evidence_ids": [
+          "upstream-llama-cpp-db711113b8e9"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-01",
+          "UL-02",
+          "UL-03",
+          "UL-04",
+          "UL-05",
+          "UL-06",
+          "UL-07",
+          "UL-08",
+          "UL-09",
+          "UL-10",
+          "UL-11",
+          "UL-12",
+          "UL-13"
+        ],
+        "scope_type": "campaign",
+        "source_failure_id": "UL-F07"
+      },
+      {
+        "code": "AUTHORITY",
+        "description": "Current Test-Run register contains zero exact UL-01 through UL-13 rows.",
+        "deviation_id": "UL-DEV-REGISTER-TEST-RUN",
+        "disposition": "Indexed logs and WB-01 are the admitted historical authorities; no register rows were invented.",
+        "evidence_ids": [
+          "upstream-llama-cpp-0d0e0a927263"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-01",
+          "UL-02",
+          "UL-03",
+          "UL-04",
+          "UL-05",
+          "UL-06",
+          "UL-07",
+          "UL-08",
+          "UL-09",
+          "UL-10",
+          "UL-11",
+          "UL-12",
+          "UL-13"
+        ],
+        "scope_type": "campaign",
+        "source_failure_id": ""
+      },
+      {
+        "code": "AUTHORITY",
+        "description": "Current Performance register contains zero exact UL-01 through UL-13 rows.",
+        "deviation_id": "UL-DEV-REGISTER-PERFORMANCE",
+        "disposition": "Indexed repetition logs take precedence; no later-register equality is claimed.",
+        "evidence_ids": [
+          "upstream-llama-cpp-2c104a7f446f"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-01",
+          "UL-02",
+          "UL-03",
+          "UL-04",
+          "UL-05",
+          "UL-06",
+          "UL-07",
+          "UL-08",
+          "UL-09",
+          "UL-10",
+          "UL-11",
+          "UL-12",
+          "UL-13"
+        ],
+        "scope_type": "campaign",
+        "source_failure_id": ""
+      },
+      {
+        "code": "PRECEDENCE",
+        "description": "WB formal values are 40.789 prompt / 7.211 decode tok/s; indexed repetitions compute 40.844 / 7.212.",
+        "deviation_id": "UL-DEV-UL13-PERFORMANCE",
+        "disposition": "Normalized summaries use indexed repetition medians and preserve WB values as a documented divergence.",
+        "evidence_ids": [
+          "upstream-llama-cpp-27c47275b8fc",
+          "EVID-d335afb5774f9fb254b4",
+          "EVID-c254e8693d31edba0dd2",
+          "EVID-2935db523c5521649574",
+          "EVID-f093cb37e7e80ffb6e7e"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-13"
+        ],
+        "scope_type": "test",
+        "source_failure_id": ""
+      },
+      {
+        "code": "PRECEDENCE",
+        "description": "Legacy WB/quality prose displays P1-P6 mean 5.9; arithmetic over prompt scores is 5.750.",
+        "deviation_id": "UL-DEV-UL05-QUALITY",
+        "disposition": "Prompt-level scores are canonical; both historical display and arithmetic value remain explicit.",
+        "evidence_ids": [
+          "upstream-llama-cpp-27c47275b8fc",
+          "upstream-llama-cpp-3a280ff9538d"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-05"
+        ],
+        "scope_type": "test",
+        "source_failure_id": ""
+      },
+      {
+        "code": "PRECEDENCE",
+        "description": "Legacy WB labels name UL-04/UL-03 CPU and fallback choices and UL-09 GPU; approved publication labels are UL-08/UL-10/UL-05 only.",
+        "deviation_id": "UL-DEV-DECISION-LABELS",
+        "disposition": "Approved bounded publication labels take precedence without rewriting legacy WB prose.",
+        "evidence_ids": [
+          "upstream-llama-cpp-27c47275b8fc"
+        ],
+        "nonterminal": true,
+        "scope_test_ids": [
+          "UL-01",
+          "UL-02",
+          "UL-03",
+          "UL-04",
+          "UL-05",
+          "UL-06",
+          "UL-07",
+          "UL-08",
+          "UL-09",
+          "UL-10",
+          "UL-11",
+          "UL-12",
+          "UL-13"
+        ],
+        "scope_type": "campaign",
+        "source_failure_id": ""
+      }
+    ],
     "historical_missing_metric_display": "Not collected",
     "performance_register_reason": "No UL-01 through UL-13 rows; repetition evidence predates the register",
     "performance_register_status": "Not collected",
@@ -24,7 +261,75 @@
     "raw_results_status": "Not collected",
     "recommendation_scope": "UL-08 only as best observed CPU; UL-10 only as best observed Intel GPU; UL-05 only as the recorded fallback.",
     "recorded_fallback_test_id": "UL-05",
+    "relationship_validation": {
+      "attempt_count": 13,
+      "deviation_count": 12,
+      "errors": [],
+      "evidence_count": 656,
+      "failure_relationship_count": 5,
+      "valid": true
+    },
     "source_date": "2026-07-16",
+    "source_reconciliation": {
+      "evidence_binding_count": 642,
+      "exact_performance_register_rows": 0,
+      "exact_test_run_register_rows": 0,
+      "formal_ids": [
+        "UL-01",
+        "UL-02",
+        "UL-03",
+        "UL-04",
+        "UL-05",
+        "UL-06",
+        "UL-07",
+        "UL-08",
+        "UL-09",
+        "UL-10",
+        "UL-11",
+        "UL-12",
+        "UL-13"
+      ],
+      "known_divergences": {
+        "UL-05-quality": {
+          "arithmetic_prompt_mean": 5.75,
+          "precedence": "prompt-level scores",
+          "workbook_displayed_mean": 5.9
+        },
+        "UL-13-performance": {
+          "computed_decode_tokens_per_second": 7.212,
+          "computed_prompt_tokens_per_second": 40.844,
+          "precedence": "indexed repetition logs",
+          "workbook_decode_tokens_per_second": 7.211,
+          "workbook_prompt_tokens_per_second": 40.789
+        },
+        "decision-labels": {
+          "approved_cpu": "UL-08 only",
+          "approved_fallback": "UL-05 only",
+          "approved_gpu": "UL-10 only",
+          "precedence": "approved bounded publication labels",
+          "workbook_cpu": "UL-04 for speed; UL-03 when quality is primary",
+          "workbook_fallback": "UL-04 or UL-03",
+          "workbook_gpu": "UL-09"
+        }
+      },
+      "matrix_ids": [
+        "UL-01",
+        "UL-02",
+        "UL-03",
+        "UL-04",
+        "UL-05",
+        "UL-06",
+        "UL-07",
+        "UL-08",
+        "UL-09",
+        "UL-10",
+        "UL-11",
+        "UL-12",
+        "UL-13"
+      ],
+      "quality_rows_reconciled": 13,
+      "resource_rows_reconciled": 13
+    },
     "tag": "b9870",
     "url": "https://github.com/ggml-org/llama.cpp",
     "workbook_id": "WB-01",

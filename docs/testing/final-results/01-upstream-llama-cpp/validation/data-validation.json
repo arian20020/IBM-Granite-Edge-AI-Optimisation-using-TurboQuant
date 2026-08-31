@@ -1,5 +1,35 @@
 {
-  "evidence_count": 651,
+  "checks": {
+    "evidence_bindings": true,
+    "performance_register_exact_rows": true,
+    "quality_reconciliation": true,
+    "resource_reconciliation": true,
+    "test_run_register_exact_rows": true
+  },
+  "evidence_count": 656,
+  "known_divergences": {
+    "UL-05-quality": {
+      "arithmetic_prompt_mean": 5.75,
+      "precedence": "prompt-level scores",
+      "workbook_displayed_mean": 5.9
+    },
+    "UL-13-performance": {
+      "computed_decode_tokens_per_second": 7.212,
+      "computed_prompt_tokens_per_second": 40.844,
+      "precedence": "indexed repetition logs",
+      "workbook_decode_tokens_per_second": 7.211,
+      "workbook_prompt_tokens_per_second": 40.789
+    },
+    "decision-labels": {
+      "approved_cpu": "UL-08 only",
+      "approved_fallback": "UL-05 only",
+      "approved_gpu": "UL-10 only",
+      "precedence": "approved bounded publication labels",
+      "workbook_cpu": "UL-04 for speed; UL-03 when quality is primary",
+      "workbook_fallback": "UL-04 or UL-03",
+      "workbook_gpu": "UL-09"
+    }
+  },
   "missing_values_display": "Not collected",
   "raw_results_status": "Not collected",
   "valid": true,

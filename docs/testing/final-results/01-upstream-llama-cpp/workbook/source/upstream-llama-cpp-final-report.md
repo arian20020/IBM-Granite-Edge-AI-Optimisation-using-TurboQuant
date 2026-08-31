@@ -5,7 +5,7 @@
 | Route ID | upstream-llama-cpp |
 | Revision | R1 |
 | Generated date | 2026-07-16 |
-| Evidence IDs | upstream-llama-cpp-1bf6d02f2d93, upstream-llama-cpp-27c47275b8fc, upstream-llama-cpp-3a280ff9538d, upstream-llama-cpp-db711113b8e9 |
+| Evidence IDs | upstream-llama-cpp-1bf6d02f2d93, upstream-llama-cpp-27c47275b8fc, upstream-llama-cpp-3a280ff9538d, upstream-llama-cpp-9ba512818e81, upstream-llama-cpp-a36016f66e02, upstream-llama-cpp-db711113b8e9 |
 
 ## 1. Title and document control
 
@@ -260,34 +260,38 @@ All included source observations are expanded. Prompt/decode samples come from l
 
 ## 9. Quality methodology and results
 
-Quality preserves the original 2026-07-15 upstream llama.cpp method: conservative manual scoring under objective task checks with strict format caps. P1-P4 were scored for all rows; UL-05 additionally used P5 long-context retrieval and P6 multi-turn stability.
+Quality preserves the original 2026-07-15 upstream llama.cpp adjudication under the tracked GTQ-QUALITY-RUBRIC-v1 and frozen GTQ-PROMPTS-v1 contracts: five weighted dimensions, deterministic gates, anchors, strict format caps, and other critical caps. P1-P4 were scored for all rows; UL-05 additionally used P5 long-context retrieval and P6 multi-turn stability.
 
 ### QM-01 — Original quality method
 
 | Item | Value |
 | --- | --- |
-| Rubric | upstream-llama-quality-2026-07-15 |
-| Scale | 0 to 10 per prompt |
-| Scoring | Conservative manual adjudication with strict format caps |
+| Rubric | GTQ-QUALITY-RUBRIC-v1 |
+| Prompt set | GTQ-PROMPTS-v1 |
+| Dimension weights | 30% correctness; 25% instruction/format; 20% completeness; 15% relevance/coherence; 10% stability/integrity |
+| Scoring | Conservative manual adjudication after deterministic gates; critical caps preserved |
+| Generation | temperature 0.0; top_p 1.0; seed 42; max_output_tokens 256 |
 | Coverage | P1-P4 all rows; P5-P6 UL-05 only |
+| Calibration | Not collected |
+| Score increments | Not collected |
 
 ### QS-01 — Original quality results
 
 | Test ID | Prompt count | Mean /10 | Rubric |
 | --- | --- | --- | --- |
-| UL-01 | 4 | 4.000 | upstream-llama-quality-2026-07-15 |
-| UL-02 | 4 | 8.875 | upstream-llama-quality-2026-07-15 |
-| UL-03 | 4 | 8.875 | upstream-llama-quality-2026-07-15 |
-| UL-04 | 4 | 7.125 | upstream-llama-quality-2026-07-15 |
-| UL-05 | 6 | 5.750 | upstream-llama-quality-2026-07-15 |
-| UL-06 | 4 | 6.625 | upstream-llama-quality-2026-07-15 |
-| UL-07 | 4 | 6.500 | upstream-llama-quality-2026-07-15 |
-| UL-08 | 4 | 6.875 | upstream-llama-quality-2026-07-15 |
-| UL-09 | 4 | 7.250 | upstream-llama-quality-2026-07-15 |
-| UL-10 | 4 | 7.250 | upstream-llama-quality-2026-07-15 |
-| UL-11 | 4 | 6.750 | upstream-llama-quality-2026-07-15 |
-| UL-12 | 4 | 6.750 | upstream-llama-quality-2026-07-15 |
-| UL-13 | 4 | 6.750 | upstream-llama-quality-2026-07-15 |
+| UL-01 | 4 | 4.000 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-02 | 4 | 8.875 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-03 | 4 | 8.875 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-04 | 4 | 7.125 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-05 | 6 | 5.750 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-06 | 4 | 6.625 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-07 | 4 | 6.500 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-08 | 4 | 6.875 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-09 | 4 | 7.250 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-10 | 4 | 7.250 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-11 | 4 | 6.750 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-12 | 4 | 6.750 | GTQ-QUALITY-RUBRIC-v1 |
+| UL-13 | 4 | 6.750 | GTQ-QUALITY-RUBRIC-v1 |
 
 > Note: These historical scores are not directly comparable with OpenVINO objective-quality scores or later llama.cpp campaigns unless a separate comparability assessment confirms compatible prompts, rubric, denominator, and adjudication.
 
@@ -321,19 +325,34 @@ The entries below are historical failures, limitations, quality deviations, or p
 
 | Failure ID | Test ID | Code | Description | Resolution | Evidence IDs |
 | --- | --- | --- | --- | --- | --- |
-| UL-F01 | UL-B05 | REPRO | R001 cache validator reported failure although required keys existed. | Yes, R002/R003 |  |
-| UL-F02 | UL-B05 | DEP | Vulkan repository suite initially passed 51/52. | Yes, 52/52 |  |
-| UL-F03 | UL-B06 | GPU | SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes. | Project workload resolved; edge tests unresolved |  |
-| UL-F04 | UL-05 | QUAL | Long-context output omitted required literal prefix. | No | EVID-c7b93a7337fba1ef57e3 |
-| UL-F05 | UL-05 | QUAL | Multi-turn exact value degraded from `amber:4821` to `4821`. | No | EVID-b4a16bd806a44a4651e9 |
-| UL-F06 | UL-10 | PERF | Full Vulkan offload reduced decode throughput relative to one-layer offload. | Configuration issue, not test failure | EVID-922fe80006d168c5c124 |
-| UL-F07 | All formal runs | MEM | Initial run omitted peak RAM, KV MB and TTFT because llama-bench does not emit all three. | Yes | upstream-llama-cpp-db711113b8e9 |
+| UL-F03--UL-13 | UL-13 | GPU | SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes. | Project workload resolved; edge tests unresolved | upstream-llama-cpp-b9f424464ca0 |
+| UL-F04--UL-05 | UL-05 | QUAL | Long-context output omitted required literal prefix. | No | EVID-c7b93a7337fba1ef57e3 |
+| UL-F05--UL-05 | UL-05 | QUAL | Multi-turn exact value degraded from `amber:4821` to `4821`. | No | EVID-b4a16bd806a44a4651e9 |
+| UL-F06--UL-10 | UL-10 | PERF | Full Vulkan offload reduced decode throughput relative to one-layer offload. | Configuration issue, not test failure | EVID-922fe80006d168c5c124 |
+| UL-F06--UL-12 | UL-12 | PERF | Full Vulkan offload reduced decode throughput relative to one-layer offload. | Configuration issue, not test failure | EVID-922fe80006d168c5c124 |
+
+### DV-02 — Scoped deviation and precedence ledger
+
+| Deviation ID | Source item | Scope type | Scope test IDs | Nonterminal | Description | Disposition | Evidence IDs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| UL-DEV-HIST-01 | UL-F01 | setup | UL-B05 | True | R001 cache validator reported failure although required keys existed. | Yes, R002/R003 | upstream-llama-cpp-1d7c7f12ccbf |
+| UL-DEV-HIST-02 | UL-F02 | setup | UL-B05 | True | Vulkan repository suite initially passed 51/52. | Yes, 52/52 | upstream-llama-cpp-bbb63ecd783d |
+| UL-DEV-HIST-03 | UL-F03 | mixed | UL-B06, UL-13 | True | SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes. | Project workload resolved; edge tests unresolved | upstream-llama-cpp-b9f424464ca0 |
+| UL-DEV-HIST-04 | UL-F04 | prompt | UL-05 | True | Long-context output omitted required literal prefix. | No | EVID-c7b93a7337fba1ef57e3 |
+| UL-DEV-HIST-05 | UL-F05 | prompt | UL-05 | True | Multi-turn exact value degraded from `amber:4821` to `4821`. | No | EVID-b4a16bd806a44a4651e9 |
+| UL-DEV-HIST-06 | UL-F06 | multi-test | UL-10, UL-12 | True | Full Vulkan offload reduced decode throughput relative to one-layer offload. | Configuration issue, not test failure | EVID-922fe80006d168c5c124 |
+| UL-DEV-HIST-07 | UL-F07 | campaign | UL-01, UL-02, UL-03, UL-04, UL-05, UL-06, UL-07, UL-08, UL-09, UL-10, UL-11, UL-12, UL-13 | True | Initial run omitted peak RAM, KV MB and TTFT because llama-bench does not emit all three. | Yes | upstream-llama-cpp-db711113b8e9 |
+| UL-DEV-REGISTER-TEST-RUN |  | campaign | UL-01, UL-02, UL-03, UL-04, UL-05, UL-06, UL-07, UL-08, UL-09, UL-10, UL-11, UL-12, UL-13 | True | Current Test-Run register contains zero exact UL-01 through UL-13 rows. | Indexed logs and WB-01 are the admitted historical authorities; no register rows were invented. | upstream-llama-cpp-0d0e0a927263 |
+| UL-DEV-REGISTER-PERFORMANCE |  | campaign | UL-01, UL-02, UL-03, UL-04, UL-05, UL-06, UL-07, UL-08, UL-09, UL-10, UL-11, UL-12, UL-13 | True | Current Performance register contains zero exact UL-01 through UL-13 rows. | Indexed repetition logs take precedence; no later-register equality is claimed. | upstream-llama-cpp-2c104a7f446f |
+| UL-DEV-UL13-PERFORMANCE |  | test | UL-13 | True | WB formal values are 40.789 prompt / 7.211 decode tok/s; indexed repetitions compute 40.844 / 7.212. | Normalized summaries use indexed repetition medians and preserve WB values as a documented divergence. | upstream-llama-cpp-27c47275b8fc, EVID-d335afb5774f9fb254b4, EVID-c254e8693d31edba0dd2, EVID-2935db523c5521649574, EVID-f093cb37e7e80ffb6e7e |
+| UL-DEV-UL05-QUALITY |  | test | UL-05 | True | Legacy WB/quality prose displays P1-P6 mean 5.9; arithmetic over prompt scores is 5.750. | Prompt-level scores are canonical; both historical display and arithmetic value remain explicit. | upstream-llama-cpp-27c47275b8fc, upstream-llama-cpp-3a280ff9538d |
+| UL-DEV-DECISION-LABELS |  | campaign | UL-01, UL-02, UL-03, UL-04, UL-05, UL-06, UL-07, UL-08, UL-09, UL-10, UL-11, UL-12, UL-13 | True | Legacy WB labels name UL-04/UL-03 CPU and fallback choices and UL-09 GPU; approved publication labels are UL-08/UL-10/UL-05 only. | Approved bounded publication labels take precedence without rewriting legacy WB prose. | upstream-llama-cpp-27c47275b8fc |
 
 ## 12. Limitations, uncertainty, robustness checks, and claim boundaries
 
 This is one laptop, one pinned upstream revision, and one historical prompt method. Repetition counts support observed medians, not population confidence intervals.
 
-The performance register contains no UL-01 through UL-13 repetition rows because this campaign predates that register. The indexed log evidence is therefore the repetition authority. The raw-results folder is a README placeholder only.
+The current Test-Run and Performance registers each contain zero exact UL-01 through UL-13 rows. Indexed log evidence is therefore the repetition authority. UL-13 WB formal throughput and UL-05 displayed aggregate quality diverge from arithmetic source values; both are retained in the scoped deviation ledger with explicit precedence. The raw-results folder is a README placeholder only.
 
 > Note: No result establishes healthcare safety, educational efficacy, universal model quality, or causal superiority.
 
@@ -1004,11 +1023,16 @@ Every admitted source has a repository-relative path, byte count, and verified S
 | upstream-llama-cpp-0d0e0a927263 | test-run-register | 0d0e0a9272639e1cebccf5ef59d7f7ddad53378524abd6a8c15762255992a539 | 44219 | docs/testing/Test-Run-Register.csv |
 | upstream-llama-cpp-175d58cb2e63 | failure-register | 175d58cb2e63e26209f1379ee127b4163070ac6661e989e2a29b62a5bec19784 | 15252 | docs/testing/Failure-Register.csv |
 | upstream-llama-cpp-1bf6d02f2d93 | evidence-index | 1bf6d02f2d931a4bcfce91b4a93d696d1a66b86e0b5ce0e7f81e8d950e8e8bb2 | 935095 | docs/testing/Evidence-Index.csv |
+| upstream-llama-cpp-1d7c7f12ccbf | historical-deviation-evidence | 1d7c7f12ccbf717f81e5d38a7b4b77000910a34e3cede6b0341fff9b8efc00b9 | 538 | experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B05/UL-B05-R002/R001-cache-validation-failure-analysis.md |
 | upstream-llama-cpp-27c47275b8fc | controlled-workbook-markdown | 27c47275b8fc2682cab7787485bece5c4ceeb02a429a2128a8af2b9fc0785936 | 20369 | docs/testing/workbooks/text-templates/01_Upstream_llama.cpp_Controlled_Retest_Workbook_v1.md |
 | upstream-llama-cpp-2c104a7f446f | performance-register | 2c104a7f446f7360d7a366b1eeaba887f4a719a087e07f82b51602aa6202b58d | 49207 | docs/testing/Performance-Measurement-Register.csv |
 | upstream-llama-cpp-380883e79205 | revision-register | 380883e7920541ed2b59889a40fad29626b5b0e3b9d06fdfbfe280ee1e945f64 | 19453 | docs/testing/Workbook-Revision-Register.csv |
 | upstream-llama-cpp-3a280ff9538d | quality-scoring | 3a280ff9538d934ad9eea92255a9f25e104a41723ee51e8d3e02433681e78a1d | 2250 | experiments/granite_turboquant_intel/processed-results/upstream-llama-cpp/quality-scoring-2026-07-15.md |
 | upstream-llama-cpp-40a64f36600f | raw-results-placeholder | 40a64f36600f574e5fde6a6c01debb4a545c725d19efdbdf03b5e81e9e1f9ca8 | 1099 | experiments/raw-results/upstream-llama-cpp/README.md |
+| upstream-llama-cpp-9ba512818e81 | quality-prompts | 9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f | 4621 | experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json |
+| upstream-llama-cpp-a36016f66e02 | quality-rubric | a36016f66e02c9e28f0938cf81335dc4b522e9f92b7d9bad3031f90b7ef91d90 | 2214 | experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json |
+| upstream-llama-cpp-b9f424464ca0 | historical-deviation-evidence | b9f424464ca06b75caba88242738b17dca057fb0447e288fe9cec37565252751 | 1009 | experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B06/UL-B06-R002/repository-test-failure-analysis.md |
+| upstream-llama-cpp-bbb63ecd783d | historical-deviation-evidence | bbb63ecd783d85c496a304d309d82edf196eee0f9ea2c5aba170025df47f16e6 | 648 | experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B05/UL-B05-R002/repository-test-failure-analysis.md |
 | upstream-llama-cpp-db711113b8e9 | resource-summary | db711113b8e9b26c5cfd145c7a98cd7b0acb458b8635d4cf76cdb49ba6efbb80 | 1518 | experiments/granite_turboquant_intel/processed-results/upstream-llama-cpp/resource-metrics-2026-07-16.json |
 
 ## 15. Revision history

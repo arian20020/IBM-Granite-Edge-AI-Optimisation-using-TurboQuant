@@ -1,5 +1,12 @@
 {
   "attempt_count": 13,
+  "checks": {
+    "all_attempts_executed_and_passed": true,
+    "exact_attempt_test_set": true,
+    "measurement_count": true,
+    "quality_count": true,
+    "relationships_valid": true
+  },
   "intended_ids": [
     "UL-01",
     "UL-02",

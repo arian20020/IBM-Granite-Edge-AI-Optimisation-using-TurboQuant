@@ -1,7 +1,7 @@
-prompt_id,scope,status
-P1,UL-01 through UL-13,Historical controlled prompt
-P2,UL-01 through UL-13,Historical controlled prompt
-P3,UL-01 through UL-13,Historical controlled prompt
-P4,UL-01 through UL-13,Historical controlled prompt
-P5,UL-05 only,Historical controlled prompt
-P6,UL-05 only,Historical controlled prompt
+prompt_id,task_type,scope,deterministic_checks_json,generation_settings_json,prompt_set_id
+P1,Sanity explanation,UL-01 through UL-13,"{""exact_bullet_count"":5,""maximum_words"":89,""required_substrings"":[""KV cache"",""offline"",""memory""],""required_semantic_slots"":[""two benefits"",""two limitations"",""one check""]}","{""temperature"":0.0,""top_p"":1.0,""seed"":42,""max_output_tokens"":256}",GTQ-PROMPTS-v1
+P2,Instruction following,UL-01 through UL-13,"{""exact_nonempty_lines"":3,""line_prefixes"":[""BENEFIT:"",""LIMITATION:"",""CHECK:""],""prohibit_extra_text"":true}","{""temperature"":0.0,""top_p"":1.0,""seed"":42,""max_output_tokens"":256}",GTQ-PROMPTS-v1
+P3,Exact JSON structure,UL-01 through UL-13,"{""valid_json"":true,""exact_top_level_keys"":[""optimisation"",""memory_effect"",""quality_risk"",""verification""],""exact_values"":{""optimisation"":""TurboQuant""},""all_other_values_type"":""string"",""prohibit_markdown_fence"":true}","{""temperature"":0.0,""top_p"":1.0,""seed"":42,""max_output_tokens"":256}",GTQ-PROMPTS-v1
+P4,Summarisation and fact retention,UL-01 through UL-13,"{""exact_sentences"":2,""required_facts"":[""IBM Granite 4.1 3B"",""upstream llama.cpp"",""Q4_K_M"",""Q8_0 K cache"",""Q8_0 V cache"",""4096"",""local Windows Intel"",""TurboQuant not active""],""unsupported_fact_count_expected"":0}","{""temperature"":0.0,""top_p"":1.0,""seed"":42,""max_output_tokens"":256}",GTQ-PROMPTS-v1
+P5,Long-context exact retrieval,UL-05 only,"{""exact_output"":""MARKER:IXN-TQ-7319"",""exact_nonempty_lines"":1}","{""temperature"":0.0,""top_p"":1.0,""seed"":42,""max_output_tokens"":256}",GTQ-PROMPTS-v1
+P6,Multi-turn stability,UL-05 only,"{""turn_1_exact_output"":""SAVED"",""turn_2_exact_output"":""amber:4821""}","{""temperature"":0.0,""top_p"":1.0,""seed"":42,""max_output_tokens"":256}",GTQ-PROMPTS-v1

@@ -2,7 +2,7 @@
   "checks": {
     "all_approved_sections_present": true,
     "all_pages_searchable_and_nonblank": true,
-    "page_count": 45,
+    "page_count": 47,
     "pdf_signature": true,
     "revision_footer_present": true,
     "title_present": true
@@ -12,7 +12,8 @@
     "10-18",
     "19-27",
     "28-36",
-    "37-45"
+    "37-45",
+    "46-47"
   ],
   "inspected_pages": [
     1,
@@ -59,9 +60,11 @@
     42,
     43,
     44,
-    45
+    45,
+    46,
+    47
   ],
-  "inspection_method": "Rendered every PDF page with PyMuPDF and inspected five 3-by-3 contact sheets",
+  "inspection_method": "Rendered every PDF page with PyMuPDF and inspected 6 contact sheets of up to 3-by-3 pages",
   "pdf": "docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf",
   "temporary_contact_sheets_committed": false,
   "valid": true,
@@ -69,7 +72,7 @@
     "blank_or_corrupt_pages": "None observed",
     "clipping_or_truncation": "None observed",
     "colour_and_status_legibility": "Consistent navy, teal, blue, and explicit status text",
-    "dense_evidence_table": "Intentionally spans pages 16-44; readable at page zoom",
+    "dense_evidence_table": "Intentionally spans pages 18-46; readable at page zoom",
     "table_header_continuity": "Repeated headers present across long tables"
   }
 }

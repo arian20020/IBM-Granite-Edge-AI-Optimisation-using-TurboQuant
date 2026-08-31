@@ -1,3 +1,3 @@
 # Reproduction
 
-Run `build_upstream_llama_bundle(Path.cwd())` and `write_upstream_llama_route(Path.cwd())` to normalize existing evidence. This does not rerun benchmarks. PDF export is a separate Word-owned step.
+Run the five ordered commands in `commands.md` from the repository root. They normalize existing evidence, render derivatives, export through the owned Word process, finalize validation, verify the checksum receipt, and run focused tests. They do not rerun inference.

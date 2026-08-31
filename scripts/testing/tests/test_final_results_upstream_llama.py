@@ -129,7 +129,7 @@ def test_original_quality_method_and_comparison_boundary_are_preserved():
 
     assert len(bundle.quality) == 54
     assert {record.prompt_id for record in bundle.quality} == {"P1", "P2", "P3", "P4", "P5", "P6"}
-    assert {record.rubric_id for record in bundle.quality} == {"upstream-llama-quality-2026-07-15"}
+    assert {record.rubric_id for record in bundle.quality} == {"GTQ-QUALITY-RUBRIC-v1"}
     assert "format caps" in text
     assert "conservative" in text
     assert "not directly comparable" in text
@@ -239,3 +239,209 @@ def test_generated_route_inventory_receipts_and_semantic_parity_exist():
     }
     assert json.loads((route / "validation/workbook-parity.json").read_text(encoding="utf-8"))["matches"] is True
     assert json.loads((route / "validation/visual-validation.json").read_text(encoding="utf-8"))["valid"] is True
+
+
+def test_independent_authorities_reconcile_and_known_divergences_are_explicit():
+    module = _module()
+    audit = module.audit_upstream_llama_sources(REPOSITORY_ROOT)
+
+    assert audit["exact_test_run_register_rows"] == 0
+    assert audit["exact_performance_register_rows"] == 0
+    assert audit["matrix_ids"] == list(module.EXPECTED_IDS)
+    assert audit["formal_ids"] == list(module.EXPECTED_IDS)
+    assert audit["evidence_binding_count"] == 642
+    assert audit["resource_rows_reconciled"] == 13
+    assert audit["quality_rows_reconciled"] == 13
+    assert audit["known_divergences"] == {
+        "UL-13-performance": {
+            "workbook_prompt_tokens_per_second": 40.789,
+            "computed_prompt_tokens_per_second": 40.844,
+            "workbook_decode_tokens_per_second": 7.211,
+            "computed_decode_tokens_per_second": 7.212,
+            "precedence": "indexed repetition logs",
+        },
+        "UL-05-quality": {
+            "workbook_displayed_mean": 5.9,
+            "arithmetic_prompt_mean": 5.75,
+            "precedence": "prompt-level scores",
+        },
+        "decision-labels": {
+            "workbook_cpu": "UL-04 for speed; UL-03 when quality is primary",
+            "workbook_gpu": "UL-09",
+            "workbook_fallback": "UL-04 or UL-03",
+            "approved_cpu": "UL-08 only",
+            "approved_gpu": "UL-10 only",
+            "approved_fallback": "UL-05 only",
+            "precedence": "approved bounded publication labels",
+        },
+    }
+
+
+def test_register_and_evidence_binding_mutations_are_rejected(tmp_path):
+    module = _module()
+    register = tmp_path / "register.csv"
+    register.write_text("Test_ID,Run_ID\nUL-01,mutated\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="unexpected exact UL-01 through UL-13 row"):
+        module._assert_no_exact_register_rows(register, "mutated register")
+
+    source = REPOSITORY_ROOT / "docs/testing/Evidence-Index.csv"
+    mutated = tmp_path / "Evidence-Index.csv"
+    mutated.write_text(
+        source.read_text(encoding="utf-8-sig").replace(
+            '"UL-01-R003","UL-01","upstream-llama-cpp"',
+            '"UL-99-R003","UL-01","upstream-llama-cpp"',
+            1,
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="Evidence-Index binding conflict"):
+        module._evidence_records(REPOSITORY_ROOT, evidence_index_path=mutated)
+
+
+@pytest.mark.parametrize(
+    ("source_name", "old", "new", "message"),
+    (
+        ("workbook", "6.353 decode; 28.676 prompt", "6.999 decode; 28.676 prompt", "formal performance mismatch"),
+        ("quality", "| UL-02 | 9.5 | 9.0 | 7.0 | 10.0 | 8.9 |", "| UL-02 | 9.5 | 9.0 | 7.0 | 10.0 | 8.0 |", "quality aggregate mismatch"),
+        ("resource", '"UL-02": {"peak_ram_mb": 6712.36', '"UL-02": {"peak_ram_mb": 6719.36', "processed resource mismatch"),
+    ),
+)
+def test_metric_and_quality_authority_mutations_are_rejected(
+    tmp_path, source_name, old, new, message
+):
+    module = _module()
+    paths = {
+        "workbook": REPOSITORY_ROOT / module.WORKBOOK_RELATIVE,
+        "quality": REPOSITORY_ROOT / module.QUALITY_RELATIVE,
+        "resource": REPOSITORY_ROOT / module.RESOURCE_RELATIVE,
+    }
+    overrides = {
+        "workbook_path": REPOSITORY_ROOT / module.WORKBOOK_RELATIVE,
+        "quality_path": REPOSITORY_ROOT / module.QUALITY_RELATIVE,
+        "resource_path": REPOSITORY_ROOT / module.RESOURCE_RELATIVE,
+    }
+    mutated = tmp_path / paths[source_name].name
+    payload = paths[source_name].read_text(encoding="utf-8")
+    assert old in payload
+    mutated.write_text(payload.replace(old, new, 1), encoding="utf-8")
+    overrides[f"{source_name}_path"] = mutated
+
+    with pytest.raises(ValueError, match=message):
+        module.audit_upstream_llama_sources(REPOSITORY_ROOT, **overrides)
+
+
+def test_historical_deviation_scopes_and_canonical_failure_relationships_are_stable():
+    module = _module()
+    bundle = module.build_upstream_llama_bundle(REPOSITORY_ROOT)
+    deviations = module.build_upstream_deviation_rows(REPOSITORY_ROOT, bundle)
+    historical = [row for row in deviations if row["source_failure_id"].startswith("UL-F")]
+    relationships = module.validate_upstream_relationships(bundle, deviations)
+
+    assert {row["source_failure_id"] for row in historical} == {
+        "UL-F01", "UL-F02", "UL-F03", "UL-F04", "UL-F05", "UL-F06", "UL-F07"
+    }
+    assert all(row["nonterminal"] is True for row in historical)
+    assert next(row for row in historical if row["source_failure_id"] == "UL-F01")["scope_type"] == "setup"
+    assert next(row for row in historical if row["source_failure_id"] == "UL-F07")["scope_test_ids"] == list(module.EXPECTED_IDS)
+    assert len(bundle.failures) == 5
+    assert {failure.test_case_id for failure in bundle.failures} <= EXPECTED_IDS
+    assert all(failure.attempt_id in {attempt.attempt_id for attempt in bundle.attempts} for failure in bundle.failures)
+    assert all("UL-B" not in failure.test_case_id and "All formal" not in failure.test_case_id for failure in bundle.failures)
+    assert relationships["valid"] is True
+    assert relationships["errors"] == []
+
+
+def test_relationship_validation_detects_attempt_scope_and_evidence_mutations():
+    module = _module()
+    bundle = module.build_upstream_llama_bundle(REPOSITORY_ROOT)
+    deviations = list(module.build_upstream_deviation_rows(REPOSITORY_ROOT, bundle))
+    broken_failure = dataclasses.replace(bundle.failures[0], attempt_id="UL-B06--attempt-001")
+    broken_bundle = dataclasses.replace(bundle, failures=(broken_failure, *bundle.failures[1:]))
+    deviations[0] = {**deviations[0], "evidence_ids": ["missing-evidence-id"]}
+
+    receipt = module.validate_upstream_relationships(broken_bundle, deviations)
+
+    assert receipt["valid"] is False
+    assert any("unknown attempt" in error for error in receipt["errors"])
+    assert any("unknown evidence" in error for error in receipt["errors"])
+
+
+def test_quality_contract_is_hash_bound_and_fully_preserved():
+    module = _module()
+    bundle = module.build_upstream_llama_bundle(REPOSITORY_ROOT)
+    evidence_by_role = {item.role: item for item in bundle.evidence}
+    rubric = json.loads((REPOSITORY_ROOT / module.QUALITY_RUBRIC_RELATIVE).read_text(encoding="utf-8"))
+    prompts = json.loads((REPOSITORY_ROOT / module.QUALITY_PROMPTS_RELATIVE).read_text(encoding="utf-8"))
+
+    assert {record.rubric_id for record in bundle.quality} == {"GTQ-QUALITY-RUBRIC-v1"}
+    assert {record.prompt_suite_id for record in bundle.quality} == {"GTQ-PROMPTS-v1"}
+    assert rubric["rubric_id"] == "GTQ-QUALITY-RUBRIC-v1"
+    assert prompts["prompt_set_id"] == "GTQ-PROMPTS-v1"
+    assert [item["weight"] for item in rubric["dimensions"]] == [0.3, 0.25, 0.2, 0.15, 0.1]
+    assert all(item["critical_cap"] for item in rubric["dimensions"])
+    assert set(rubric["anchors"]) == {"0", "2", "4", "6", "8", "10"}
+    assert len(rubric["procedure"]) == 6
+    assert {item["prompt_id"] for item in prompts["prompts"]} == {"P1", "P2", "P3", "P4", "P5", "P6"}
+    assert all(item["task"] and item["deterministic_checks"] for item in prompts["prompts"])
+    assert prompts["generation_defaults"] == {
+        "temperature": 0.0, "top_p": 1.0, "seed": 42, "max_output_tokens": 256
+    }
+    for role, relative in (
+        ("quality-rubric", module.QUALITY_RUBRIC_RELATIVE),
+        ("quality-prompts", module.QUALITY_PROMPTS_RELATIVE),
+    ):
+        assert evidence_by_role[role].relative_path == relative.as_posix()
+        assert module.hash_file(REPOSITORY_ROOT / relative) == evidence_by_role[role].sha256
+
+
+def test_comparator_claims_bind_all_eligible_rows_and_reproduction_is_executable():
+    route = REPOSITORY_ROOT / "docs/testing/final-results/01-upstream-llama-cpp"
+    claims = list(csv.DictReader((route / "evidence/claim-evidence-map.csv").open(encoding="utf-8-sig", newline="")))
+    cpu = next(row for row in claims if row["claim_id"] == "UL-CLAIM-CPU")
+    gpu = next(row for row in claims if row["claim_id"] == "UL-CLAIM-GPU")
+    assert json.loads(cpu["comparator_test_ids"]) == [f"UL-{number:02d}" for number in range(1, 9)]
+    assert json.loads(gpu["comparator_test_ids"]) == [f"UL-{number:02d}" for number in range(9, 14)]
+    assert len(json.loads(cpu["evidence_ids"])) > 4
+    assert len(json.loads(gpu["evidence_ids"])) > 4
+
+    commands = (route / "reproduction/commands.md").read_text(encoding="utf-8")
+    expected_order = (
+        "1. Normalize and render",
+        "2. Export the owned Word PDF",
+        "3. Finalize and validate the PDF",
+        "4. Validate the checksum manifest",
+        "5. Run the focused validation suite",
+    )
+    assert all(label in commands for label in expected_order)
+    assert [commands.index(label) for label in expected_order] == sorted(commands.index(label) for label in expected_order)
+    assert commands.count("sys.path.insert(0,str(root))") == 3
+    for path in (
+        ".tools/python311-portable/python.exe",
+        "scripts/testing/requirements.txt",
+        "scripts/testing/Export-Final-Results-Pdf.ps1",
+        "scripts/testing/final_results/llama_adapter.py",
+        "scripts/testing/tests/test_final_results_upstream_llama.py",
+    ):
+        assert (REPOSITORY_ROOT / path).exists(), path
+        assert path in commands or path in (route / "reproduction/dependencies.md").read_text(encoding="utf-8")
+
+    rubric_text = (route / "quality/rubric.md").read_text(encoding="utf-8")
+    calibration = (route / "quality/calibration.md").read_text(encoding="utf-8")
+    prompt_rows = list(csv.DictReader((route / "quality/prompt-suite.csv").open(encoding="utf-8-sig", newline="")))
+    assert "GTQ-QUALITY-RUBRIC-v1" in rubric_text
+    assert all(name in rubric_text for name in (
+        "correctness_and_grounding", "instruction_and_format_adherence",
+        "completeness_and_fact_retention", "relevance_clarity_and_coherence",
+        "stability_and_output_integrity",
+    ))
+    assert "Calibration: Not collected" in calibration
+    assert "Score increments: Not collected" in calibration
+    assert all(row["task_type"] and row["deterministic_checks_json"] and row["generation_settings_json"] for row in prompt_rows)
+
+
+def test_pdf_finalizer_uses_the_current_structurally_valid_page_count():
+    receipt = _module().finalize_upstream_llama_route(REPOSITORY_ROOT)
+
+    assert receipt["valid"] is True
+    assert receipt["checks"]["page_count"] == 47
+    assert receipt["inspected_pages"] == list(range(1, 48))
