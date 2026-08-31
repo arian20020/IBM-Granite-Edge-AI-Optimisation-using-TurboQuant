@@ -91,6 +91,21 @@ public sealed class E1EndToEndRunnerInvocationTests
     }
 
     [TestMethod]
+    public void Production_Evidence_mode_validates_the_complete_result_root_before_VSTest()
+    {
+        using RunnerFixture fixture = RunnerFixture.Create();
+        string script = File.ReadAllText(Path.Combine(fixture.RepositoryRoot,
+            "tests/E2ETests/GraniteEdgeAI.EndToEndTests/scripts/Invoke-E1EndToEnd.ps1"));
+        const string creation = "New-E1SafeDirectoryChain -Path $evidenceResultRoot -RepositoryRoot $repositoryRoot";
+        int validation = script.IndexOf(creation, StringComparison.Ordinal);
+        int invocation = script.IndexOf("& $vstestExecutable @arguments", StringComparison.Ordinal);
+
+        Assert.IsTrue(validation >= 0, "The authoritative result root is not created through the safe-chain validator.");
+        Assert.IsTrue(invocation > validation, "VSTest can run before result-root validation.");
+        Assert.IsFalse(script.Contains("New-Item -ItemType Directory -Force -Path $evidenceResultRoot", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     [TestCategory("AuthoritativeIntegration")]
     public void Production_Evidence_mode_builds_and_parses_two_fresh_exact_TRX_results()
     {

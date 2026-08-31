@@ -177,7 +177,7 @@ if ($Stage -eq 'Evidence') {
     $assemblyPath = Assert-E1EvidenceAssembly -Path $assemblyCandidates[0].FullName -ExpectedOutputRoot $expectedOutputRoot -ImplementationCommit $ImplementationCommit -FreshSinceUtc $buildStartedUtc
     $vstestExecutable = Get-E1TrustedVSTest
     $evidenceResultRoot = Join-Path $repositoryRoot 'TestResults\Audit-20260830\E1-Evidence'
-    New-Item -ItemType Directory -Force -Path $evidenceResultRoot | Out-Null
+    [void](New-E1SafeDirectoryChain -Path $evidenceResultRoot -RepositoryRoot $repositoryRoot)
     $authoritative = @(
         @('GraniteEdgeAI.EndToEndTests.Tests.R4TwoPhaseIssueEvidenceVerifierTests', 'Exact_schema_v4_candidate_closure_and_catalog_are_committed_and_pushed', 'Preflight'),
         @('GraniteEdgeAI.EndToEndTests.Tests.R4TwoPhaseIssueEvidenceVerifierTests', 'Exact_E1_post_acceptance_evidence_is_candidate_bound_and_fail_closed', 'PostAcceptance')

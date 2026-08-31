@@ -169,7 +169,7 @@ internal static class R3IssueEvidenceVerifier
         long passed = JsonContract.RequiredInt64(root, "managedPassed");
         long failed = JsonContract.RequiredInt64(root, "managedFailed");
         long skipped = JsonContract.RequiredInt64(root, "managedSkipped");
-        if (executed <= 0 || passed < 0 || failed < 0 || skipped < 0 || executed != passed + failed + skipped
+        if (executed < 0 || passed < 0 || failed < 0 || skipped < 0 || executed != passed + failed + skipped
             || RequiredBoolean(root, "blockedGatesCountedAsPasses"))
         {
             throw new InvalidDataException("Post-acceptance execution arithmetic is invalid.");
@@ -212,6 +212,15 @@ internal static class R3IssueEvidenceVerifier
 
         bool hasExternalBlock = ParseExternalBlock(
             root, disposition, manifest, expectedBaseCommit, expectedBaseTree, expectedSubjectCommit, expectedSubjectTree);
+        if (executed == 0
+            && (!hasExternalBlock
+                || disposition != "BLOCKED BY EXTERNAL ENVIRONMENT"
+                || passed != 0 || failed != 0 || skipped != 0
+                || new[] { package, appControl, native, e2e }.Any(gate =>
+                    gate.Executed != 0 || gate.Passed != 0 || gate.Failed != 0 || gate.Skipped != 0)))
+        {
+            throw new InvalidDataException("Zero managed execution requires exact structured external-block evidence and zero gate counters.");
+        }
         bool closesR3_020 = native.Executed > 0 || hasExternalBlock;
         bool packagePass = package.IsPassing;
         bool appControlPass = appControl.IsPassing;
@@ -270,7 +279,9 @@ internal static class R3IssueEvidenceVerifier
             long exitCode = JsonContract.RequiredInt64(command, "exitCode");
             if (discovered < 0 || commandExecuted < 0 || commandPassed < 0 || commandFailed < 0 || commandSkipped < 0
                 || discovered != commandExecuted || commandExecuted != commandPassed + commandFailed + commandSkipped
-                || !commands.TryAdd(id, new GateEvidence(id, commandExecuted, commandPassed, commandFailed, commandSkipped, exitCode, commandDisposition)))
+                || !commands.TryAdd(id, new GateEvidence(
+                    id, commandExecuted, commandPassed, commandFailed, commandSkipped, exitCode, commandDisposition,
+                    ReadOptionalSha256(command, "resultSha256"))))
             {
                 throw new InvalidDataException("Evidence manifest command arithmetic or identity is invalid.");
             }
@@ -292,13 +303,36 @@ internal static class R3IssueEvidenceVerifier
                 throw new InvalidDataException("Evidence manifest output identity is duplicated.");
             }
         }
+        BlockedAssemblyEvidence? blockedAssembly = null;
+        foreach (JsonElement input in RequiredArray(root, "inputs").EnumerateArray())
+        {
+            if (input.ValueKind != JsonValueKind.Object
+                || !input.TryGetProperty("kind", out JsonElement kindElement)
+                || kindElement.ValueKind != JsonValueKind.String
+                || kindElement.GetString() != "app-control-blocked-assembly")
+            {
+                continue;
+            }
+            JsonContract.RequireOnly(input, "kind", "id", "digest", "bytes", "evidenceGrade");
+            string digest = JsonContract.RequiredString(input, "digest");
+            long bytes = JsonContract.RequiredInt64(input, "bytes");
+            JsonContract.RequireSha256(digest, "app-control-blocked-assembly digest");
+            if (blockedAssembly is not null
+                || JsonContract.RequiredString(input, "id") != "E1-FINAL-SUBJECT-ASSEMBLY"
+                || JsonContract.RequiredString(input, "evidenceGrade") != "blocked"
+                || bytes <= 0)
+            {
+                throw new InvalidDataException("App Control assembly evidence is invalid or duplicated.");
+            }
+            blockedAssembly = new BlockedAssemblyEvidence(digest, bytes);
+        }
         BoundEvidenceArtifact[] reviews = outputs.Values.Where(item => item.Kind == "independent-final-review").ToArray();
         if (reviews.Length != 1)
         {
             throw new InvalidDataException("Evidence manifest requires one durable independent review.");
         }
         VerifyIndependentReview(reviews[0].Path, expectedSubjectCommit, expectedSubjectTree);
-        return new ManifestEvidence(status, commands, outputs);
+        return new ManifestEvidence(status, commands, outputs, blockedAssembly);
     }
 
     private static GateEvidence ParseGate(JsonElement gates, string name, IReadOnlyDictionary<string, GateEvidence> commands)
@@ -348,7 +382,6 @@ internal static class R3IssueEvidenceVerifier
         string commandId = JsonContract.RequiredString(block, "commandId");
         string observationId = JsonContract.RequiredString(block, "observationId");
         if (!manifest.Commands.TryGetValue(commandId, out GateEvidence? command)
-            || command.Executed <= 0 || command.Failed <= 0 || command.Disposition is not ("blocked" or "failed")
             || !manifest.Outputs.TryGetValue(observationId, out BoundEvidenceArtifact? artifact)
             || artifact.Kind != "external-block-observation")
         {
@@ -368,7 +401,9 @@ internal static class R3IssueEvidenceVerifier
             JsonContract.RequireOnly(observation, "schemaVersion", "observer", "candidateCommit", "candidateTree",
                 "implementationSubjectCommit", "implementationSubjectTree", "kind", "prerequisite",
                 "observedAbsent", "observedAtUtc");
-            if (!allowed.Contains(prerequisite)
+            if (command.Executed <= 0 || command.Failed <= 0 || command.Passed != 0 || command.Skipped != 0
+                || command.ExitCode == 0 || command.Disposition is not ("blocked" or "failed")
+                || !allowed.Contains(prerequisite)
                 || JsonContract.RequiredInt64(observation, "schemaVersion") != 1
                 || JsonContract.RequiredString(observation, "observer") != "E1"
                 || JsonContract.RequiredString(observation, "candidateCommit") != expectedBaseCommit
@@ -389,9 +424,29 @@ internal static class R3IssueEvidenceVerifier
             JsonContract.RequireOnly(block, "kind", "commandId", "errorCode", "observationId");
             string errorCode = JsonContract.RequiredString(block, "errorCode");
             JsonContract.RequireOnly(observation, "schemaVersion", "observer", "candidateCommit", "candidateTree",
-                "implementationSubjectCommit", "implementationSubjectTree", "kind", "commandId", "errorCode",
-                "observedFailure", "observedAtUtc");
-            if (errorCode != "0x800711C7"
+                "implementationSubjectCommit", "implementationSubjectTree", "kind", "commandId", "attempted",
+                "discovered", "executed", "passed", "failed", "skipped", "exitCode", "errorCode",
+                "observedFailure", "assemblySha256", "assemblyBytes", "observedAtUtc");
+            long discovered = JsonContract.RequiredInt64(observation, "discovered");
+            long executed = JsonContract.RequiredInt64(observation, "executed");
+            long passed = JsonContract.RequiredInt64(observation, "passed");
+            long failed = JsonContract.RequiredInt64(observation, "failed");
+            long skipped = JsonContract.RequiredInt64(observation, "skipped");
+            long exitCode = JsonContract.RequiredInt64(observation, "exitCode");
+            string assemblySha256 = JsonContract.RequiredString(observation, "assemblySha256");
+            long assemblyBytes = JsonContract.RequiredInt64(observation, "assemblyBytes");
+            JsonContract.RequireSha256(assemblySha256, "assemblySha256");
+            if (commandId != "E1-FOCUSED-HARNESS"
+                || command.ExitCode == 0 || command.Disposition != "blocked"
+                || command.Executed != 0 || command.Passed != 0 || command.Failed != 0 || command.Skipped != 0
+                || command.ResultSha256 != assemblySha256
+                || manifest.BlockedAssembly is null
+                || manifest.BlockedAssembly.Digest != assemblySha256
+                || manifest.BlockedAssembly.Bytes != assemblyBytes
+                || discovered != 0 || executed != 0 || passed != 0 || failed != 0 || skipped != 0
+                || exitCode != command.ExitCode
+                || assemblyBytes <= 0
+                || errorCode != "0x800711C7"
                 || JsonContract.RequiredInt64(observation, "schemaVersion") != 1
                 || JsonContract.RequiredString(observation, "observer") != "E1"
                 || JsonContract.RequiredString(observation, "candidateCommit") != expectedBaseCommit
@@ -401,6 +456,7 @@ internal static class R3IssueEvidenceVerifier
                 || JsonContract.RequiredString(observation, "kind") != kind
                 || JsonContract.RequiredString(observation, "commandId") != commandId
                 || JsonContract.RequiredString(observation, "errorCode") != errorCode
+                || !RequiredBoolean(observation, "attempted")
                 || !RequiredBoolean(observation, "observedFailure")
                 || !IsCanonicalUtc(JsonContract.RequiredString(observation, "observedAtUtc")))
             {
@@ -447,15 +503,31 @@ internal static class R3IssueEvidenceVerifier
     private sealed record ManifestEvidence(
         string Status,
         IReadOnlyDictionary<string, GateEvidence> Commands,
-        IReadOnlyDictionary<string, BoundEvidenceArtifact> Outputs);
+        IReadOnlyDictionary<string, BoundEvidenceArtifact> Outputs,
+        BlockedAssemblyEvidence? BlockedAssembly);
 
     private sealed record BoundEvidenceArtifact(string Kind, string Id, string Path);
 
+    private sealed record BlockedAssemblyEvidence(string Digest, long Bytes);
+
     private sealed record GateEvidence(
-        string CommandId, long Executed, long Passed, long Failed, long Skipped, long ExitCode, string Disposition)
+        string CommandId, long Executed, long Passed, long Failed, long Skipped, long ExitCode, string Disposition,
+        string? ResultSha256)
     {
         internal bool IsPassing => Executed > 0 && Passed == Executed && Failed == 0 && Skipped == 0
             && ExitCode == 0 && Disposition == "passed";
+    }
+
+    private static string? ReadOptionalSha256(JsonElement value, string name)
+    {
+        if (!value.TryGetProperty(name, out JsonElement property)) return null;
+        if (property.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidDataException($"Optional SHA-256 property '{name}' is not a string.");
+        }
+        string digest = property.GetString() ?? string.Empty;
+        JsonContract.RequireSha256(digest, name);
+        return digest;
     }
 
     private static void RequireExactObject(JsonElement root, string name, string expected)

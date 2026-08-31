@@ -81,6 +81,135 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
+    public void Exact_App_Control_prediscovery_block_closes_only_R3_020()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, appControlZeroEvidence: true);
+
+        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
+
+        Assert.AreEqual("BLOCKED BY EXTERNAL ENVIRONMENT", result.Disposition);
+        Assert.IsTrue(result.ClosesR3_020);
+        Assert.IsFalse(result.ClosesR3_022);
+    }
+
+    [TestMethod]
+    public void App_Control_zero_execution_requires_the_exact_blocked_receipt_and_command_shape()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        var cases = new List<string>
+        {
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (receipt, _, _) => receipt["externalBlock"] = null),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (receipt, _, _) => receipt["externalBlock"] = new Dictionary<string, object?> { ["kind"] = "weather" }),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (receipt, _, _) => receipt["disposition"] = "CHANGES REQUIRED"),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (receipt, _, _) => ((Dictionary<string, object?>)receipt["externalBlock"]!)["commandId"] = "PACKAGE-GATE"),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (receipt, manifest, _) => ((List<Dictionary<string, object?>>)manifest["commands"]!).RemoveAll(command => (string)command["id"]! == "E1-FOCUSED-HARNESS")),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (_, manifest, _) => ManifestCommand(manifest, "E1-FOCUSED-HARNESS")["exitCode"] = 0L),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (_, manifest, _) => ManifestCommand(manifest, "E1-FOCUSED-HARNESS")["discovered"] = 1L),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (_, manifest, _) => SetManifestCounts(ManifestCommand(manifest, "E1-FOCUSED-HARNESS"), 1, 0, 1, 0)),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (_, manifest, _) => SetManifestCounts(ManifestCommand(manifest, "E1-FOCUSED-HARNESS"), 1, 1, 0, 0)),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (_, manifest, _) => SetManifestCounts(ManifestCommand(manifest, "E1-FOCUSED-HARNESS"), 1, 0, 0, 1)),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (receipt, _, _) => receipt["managedPassed"] = 1L),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (receipt, _, _) => Gate(receipt, "native")["passed"] = 1L),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (receipt, _, _) => receipt["blockedGatesCountedAsPasses"] = true),
+            WritePostReceipt(directory, approvedEvidence: true, mutate: (receipt, manifest, _) =>
+            {
+                receipt["managedExecuted"] = 0L; receipt["managedPassed"] = 0L;
+                foreach (string gate in new[] { "package", "appControl", "native", "e2e" }) SetGateCounts(Gate(receipt, gate), 0, 0, 0, 0);
+                foreach (Dictionary<string, object?> command in (List<Dictionary<string, object?>>)manifest["commands"]!) SetManifestCounts(command, 0, 0, 0, 0);
+            }),
+            WritePostReceipt(directory, approvedEvidence: true, mutate: (receipt, _, _) => receipt["externalBlock"] = AppControlBlock()),
+            WritePostReceipt(directory, appControlZeroEvidence: true, mutate: (receipt, _, _) => receipt["externalBlock"] = MissingPrerequisite("candidateManifest")),
+            WritePostReceipt(directory, mutate: (receipt, _, _) => receipt["externalBlock"] = AppControlBlock()),
+        };
+
+        foreach (string receipt in cases)
+        {
+            Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, directory.Path), receipt);
+        }
+    }
+
+    [TestMethod]
+    public void App_Control_observation_requires_exact_attempt_identity_error_and_assembly_binding()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        Action<Dictionary<string, object?>>[] mutations =
+        [
+            observation => observation["attempted"] = false,
+            observation => observation["errorCode"] = "0x00000000",
+            observation => observation["candidateCommit"] = new string('9', 40),
+            observation => observation["candidateTree"] = new string('9', 40),
+            observation => observation["implementationSubjectCommit"] = new string('9', 40),
+            observation => observation["implementationSubjectTree"] = new string('9', 40),
+            observation => observation["assemblySha256"] = new string('9', 64),
+            observation => observation["assemblyBytes"] = 999L,
+        ];
+        foreach (Action<Dictionary<string, object?>> mutation in mutations)
+        {
+            string receipt = WritePostReceipt(directory, appControlZeroEvidence: true, mutateObservation: mutation);
+            Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, directory.Path));
+        }
+    }
+
+    [TestMethod]
+    public void App_Control_observation_rejects_missing_empty_oversized_inaccessible_and_reparse_files()
+    {
+        using (TestDirectory missingDirectory = TestDirectory.Create())
+        {
+            string receipt = WritePostReceipt(missingDirectory, appControlZeroEvidence: true);
+            File.Delete(Path.Combine(missingDirectory.Path, "external-observation.json"));
+            Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, missingDirectory.Path));
+        }
+        using (TestDirectory emptyDirectory = TestDirectory.Create())
+        {
+            string receipt = WritePostReceipt(emptyDirectory, appControlZeroEvidence: true);
+            RebindObservation(receipt, emptyDirectory.Path, []);
+            Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, emptyDirectory.Path));
+        }
+        using (TestDirectory oversizedDirectory = TestDirectory.Create())
+        {
+            string receipt = WritePostReceipt(oversizedDirectory, appControlZeroEvidence: true);
+            RebindObservation(receipt, oversizedDirectory.Path, new byte[(1024 * 1024) + 1]);
+            Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, oversizedDirectory.Path));
+        }
+        using (TestDirectory lockedDirectory = TestDirectory.Create())
+        {
+            string receipt = WritePostReceipt(lockedDirectory, appControlZeroEvidence: true);
+            using FileStream custody = new(Path.Combine(lockedDirectory.Path, "external-observation.json"), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, lockedDirectory.Path));
+        }
+        using (TestDirectory reparseDirectory = TestDirectory.Create())
+        {
+            string receipt = WritePostReceipt(reparseDirectory, appControlZeroEvidence: true);
+            string junction = RebindObservationThroughJunction(receipt, reparseDirectory.Path);
+            try
+            {
+                Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, reparseDirectory.Path));
+            }
+            finally
+            {
+                if (Directory.Exists(junction)) Directory.Delete(junction);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void Exact_final_App_Control_artifact_shape_is_accepted_without_closing_R3_022()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, appControlZeroEvidence: true);
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(receipt));
+        JsonElement root = document.RootElement;
+
+        Assert.AreEqual(0, root.GetProperty("managedExecuted").GetInt64());
+        Assert.AreEqual("appControlFailure", root.GetProperty("externalBlock").GetProperty("kind").GetString());
+        Assert.AreEqual("E1-FOCUSED-HARNESS", root.GetProperty("externalBlock").GetProperty("commandId").GetString());
+        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
+        Assert.IsTrue(result.ClosesR3_020);
+        Assert.IsFalse(result.ClosesR3_022);
+    }
+
+    [TestMethod]
     public void Arbitrary_malformed_or_disposition_mismatched_external_blocks_are_rejected()
     {
         using TestDirectory directory = TestDirectory.Create();
@@ -97,7 +226,7 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
-    public void Observed_App_Control_failure_is_valid_structured_external_evidence()
+    public void App_Control_evidence_using_missing_prerequisite_positive_failure_shape_is_rejected()
     {
         using TestDirectory directory = TestDirectory.Create();
         string receipt = WritePostReceipt(directory, mutate: (value, _, _) => value["externalBlock"] = new Dictionary<string, object?>
@@ -113,9 +242,7 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
             observation["errorCode"] = "0x800711C7";
             observation["observedFailure"] = true;
         });
-        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
-        Assert.IsTrue(result.ClosesR3_020);
-        Assert.IsFalse(result.ClosesR3_022);
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, directory.Path));
     }
 
     [TestMethod]
@@ -263,6 +390,46 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
         File.WriteAllText(receiptPath, receipt.ToJsonString());
     }
 
+    private static void RebindObservation(string receiptPath, string root, byte[] bytes)
+    {
+        string observationPath = Path.Combine(root, "external-observation.json");
+        File.WriteAllBytes(observationPath, bytes);
+        JsonObject receipt = JsonNode.Parse(File.ReadAllText(receiptPath))!.AsObject();
+        string manifestName = receipt["evidenceManifest"]!["path"]!.GetValue<string>();
+        string manifestPath = Path.Combine(root, manifestName);
+        JsonObject manifest = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+        JsonObject observation = manifest["outputs"]!.AsArray().Select(node => node!.AsObject())
+            .Single(item => item["kind"]!.GetValue<string>() == "external-block-observation");
+        JsonObject binding = BindingNode(observationPath);
+        observation["sha256"] = binding["sha256"]!.DeepClone();
+        observation["bytes"] = binding["bytes"]!.DeepClone();
+        File.WriteAllText(manifestPath, manifest.ToJsonString());
+        receipt["evidenceManifest"] = BindingNode(manifestPath);
+        File.WriteAllText(receiptPath, receipt.ToJsonString());
+    }
+
+    private static string RebindObservationThroughJunction(string receiptPath, string root)
+    {
+        string source = Path.Combine(root, "external-observation.json");
+        string target = Path.Combine(root, "observation-target");
+        string junction = Path.Combine(root, "observation-junction");
+        Directory.CreateDirectory(target);
+        File.Copy(source, Path.Combine(target, "external-observation.json"));
+        CreateJunction(junction, target);
+        JsonObject receipt = JsonNode.Parse(File.ReadAllText(receiptPath))!.AsObject();
+        string manifestName = receipt["evidenceManifest"]!["path"]!.GetValue<string>();
+        string manifestPath = Path.Combine(root, manifestName);
+        JsonObject manifest = JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
+        JsonObject observation = manifest["outputs"]!.AsArray().Select(node => node!.AsObject())
+            .Single(item => item["kind"]!.GetValue<string>() == "external-block-observation");
+        observation["id"] = "observation-junction/external-observation.json";
+        ((JsonObject)receipt["externalBlock"]!)["observationId"] = "observation-junction/external-observation.json";
+        File.WriteAllText(manifestPath, manifest.ToJsonString());
+        receipt["evidenceManifest"] = BindingNode(manifestPath);
+        File.WriteAllText(receiptPath, receipt.ToJsonString());
+        return junction;
+    }
+
     private static string RebindReviewThroughJunction(string receiptPath, string root)
     {
         JsonObject receipt = JsonNode.Parse(File.ReadAllText(receiptPath))!.AsObject();
@@ -310,6 +477,7 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     private static string WritePostReceipt(
         TestDirectory directory,
         bool approvedEvidence = false,
+        bool appControlZeroEvidence = false,
         Action<Dictionary<string, object?>, Dictionary<string, object?>, Dictionary<string, object?>>? mutate = null,
         Action<Dictionary<string, object?>>? mutateObservation = null)
     {
@@ -319,7 +487,10 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
         string observationPath = Path.Combine(directory.Path, "external-observation.json");
         File.WriteAllText(report, "evidence");
         long passed = approvedEvidence ? 1 : 0;
-        long failed = approvedEvidence ? 0 : 1;
+        long failed = approvedEvidence || appControlZeroEvidence ? 0 : 1;
+        string blockedAssemblyPath = Path.Combine(directory.Path, "blocked-e1-assembly.dll");
+        File.WriteAllBytes(blockedAssemblyPath, [1, 2, 3, 4]);
+        string blockedAssemblySha256 = Digest(blockedAssemblyPath);
         var review = new Dictionary<string, object?>
         {
             ["schemaVersion"] = 1, ["reviewerRole"] = "independent",
@@ -327,29 +498,58 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
             ["disposition"] = "PASS_NO_REMAINING_CRITICAL_OR_IMPORTANT",
             ["criticalFindings"] = 0L, ["importantFindings"] = 0L, ["reviewComplete"] = true,
         };
-        var commands = new List<Dictionary<string, object?>>
-        {
-            ManifestGate("PACKAGE-GATE", passed, failed),
-            ManifestGate("APP-CONTROL-GATE", passed, failed),
-            ManifestGate("NATIVE-GATE", passed, failed),
-            ManifestGate("E2E-GATE", passed, failed),
-        };
-        if (!approvedEvidence) commands.Add(ManifestGate("EXTERNAL-PREREQUISITE-PREFLIGHT", 0, 1));
+        var commands = appControlZeroEvidence
+            ? new List<Dictionary<string, object?>>
+            {
+                ManifestGate("PACKAGE-GATE", 0, 0, zeroBlocked: true),
+                ManifestGate("E1-FOCUSED-HARNESS", 0, 0, zeroBlocked: true, resultSha256: blockedAssemblySha256),
+                ManifestGate("NATIVE-GATE", 0, 0, zeroBlocked: true),
+                ManifestGate("E2E-GATE", 0, 0, zeroBlocked: true),
+            }
+            : new List<Dictionary<string, object?>>
+            {
+                ManifestGate("PACKAGE-GATE", passed, failed),
+                ManifestGate("APP-CONTROL-GATE", passed, failed),
+                ManifestGate("NATIVE-GATE", passed, failed),
+                ManifestGate("E2E-GATE", passed, failed),
+            };
+        if (!approvedEvidence && !appControlZeroEvidence) commands.Add(ManifestGate("EXTERNAL-PREREQUISITE-PREFLIGHT", 0, 1));
         var observation = new Dictionary<string, object?>
         {
             ["schemaVersion"] = 1, ["observer"] = "E1",
             ["candidateCommit"] = new string('a', 40), ["candidateTree"] = new string('b', 40),
             ["implementationSubjectCommit"] = new string('c', 40), ["implementationSubjectTree"] = new string('d', 40),
-            ["kind"] = "missingPrerequisite", ["prerequisite"] = "candidateManifest",
-            ["observedAbsent"] = true, ["observedAtUtc"] = "2026-08-31T20:00:00Z",
+            ["kind"] = appControlZeroEvidence ? "appControlFailure" : "missingPrerequisite",
+            ["observedAtUtc"] = "2026-09-01T10:00:00Z",
         };
+        if (appControlZeroEvidence)
+        {
+            observation["commandId"] = "E1-FOCUSED-HARNESS"; observation["attempted"] = true;
+            observation["discovered"] = 0L; observation["executed"] = 0L; observation["passed"] = 0L;
+            observation["failed"] = 0L; observation["skipped"] = 0L; observation["exitCode"] = 1L;
+            observation["errorCode"] = "0x800711C7"; observation["observedFailure"] = true;
+            observation["assemblySha256"] = blockedAssemblySha256;
+            observation["assemblyBytes"] = new FileInfo(blockedAssemblyPath).Length;
+        }
+        else
+        {
+            observation["prerequisite"] = "candidateManifest"; observation["observedAbsent"] = true;
+        }
         var manifest = new Dictionary<string, object?>
         {
             ["schemaVersion"] = 2, ["workerId"] = "E1", ["frozenSourceCommit"] = new string('f', 40),
             ["evidenceSubjectCommit"] = new string('c', 40), ["evidenceSubjectTree"] = new string('d', 40),
             ["createdAtUtc"] = "2026-08-31T20:00:00Z", ["route"] = new[] { "shared" },
             ["evidenceStatus"] = approvedEvidence ? "passed" : "blocked", ["report"] = FileBinding(report),
-            ["inputs"] = Array.Empty<object>(), ["outputs"] = new List<Dictionary<string, object?>>(),
+            ["inputs"] = appControlZeroEvidence
+                ? new object[] { new Dictionary<string, object?>
+                {
+                    ["kind"] = "app-control-blocked-assembly", ["id"] = "E1-FINAL-SUBJECT-ASSEMBLY",
+                    ["digest"] = blockedAssemblySha256, ["bytes"] = new FileInfo(blockedAssemblyPath).Length,
+                    ["evidenceGrade"] = "blocked",
+                } }
+                : Array.Empty<object>(),
+            ["outputs"] = new List<Dictionary<string, object?>>(),
             ["commands"] = commands, ["blockers"] = approvedEvidence ? Array.Empty<string>() : new[] { "candidate manifest missing" },
             ["nonClaims"] = new[] { "none" },
         };
@@ -361,18 +561,18 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
             ["disposition"] = approvedEvidence ? "APPROVED FOR MAIN INTEGRATION" : "BLOCKED BY EXTERNAL ENVIRONMENT",
             ["report"] = FileBinding(report),
             ["nativeLockAcquisitions"] = approvedEvidence ? 1 : 0,
-            ["managedExecuted"] = approvedEvidence ? 4 : 4, ["managedPassed"] = approvedEvidence ? 4 : 0,
-            ["managedFailed"] = approvedEvidence ? 0 : 4, ["managedSkipped"] = 0,
+            ["managedExecuted"] = appControlZeroEvidence ? 0 : 4, ["managedPassed"] = approvedEvidence ? 4 : 0,
+            ["managedFailed"] = approvedEvidence || appControlZeroEvidence ? 0 : 4, ["managedSkipped"] = 0,
             ["blockedGatesCountedAsPasses"] = false,
             ["gateEvidence"] = new Dictionary<string, object?>
             {
                 ["package"] = Gate("PACKAGE-GATE", passed, failed),
-                ["appControl"] = Gate("APP-CONTROL-GATE", passed, failed),
+                ["appControl"] = Gate(appControlZeroEvidence ? "E1-FOCUSED-HARNESS" : "APP-CONTROL-GATE", passed, failed),
                 ["native"] = Gate("NATIVE-GATE", passed, failed),
                 ["e2e"] = Gate("E2E-GATE", passed, failed),
                 ["cleanup"] = new Dictionary<string, object?> { ["executed"] = true, ["passed"] = true },
             },
-            ["externalBlock"] = approvedEvidence ? null : MissingPrerequisite("candidateManifest"),
+            ["externalBlock"] = approvedEvidence ? null : appControlZeroEvidence ? AppControlBlock() : MissingPrerequisite("candidateManifest"),
         };
         mutate?.Invoke(receipt, manifest, review);
         mutateObservation?.Invoke(observation);
@@ -404,12 +604,24 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
         ["commandId"] = "EXTERNAL-PREREQUISITE-PREFLIGHT", ["observationId"] = "external-observation.json",
     };
 
-    private static Dictionary<string, object?> ManifestGate(string id, long passed, long failed) => new()
+    private static Dictionary<string, object?> AppControlBlock() => new()
     {
-        ["id"] = id, ["exitCode"] = failed == 0 ? 0 : 1, ["discovered"] = passed + failed,
-        ["executed"] = passed + failed, ["passed"] = passed, ["failed"] = failed, ["skipped"] = 0L,
-        ["disposition"] = failed == 0 ? "passed" : "blocked",
+        ["kind"] = "appControlFailure", ["commandId"] = "E1-FOCUSED-HARNESS",
+        ["errorCode"] = "0x800711C7", ["observationId"] = "external-observation.json",
     };
+
+    private static Dictionary<string, object?> ManifestGate(
+        string id, long passed, long failed, bool zeroBlocked = false, string? resultSha256 = null)
+    {
+        var result = new Dictionary<string, object?>
+        {
+            ["id"] = id, ["exitCode"] = failed == 0 && !zeroBlocked ? 0 : 1, ["discovered"] = passed + failed,
+            ["executed"] = passed + failed, ["passed"] = passed, ["failed"] = failed, ["skipped"] = 0L,
+            ["disposition"] = failed == 0 && !zeroBlocked ? "passed" : "blocked",
+        };
+        if (resultSha256 is not null) result["resultSha256"] = resultSha256;
+        return result;
+    }
 
     private static Dictionary<string, object?> Gate(string id, long passed, long failed) => new()
     {
@@ -429,6 +641,13 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     {
         value["executed"] = executed; value["passed"] = passed; value["failed"] = failed; value["skipped"] = skipped;
         if (value.ContainsKey("discovered")) value["discovered"] = executed;
+    }
+
+    private static void SetManifestCounts(Dictionary<string, object?> value, long executed, long passed, long failed, long skipped)
+    {
+        SetGateCounts(value, executed, passed, failed, skipped);
+        value["exitCode"] = executed == passed && failed == 0 && skipped == 0 && executed > 0 ? 0L : 1L;
+        value["disposition"] = value["exitCode"]!.Equals(0L) ? "passed" : "blocked";
     }
 
     private static object FileBinding(string path)

@@ -157,6 +157,57 @@ public sealed class E1EvidenceSupportTests
     }
 
     [TestMethod]
+    public void Authoritative_result_directory_chain_accepts_only_regular_repository_ancestry()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string safe = Path.Combine(directory.Path, "TestResults", "Audit-20260830", "E1-Evidence");
+        string safeCommand = $$"""
+            $ErrorActionPreference = 'Stop'
+            Import-Module '{{SupportModule}}' -Force
+            New-E1SafeDirectoryChain -Path '{{Ps(safe)}}' -RepositoryRoot '{{Ps(directory.Path)}}'
+            """;
+        Assert.AreEqual(0, PowerShell(safeCommand, directory.Path).ExitCode);
+        Assert.IsTrue(Directory.Exists(safe));
+
+        string outside = Path.Combine(Directory.GetParent(directory.Path)!.FullName, $"outside-{Guid.NewGuid():N}");
+        string outsideCommand = $$"""
+            $ErrorActionPreference = 'Stop'
+            Import-Module '{{SupportModule}}' -Force
+            New-E1SafeDirectoryChain -Path '{{Ps(outside)}}' -RepositoryRoot '{{Ps(directory.Path)}}'
+            """;
+        Assert.AreNotEqual(0, PowerShell(outsideCommand, directory.Path).ExitCode);
+        Assert.IsFalse(Directory.Exists(outside));
+
+        foreach (string junctionRelative in new[] { "TestResults", "TestResults/Audit-20260830", "TestResults/Audit-20260830/E1-Evidence" })
+        {
+            using TestDirectory caseDirectory = TestDirectory.Create();
+            string target = Path.Combine(caseDirectory.Path, "redirect-target");
+            string junction = Path.Combine(caseDirectory.Path, junctionRelative.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(target);
+            Directory.CreateDirectory(Path.GetDirectoryName(junction)!);
+            CreateJunction(junction, target);
+            try
+            {
+                string result = Path.Combine(caseDirectory.Path, "TestResults", "Audit-20260830", "E1-Evidence");
+                string marker = Path.Combine(target, "vstest-invoked.marker");
+                string command = $$"""
+                    $ErrorActionPreference = 'Stop'
+                    Import-Module '{{SupportModule}}' -Force
+                    New-E1SafeDirectoryChain -Path '{{Ps(result)}}' -RepositoryRoot '{{Ps(caseDirectory.Path)}}'
+                    Set-Content -LiteralPath '{{Ps(marker)}}' -Value 'invoked'
+                    """;
+                ProcessResult validation = PowerShell(command, caseDirectory.Path);
+                Assert.AreNotEqual(0, validation.ExitCode, $"{junctionRelative}: unsafe result root was accepted");
+                Assert.IsFalse(File.Exists(marker), $"VSTest marker was written through {junctionRelative}.");
+            }
+            finally
+            {
+                if (Directory.Exists(junction)) Directory.Delete(junction);
+            }
+        }
+    }
+
+    [TestMethod]
     public void Trx_requires_fresh_exact_single_passing_identity()
     {
         using TestDirectory directory = TestDirectory.Create();
@@ -252,6 +303,10 @@ public sealed class E1EvidenceSupportTests
         string audit = Path.Combine(directory.Path, "docs", "audits", "2026-08-30", "E1-r4-independent-acceptance-v2.md");
         Directory.CreateDirectory(Path.GetDirectoryName(audit)!);
         File.WriteAllText(audit, "audit\n");
+        string evidenceRoot = Path.Combine(directory.Path, "docs", "audits", "2026-08-30", "evidence");
+        Directory.CreateDirectory(evidenceRoot);
+        File.WriteAllText(Path.Combine(evidenceRoot, "E1-r4-external-block-observation-v3.json"), "{}\n");
+        File.WriteAllText(Path.Combine(evidenceRoot, "E1-r4-independent-final-review-v5.json"), "{}\n");
         Git(directory.Path, "add", ".");
         Git(directory.Path, "commit", "-m", "audit");
 
@@ -262,6 +317,12 @@ public sealed class E1EvidenceSupportTests
             """;
         ProcessResult allowedResult = PowerShell(allowed, directory.Path);
         Assert.AreEqual(0, allowedResult.ExitCode, allowedResult.Output);
+
+        string superseded = Path.Combine(evidenceRoot, "E1-r4-external-block-observation-v2.json");
+        File.WriteAllText(superseded, "{}\n");
+        ProcessResult supersededResult = PowerShell(allowed, directory.Path);
+        Assert.AreNotEqual(0, supersededResult.ExitCode, supersededResult.Output);
+        File.Delete(superseded);
 
         File.AppendAllText(Path.Combine(directory.Path, "source.cs"), "// changed\n");
         Git(directory.Path, "add", "source.cs");
