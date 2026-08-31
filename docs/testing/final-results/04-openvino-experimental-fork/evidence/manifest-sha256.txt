@@ -6,6 +6,7 @@ fb8e365c7bca1d3388b1bfbe6b98d2d0e8434fbd6d2f0a5f146569c34fb85342  docs/testing/f
 e9092d85dee961d7ce7f96f7b41bb08532dd51ac6508e897f154c96250d74da5  docs/testing/final-results/04-openvino-experimental-fork/quality/outputs-index.csv
 a57506758297d1166d1f674b727cb7e79ec9b70319064215e3c66f2f37e25ac3  docs/testing/final-results/04-openvino-experimental-fork/quality/prompt-suite.csv
 178076af76aba1e4408c6ab61af530256b36eef59f027cb9c957ab2b2689d13f  docs/testing/final-results/04-openvino-experimental-fork/quality/scores.csv
+e575d4d0ba2b3fa3158ef899db516261db06b9ae5e42ce9b0600df4dbbaa45f9  docs/testing/final-results/04-openvino-experimental-fork/reproduction/README.md
 35b5ed3aa3011f39df0f11f217a309f20a20dcbdfb5b8a4ade7acfaf729a8c4b  docs/testing/final-results/04-openvino-experimental-fork/results/attempts.csv
 e06498f6d209d9f5f373523e1881a74317d46618aaa244138ac5a1eef77facd8  docs/testing/final-results/04-openvino-experimental-fork/results/availability-matrix.csv
 b13691be5f94c348b4ca5aff657d8ca277744796320d9e27eb02a043ba14c046  docs/testing/final-results/04-openvino-experimental-fork/results/measurements.csv
@@ -16,6 +17,6 @@ f4480c6603989e6869e60f5d03d71884ee49f09f6de5eb17f4444638ba938ab0  docs/testing/f
 db8eaa2633b1efff0a4e8ba5107ae5df6d64473616a49e8f338696436db80ff2  docs/testing/final-results/04-openvino-experimental-fork/system/model-artifacts.csv
 f38b938abe87a1c53e13e7a9c7645cdb5e4ec402c7cb97b97dff8eb9a570dd65  docs/testing/final-results/04-openvino-experimental-fork/system/repository.json
 902ac514f214bd7a67cbbdc286c350b89c220dd6eec2c069937458405c183ec0  docs/testing/final-results/04-openvino-experimental-fork/system/software.json
-4be5229f605489a06f13d77744272833b2bcddefc7b1bd61149ba3afa9de6d3f  docs/testing/final-results/04-openvino-experimental-fork/validation/coverage-validation.json
-2bff8e54ab7ade7d1e0593897f72fe21f87066e4248eb35255464d10780e4447  docs/testing/final-results/04-openvino-experimental-fork/validation/data-validation.json
+3055f1234fa62bf73077860009606143ca2f5f229f7d7cf44fbb8f5ba9dada72  docs/testing/final-results/04-openvino-experimental-fork/validation/coverage-validation.json
+db3ca3e2ed50acacea0e4c2ffb03092a799667b6b1b49e30980e88af1f2631e7  docs/testing/final-results/04-openvino-experimental-fork/validation/data-validation.json
 bb7a5b9c95614c7d621307e31b4a1866297e57ea6cc41116e2042dc864e772dc  docs/testing/final-results/04-openvino-experimental-fork/validation/integrity-validation.json

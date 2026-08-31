@@ -1,6 +1,43 @@
 {
   "artifact_unavailable": 54,
   "cache_format_count": 9,
+  "checks": {
+    "artifact_unavailable_count": {
+      "actual": 54,
+      "expected": 54,
+      "passed": true
+    },
+    "cache_format_count": {
+      "actual": 9,
+      "expected": 9,
+      "passed": true
+    },
+    "executed_count": {
+      "actual": 27,
+      "expected": 27,
+      "passed": true
+    },
+    "executed_model_weight_artifact_count": {
+      "actual": 3,
+      "expected": 3,
+      "passed": true
+    },
+    "passed_count": {
+      "actual": 27,
+      "expected": 27,
+      "passed": true
+    },
+    "planned_count": {
+      "actual": 81,
+      "expected": 81,
+      "passed": true
+    },
+    "quality_prompts_per_passed_case": {
+      "actual": 48,
+      "expected": 48,
+      "passed": true
+    }
+  },
   "executed": 27,
   "model_weight_artifact_count": 3,
   "passed": 27,

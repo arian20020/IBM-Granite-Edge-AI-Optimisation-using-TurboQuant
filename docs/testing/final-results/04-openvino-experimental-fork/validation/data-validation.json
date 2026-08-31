@@ -1,4 +1,100 @@
 {
+  "checks": {
+    "attempt_identifier_uniqueness": {
+      "actual": 81,
+      "expected": 81,
+      "passed": true
+    },
+    "attempt_source_evidence_references": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "exactly_three_distinct_criteria_per_prompt": {
+      "actual": [
+        3
+      ],
+      "expected": [
+        3
+      ],
+      "passed": true
+    },
+    "failure_count": {
+      "actual": 54,
+      "expected": 54,
+      "passed": true
+    },
+    "failure_references": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "measurement_count": {
+      "actual": 81,
+      "expected": 81,
+      "passed": true
+    },
+    "measurement_references": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "output_count": {
+      "actual": 1296,
+      "expected": 1296,
+      "passed": true
+    },
+    "output_references": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "prompt_count": {
+      "actual": 48,
+      "expected": 48,
+      "passed": true
+    },
+    "prompt_references": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "quality_criterion_count": {
+      "actual": 3888,
+      "expected": 3888,
+      "passed": true
+    },
+    "quality_references": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "summary_count": {
+      "actual": 81,
+      "expected": 81,
+      "passed": true
+    },
+    "summary_references": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "unavailable_exclusions": {
+      "actual": {
+        "measurements": [],
+        "outputs": [],
+        "quality": [],
+        "summaries": []
+      },
+      "expected": {
+        "measurements": [],
+        "outputs": [],
+        "quality": [],
+        "summaries": []
+      },
+      "passed": true
+    }
+  },
   "failure_count": 54,
   "measurement_count": 81,
   "quality_criterion_count": 3888,

@@ -2,9 +2,13 @@ import csv
 import hashlib
 import json
 import os
+import shutil
 import sys
 from collections import Counter, defaultdict
+from dataclasses import replace
 from pathlib import Path
+
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -15,6 +19,7 @@ from scripts.testing.final_results.evidence import validate_sha256_manifest
 from scripts.testing.final_results.models import Status
 from scripts.testing.final_results.openvino_adapter import (
     build_experimental_bundle,
+    build_experimental_validation_receipts,
     write_experimental_route,
 )
 
@@ -35,6 +40,50 @@ def _rows(path: Path) -> list[dict[str, str]]:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _write_rows(path: Path, rows: list[dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _isolated_fv6_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    destination = repo / FV6.relative_to(REPO_ROOT)
+    shutil.copytree(FV6, destination)
+    workbook = repo / SOURCE_WORKBOOK.relative_to(REPO_ROOT)
+    workbook.parent.mkdir(parents=True)
+    shutil.copyfile(SOURCE_WORKBOOK, workbook)
+    return repo
+
+
+def _rewrite_raw(repo: Path, case_id: str, mutation) -> None:
+    fv6 = repo / FV6.relative_to(REPO_ROOT)
+    raw_path = fv6 / "raw" / f"{case_id}.json"
+    payload = json.loads(raw_path.read_text(encoding="utf-8"))
+    mutation(payload)
+    raw_path.write_text(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    digest = _sha256(raw_path)
+
+    detailed_path = fv6 / "experimental-openvino-detailed-results.csv"
+    detailed = _rows(detailed_path)
+    next(row for row in detailed if row["case_id"] == case_id)["raw_result_sha256"] = digest
+    _write_rows(detailed_path, detailed)
+
+    rows_path = fv6 / "rows.json"
+    rows_payload = json.loads(rows_path.read_text(encoding="utf-8"))
+    next(row for row in rows_payload["rows"] if row["case_id"] == case_id)[
+        "raw_result_sha256"
+    ] = digest
+    rows_path.write_text(
+        json.dumps(rows_payload, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
 
 
 def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unavailable_results():
@@ -139,6 +188,7 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
         "quality/prompt-suite.csv",
         "quality/scores.csv",
         "quality/outputs-index.csv",
+        "reproduction/README.md",
         "failures/failure-register.csv",
         "evidence/evidence-index.csv",
         "evidence/source-locations.csv",
@@ -190,6 +240,10 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
         assert all(validate_json(record.to_row(), schemas / schema_name) == [] for record in records)
 
     generated_attempts = _rows(ROUTE / "results/attempts.csv")
+    generated_measurements = _rows(ROUTE / "results/measurements.csv")
+    generated_scores = _rows(ROUTE / "quality/scores.csv")
+    generated_outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    generated_evidence = _rows(ROUTE / "evidence/evidence-index.csv")
     generated_availability = _rows(ROUTE / "results/availability-matrix.csv")
     unavailable_output_rows = [
         row for row in generated_availability if row["test_case_id"] in unavailable_cases
@@ -205,17 +259,251 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     }
     assert forbidden_metric_columns.isdisjoint(generated_availability[0])
 
-    coverage = json.loads((ROUTE / "validation/coverage-validation.json").read_text(encoding="utf-8"))
-    assert coverage == {
-        "artifact_unavailable": 54,
-        "cache_format_count": 9,
-        "executed": 27,
-        "model_weight_artifact_count": 3,
-        "passed": 27,
-        "planned": 81,
-        "quality_prompts_per_passed_case": 48,
-        "valid": True,
+    assert all(isinstance(json.loads(row["evidence_ids"]), list) for row in generated_attempts)
+    assert all(
+        isinstance(json.loads(row["input_evidence_ids"]), list)
+        for row in generated_evidence
+    )
+    measurement_by_id = {row["measurement_id"]: row for row in generated_measurements}
+    output_by_key = {
+        (row["test_case_id"], row["prompt_id"]): row for row in generated_outputs
     }
+    score_by_id = {row["quality_id"]: row for row in generated_scores}
+    for source in source_rows:
+        if source["executed"] != "true":
+            continue
+        raw = json.loads((REPO_ROOT / source["raw_result_path"].replace("\\", "/")).read_text())
+        for repetition, run in enumerate(raw["benchmark_runs"], start=1):
+            measurement = measurement_by_id[
+                f"{source['case_id']}--benchmark-repetition-{repetition:03d}"
+            ]
+            assert float(measurement["latency_ms"]) == float(run["result"]["ttft_ms"])
+            assert float(measurement["generation_tokens_per_second"]) == float(
+                run["result"]["decode_tps"]
+            )
+            assert int(measurement["peak_working_set_bytes"]) == round(
+                float(run["peak_working_set_mb"]) * 1_000_000
+            )
+            assert int(measurement["input_tokens"]) == int(run["result"]["input_tokens"])
+            assert int(measurement["output_tokens"]) == int(run["result"]["generated_tokens"])
+        for run in raw["quality_runs"]:
+            output = output_by_key[(source["case_id"], run["prompt_id"])]
+            assert output["output_sha256"] == hashlib.sha256(
+                run["result"]["text"].encode("utf-8")
+            ).hexdigest()
+            assert float(output["prompt_score"]) == float(run["quality"]["score"])
+            for criterion in run["quality"]["criteria"]:
+                quality_id = (
+                    f"{source['case_id']}--{run['prompt_id']}--"
+                    f"{criterion['category']}--{criterion['id']}"
+                )
+                score = score_by_id[quality_id]
+                assert float(score["score"]) == float(criterion["points_awarded"])
+                assert float(score["maximum_score"]) == float(criterion["weight"])
+
+    coverage = json.loads((ROUTE / "validation/coverage-validation.json").read_text(encoding="utf-8"))
+    assert coverage["valid"] is True
+    assert set(coverage["checks"]) == {
+        "artifact_unavailable_count",
+        "cache_format_count",
+        "executed_count",
+        "executed_model_weight_artifact_count",
+        "passed_count",
+        "planned_count",
+        "quality_prompts_per_passed_case",
+    }
+    assert all(check["passed"] is True for check in coverage["checks"].values())
+    assert coverage["checks"]["planned_count"] == {
+        "actual": 81,
+        "expected": 81,
+        "passed": True,
+    }
+
+    data_validation = json.loads(
+        (ROUTE / "validation/data-validation.json").read_text(encoding="utf-8")
+    )
+    assert data_validation["valid"] is True
+    assert set(data_validation["checks"]) == {
+        "attempt_identifier_uniqueness",
+        "attempt_source_evidence_references",
+        "exactly_three_distinct_criteria_per_prompt",
+        "failure_count",
+        "failure_references",
+        "measurement_count",
+        "measurement_references",
+        "output_count",
+        "output_references",
+        "prompt_count",
+        "prompt_references",
+        "quality_criterion_count",
+        "quality_references",
+        "summary_count",
+        "summary_references",
+        "unavailable_exclusions",
+    }
+    assert all(check["passed"] is True for check in data_validation["checks"].values())
+    reproduction = (ROUTE / "reproduction/README.md").read_text(encoding="utf-8")
+    assert "write_experimental_route" in reproduction
+    assert "2026-08-30/fv6" in reproduction
+    assert "Do not" in reproduction and "zero" in reproduction
+
+
+def test_validation_receipts_fail_when_expected_measurements_are_missing():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    incomplete = replace(bundle, measurements=())
+
+    coverage, data = build_experimental_validation_receipts(REPO_ROOT, incomplete)
+
+    assert coverage["valid"] is True
+    assert data["valid"] is False
+    assert data["checks"]["measurement_count"] == {
+        "actual": 0,
+        "expected": 81,
+        "passed": False,
+    }
+
+
+def test_fv6_rejects_a_conflicting_comparison_value(tmp_path):
+    repo = _isolated_fv6_repo(tmp_path)
+    comparison_path = (
+        repo / FV6.relative_to(REPO_ROOT) / "experimental-openvino-comparison.csv"
+    )
+    rows = _rows(comparison_path)
+    target = next(
+        row
+        for row in rows
+        if (row["model"], row["weight_precision"], row["cache_codec"])
+        == ("granite-3b", "int4", "tbq3")
+    )
+    target["decode_tps"] = str(float(target["decode_tps"]) + 1.0)
+    _write_rows(comparison_path, rows)
+
+    with pytest.raises(ValueError, match="comparison"):
+        build_experimental_bundle(repo)
+
+
+def test_fv6_rejects_a_selected_repetition_metric_conflict(tmp_path):
+    repo = _isolated_fv6_repo(tmp_path)
+    _rewrite_raw(
+        repo,
+        "granite-3b__int4__tbq3",
+        lambda payload: payload["benchmark_runs"][0]["result"].__setitem__(
+            "input_tokens", payload["benchmark_runs"][0]["result"]["input_tokens"] + 1
+        ),
+    )
+
+    with pytest.raises(ValueError, match="selected benchmark"):
+        build_experimental_bundle(repo)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("id", "wrong-criterion"),
+        ("category", "wrong-category"),
+        ("kind", "contains_none"),
+        ("weight", 4.5),
+        ("points_awarded", 4.5),
+        ("critical", False),
+        ("passed", False),
+        ("expected", ["wrong expected value"]),
+        ("observed", {"missing": ["wrong observed value"]}),
+        ("reason", "conflicting reason"),
+    ),
+)
+def test_fv6_rejects_raw_quality_criterion_conflicts(tmp_path, field, replacement):
+    repo = _isolated_fv6_repo(tmp_path)
+
+    def mutate(payload):
+        payload["quality_runs"][0]["quality"]["criteria"][0][field] = replacement
+
+    _rewrite_raw(repo, "granite-3b__int4__tbq3", mutate)
+
+    with pytest.raises(ValueError, match="quality criterion"):
+        build_experimental_bundle(repo)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("valid_output", False),
+        ("critical_failure", True),
+        ("score", 4.25),
+        ("domain", "education"),
+        ("prompt_length", "long"),
+    ),
+)
+def test_fv6_rejects_raw_quality_prompt_metadata_or_score_conflicts(
+    tmp_path, field, replacement
+):
+    repo = _isolated_fv6_repo(tmp_path)
+
+    def mutate(payload):
+        target = payload["quality_runs"][0]
+        if field in {"domain", "prompt_length"}:
+            target[field] = replacement
+        else:
+            target["quality"][field] = replacement
+
+    _rewrite_raw(repo, "granite-3b__int4__tbq3", mutate)
+
+    with pytest.raises(ValueError, match="quality prompt"):
+        build_experimental_bundle(repo)
+
+
+def test_fv6_rejects_raw_quality_output_text_conflict(tmp_path):
+    repo = _isolated_fv6_repo(tmp_path)
+
+    def mutate(payload):
+        payload["quality_runs"][0]["result"]["text"] += " altered"
+
+    _rewrite_raw(repo, "granite-3b__int4__tbq3", mutate)
+
+    with pytest.raises(ValueError, match="quality output"):
+        build_experimental_bundle(repo)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("category_scores", {"safety": 9.5}),
+        ("health_checks", {}),
+    ),
+)
+def test_fv6_rejects_raw_quality_category_or_health_conflicts(
+    tmp_path, field, replacement
+):
+    repo = _isolated_fv6_repo(tmp_path)
+
+    def mutate(payload):
+        payload["quality_runs"][0]["quality"][field] = replacement
+
+    _rewrite_raw(repo, "granite-3b__int4__tbq3", mutate)
+
+    with pytest.raises(ValueError, match="quality criterion"):
+        build_experimental_bundle(repo)
+
+
+def test_fv6_rejects_a_case_score_that_disagrees_with_prompt_scores(tmp_path):
+    repo = _isolated_fv6_repo(tmp_path)
+    fv6 = repo / FV6.relative_to(REPO_ROOT)
+    case_id = "granite-3b__int4__tbq3"
+    detailed_path = fv6 / "experimental-openvino-detailed-results.csv"
+    detailed = _rows(detailed_path)
+    next(row for row in detailed if row["case_id"] == case_id)["quality_score"] = "9.9999"
+    _write_rows(detailed_path, detailed)
+    comparison_path = fv6 / "experimental-openvino-comparison.csv"
+    comparison = _rows(comparison_path)
+    next(
+        row
+        for row in comparison
+        if (row["model"], row["weight_precision"], row["cache_codec"])
+        == ("granite-3b", "int4", "tbq3")
+    )["quality_score"] = "9.9999"
+    _write_rows(comparison_path, comparison)
+
+    with pytest.raises(ValueError, match="quality case score"):
+        build_experimental_bundle(repo)
 
 
 def test_experimental_route_generation_preserves_an_identical_existing_manifest():

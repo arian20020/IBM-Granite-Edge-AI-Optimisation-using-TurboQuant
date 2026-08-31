@@ -114,6 +114,16 @@ def _ensure_uniform(rows: Sequence[Mapping[str, str]], field: str) -> str:
     return values.pop()
 
 
+def _source_value(value: str, *, numeric: bool = False, boolean: bool = False) -> object:
+    if value == "":
+        return None
+    if numeric:
+        return float(value)
+    if boolean:
+        return _bool(value)
+    return value
+
+
 def _validate_fv6_sources(
     detailed: list[dict[str, str]],
     comparison: list[dict[str, str]],
@@ -154,16 +164,62 @@ def _validate_fv6_sources(
         if bool(row.get("executed")) != _bool(source["executed"]):
             raise ValueError(f"fv6 rows.json execution flag differs for {row['case_id']}")
 
-    comparison_keys = {
-        (row["model"], row["weight_precision"], row["cache_codec"])
+    comparison_by_key = {
+        (row["model"], row["weight_precision"], row["cache_codec"]): row
         for row in comparison
     }
+    comparison_keys = set(comparison_by_key)
     detailed_keys = {
         (row["model"], row["weight_precision"], row["cache_codec"])
         for row in detailed
     }
-    if len(comparison) != 81 or comparison_keys != detailed_keys:
+    if len(comparison) != 81 or len(comparison_by_key) != 81 or comparison_keys != detailed_keys:
         raise ValueError("fv6 comparison table does not cover the detailed matrix")
+    numeric_comparison_fields = {
+        "decode_tps",
+        "ttft_ms",
+        "peak_working_set_mb",
+        "kv_mb",
+        "quality_score",
+    }
+    for source in detailed:
+        key = (source["model"], source["weight_precision"], source["cache_codec"])
+        expected_case_id = "__".join(key)
+        if source["case_id"] != expected_case_id:
+            raise ValueError(f"fv6 detailed identifier mismatch: {source['case_id']}")
+        if source["key_cache_codec"] != source["cache_codec"] or source[
+            "value_cache_codec"
+        ] != source["cache_codec"]:
+            raise ValueError(f"fv6 detailed cache identifiers differ for {source['case_id']}")
+        compared = comparison_by_key[key]
+        for field in (
+            "model",
+            "weight_precision",
+            "cache_codec",
+            "status",
+            "executed",
+            "decode_tps",
+            "ttft_ms",
+            "peak_working_set_mb",
+            "kv_mb",
+            "quality_score",
+            "failure_reason",
+        ):
+            detailed_value = _source_value(
+                source[field],
+                numeric=field in numeric_comparison_fields,
+                boolean=field == "executed",
+            )
+            comparison_value = _source_value(
+                compared[field],
+                numeric=field in numeric_comparison_fields,
+                boolean=field == "executed",
+            )
+            if detailed_value != comparison_value:
+                raise ValueError(
+                    f"fv6 comparison conflict for {source['case_id']} field {field}: "
+                    f"{comparison_value!r} != {detailed_value!r}"
+                )
 
     expected_coverage: dict[str, tuple[int, int, int]] = defaultdict(lambda: (0, 0, 0))
     for row in detailed:
@@ -204,6 +260,16 @@ def _case_measurements(
     raw_runs = raw.get("benchmark_runs")
     if not isinstance(raw_runs, list) or len(raw_runs) != 3:
         raise ValueError(f"{case_id}: expected three benchmark repetitions")
+    selected_raw = raw.get("benchmark")
+    if not isinstance(selected_raw, dict):
+        raise ValueError(f"{case_id}: missing selected benchmark")
+    selected_indexes = [
+        index for index, raw_run in enumerate(raw_runs) if raw_run == selected_raw
+    ]
+    if len(selected_indexes) != 1:
+        raise ValueError(
+            f"{case_id}: selected benchmark must exactly match one repetition"
+        )
 
     measurements: list[MeasurementRecord] = []
     results: list[Mapping[str, object]] = []
@@ -213,6 +279,12 @@ def _case_measurements(
         result = raw_run["result"]
         if result.get("status") != "passed" or result.get("executed") is not True:
             raise ValueError(f"{case_id}: non-passed benchmark repetition {index}")
+        try:
+            stdout_result = json.loads(str(raw_run["stdout"]))
+        except (KeyError, TypeError, json.JSONDecodeError) as error:
+            raise ValueError(f"{case_id}: malformed benchmark repetition stdout {index}") from error
+        if stdout_result != result:
+            raise ValueError(f"{case_id}: benchmark repetition {index} stdout/result conflict")
         results.append(result)
         measurements.append(
             MeasurementRecord(
@@ -240,6 +312,10 @@ def _case_measurements(
     selected = next(
         item for item in measurements if item.generation_tokens_per_second == median_decode
     )
+    if selected_indexes != [int(selected.repetition_id) - 1]:
+        raise ValueError(
+            f"{case_id}: selected benchmark is not the median-decode repetition"
+        )
     peaks = [item.peak_working_set_bytes for item in measurements]
     if any(value is None for value in peaks):
         raise ValueError(f"{case_id}: missing repetition peak working set")
@@ -286,6 +362,154 @@ def _case_measurements(
         ),
     ]
     return measurements, summaries
+
+
+def _json_source_cell(
+    case_id: str, prompt_id: str, row: Mapping[str, str], field: str
+) -> object:
+    try:
+        return json.loads(row[field])
+    except (KeyError, json.JSONDecodeError) as error:
+        raise ValueError(
+            f"{case_id}/{prompt_id}: malformed quality criterion {field}"
+        ) from error
+
+
+def _validate_raw_quality_case(
+    case_id: str,
+    raw_payload: Mapping[str, object],
+    source_by_prompt: Mapping[str, list[dict[str, str]]],
+    detailed_row: Mapping[str, str],
+) -> None:
+    raw_runs = raw_payload.get("quality_runs")
+    if not isinstance(raw_runs, list) or len(raw_runs) != 48:
+        raise ValueError(f"{case_id}: expected 48 raw quality runs")
+    if len({run.get("prompt_id") for run in raw_runs if isinstance(run, dict)}) != 48:
+        raise ValueError(f"{case_id}: raw quality prompt identities are not unique")
+    if set(source_by_prompt) != {
+        run.get("prompt_id") for run in raw_runs if isinstance(run, dict)
+    }:
+        raise ValueError(f"{case_id}: raw quality prompt IDs differ from quality details")
+
+    prompt_scores: list[float] = []
+    for run in raw_runs:
+        if not isinstance(run, dict):
+            raise ValueError(f"{case_id}: malformed raw quality prompt")
+        prompt_id = str(run["prompt_id"])
+        source_rows = source_by_prompt[prompt_id]
+        if len(source_rows) != 3:
+            raise ValueError(f"{case_id}/{prompt_id}: expected three quality criterion rows")
+        source_keys = [
+            (row["category"], row["criterion_id"]) for row in source_rows
+        ]
+        if len(set(source_keys)) != 3:
+            raise ValueError(
+                f"{case_id}/{prompt_id}: quality criterion identities are not distinct"
+            )
+        quality = run.get("quality")
+        result = run.get("result")
+        if not isinstance(quality, dict) or not isinstance(result, dict):
+            raise ValueError(f"{case_id}/{prompt_id}: malformed quality prompt evidence")
+
+        prompt_fields = {
+            "prompt_set_id": raw_payload.get("quality_prompt_set_id"),
+            "domain": run.get("domain"),
+            "prompt_length": run.get("prompt_length"),
+            "prompt_score": quality.get("score"),
+            "valid_output": quality.get("valid_output"),
+            "critical_failure": quality.get("critical_failure"),
+        }
+        if quality.get("prompt_id") != prompt_id:
+            raise ValueError(f"{case_id}/{prompt_id}: quality prompt identity conflict")
+        if quality.get("domain") != run.get("domain") or quality.get(
+            "prompt_length"
+        ) != run.get("prompt_length"):
+            raise ValueError(f"{case_id}/{prompt_id}: quality prompt metadata conflict")
+        for field, raw_value in prompt_fields.items():
+            for source in source_rows:
+                if field in {"prompt_score"}:
+                    source_value: object = float(source[field])
+                elif field in {"valid_output", "critical_failure"}:
+                    source_value = _bool(source[field])
+                else:
+                    source_value = source[field]
+                if source_value != raw_value:
+                    raise ValueError(
+                        f"{case_id}/{prompt_id}: quality prompt {field} conflict"
+                    )
+        prompt_scores.append(float(quality["score"]))
+
+        answer = result.get("text")
+        if not isinstance(answer, str) or any(
+            source["raw_answer"] != answer for source in source_rows
+        ):
+            raise ValueError(f"{case_id}/{prompt_id}: quality output text conflict")
+        try:
+            stdout_result = json.loads(str(run["stdout"]))
+        except (KeyError, TypeError, json.JSONDecodeError) as error:
+            raise ValueError(f"{case_id}/{prompt_id}: malformed quality output stdout") from error
+        if stdout_result != result:
+            raise ValueError(f"{case_id}/{prompt_id}: quality output stdout/result conflict")
+        if result.get("status") != "passed" or result.get("executed") is not True:
+            raise ValueError(f"{case_id}/{prompt_id}: quality output was not executed and passed")
+
+        raw_criteria = quality.get("criteria")
+        if not isinstance(raw_criteria, list) or len(raw_criteria) != 3:
+            raise ValueError(f"{case_id}/{prompt_id}: expected three raw quality criteria")
+        raw_by_key = {
+            (criterion.get("category"), criterion.get("id")): criterion
+            for criterion in raw_criteria
+            if isinstance(criterion, dict)
+        }
+        if len(raw_by_key) != 3 or set(raw_by_key) != set(source_keys):
+            raise ValueError(f"{case_id}/{prompt_id}: quality criterion identity conflict")
+        category_scores = quality.get("category_scores")
+        if not isinstance(category_scores, dict):
+            raise ValueError(f"{case_id}/{prompt_id}: missing quality category scores")
+        for source in source_rows:
+            key = (source["category"], source["criterion_id"])
+            criterion = raw_by_key[key]
+            comparisons = {
+                "category": (source["category"], criterion.get("category")),
+                "criterion_id": (source["criterion_id"], criterion.get("id")),
+                "kind": (source["kind"], criterion.get("kind")),
+                "weight": (float(source["weight"]), criterion.get("weight")),
+                "critical": (_bool(source["critical"]), bool(criterion.get("critical", False))),
+                "passed": (_bool(source["passed"]), criterion.get("passed")),
+                "points_awarded": (
+                    float(source["points_awarded"]),
+                    criterion.get("points_awarded"),
+                ),
+                "expected": (
+                    _json_source_cell(case_id, prompt_id, source, "expected_json"),
+                    criterion.get("expected"),
+                ),
+                "observed": (
+                    _json_source_cell(case_id, prompt_id, source, "observed_json"),
+                    criterion.get("observed"),
+                ),
+                "reason": (source["reason"], criterion.get("reason")),
+                "category_score": (
+                    float(source["category_score"]),
+                    category_scores.get(source["category"]),
+                ),
+                "health_checks": (
+                    _json_source_cell(case_id, prompt_id, source, "health_checks_json"),
+                    quality.get("health_checks"),
+                ),
+            }
+            for field, (source_value, raw_value) in comparisons.items():
+                if source_value != raw_value:
+                    raise ValueError(
+                        f"{case_id}/{prompt_id}: quality criterion {field} conflict"
+                    )
+
+    expected_prompt_count = int(detailed_row["quality_prompt_count"])
+    if expected_prompt_count != len(prompt_scores):
+        raise ValueError(f"{case_id}: quality prompt count conflicts with detailed results")
+    case_score = round(statistics.mean(prompt_scores), 4)
+    if float(detailed_row["quality_score"]) != case_score:
+        raise ValueError(f"{case_id}: quality case score conflicts with prompt evidence")
 
 
 def build_experimental_bundle(repo_root: Path) -> RouteBundle:
@@ -370,6 +594,10 @@ def build_experimental_bundle(repo_root: Path) -> RouteBundle:
             if not isinstance(benchmark, dict) or not isinstance(benchmark.get("result"), dict):
                 raise ValueError(f"{case_id}: missing selected benchmark result")
             selected = benchmark["result"]
+            if raw_payload.get("benchmark_selection") != (
+                "median decode_tps among executed repetitions"
+            ):
+                raise ValueError(f"{case_id}: unsupported benchmark selection rule")
             expected_summary = {
                 item.metric_name: item.value for item in case_summaries
             }
@@ -381,6 +609,45 @@ def build_experimental_bundle(repo_root: Path) -> RouteBundle:
                 raise ValueError(f"{case_id}: detailed peak memory is not worst-observed")
             if float(selected["decode_tps"]) != float(row["decode_tps"]):
                 raise ValueError(f"{case_id}: selected raw result differs from detailed result")
+            for source_field, raw_field in (
+                ("load_ms", "load_ms"),
+                ("ttft_ms", "ttft_ms"),
+                ("tpot_ms", "tpot_ms"),
+                ("decode_tps", "decode_tps"),
+                ("generation_duration_ms", "generation_duration_ms"),
+                ("context_tokens", "input_tokens"),
+                ("max_new_tokens", "max_new_tokens"),
+            ):
+                if float(row[source_field]) != float(selected[raw_field]):
+                    raise ValueError(
+                        f"{case_id}: selected benchmark {source_field} conflicts with detailed results"
+                    )
+            benchmark_runs = raw_payload["benchmark_runs"]
+            envelope_checks = {
+                "peak_working_set_mb": max(
+                    float(run["peak_working_set_mb"]) for run in benchmark_runs
+                ),
+                "peak_private_mb": max(
+                    float(run["peak_private_mb"]) for run in benchmark_runs
+                ),
+                "available_ram_min_mb": min(
+                    float(run["available_ram_min_mb"]) for run in benchmark_runs
+                ),
+            }
+            for source_field, expected in envelope_checks.items():
+                if float(row[source_field]) != expected:
+                    raise ValueError(
+                        f"{case_id}: benchmark repetition {source_field} aggregate conflict"
+                    )
+            if raw_payload.get("model_size_bytes") != int(row["model_size_bytes"]):
+                raise ValueError(f"{case_id}: raw model size conflicts with detailed results")
+            fork = raw_payload.get("fork")
+            if not isinstance(fork, dict) or fork != {
+                "url": row["fork_url"],
+                "branch": row["fork_branch"],
+                "commit": row["fork_commit"],
+            }:
+                raise ValueError(f"{case_id}: raw repository identity conflicts with detailed results")
             version = selected.get("openvino_version")
             if isinstance(version, str):
                 runtime_versions.add(version)
@@ -465,7 +732,19 @@ def build_experimental_bundle(repo_root: Path) -> RouteBundle:
             )
         )
 
+    detailed_by_case = {row["case_id"]: row for row in detailed}
     for case_id, raw_payload in raw_by_case.items():
+        source_by_prompt = {
+            prompt_id: rows
+            for (quality_case_id, prompt_id), rows in quality_by_case_prompt.items()
+            if quality_case_id == case_id
+        }
+        _validate_raw_quality_case(
+            case_id,
+            raw_payload,
+            source_by_prompt,
+            detailed_by_case[case_id],
+        )
         raw_quality_runs = raw_payload.get("quality_runs")
         if not isinstance(raw_quality_runs, list) or len(raw_quality_runs) != 48:
             raise ValueError(f"{case_id}: expected 48 raw quality runs")
@@ -625,6 +904,202 @@ def _model_artifact_rows(repo_root: Path) -> list[dict[str, object]]:
             }
         )
     return rows
+
+
+def _receipt_check(actual: object, expected: object) -> dict[str, object]:
+    return {"actual": actual, "expected": expected, "passed": actual == expected}
+
+
+def _experimental_validation_receipts(
+    bundle: RouteBundle,
+    prompt_rows: Sequence[Mapping[str, object]],
+    output_rows: Sequence[Mapping[str, object]],
+) -> tuple[dict[str, object], dict[str, object]]:
+    passed_attempts = {item.test_case_id: item for item in bundle.attempts if item.executed}
+    unavailable_cases = {
+        item.test_case_id for item in bundle.attempts if not item.executed
+    }
+    evidence_ids = {item.evidence_id for item in bundle.evidence}
+    attempt_ids = {item.attempt_id for item in bundle.attempts}
+    measurement_ids = {item.measurement_id for item in bundle.measurements}
+    prompt_keys = {
+        (str(row["prompt_suite_id"]), str(row["prompt_id"])) for row in prompt_rows
+    }
+
+    prompts_per_case = Counter(
+        (item.test_case_id, item.prompt_id) for item in bundle.quality
+    )
+    prompt_count_values = Counter(case_id for case_id, _ in prompts_per_case)
+    prompt_count_actual: object = (
+        next(iter(set(prompt_count_values.values())))
+        if len(set(prompt_count_values.values())) == 1
+        else sorted(set(prompt_count_values.values()))
+    )
+    coverage_checks = {
+        "artifact_unavailable_count": _receipt_check(len(unavailable_cases), 54),
+        "cache_format_count": _receipt_check(
+            len({item.cache_format_id for item in bundle.attempts}), 9
+        ),
+        "executed_count": _receipt_check(len(passed_attempts), 27),
+        "executed_model_weight_artifact_count": _receipt_check(
+            len(
+                {
+                    (item.model_id, item.weight_format_id)
+                    for item in bundle.attempts
+                    if item.executed
+                }
+            ),
+            3,
+        ),
+        "passed_count": _receipt_check(
+            sum(item.status is Status.PASSED for item in bundle.attempts), 27
+        ),
+        "planned_count": _receipt_check(len(bundle.attempts), 81),
+        "quality_prompts_per_passed_case": _receipt_check(prompt_count_actual, 48),
+    }
+    coverage = {
+        "planned": len(bundle.attempts),
+        "executed": len(passed_attempts),
+        "passed": sum(item.status is Status.PASSED for item in bundle.attempts),
+        "artifact_unavailable": len(unavailable_cases),
+        "cache_format_count": len({item.cache_format_id for item in bundle.attempts}),
+        "model_weight_artifact_count": len(
+            {
+                (item.model_id, item.weight_format_id)
+                for item in bundle.attempts
+                if item.executed
+            }
+        ),
+        "quality_prompts_per_passed_case": prompt_count_actual,
+        "checks": coverage_checks,
+        "valid": all(bool(check["passed"]) for check in coverage_checks.values()),
+    }
+
+    attempt_reference_errors = sorted(
+        item.attempt_id
+        for item in bundle.attempts
+        if any(evidence_id not in evidence_ids for evidence_id in item.evidence_ids)
+    )
+    measurement_reference_errors = sorted(
+        item.measurement_id
+        for item in bundle.measurements
+        if item.attempt_id not in attempt_ids
+        or item.test_case_id not in passed_attempts
+        or item.source_evidence_id not in evidence_ids
+    )
+    summary_reference_errors = sorted(
+        item.summary_id
+        for item in bundle.summaries
+        if item.test_case_id not in passed_attempts
+        or not item.source_measurement_ids
+        or any(source_id not in measurement_ids for source_id in item.source_measurement_ids)
+    )
+    quality_reference_errors = sorted(
+        item.quality_id
+        for item in bundle.quality
+        if item.test_case_id not in passed_attempts
+        or item.source_evidence_id not in evidence_ids
+        or item.prompt_id is None
+        or item.criterion_id is None
+    )
+    failure_reference_errors = sorted(
+        item.failure_id
+        for item in bundle.failures
+        if item.attempt_id not in attempt_ids
+        or item.test_case_id not in unavailable_cases
+        or any(evidence_id not in evidence_ids for evidence_id in item.evidence_ids)
+    )
+    prompt_reference_errors = sorted(
+        str(row["prompt_id"])
+        for row in prompt_rows
+        if str(row["input_evidence_id"]) not in evidence_ids
+    )
+    output_keys = [
+        (str(row["test_case_id"]), str(row["prompt_id"])) for row in output_rows
+    ]
+    output_reference_errors = sorted(
+        f"{row['test_case_id']}/{row['prompt_id']}"
+        for row in output_rows
+        if str(row["source_evidence_id"]) not in evidence_ids
+        or str(row["test_case_id"]) not in passed_attempts
+        or not any(prompt_id == str(row["prompt_id"]) for _, prompt_id in prompt_keys)
+    )
+    duplicate_output_keys = sorted(
+        f"{case_id}/{prompt_id}"
+        for (case_id, prompt_id), count in Counter(output_keys).items()
+        if count != 1
+    )
+    output_reference_errors.extend(duplicate_output_keys)
+
+    criteria_by_prompt: dict[tuple[str, str | None], set[str | None]] = defaultdict(set)
+    for item in bundle.quality:
+        criteria_by_prompt[(item.test_case_id, item.prompt_id)].add(item.criterion_id)
+    distinct_criteria_actual = sorted(
+        set(len(criteria) for criteria in criteria_by_prompt.values())
+    )
+    unavailable_exclusions = {
+        "measurements": sorted(
+            {item.test_case_id for item in bundle.measurements} & unavailable_cases
+        ),
+        "outputs": sorted(
+            {str(row["test_case_id"]) for row in output_rows} & unavailable_cases
+        ),
+        "quality": sorted({item.test_case_id for item in bundle.quality} & unavailable_cases),
+        "summaries": sorted(
+            {item.test_case_id for item in bundle.summaries} & unavailable_cases
+        ),
+    }
+    empty_exclusions = {
+        "measurements": [],
+        "outputs": [],
+        "quality": [],
+        "summaries": [],
+    }
+    data_checks = {
+        "attempt_identifier_uniqueness": _receipt_check(
+            len({item.attempt_id for item in bundle.attempts}), 81
+        ),
+        "attempt_source_evidence_references": _receipt_check(
+            attempt_reference_errors, []
+        ),
+        "exactly_three_distinct_criteria_per_prompt": _receipt_check(
+            distinct_criteria_actual, [3]
+        ),
+        "failure_count": _receipt_check(len(bundle.failures), 54),
+        "failure_references": _receipt_check(failure_reference_errors, []),
+        "measurement_count": _receipt_check(len(bundle.measurements), 81),
+        "measurement_references": _receipt_check(measurement_reference_errors, []),
+        "output_count": _receipt_check(len(output_rows), 1296),
+        "output_references": _receipt_check(output_reference_errors, []),
+        "prompt_count": _receipt_check(len(prompt_rows), 48),
+        "prompt_references": _receipt_check(prompt_reference_errors, []),
+        "quality_criterion_count": _receipt_check(len(bundle.quality), 3888),
+        "quality_references": _receipt_check(quality_reference_errors, []),
+        "summary_count": _receipt_check(len(bundle.summaries), 81),
+        "summary_references": _receipt_check(summary_reference_errors, []),
+        "unavailable_exclusions": _receipt_check(
+            unavailable_exclusions, empty_exclusions
+        ),
+    }
+    data = {
+        "failure_count": len(bundle.failures),
+        "measurement_count": len(bundle.measurements),
+        "quality_criterion_count": len(bundle.quality),
+        "summary_count": len(bundle.summaries),
+        "unavailable_cases_with_measurements": unavailable_exclusions["measurements"],
+        "checks": data_checks,
+        "valid": all(bool(check["passed"]) for check in data_checks.values()),
+    }
+    return coverage, data
+
+
+def build_experimental_validation_receipts(
+    repo_root: Path, bundle: RouteBundle
+) -> tuple[dict[str, object], dict[str, object]]:
+    """Recompute named fv6 coverage and referential-integrity checks."""
+    root = Path(repo_root).resolve(strict=True)
+    prompt_rows, output_rows = _prompt_and_output_rows(root, bundle)
+    return _experimental_validation_receipts(bundle, prompt_rows, output_rows)
 
 
 def write_experimental_route(repo_root: Path) -> RouteBundle:
@@ -802,48 +1277,55 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         claim_rows,
         ("claim_id", "claim", "evidence_ids"),
     )
+    detailed_evidence = next(
+        item for item in bundle.evidence if item.source_label == "fv6 detailed results"
+    )
+    quality_evidence = next(
+        item for item in bundle.evidence if item.source_label == "fv6 quality details"
+    )
+    workbook_evidence = next(
+        item
+        for item in bundle.evidence
+        if item.source_label == "fv6 final interactive workbook"
+    )
+    reproduction = route / "reproduction/README.md"
+    reproduction.parent.mkdir(parents=True, exist_ok=True)
+    reproduction.write_text(
+        "# Reproducing the experimental OpenVINO fv6 normalization\n\n"
+        "Run from the repository root with the pinned portable test interpreter:\n\n"
+        "```powershell\n"
+        "& '.tools/python311-portable/python.exe' -c \"from pathlib import Path; "
+        "from scripts.testing.final_results.openvino_adapter import "
+        "write_experimental_route; write_experimental_route(Path.cwd())\"\n"
+        "```\n\n"
+        "## Frozen inputs\n\n"
+        f"- `{detailed_evidence.relative_path}` — SHA-256 `{detailed_evidence.sha256}`\n"
+        f"- `{quality_evidence.relative_path}` — SHA-256 `{quality_evidence.sha256}`\n"
+        f"- `{workbook_evidence.relative_path}` — SHA-256 `{workbook_evidence.sha256}`\n"
+        "- The companion comparison, coverage, `rows.json`, 27 raw-result JSON files, "
+        "and 48 hash-named prompt inputs under "
+        "`experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6/` "
+        "are individually listed and hashed in `../evidence/evidence-index.csv`.\n\n"
+        "The adapter only normalizes existing evidence; it does not rerun inference. "
+        "Do not replace unavailable observations with zero, infer missing hardware, "
+        "or copy values from another campaign. A source conflict stops generation.\n\n"
+        "## Manifest update boundary\n\n"
+        "`../evidence/manifest-sha256.txt` is an exact receipt for the current planned "
+        "route file set. Task 8 will add generated report and workbook artifacts. After "
+        "that planned set is complete, regenerate the manifest deliberately and validate "
+        "it. The non-destructive manifest API intentionally refuses to overwrite a "
+        "different existing receipt during a routine adapter rerun.\n",
+        encoding="utf-8",
+        newline="\n",
+    )
 
-    passed_count = sum(item.status is Status.PASSED for item in bundle.attempts)
-    unavailable_count = sum(
-        item.status is Status.ARTIFACT_UNAVAILABLE for item in bundle.attempts
+    coverage_validation, data_validation = _experimental_validation_receipts(
+        bundle, prompt_rows, output_rows
     )
-    executed_artifacts = {
-        (item.model_id, item.weight_format_id) for item in bundle.attempts if item.executed
-    }
-    prompt_counts = Counter(
-        (item.test_case_id, item.prompt_id) for item in bundle.quality
-    )
-    prompts_per_case = Counter(case_id for case_id, _ in prompt_counts)
-    coverage_validation = {
-        "artifact_unavailable": unavailable_count,
-        "cache_format_count": len({item.cache_format_id for item in bundle.attempts}),
-        "executed": sum(item.executed for item in bundle.attempts),
-        "model_weight_artifact_count": len(executed_artifacts),
-        "passed": passed_count,
-        "planned": len(bundle.attempts),
-        "quality_prompts_per_passed_case": min(prompts_per_case.values()),
-        "valid": (
-            len(bundle.attempts) == 81
-            and passed_count == 27
-            and unavailable_count == 54
-            and set(prompts_per_case.values()) == {48}
-        ),
-    }
     write_json(route / "validation/coverage-validation.json", coverage_validation)
-    write_json(
-        route / "validation/data-validation.json",
-        {
-            "failure_count": len(bundle.failures),
-            "measurement_count": len(bundle.measurements),
-            "quality_criterion_count": len(bundle.quality),
-            "summary_count": len(bundle.summaries),
-            "unavailable_cases_with_measurements": sorted(
-                {item.test_case_id for item in bundle.measurements}
-                & {item.test_case_id for item in bundle.attempts if not item.executed}
-            ),
-            "valid": True,
-        },
-    )
+    write_json(route / "validation/data-validation.json", data_validation)
+    if not coverage_validation["valid"] or not data_validation["valid"]:
+        raise ValueError("generated fv6 validation receipts contain failed checks")
 
     manifest = route / "evidence/manifest-sha256.txt"
     write_json(
@@ -864,4 +1346,8 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
     return bundle
 
 
-__all__ = ["build_experimental_bundle", "write_experimental_route"]
+__all__ = [
+    "build_experimental_bundle",
+    "build_experimental_validation_receipts",
+    "write_experimental_route",
+]
