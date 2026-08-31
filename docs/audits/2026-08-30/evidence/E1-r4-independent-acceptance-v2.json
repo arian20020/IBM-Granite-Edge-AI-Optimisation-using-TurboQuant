@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 2,
+  "workerId": "E1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "e3dee59e8fe57ae9b7176f851d3ca6acd9536dec",
+  "evidenceSubjectTree": "0fa34d9b169b598dca79e5c074813944e4c0e6e3",
+  "createdAtUtc": "2026-08-31T14:08:36Z",
+  "route": ["shared", "gguf", "openvino"],
+  "evidenceStatus": "blocked",
+  "report": {
+    "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
+    "sha256": "506a84d61daf160ebcc7972759631ef33eb0c88f303169809397cf17a82a9575",
+    "bytes": 7688
+  },
+  "inputs": [
+    {"kind":"validated-candidate-base","id":"b5d2cd34c57368efb9b122cddf16c2ffa2d3895e","evidenceGrade":"verified"},
+    {"kind":"coordinator-dispatch","id":"fa4174fa45b66f0e6c71b9127bc603fcdea1607a","evidenceGrade":"verified"},
+    {"kind":"issue-closure","id":"C0-r4-issue-closure.json","sha256":"f047c491a3dd5004ccb85bc1860daeb1d0a3339a92025442cd0c010bca48469d","bytes":6490,"evidenceGrade":"verified"},
+    {"kind":"issue-evidence-catalog","id":"C0-r4-issue-evidence-index-v2.json","sha256":"13dd8e4e103d82dd8449e4b37e46b538725aea67fdeef18d92dd02760f8d488c","bytes":18924,"evidenceGrade":"verified"}
+  ],
+  "outputs": [
+    {"kind":"implementation-subject","id":"e3dee59e8fe57ae9b7176f851d3ca6acd9536dec","evidenceGrade":"verified"},
+    {"kind":"audit-report","id":"E1-r4-independent-acceptance-v2.md","sha256":"506a84d61daf160ebcc7972759631ef33eb0c88f303169809397cf17a82a9575","bytes":7688,"evidenceGrade":"verified"},
+    {"kind":"post-acceptance-evaluation","id":"R3-020","evidenceGrade":"verified"},
+    {"kind":"post-acceptance-evaluation","id":"R3-022","evidenceGrade":"verified"}
+  ],
+  "commands": [
+    {"id":"E1-DISCOVERY","exitCode":0,"discovered":53,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"not-applicable"},
+    {"id":"E1-DETERMINISTIC","exitCode":0,"discovered":34,"executed":34,"passed":34,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"E1-SCHEMA-V4-PREFLIGHT","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"OPENVINO-OPTIMIZATION","exitCode":0,"discovered":55,"executed":55,"passed":55,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"OPENVINO-WORKER-CLIENT","exitCode":0,"discovered":17,"executed":17,"passed":17,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"GGUF-QUANT-CONTRACTS","exitCode":0,"discovered":7,"executed":7,"passed":7,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"GGUF-WORKER-FIRST","exitCode":1,"discovered":19,"executed":19,"passed":18,"failed":1,"skipped":0,"disposition":"failed"},
+    {"id":"GGUF-WORKER-RERUN","exitCode":0,"discovered":19,"executed":19,"passed":19,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"Q1-IDENTITY","exitCode":0,"discovered":51,"executed":51,"passed":51,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"CROSS-FEATURE","exitCode":0,"discovered":115,"executed":115,"passed":115,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"SECURITY-APP-CONTROL","exitCode":0,"discovered":12,"executed":12,"passed":12,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"OPENVINO-BROAD","exitCode":0,"discovered":496,"executed":496,"passed":489,"failed":0,"skipped":7,"disposition":"mixed"},
+    {"id":"E1-POST-ACCEPTANCE-FINAL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"NATIVE-PACKAGE-CAMPAIGN","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"}
+  ],
+  "blockers": [
+    "Exact candidate, asset, native-stage manifests and predecessor native cleanup receipts are absent from the approved host.",
+    "The shared native lock may be acquired only after those exact prerequisites exist, so signed package activation and native execution were ineligible.",
+    "Windows Application Control blocked the freshly rebuilt E1 test assembly with 0x800711C7; policy was not weakened."
+  ],
+  "nonClaims": [
+    "No package activation, packaged discovery, native GGUF/OpenVINO, real-model, Chat/export runtime, screenshot, accessibility, visual, or performance pass is claimed.",
+    "The broad OpenVINO suite, its seven guarded skips, and the superseded first GGUF attempt are excluded from the 311-test receipt total.",
+    "No production, machine-security, or main-branch change was made."
+  ]
+}
