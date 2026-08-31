@@ -1,0 +1,12 @@
+{
+  "classifications": {
+    "descriptive_only": 9,
+    "direct": 2,
+    "not_comparable": 9
+  },
+  "decision_count": 20,
+  "incompatible_quality_ranking_present": false,
+  "machine_readable_reasons_present": true,
+  "universal_ranking_present": false,
+  "valid": true
+}

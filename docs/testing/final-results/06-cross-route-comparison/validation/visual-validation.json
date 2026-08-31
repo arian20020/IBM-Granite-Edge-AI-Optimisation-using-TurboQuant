@@ -1,0 +1,39 @@
+{
+  "checks": {
+    "all_pages_nonblank": true,
+    "all_sections_present": true,
+    "page_count": 21,
+    "pdf_signature": true,
+    "quality_boundary_present": true,
+    "ranking_boundary_present": true
+  },
+  "inspected_pages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21
+  ],
+  "valid": true,
+  "visual_findings": {
+    "inspection": "Every rendered page inspected for blank, clipped, corrupt, overlapping, or truncated content.",
+    "inspection_method": "Rendered every PDF page with PyMuPDF and inspected all full-page images",
+    "temporary_page_images_committed": false
+  }
+}

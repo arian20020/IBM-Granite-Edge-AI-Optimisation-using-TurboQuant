@@ -1,0 +1,16 @@
+2d33a99494045182d9e08fd39177ad8276881528472738d04f6b12dd6a9518df  docs/testing/final-results/06-cross-route-comparison/README.md
+57a159ba339c7405d27df69e3b118e247e8ab8e72e35979ab698608624d13bd2  docs/testing/final-results/06-cross-route-comparison/evidence/claim-evidence-map.csv
+0cfc09d573180e2cced8d8a8e6f0530e18cd2febd0900a6efc2db67b49d929a9  docs/testing/final-results/06-cross-route-comparison/protocol/comparability-policy.md
+0dfae5268914a5045a1c3f3e1b0d51a37ab05d87c870b1d3f1d0264f9cf9fb60  docs/testing/final-results/06-cross-route-comparison/reproduction/README.md
+b0163745b8e32cae3d80f951e7860367dcc410a9369d3f9acbac982853763415  docs/testing/final-results/06-cross-route-comparison/reproduction/commands.md
+9620b972015475193c5f50d6d9f7f98493c0e584ea68009b5bac0f8cfe7a6f97  docs/testing/final-results/06-cross-route-comparison/results/comparability-matrix.csv
+482612f80a8113ef79d40778c570b02ab2e1471b2c186d2ea92ceddbc79331e0  docs/testing/final-results/06-cross-route-comparison/results/route-status-summary.csv
+170a5c932204a15208f8ab01ce51da8e59c5ccfd11e37c47ec582b9ba6c13331  docs/testing/final-results/06-cross-route-comparison/route-manifest.json
+0c56a41d6e7a526c147b2167eaab08e39b66d3e94b5dc9ac474ed53c5f1d01dc  docs/testing/final-results/06-cross-route-comparison/validation/cross-route-validation.json
+e0a5c02f75b6fd8b7c8ee55382d53e29e42eb278e84783e6f0c697812e49a5a9  docs/testing/final-results/06-cross-route-comparison/validation/integrity-validation.json
+7fbbb3fb51e8c204cb9c9b44a188843f2ed8a025646a06d71fb5a426e37e9b7d  docs/testing/final-results/06-cross-route-comparison/validation/validation-report.md
+fead5f524e7014505df30c019c78e23af124367cf52df0082c9aac7dc54ed007  docs/testing/final-results/06-cross-route-comparison/validation/visual-validation.json
+a04b3d5fc263fe19b7cfe1cbc5117a2991877ea7224372ef25fb855a03140c52  docs/testing/final-results/06-cross-route-comparison/validation/workbook-parity.json
+1ce136c429010c0fed0a293d5a93d539c78e54230091416afa3ebb39905691c9  docs/testing/final-results/06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.docx
+4846f3e2ae08b00276d1cbe001c23027c7d8044e8c60939c7711ba7bac18be03  docs/testing/final-results/06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.pdf
+c5017730fc0331bd859c23ed54974b18d992500f1a3545c8d97beaa289b5a4a6  docs/testing/final-results/06-cross-route-comparison/workbook/source/cross-route-comparison-final-report.md

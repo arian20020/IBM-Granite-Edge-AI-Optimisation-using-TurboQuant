@@ -1,0 +1,378 @@
+# Guarded cross-route comparison
+
+| Document control | Value |
+| --- | --- |
+| Route ID | cross-route-comparison |
+| Revision | R1 |
+| Generated date | 2026-08-30 |
+| Evidence IDs | animehacker-001dfad8c2aaeaa7b748, animehacker-0043ac7f47ac35f9d99e, EVID-00aacf23b28a78f3b4cb, EVID-18be949bb5e1bf81201e, openvino-experimental-fork-016d9424a7c4, openvino-experimental-fork-0957a32a76e2, openvino-official-upstream-0957a32a76e2, openvino-official-upstream-0ec7e2a0bdff, EVID-004c0b4f19f867b05c27, EVID-007d654aa76d80d4b6ab |
+
+## 1. Title and document control
+
+This controlled report compares five normalized routes without manufacturing a universal score.
+
+### DC-01 — Document identity
+
+| Field | Value |
+| --- | --- |
+| Report | Guarded cross-route comparison |
+| Route ID | cross-route-comparison |
+| Revision | R1 |
+| Canonical source | workbook/source/cross-route-comparison-final-report.md |
+
+## 2. Technical summary
+
+The validated result is a bounded route comparison, not a league table. No universal ranking is supported.
+
+### RT-01 — Validated route-level conclusions
+
+| Route | Campaign | Attempts | Measurements | Quality records | Bounded conclusion |
+| --- | --- | --- | --- | --- | --- |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | 11 | 21 | 42 | 7 passed, 1 failed, 3 blocked; seven runnable terminal rows are complete and historical/rejected evidence remains outside formal statistics. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | 19 | 76 | 114 | 19 passed; runtime coverage is complete, while route-specific quality remains limited/provisional. |
+| openvino-experimental-fork | fv6-2026-08-30 | 81 | 81 | 3888 | 27 passed, 54 artifact unavailable; performance and v3 objective quality are published only for passed configurations. |
+| openvino-official-upstream | fv2-2026-08-30 | 45 | 45 | 2160 | 15 passed, 5 failed, 25 blocked; conversion failures and hardware-preflight blocks have no fabricated measurements. |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | 13 | 80 | 54 | 13 passed; UL-08 is only the best observed CPU route, UL-10 only the best observed Intel GPU route, and UL-05 only the recorded fallback. |
+
+## 3. Key findings and decision-relevant evidence
+
+Availability and complete attempt accounting precede any performance comparison.
+
+> Note: Incompatible quality scores are not ranked. Descriptive side-by-side evidence retains its original methodology.
+
+## 4. Repository, branch, commit, build, hardware, and software identity
+
+Repository, hardware, and software identities remain in each route package and its hashed evidence index.
+
+### ID-01 — Route identity index
+
+| Route | Campaign | Repository metadata | Hardware metadata | Software metadata |
+| --- | --- | --- | --- | --- |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | {"branch":"main (detached campaign pin)","commit":"5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc","repository_url":"https://github.com/animehacker/llama-turboquant","workbook_revision":"1.5"} | {"machine_id":"Lenovo-PF4HMD0T"} | {"cmake":"4.4.0","msvc":"19.51"} |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | {"branch":"DETACHED","commit":"519f0c594a8e31467d2e2f2cf17054c9e7e11536","source_date":"2026-07-17","url":"https://github.com/AtomicBot-ai/atomic-llama-cpp-turboquant","workbook_id":"WB-02","workbook_revision":"1.7"} | {"machine":"Lenovo-PF4HMD0T","platform":"Windows-10-10.0.26200-SP0"} | Not collected |
+| openvino-experimental-fork | fv6-2026-08-30 | {"branch":"turbo_quant","commit":"1827f6458d049de11c1a8203c793af67c99935dc","source_campaign":"fv6","source_date":"2026-08-30","url":"https://github.com/EgorDuplensky/openvino.git"} | {"status":"not_collected"} | {"openvino_versions":["2026.2.0-1-1827f6458d0-turbo_quant"]} |
+| openvino-official-upstream | fv2-2026-08-30 | {"source_campaign":"fv2 status joined to fv1 passed evidence","source_date":"2026-08-30"} | {"status":"source-recorded"} | {"openvino_versions":["2026.5.0-22950-f5f594dc0c9"]} |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | {"commit":"2d973636e292ee6f75fadcf08d29cb33511f509f","source_date":"2026-07-16","tag":"b9870","url":"https://github.com/ggml-org/llama.cpp","workbook_id":"WB-01","workbook_revision":"1.4"} | {"cpu":"12th Gen Intel Core i5-12450H; 8 cores; 12 logical processors","gpu":"Intel UHD Graphics; driver 32.0.101.7076","machine_id":"LENOVO-PF4HMD0T","ram_bytes":16857817088} | {"cmake":"4.3.1-msvc1","compiler":"MSVC via Visual Studio 18 2026","os":"Windows 11 Home 10.0.26200 build 26200, 64-bit","vulkan_sdk":"1.4.350.0"} |
+
+## 5. Objectives, scope, test matrix, and execution sequence
+
+The gate evaluates route-wide protocol signatures and does not pair values across unmatched configurations.
+
+### CP-01 — Machine-readable comparability matrix
+
+| Left route | Right route | Metric | Classification | Reason codes |
+| --- | --- | --- | --- | --- |
+| animehacker-tq3-0 | atomicbot-turboquant | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| animehacker-tq3-0 | atomicbot-turboquant | quality | descriptive_only | ["model_mismatch","scoring_version_mismatch"] |
+| animehacker-tq3-0 | openvino-experimental-fork | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch"] |
+| animehacker-tq3-0 | openvino-experimental-fork | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
+| animehacker-tq3-0 | openvino-official-upstream | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch"] |
+| animehacker-tq3-0 | openvino-official-upstream | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
+| animehacker-tq3-0 | upstream-llama-cpp | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| animehacker-tq3-0 | upstream-llama-cpp | quality | descriptive_only | ["model_mismatch","scoring_version_mismatch","denominator_mismatch"] |
+| atomicbot-turboquant | openvino-experimental-fork | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| atomicbot-turboquant | openvino-experimental-fork | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
+| atomicbot-turboquant | openvino-official-upstream | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| atomicbot-turboquant | openvino-official-upstream | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
+| atomicbot-turboquant | upstream-llama-cpp | generation_tokens_per_second | not_comparable | ["repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| atomicbot-turboquant | upstream-llama-cpp | quality | descriptive_only | ["scoring_version_mismatch","denominator_mismatch"] |
+| openvino-experimental-fork | openvino-official-upstream | generation_tokens_per_second | direct | ["all_required_dimensions_match"] |
+| openvino-experimental-fork | openvino-official-upstream | quality | direct | ["all_required_dimensions_match"] |
+| openvino-experimental-fork | upstream-llama-cpp | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| openvino-experimental-fork | upstream-llama-cpp | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
+| openvino-official-upstream | upstream-llama-cpp | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| openvino-official-upstream | upstream-llama-cpp | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
+
+*Direct still requires consumers to match individual model/configuration rows.*
+
+## 6. Model, weight, cache-format, and backend availability
+
+Passed, failed, blocked, unavailable, and other explicit statuses remain visible; absence is never zero.
+
+### SS-01 — Status totals by route
+
+| Route | Status | Count |
+| --- | --- | --- |
+| animehacker-tq3-0 | Passed | 7 |
+| animehacker-tq3-0 | Failed | 1 |
+| animehacker-tq3-0 | Blocked | 3 |
+| atomicbot-turboquant | Passed | 19 |
+| openvino-experimental-fork | Passed | 27 |
+| openvino-experimental-fork | Artifact unavailable | 54 |
+| openvino-official-upstream | Passed | 15 |
+| openvino-official-upstream | Failed | 5 |
+| openvino-official-upstream | Blocked | 25 |
+| upstream-llama-cpp | Passed | 13 |
+
+## 7. Complete attempt accounting
+
+This is the complete cross-route attempt ledger, including every non-passed terminal outcome.
+
+### ST-01 — Complete attempt accounting
+
+| Route | Campaign | Test case | Attempt | Status | Executed | Reason |
+| --- | --- | --- | --- | --- | --- | --- |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-01 | AH-01--terminal | Passed | true | Passed observation |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-02 | AH-02--terminal | Passed | true | Passed observation |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-03 | AH-03--terminal | Passed | true | Passed observation |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-04 | AH-04--terminal | Passed | true | Passed observation |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-05 | AH-05--terminal | Passed | true | Passed observation |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-06 | AH-06--terminal | Blocked | false | Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-07 | AH-07--terminal | Blocked | false | Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-08 | AH-08--terminal | Passed | true | Passed observation |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-09 | AH-09--terminal | Passed | true | Passed observation |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-10 | AH-10--terminal | Blocked | false | Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence |
+| animehacker-tq3-0 | wb-03-v1.5-2026-07-18 | AH-09 | AH-09--rejected-flash-env-only | Failed | true | Rejected from formal statistics: environment-only flash change produced invalid one-token timing evidence |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-01 | AB-01--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-02 | AB-02--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-03 | AB-03--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-KV3-F16-4K | AB-KV3-F16-4K--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-04 | AB-04--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-05 | AB-05--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-06 | AB-06--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-07 | AB-07--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-08F | AB-08F--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-KV8-F16-4K | AB-KV8-F16-4K--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-08Q | AB-08Q--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-09 | AB-09--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-10 | AB-10--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-11 | AB-11--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-12 | AB-12--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-13 | AB-13--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-14 | AB-14--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-15 | AB-15--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| atomicbot-turboquant | wb-02-v1.7-2026-07-17 | AB-15M | AB-15M--attempt-001 | Passed | true | Pilot, excluded warm-up and three measured repetitions passed. |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int4__tbq3 | granite-3b__int4__tbq3--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int8__tbq3 | granite-3b__int8__tbq3--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__fp16__tbq3 | granite-3b__fp16__tbq3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-3b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int4__polar3 | granite-3b__int4__polar3--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int8__polar3 | granite-3b__int8__polar3--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__fp16__polar3 | granite-3b__fp16__polar3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-3b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int4__tbq3_qjl | granite-3b__int4__tbq3_qjl--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int8__tbq3_qjl | granite-3b__int8__tbq3_qjl--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__fp16__tbq3_qjl | granite-3b__fp16__tbq3_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-3b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int4__u4 | granite-3b__int4__u4--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int8__u4 | granite-3b__int8__u4--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__fp16__u4 | granite-3b__fp16__u4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-3b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int4__tbq4 | granite-3b__int4__tbq4--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int8__tbq4 | granite-3b__int8__tbq4--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__fp16__tbq4 | granite-3b__fp16__tbq4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-3b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int4__polar4 | granite-3b__int4__polar4--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int8__polar4 | granite-3b__int8__polar4--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__fp16__polar4 | granite-3b__fp16__polar4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-3b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int4__tbq4_qjl | granite-3b__int4__tbq4_qjl--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int8__tbq4_qjl | granite-3b__int8__tbq4_qjl--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__fp16__tbq4_qjl | granite-3b__fp16__tbq4_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-3b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int4__u8 | granite-3b__int4__u8--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int8__u8 | granite-3b__int8__u8--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__fp16__u8 | granite-3b__fp16__u8--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-3b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int4__f16 | granite-3b__int4__f16--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__int8__f16 | granite-3b__int8__f16--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-3b__fp16__f16 | granite-3b__fp16__f16--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-3b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int4__tbq3 | granite-8b__int4__tbq3--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int8__tbq3 | granite-8b__int8__tbq3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__fp16__tbq3 | granite-8b__fp16__tbq3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int4__polar3 | granite-8b__int4__polar3--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int8__polar3 | granite-8b__int8__polar3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__fp16__polar3 | granite-8b__fp16__polar3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int4__tbq3_qjl | granite-8b__int4__tbq3_qjl--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int8__tbq3_qjl | granite-8b__int8__tbq3_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__fp16__tbq3_qjl | granite-8b__fp16__tbq3_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int4__u4 | granite-8b__int4__u4--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int8__u4 | granite-8b__int8__u4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__fp16__u4 | granite-8b__fp16__u4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int4__tbq4 | granite-8b__int4__tbq4--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int8__tbq4 | granite-8b__int8__tbq4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__fp16__tbq4 | granite-8b__fp16__tbq4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int4__polar4 | granite-8b__int4__polar4--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int8__polar4 | granite-8b__int8__polar4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__fp16__polar4 | granite-8b__fp16__polar4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int4__tbq4_qjl | granite-8b__int4__tbq4_qjl--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int8__tbq4_qjl | granite-8b__int8__tbq4_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__fp16__tbq4_qjl | granite-8b__fp16__tbq4_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int4__u8 | granite-8b__int4__u8--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int8__u8 | granite-8b__int8__u8--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__fp16__u8 | granite-8b__fp16__u8--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int4__f16 | granite-8b__int4__f16--attempt-001 | Passed | true | Passed observation |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__int8__f16 | granite-8b__int8__f16--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-8b__fp16__f16 | granite-8b__fp16__f16--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-8b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int4__tbq3 | granite-30b__int4__tbq3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int4 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int8__tbq3 | granite-30b__int8__tbq3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__fp16__tbq3 | granite-30b__fp16__tbq3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int4__polar3 | granite-30b__int4__polar3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int4 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int8__polar3 | granite-30b__int8__polar3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__fp16__polar3 | granite-30b__fp16__polar3--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int4__tbq3_qjl | granite-30b__int4__tbq3_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int4 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int8__tbq3_qjl | granite-30b__int8__tbq3_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__fp16__tbq3_qjl | granite-30b__fp16__tbq3_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int4__u4 | granite-30b__int4__u4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int4 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int8__u4 | granite-30b__int8__u4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__fp16__u4 | granite-30b__fp16__u4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int4__tbq4 | granite-30b__int4__tbq4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int4 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int8__tbq4 | granite-30b__int8__tbq4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__fp16__tbq4 | granite-30b__fp16__tbq4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int4__polar4 | granite-30b__int4__polar4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int4 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int8__polar4 | granite-30b__int8__polar4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__fp16__polar4 | granite-30b__fp16__polar4--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int4__tbq4_qjl | granite-30b__int4__tbq4_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int4 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int8__tbq4_qjl | granite-30b__int8__tbq4_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__fp16__tbq4_qjl | granite-30b__fp16__tbq4_qjl--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int4__u8 | granite-30b__int4__u8--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int4 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int8__u8 | granite-30b__int8__u8--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__fp16__u8 | granite-30b__fp16__u8--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b fp16 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int4__f16 | granite-30b__int4__f16--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int4 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__int8__f16 | granite-30b__int8__f16--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b int8 |
+| openvino-experimental-fork | fv6-2026-08-30 | granite-30b__fp16__f16 | granite-30b__fp16__f16--attempt-001 | Artifact unavailable | false | no validated OpenVINO artifact supplied for granite-30b fp16 |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int4__tbq3 | granite-3b__int4__tbq3--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int8__tbq3 | granite-3b__int8__tbq3--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__fp16__tbq3 | granite-3b__fp16__tbq3--attempt-001 | Failed | false | emergency_ram_floor_reached |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int4__u4 | granite-3b__int4__u4--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int8__u4 | granite-3b__int8__u4--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__fp16__u4 | granite-3b__fp16__u4--attempt-001 | Failed | false | emergency_ram_floor_reached |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int4__tbq4 | granite-3b__int4__tbq4--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int8__tbq4 | granite-3b__int8__tbq4--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__fp16__tbq4 | granite-3b__fp16__tbq4--attempt-001 | Failed | false | emergency_ram_floor_reached |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int4__u8 | granite-3b__int4__u8--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int8__u8 | granite-3b__int8__u8--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__fp16__u8 | granite-3b__fp16__u8--attempt-001 | Failed | false | emergency_ram_floor_reached |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int4__f16 | granite-3b__int4__f16--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__int8__f16 | granite-3b__int8__f16--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-3b__fp16__f16 | granite-3b__fp16__f16--attempt-001 | Failed | false | emergency_ram_floor_reached |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int4__tbq3 | granite-8b__int4__tbq3--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int8__tbq3 | granite-8b__int8__tbq3--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__fp16__tbq3 | granite-8b__fp16__tbq3--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int4__u4 | granite-8b__int4__u4--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int8__u4 | granite-8b__int8__u4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__fp16__u4 | granite-8b__fp16__u4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int4__tbq4 | granite-8b__int4__tbq4--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int8__tbq4 | granite-8b__int8__tbq4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__fp16__tbq4 | granite-8b__fp16__tbq4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int4__u8 | granite-8b__int4__u8--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int8__u8 | granite-8b__int8__u8--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__fp16__u8 | granite-8b__fp16__u8--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int4__f16 | granite-8b__int4__f16--attempt-001 | Passed | true | Passed observation |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__int8__f16 | granite-8b__int8__f16--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-8b__fp16__f16 | granite-8b__fp16__f16--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int4__tbq3 | granite-30b__int4__tbq3--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int8__tbq3 | granite-30b__int8__tbq3--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__fp16__tbq3 | granite-30b__fp16__tbq3--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int4__u4 | granite-30b__int4__u4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int8__u4 | granite-30b__int8__u4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__fp16__u4 | granite-30b__fp16__u4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int4__tbq4 | granite-30b__int4__tbq4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int8__tbq4 | granite-30b__int8__tbq4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__fp16__tbq4 | granite-30b__fp16__tbq4--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int4__u8 | granite-30b__int4__u8--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int8__u8 | granite-30b__int8__u8--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__fp16__u8 | granite-30b__fp16__u8--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int4__f16 | granite-30b__int4__f16--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__int8__f16 | granite-30b__int8__f16--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| openvino-official-upstream | fv2-2026-08-30 | granite-30b__fp16__f16 | granite-30b__fp16__f16--attempt-001 | Blocked | false | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-01 | UL-01--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-02 | UL-02--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-03 | UL-03--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-04 | UL-04--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-05 | UL-05--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-06 | UL-06--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-07 | UL-07--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-08 | UL-08--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-09 | UL-09--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-10 | UL-10--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-11 | UL-11--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-12 | UL-12--attempt-001 | Passed | true | Passed observation |
+| upstream-llama-cpp | wb-01-v1.4-2026-07-16 | UL-13 | UL-13--attempt-001 | Passed | true | Passed observation |
+
+## 8. Performance results and repetition detail
+
+Throughput is direct only where model, input length, output length, backend class, repetition treatment, and metric definition match.
+
+### TP-01 — Throughput comparison boundaries
+
+| Left route | Right route | Classification | Reason codes |
+| --- | --- | --- | --- |
+| animehacker-tq3-0 | atomicbot-turboquant | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| animehacker-tq3-0 | openvino-experimental-fork | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch"] |
+| animehacker-tq3-0 | openvino-official-upstream | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch"] |
+| animehacker-tq3-0 | upstream-llama-cpp | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| atomicbot-turboquant | openvino-experimental-fork | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| atomicbot-turboquant | openvino-official-upstream | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| atomicbot-turboquant | upstream-llama-cpp | not_comparable | ["repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| openvino-experimental-fork | openvino-official-upstream | direct | ["all_required_dimensions_match"] |
+| openvino-experimental-fork | upstream-llama-cpp | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| openvino-official-upstream | upstream-llama-cpp | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+
+## 9. Quality methodology and results
+
+Quality ranking additionally requires the identical prompt set, rubric, scoring version, denominator, and aggregation.
+
+### QM-01 — Quality methodology boundaries
+
+| Route | Prompt set | Rubric | Scoring version | Denominator set |
+| --- | --- | --- | --- | --- |
+| animehacker-tq3-0 | P1, P2, P3, P4, P5, P6 | GTQ-QUALITY-RUBRIC-v1 | historical-harsh-content-adjudication | 60.0 |
+| atomicbot-turboquant | P1, P2, P3, P4, P5, P6 | GTQ-QUALITY-RUBRIC-v1 | v1-recomputed-and-evidence-bound; application limited/provisional | 60.0 |
+| openvino-experimental-fork | Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48 | objective-quality-weighted-5-3-2-output-health-gate | experimental-openvino-objective-quality/v2 | 480.0 |
+| openvino-official-upstream | Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48 | objective-quality-weighted-5-3-2-output-health-gate | experimental-openvino-objective-quality/v2 | 480.0 |
+| upstream-llama-cpp | P1, P2, P3, P4, P5, P6 | GTQ-QUALITY-RUBRIC-v1 | WB-01-v1.4-conservative-format-caps | 40.0, 60.0 |
+
+> Note: OpenVINO v3 and legacy llama quality evidence are descriptive only; incompatible quality scores are not ranked.
+
+## 10. Device/backend use and fallback verification
+
+Backend class is a required gate dimension. Recorded backend identity is not proof of device utilization beyond each route's own evidence.
+
+## 11. Failures, blocks, deviations, and recovery attempts
+
+Failed, blocked, unavailable, rejected, and historical outcomes remain in their route ledgers and collection catalogs.
+
+### FL-01 — Non-passed status accounting
+
+| Route | Status | Count |
+| --- | --- | --- |
+| animehacker-tq3-0 | Failed | 1 |
+| animehacker-tq3-0 | Blocked | 3 |
+| openvino-experimental-fork | Artifact unavailable | 54 |
+| openvino-official-upstream | Failed | 5 |
+| openvino-official-upstream | Blocked | 25 |
+
+## 12. Limitations, uncertainty, robustness checks, and claim boundaries
+
+No universal best repository, universal best route, or combined quality/performance score is produced. Route extrema remain route-local observations.
+
+> Note: A direct protocol classification permits matched-row comparison only; it does not establish causal superiority or deployment safety.
+
+## 13. Reproduction guidance
+
+Regeneration consumes the five existing normalized RouteBundle objects and does not rerun benchmarks.
+
+### RE-01 — Reproduction outputs
+
+| Item | Repository-relative path |
+| --- | --- |
+| Canonical report | docs/testing/final-results/06-cross-route-comparison/workbook/source/cross-route-comparison-final-report.md |
+| Comparability matrix | docs/testing/final-results/06-cross-route-comparison/results/comparability-matrix.csv |
+| Collection catalogs | docs/testing/final-results/catalog/ |
+
+## 14. Evidence index and hashes
+
+Each route package retains its complete evidence index and checksum manifest; the cross-route claim map points back to those route authorities.
+
+### EV-01 — Route evidence coverage
+
+| Route | Evidence records | Selected report evidence IDs |
+| --- | --- | --- |
+| animehacker-tq3-0 | 742 | animehacker-001dfad8c2aaeaa7b748, animehacker-0043ac7f47ac35f9d99e |
+| atomicbot-turboquant | 286 | EVID-00aacf23b28a78f3b4cb, EVID-18be949bb5e1bf81201e |
+| openvino-experimental-fork | 81 | openvino-experimental-fork-016d9424a7c4, openvino-experimental-fork-0957a32a76e2 |
+| openvino-official-upstream | 92 | openvino-official-upstream-0957a32a76e2, openvino-official-upstream-0ec7e2a0bdff |
+| upstream-llama-cpp | 656 | EVID-004c0b4f19f867b05c27, EVID-007d654aa76d80d4b6ab |
+
+## 15. Revision history
+
+Markdown is canonical; DOCX and PDF are generated derivatives with parity and visual-validation receipts.
+
+### RV-01 — Revision history
+
+| Revision | Date | Change |
+| --- | --- | --- |
+| R1 | 2026-08-30 | Initial guarded cross-route comparison |

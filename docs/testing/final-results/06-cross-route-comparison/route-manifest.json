@@ -1,0 +1,22 @@
+{
+  "attempt_count": 169,
+  "comparability_decision_count": 20,
+  "generated_date": "2026-08-30",
+  "revision": "R1",
+  "route_id": "cross-route-comparison",
+  "source_campaign_ids": [
+    "fv2-2026-08-30",
+    "fv6-2026-08-30",
+    "wb-01-v1.4-2026-07-16",
+    "wb-02-v1.7-2026-07-17",
+    "wb-03-v1.5-2026-07-18"
+  ],
+  "source_route_ids": [
+    "animehacker-tq3-0",
+    "atomicbot-turboquant",
+    "openvino-experimental-fork",
+    "openvino-official-upstream",
+    "upstream-llama-cpp"
+  ],
+  "universal_ranking_permitted": false
+}
