@@ -52,6 +52,7 @@ jobs:
           persist-credentials: false
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            .gitignore
             AGENTS.md
             .agents/
             .codex/
