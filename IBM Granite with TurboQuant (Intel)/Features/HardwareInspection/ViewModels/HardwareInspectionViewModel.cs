@@ -1,4 +1,5 @@
 using GraniteEdgeAI.Features.HardwareInspection.Application;
+using GraniteEdgeAI.Features.HardwareInspection.Domain;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.Factories;
 using GraniteEdgeAI.Features.HardwareInspection.Presentation.State;
 using System;
@@ -305,7 +306,9 @@ public sealed class HardwareInspectionViewModel
                 failureClass,
                 criticalFailureRetryable: false,
                 hasUsableHandoff: result.Handoff is not null,
-                block3RouteRegistered: false);
+                block3RouteRegistered: false,
+                optionalCapabilityProbeUnavailable: result.Snapshot?.Usability
+                    == HardwareSnapshotUsability.DisplayOnly);
         HardwareInspectionDetailsState? details = presentation.DetailsAvailable
             ? CreateDetails(result, owner.LastDisplayedStage)
             : null;
@@ -364,7 +367,7 @@ public sealed class HardwareInspectionViewModel
             rows.Add(new HardwareInspectionDetailRow(copy.Title, sentence, status));
         }
 
-        bool reportCreated = result.Handoff is not null;
+        bool reportCreated = result.Snapshot is not null;
         string safeValue = result.SafeDiagnosticCode
             ?? (reportCreated ? "HI-REPORT-CREATED" : "HI-NO-REPORT");
         return new HardwareInspectionDetailsState(
