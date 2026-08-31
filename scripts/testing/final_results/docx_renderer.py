@@ -35,6 +35,7 @@ _STATUS_FILLS = {
     "blocked": "FFF2CC",
     "not collected": "E7E6E6",
     "unavailable": "E7E6E6",
+    "artifact unavailable": "E7E6E6",
     "not applicable": "E7E6E6",
     "verified": "DDEBF7",
 }

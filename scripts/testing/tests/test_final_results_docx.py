@@ -162,6 +162,38 @@ def test_render_docx_uses_landscape_only_beyond_the_wide_table_threshold(tmp_pat
     ]
 
 
+def test_render_docx_styles_the_controlled_artifact_unavailable_label_neutral_grey(tmp_path):
+    report = Report(
+        title="Unavailable status",
+        route_id="status-test",
+        revision="R1",
+        generated_date=date(2026, 8, 30),
+        sections=(
+            ReportSection(
+                title="Availability",
+                blocks=(
+                    ReportTable(
+                        table_id="T-01",
+                        title="Statuses",
+                        columns=("Case", "Status"),
+                        rows=(("granite-30b", "Artifact unavailable"),),
+                    ),
+                ),
+            ),
+        ),
+    )
+    output = tmp_path / "artifact-unavailable.docx"
+
+    _renderer()(report, output)
+
+    document = Document(output)
+    status_cell = document.tables[1].cell(1, 1)
+    shading = status_cell._tc.get_or_add_tcPr().find("{%s}shd" % WORD_NAMESPACE["w"])
+    assert status_cell.text == "Artifact unavailable"
+    assert shading is not None
+    assert shading.get("{%s}fill" % WORD_NAMESPACE["w"]) == "E7E6E6"
+
+
 def test_render_docx_normalizes_package_timestamps_and_bytes(tmp_path):
     first = tmp_path / "first.docx"
     second = tmp_path / "second.docx"

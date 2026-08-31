@@ -1,0 +1,515 @@
+# Official upstream OpenVINO final results
+
+| Document control | Value |
+| --- | --- |
+| Route ID | openvino-official-upstream |
+| Revision | R1 |
+| Generated date | 2026-08-30 |
+| Evidence IDs | openvino-official-upstream-1d5fc2893e0c, openvino-official-upstream-3a694c60f2dc, openvino-official-upstream-3ead43950da4, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-b74e4c0f599d, openvino-official-upstream-bab45fe4f497, openvino-official-upstream-bc078d9f96b0, openvino-official-upstream-ecd7ea7c9e71 |
+
+## 1. Title and document control
+
+### DC-01 — Document identity and authority
+
+| Field | Value |
+| --- | --- |
+| Report title | Official upstream OpenVINO final results |
+| Route ID | openvino-official-upstream |
+| Campaign ID | fv2-2026-08-30 |
+| Source date | 2026-08-30 |
+| Report revision | R1 |
+| Canonical content | workbook/source/openvino-official-upstream-final-report.md |
+
+Final statuses come from the normalized fv2 campaign; performance and quality observations are joined from fv1 only for fv2-passed cases. Hardware preflight blocked configurations are reported as Blocked, never as unavailable.
+
+## 2. Technical summary
+
+Campaign fv2-2026-08-30 accounts for 45 intended configuration attempts: 15 passed, 5 failed, 25 blocked. Performance and objective quality results are published only for the 15 passed configurations.
+
+### AC-01 — Attempt status summary
+
+| Status | Count |
+| --- | --- |
+| Passed | 15 |
+| Failed | 5 |
+| Blocked | 25 |
+
+*Counts are derived from the complete normalized attempt ledger.*
+
+> Note: A missing observation is never represented as zero. Status text is authoritative; colour is supplementary.
+
+## 3. Key findings and decision-relevant evidence
+
+The extrema below are navigation aids into the complete result tables, not standalone rankings.
+
+### KF-01 — Observed campaign extrema
+
+| Finding | Value | Basis |
+| --- | --- | --- |
+| Highest observed median decode throughput | 17.751513 | tokens/s; granite-3b__int4__tbq3 |
+| Lowest observed selected-repetition TTFT | 961.839 | ms; granite-3b__int8__u4 |
+| Lowest observed worst-repetition peak working set | 3634691000 | bytes; granite-3b__int4__u4 |
+| Highest observed objective quality score | 5.854167 | /10 across 48 prompts; granite-3b__int4__tbq4 |
+
+*Extrema describe this campaign only and do not establish causal superiority.*
+
+Decision use should begin with availability and status, then compare performance and quality only within compatible model, weight, cache, backend, prompt, and aggregation conditions.
+
+## 4. Repository, branch, commit, build, hardware, and software identity
+
+The following values are the portable repository, hardware, and software identities retained by the normalized campaign.
+
+### ID-01 — Verified repository, hardware, and software metadata
+
+| Identity field | Verified value |
+| --- | --- |
+| Repository: openvino | {"commit":"f5f594dc0c9e5961785f0d17743486d52eac87e7","url":"https://github.com/openvinotoolkit/openvino.git"} |
+| Repository: openvino_genai | {"commit":"6fbc103538d30d42da4b0b5130a4792a20f728ba","url":"https://github.com/openvinotoolkit/openvino.genai.git"} |
+| Repository: source_campaign | fv2 status joined to fv1 passed evidence |
+| Repository: source_date | 2026-08-30 |
+| Repository: turboquant_merge_commit | b9a1f201c109e0bed74763934f79483cf6c4cbf4 |
+| Hardware: conversion_preflight_by_model_weight | {"granite-30b__fp16":{"available_ram_bytes":9502789632,"emergency_floor_bytes":2147483648,"estimated_peak_bytes":58805266368,"required_available_bytes":60952750016,"shortfall_bytes":51449960384,"status":"hardware_preflight_blocked"},"granite-30b__int4":{"available_ram_bytes":9502789632,"emergency_floor_bytes":2147483648,"estimated_peak_bytes":58805266368,"required_available_bytes":60952750016,"shortfall_bytes":51449960384,"status":"hardware_preflight_blocked"},"granite-30b__int8":{"available_ram_bytes":9502789632,"emergency_floor_bytes":2147483648,"estimated_peak_bytes":58805266368,"required_available_bytes":60952750016,"shortfall_bytes":51449960384,"status":"hardware_preflight_blocked"},"granite-3b__fp16":{"available_ram_bytes":9219502080,"emergency_floor_bytes":2147483648,"estimated_peak_bytes":7879456616,"required_available_bytes":10026940264,"shortfall_bytes":807438184,"status":"hardware_preflight_blocked"},"granite-8b__fp16":{"available_ram_bytes":9503051776,"emergency_floor_bytes":2147483648,"estimated_peak_bytes":18656969976,"required_available_bytes":20804453624,"shortfall_bytes":11301401848,"status":"hardware_preflight_blocked"},"granite-8b__int8":{"available_ram_bytes":9503039488,"emergency_floor_bytes":2147483648,"estimated_peak_bytes":18656969976,"required_available_bytes":20804453624,"shortfall_bytes":11301414136,"status":"hardware_preflight_blocked"}} |
+| Hardware: emergency_ram_floor_bytes | 2147483648 |
+| Hardware: status | source-recorded |
+| Software: missing_model_attempt_tool_versions | {"huggingface-hub":"0.36.0","nncf":"3.3.0","openvino":"2026.3.1","optimum":"2.3.0","optimum-intel":"2.1.0","psutil":"7.0.0","torch":"2.13.0"} |
+| Software: openvino_versions | ["2026.5.0-22950-f5f594dc0c9"] |
+| Software: runtime_properties | [{"ATTENTION_BACKEND":"SDPA"},{"ATTENTION_BACKEND":"SDPA","KEY_CACHE_PRECISION":"u3","KEY_CACHE_QUANT_ALG":"TURBO","VALUE_CACHE_PRECISION":"u3","VALUE_CACHE_QUANT_ALG":"TURBO"},{"ATTENTION_BACKEND":"SDPA","KEY_CACHE_PRECISION":"u4","KEY_CACHE_QUANT_ALG":"SCALAR","VALUE_CACHE_PRECISION":"u4","VALUE_CACHE_QUANT_ALG":"SCALAR"},{"ATTENTION_BACKEND":"SDPA","KEY_CACHE_PRECISION":"u4","KEY_CACHE_QUANT_ALG":"TURBO","VALUE_CACHE_PRECISION":"u4","VALUE_CACHE_QUANT_ALG":"TURBO"},{"ATTENTION_BACKEND":"SDPA","KEY_CACHE_PRECISION":"u8","KEY_CACHE_QUANT_ALG":"SCALAR","VALUE_CACHE_PRECISION":"u8","VALUE_CACHE_QUANT_ALG":"SCALAR"}] |
+
+> Note: Not collected means the normalized bundle contains no portable evidence for that identity field; it is not inferred from the reviewing computer.
+
+## 5. Objectives, scope, test matrix, and execution sequence
+
+The intended matrix crosses 3 models, 3 weight formats, and 5 cache formats for 45 configuration cases.
+
+### MX-01 — Intended matrix dimensions
+
+| Dimension | Members | Count |
+| --- | --- | --- |
+| Models | granite-30b, granite-3b, granite-8b | 3 |
+| Weight formats | fp16, int4, int8 | 3 |
+| Cache formats | f16, tbq3, tbq4, u4, u8 | 5 |
+
+Execution sequence was availability/acquisition or conversion gating, three benchmark repetitions for each executable case, then the frozen sector-quality suite. Non-passed gates stopped downstream measurement.
+
+## 6. Model, weight, cache-format, and backend availability
+
+Availability is accounted for before performance: each intended model, weight, and cache combination retains its terminal status.
+
+### AV-01 — Model and weight availability by final status
+
+| Model | Weight | Intended | Passed | Failed | Blocked | Artifact unavailable |
+| --- | --- | --- | --- | --- | --- | --- |
+| granite-30b | fp16 | 5 | 0 | 0 | 5 | 0 |
+| granite-30b | int4 | 5 | 0 | 0 | 5 | 0 |
+| granite-30b | int8 | 5 | 0 | 0 | 5 | 0 |
+| granite-3b | fp16 | 5 | 0 | 5 | 0 | 0 |
+| granite-3b | int4 | 5 | 5 | 0 | 0 | 0 |
+| granite-3b | int8 | 5 | 5 | 0 | 0 | 0 |
+| granite-8b | fp16 | 5 | 0 | 0 | 5 | 0 |
+| granite-8b | int4 | 5 | 5 | 0 | 0 | 0 |
+| granite-8b | int8 | 5 | 0 | 0 | 5 | 0 |
+
+### AV-02 — Cache-format coverage by final status
+
+| Cache format | Intended | Passed | Failed | Blocked | Artifact unavailable |
+| --- | --- | --- | --- | --- | --- |
+| f16 | 9 | 3 | 1 | 5 | 0 |
+| tbq3 | 9 | 3 | 1 | 5 | 0 |
+| tbq4 | 9 | 3 | 1 | 5 | 0 |
+| u4 | 9 | 3 | 1 | 5 | 0 |
+| u8 | 9 | 3 | 1 | 5 | 0 |
+
+The normalized software metadata records SDPA attention-backend properties. No backend fallback is inferred where a separate fallback observation was not collected.
+
+## 7. Complete attempt accounting
+
+The audit ledger below lists every intended case exactly once, including cases that did not produce observations.
+
+### AT-01 — Complete normalized attempt ledger
+
+| Test case | Model | Weight | Cache | Executed | Status | Reason | Source status | Evidence IDs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| granite-30b__fp16__f16 | granite-30b | fp16 | f16 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__fp16__tbq3 | granite-30b | fp16 | tbq3 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__fp16__tbq4 | granite-30b | fp16 | tbq4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__fp16__u4 | granite-30b | fp16 | u4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__fp16__u8 | granite-30b | fp16 | u8 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__int4__f16 | granite-30b | int4 | f16 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int4__tbq3 | granite-30b | int4 | tbq3 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int4__tbq4 | granite-30b | int4 | tbq4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int4__u4 | granite-30b | int4 | u4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int4__u8 | granite-30b | int4 | u8 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int8__f16 | granite-30b | int8 | f16 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-30b__int8__tbq3 | granite-30b | int8 | tbq3 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-30b__int8__tbq4 | granite-30b | int8 | tbq4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-30b__int8__u4 | granite-30b | int8 | u4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-30b__int8__u8 | granite-30b | int8 | u8 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-3b__fp16__f16 | granite-3b | fp16 | f16 | false | Failed | emergency_ram_floor_reached | conversion_failed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-3b__fp16__tbq3 | granite-3b | fp16 | tbq3 | false | Failed | emergency_ram_floor_reached | conversion_failed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-3b__fp16__tbq4 | granite-3b | fp16 | tbq4 | false | Failed | emergency_ram_floor_reached | conversion_failed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-3b__fp16__u4 | granite-3b | fp16 | u4 | false | Failed | emergency_ram_floor_reached | conversion_failed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-3b__fp16__u8 | granite-3b | fp16 | u8 | false | Failed | emergency_ram_floor_reached | conversion_failed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-3b__int4__f16 | granite-3b | int4 | f16 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-544112ed79b9 |
+| granite-3b__int4__tbq3 | granite-3b | int4 | tbq3 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-ae0e0a006214 |
+| granite-3b__int4__tbq4 | granite-3b | int4 | tbq4 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-0ec7e2a0bdff |
+| granite-3b__int4__u4 | granite-3b | int4 | u4 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-b5b05787f6d3 |
+| granite-3b__int4__u8 | granite-3b | int4 | u8 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-1030c70041d2 |
+| granite-3b__int8__f16 | granite-3b | int8 | f16 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-6961b4765204 |
+| granite-3b__int8__tbq3 | granite-3b | int8 | tbq3 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-d1182d20b03f |
+| granite-3b__int8__tbq4 | granite-3b | int8 | tbq4 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-5d616388e740 |
+| granite-3b__int8__u4 | granite-3b | int8 | u4 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-5e6c30146b19 |
+| granite-3b__int8__u8 | granite-3b | int8 | u8 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-d0adcd32063d |
+| granite-8b__fp16__f16 | granite-8b | fp16 | f16 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__fp16__tbq3 | granite-8b | fp16 | tbq3 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__fp16__tbq4 | granite-8b | fp16 | tbq4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__fp16__u4 | granite-8b | fp16 | u4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__fp16__u8 | granite-8b | fp16 | u8 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__int4__f16 | granite-8b | int4 | f16 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-9ec0df1aac51 |
+| granite-8b__int4__tbq3 | granite-8b | int4 | tbq3 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-58ad3684b4ef |
+| granite-8b__int4__tbq4 | granite-8b | int4 | tbq4 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-6c81b73be5d3 |
+| granite-8b__int4__u4 | granite-8b | int4 | u4 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-d823c5c77289 |
+| granite-8b__int4__u8 | granite-8b | int4 | u8 | true | Passed | None recorded | passed | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-cc594ccd64d9, openvino-official-upstream-5cd8ad3dd2c4 |
+| granite-8b__int8__f16 | granite-8b | int8 | f16 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+| granite-8b__int8__tbq3 | granite-8b | int8 | tbq3 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+| granite-8b__int8__tbq4 | granite-8b | int8 | tbq4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+| granite-8b__int8__u4 | granite-8b | int8 | u4 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+| granite-8b__int8__u8 | granite-8b | int8 | u8 | false | Blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | hardware_preflight_blocked | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+
+*Every intended case appears once. Non-passed reasons are preserved from normalized source evidence.*
+
+## 8. Performance results and repetition detail
+
+Performance summaries are joined to their passed configurations and followed by the individual source repetitions.
+
+### PF-01 — Passed-case performance summary
+
+| Test case | Model | Weight | Cache | Decode tokens/s | TTFT ms | Peak bytes | Peak GiB |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| granite-3b__int4__f16 | granite-3b | int4 | f16 | 16.448201 | 5544.201 | 3636703000 | 3.387 |
+| granite-3b__int4__tbq3 | granite-3b | int4 | tbq3 | 17.751513 | 4413.814 | 3635527000 | 3.386 |
+| granite-3b__int4__tbq4 | granite-3b | int4 | tbq4 | 16.401503 | 5580.099 | 3634789000 | 3.385 |
+| granite-3b__int4__u4 | granite-3b | int4 | u4 | 16.503994 | 5474.521 | 3634691000 | 3.385 |
+| granite-3b__int4__u8 | granite-3b | int4 | u8 | 16.442816 | 5461.910 | 3636484000 | 3.387 |
+| granite-3b__int8__f16 | granite-3b | int8 | f16 | 10.062454 | 1012.513 | 6645016000 | 6.189 |
+| granite-3b__int8__tbq3 | granite-3b | int8 | tbq3 | 8.685952 | 1393.526 | 6639434000 | 6.183 |
+| granite-3b__int8__tbq4 | granite-3b | int8 | tbq4 | 10.180064 | 1138.159 | 6640996000 | 6.185 |
+| granite-3b__int8__u4 | granite-3b | int8 | u4 | 10.205710 | 961.839 | 6641211000 | 6.185 |
+| granite-3b__int8__u8 | granite-3b | int8 | u8 | 10.110771 | 1007.126 | 6643984000 | 6.188 |
+| granite-8b__int4__f16 | granite-8b | int4 | f16 | 7.613034 | 13917.237 | 8540461000 | 7.954 |
+| granite-8b__int4__tbq3 | granite-8b | int4 | tbq3 | 7.095104 | 14040.073 | 8537840000 | 7.951 |
+| granite-8b__int4__tbq4 | granite-8b | int4 | tbq4 | 7.594366 | 13886.695 | 8535387000 | 7.949 |
+| granite-8b__int4__u4 | granite-8b | int4 | u4 | 7.562340 | 13993.325 | 8538504000 | 7.952 |
+| granite-8b__int4__u8 | granite-8b | int4 | u8 | 7.582979 | 13955.962 | 8539691000 | 7.953 |
+
+### AG-01 — Metric aggregation definitions
+
+| Metric | Unit | Aggregation |
+| --- | --- | --- |
+| generation_tokens_per_second | tokens_per_second | median over three executed benchmark repetitions |
+| peak_working_set_bytes | bytes | maximum over three executed benchmark repetitions |
+| time_to_first_token | milliseconds | value from the repetition selected by median decode throughput |
+
+*Observed benchmark repetitions per passed case: 3.*
+
+### RP-01 — Individual benchmark repetition detail
+
+| Test case | Repetition | Measurement ID | Evidence ID | Decode tokens/s | Latency/TTFT ms | Peak bytes | Input tokens | Output tokens |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| granite-3b__int4__f16 | 001 | granite-3b__int4__f16--benchmark-repetition-001 | openvino-official-upstream-544112ed79b9 | 16.397087 | 5585.315 | 3631379000 | 24 | 32 |
+| granite-3b__int4__f16 | 002 | granite-3b__int4__f16--benchmark-repetition-002 | openvino-official-upstream-544112ed79b9 | 16.470756 | 5470.061 | 3636703000 | 24 | 32 |
+| granite-3b__int4__f16 | 003 | granite-3b__int4__f16--benchmark-repetition-003 | openvino-official-upstream-544112ed79b9 | 16.448201 | 5544.201 | 3635043000 | 24 | 32 |
+| granite-3b__int4__tbq3 | 001 | granite-3b__int4__tbq3--benchmark-repetition-001 | openvino-official-upstream-ae0e0a006214 | 17.799459 | 4336.091 | 3635527000 | 24 | 32 |
+| granite-3b__int4__tbq3 | 002 | granite-3b__int4__tbq3--benchmark-repetition-002 | openvino-official-upstream-ae0e0a006214 | 17.751513 | 4413.814 | 3630789000 | 24 | 32 |
+| granite-3b__int4__tbq3 | 003 | granite-3b__int4__tbq3--benchmark-repetition-003 | openvino-official-upstream-ae0e0a006214 | 17.654126 | 4347.966 | 3631598000 | 24 | 32 |
+| granite-3b__int4__tbq4 | 001 | granite-3b__int4__tbq4--benchmark-repetition-001 | openvino-official-upstream-0ec7e2a0bdff | 16.401503 | 5580.099 | 3634789000 | 24 | 32 |
+| granite-3b__int4__tbq4 | 002 | granite-3b__int4__tbq4--benchmark-repetition-002 | openvino-official-upstream-0ec7e2a0bdff | 16.386142 | 5452.089 | 3634262000 | 24 | 32 |
+| granite-3b__int4__tbq4 | 003 | granite-3b__int4__tbq4--benchmark-repetition-003 | openvino-official-upstream-0ec7e2a0bdff | 16.434646 | 5417.251 | 3633863000 | 24 | 32 |
+| granite-3b__int4__u4 | 001 | granite-3b__int4__u4--benchmark-repetition-001 | openvino-official-upstream-b5b05787f6d3 | 16.503994 | 5474.521 | 3634691000 | 24 | 32 |
+| granite-3b__int4__u4 | 002 | granite-3b__int4__u4--benchmark-repetition-002 | openvino-official-upstream-b5b05787f6d3 | 16.592866 | 5536.600 | 3632000000 | 24 | 32 |
+| granite-3b__int4__u4 | 003 | granite-3b__int4__u4--benchmark-repetition-003 | openvino-official-upstream-b5b05787f6d3 | 15.982339 | 5481.917 | 3631328000 | 24 | 32 |
+| granite-3b__int4__u8 | 001 | granite-3b__int4__u8--benchmark-repetition-001 | openvino-official-upstream-1030c70041d2 | 16.533014 | 5516.384 | 3636484000 | 24 | 32 |
+| granite-3b__int4__u8 | 002 | granite-3b__int4__u8--benchmark-repetition-002 | openvino-official-upstream-1030c70041d2 | 16.442816 | 5461.910 | 3634855000 | 24 | 32 |
+| granite-3b__int4__u8 | 003 | granite-3b__int4__u8--benchmark-repetition-003 | openvino-official-upstream-1030c70041d2 | 15.380887 | 5488.891 | 3633316000 | 24 | 32 |
+| granite-3b__int8__f16 | 001 | granite-3b__int8__f16--benchmark-repetition-001 | openvino-official-upstream-6961b4765204 | 10.062454 | 1012.513 | 6642789000 | 24 | 32 |
+| granite-3b__int8__f16 | 002 | granite-3b__int8__f16--benchmark-repetition-002 | openvino-official-upstream-6961b4765204 | 9.988375 | 1027.944 | 6645016000 | 24 | 32 |
+| granite-3b__int8__f16 | 003 | granite-3b__int8__f16--benchmark-repetition-003 | openvino-official-upstream-6961b4765204 | 10.135546 | 969.550 | 6642230000 | 24 | 32 |
+| granite-3b__int8__tbq3 | 001 | granite-3b__int8__tbq3--benchmark-repetition-001 | openvino-official-upstream-d1182d20b03f | 9.447655 | 5085.656 | 6634691000 | 24 | 32 |
+| granite-3b__int8__tbq3 | 002 | granite-3b__int8__tbq3--benchmark-repetition-002 | openvino-official-upstream-d1182d20b03f | 7.698347 | 1103.354 | 6636398000 | 24 | 32 |
+| granite-3b__int8__tbq3 | 003 | granite-3b__int8__tbq3--benchmark-repetition-003 | openvino-official-upstream-d1182d20b03f | 8.685952 | 1393.526 | 6639434000 | 24 | 32 |
+| granite-3b__int8__tbq4 | 001 | granite-3b__int8__tbq4--benchmark-repetition-001 | openvino-official-upstream-5d616388e740 | 10.180064 | 1138.159 | 6640438000 | 24 | 32 |
+| granite-3b__int8__tbq4 | 002 | granite-3b__int8__tbq4--benchmark-repetition-002 | openvino-official-upstream-5d616388e740 | 10.244197 | 954.641 | 6635211000 | 24 | 32 |
+| granite-3b__int8__tbq4 | 003 | granite-3b__int8__tbq4--benchmark-repetition-003 | openvino-official-upstream-5d616388e740 | 9.866847 | 1012.549 | 6640996000 | 24 | 32 |
+| granite-3b__int8__u4 | 001 | granite-3b__int8__u4--benchmark-repetition-001 | openvino-official-upstream-5e6c30146b19 | 10.111783 | 1058.760 | 6641211000 | 24 | 32 |
+| granite-3b__int8__u4 | 002 | granite-3b__int8__u4--benchmark-repetition-002 | openvino-official-upstream-5e6c30146b19 | 10.263196 | 967.343 | 6639832000 | 24 | 32 |
+| granite-3b__int8__u4 | 003 | granite-3b__int8__u4--benchmark-repetition-003 | openvino-official-upstream-5e6c30146b19 | 10.205710 | 961.839 | 6640188000 | 24 | 32 |
+| granite-3b__int8__u8 | 001 | granite-3b__int8__u8--benchmark-repetition-001 | openvino-official-upstream-d0adcd32063d | 10.110771 | 1007.126 | 6638859000 | 24 | 32 |
+| granite-3b__int8__u8 | 002 | granite-3b__int8__u8--benchmark-repetition-002 | openvino-official-upstream-d0adcd32063d | 10.008470 | 940.829 | 6643984000 | 24 | 32 |
+| granite-3b__int8__u8 | 003 | granite-3b__int8__u8--benchmark-repetition-003 | openvino-official-upstream-d0adcd32063d | 10.154529 | 995.888 | 6638664000 | 24 | 32 |
+| granite-8b__int4__f16 | 001 | granite-8b__int4__f16--benchmark-repetition-001 | openvino-official-upstream-9ec0df1aac51 | 7.554190 | 14020.499 | 8540449000 | 23 | 32 |
+| granite-8b__int4__f16 | 002 | granite-8b__int4__f16--benchmark-repetition-002 | openvino-official-upstream-9ec0df1aac51 | 7.687787 | 14175.161 | 8540461000 | 23 | 32 |
+| granite-8b__int4__f16 | 003 | granite-8b__int4__f16--benchmark-repetition-003 | openvino-official-upstream-9ec0df1aac51 | 7.613034 | 13917.237 | 8539977000 | 23 | 32 |
+| granite-8b__int4__tbq3 | 001 | granite-8b__int4__tbq3--benchmark-repetition-001 | openvino-official-upstream-58ad3684b4ef | 7.324324 | 18326.738 | 8535215000 | 23 | 32 |
+| granite-8b__int4__tbq3 | 002 | granite-8b__int4__tbq3--benchmark-repetition-002 | openvino-official-upstream-58ad3684b4ef | 7.051820 | 15176.623 | 8537840000 | 23 | 32 |
+| granite-8b__int4__tbq3 | 003 | granite-8b__int4__tbq3--benchmark-repetition-003 | openvino-official-upstream-58ad3684b4ef | 7.095104 | 14040.073 | 8534473000 | 23 | 32 |
+| granite-8b__int4__tbq4 | 001 | granite-8b__int4__tbq4--benchmark-repetition-001 | openvino-official-upstream-6c81b73be5d3 | 7.500589 | 13967.582 | 8532145000 | 23 | 32 |
+| granite-8b__int4__tbq4 | 002 | granite-8b__int4__tbq4--benchmark-repetition-002 | openvino-official-upstream-6c81b73be5d3 | 7.609774 | 14236.115 | 8534668000 | 23 | 32 |
+| granite-8b__int4__tbq4 | 003 | granite-8b__int4__tbq4--benchmark-repetition-003 | openvino-official-upstream-6c81b73be5d3 | 7.594366 | 13886.695 | 8535387000 | 23 | 32 |
+| granite-8b__int4__u4 | 001 | granite-8b__int4__u4--benchmark-repetition-001 | openvino-official-upstream-d823c5c77289 | 7.562340 | 13993.325 | 8538504000 | 23 | 32 |
+| granite-8b__int4__u4 | 002 | granite-8b__int4__u4--benchmark-repetition-002 | openvino-official-upstream-d823c5c77289 | 7.540437 | 14167.737 | 8537473000 | 23 | 32 |
+| granite-8b__int4__u4 | 003 | granite-8b__int4__u4--benchmark-repetition-003 | openvino-official-upstream-d823c5c77289 | 7.653565 | 13833.547 | 8537203000 | 23 | 32 |
+| granite-8b__int4__u8 | 001 | granite-8b__int4__u8--benchmark-repetition-001 | openvino-official-upstream-5cd8ad3dd2c4 | 7.410802 | 14334.300 | 8539387000 | 23 | 32 |
+| granite-8b__int4__u8 | 002 | granite-8b__int4__u8--benchmark-repetition-002 | openvino-official-upstream-5cd8ad3dd2c4 | 7.630967 | 13884.407 | 8539691000 | 23 | 32 |
+| granite-8b__int4__u8 | 003 | granite-8b__int4__u8--benchmark-repetition-003 | openvino-official-upstream-5cd8ad3dd2c4 | 7.582979 | 13955.962 | 8538996000 | 23 | 32 |
+
+## 9. Quality methodology and results
+
+Quality uses 48 distinct prompts from OPENVINO-SECTOR-EXPERIENCE-QUALITY-v3: healthcare, education, statistics, and general tasks across short, medium, and long prompt lengths. The normalized objective rubric objective-quality-weighted-5-3-2-output-health-gate (experimental-openvino-objective-quality/v2) awards criterion checks with unequal importance. Each prompt has a primary 5-point check, a 3-point fact-retention check, and a 2-point instruction-following check. The reported /10 case score is the arithmetic mean of per-prompt totals, equivalently 10 multiplied by total awarded criterion points divided by total possible points. The output-health gate is part of the recorded rubric; this report does not add subjective re-judgment.
+
+### QC-01 — Objective quality criteria, weights, and score increments
+
+| Criterion | Weight | Distinct prompts | Satisfied-check contribution to case /10 | Purpose |
+| --- | --- | --- | --- | --- |
+| fact_retention:secondary | 3 | 48 | 0.062500 | Retention of supplied facts and constraints |
+| factuality:primary | 5 | 24 | 0.104167 | Primary factual correctness check |
+| instruction_following:supporting | 2 | 48 | 0.041667 | Requested structure and instruction compliance |
+| numerical_accuracy:primary | 5 | 8 | 0.104167 | Primary arithmetic and statistical correctness check |
+| safety:primary | 5 | 16 | 0.104167 | Primary healthcare or safety constraint check |
+
+*Contribution increments are derived from criterion weight divided by the number of prompts in the case score denominator.*
+
+### QD-01 — Prompt coverage by sector
+
+| Sector | Prompt count |
+| --- | --- |
+| Education | 16 |
+| General | 8 |
+| Healthcare | 16 |
+| Statistics | 8 |
+
+### QL-01 — Prompt coverage by length
+
+| Prompt length | Prompt count |
+| --- | --- |
+| Long | 16 |
+| Medium | 16 |
+| Short | 16 |
+
+### QS-01 — Passed-case objective quality results
+
+| Test case | Model | Weight | Cache | Quality /10 | Prompts | Criterion records | Possible points |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| granite-3b__int4__f16 | granite-3b | int4 | f16 | 5.770833 | 48 | 144 | 480 |
+| granite-3b__int4__tbq3 | granite-3b | int4 | tbq3 | 5.416667 | 48 | 144 | 480 |
+| granite-3b__int4__tbq4 | granite-3b | int4 | tbq4 | 5.854167 | 48 | 144 | 480 |
+| granite-3b__int4__u4 | granite-3b | int4 | u4 | 5.520833 | 48 | 144 | 480 |
+| granite-3b__int4__u8 | granite-3b | int4 | u8 | 5.770833 | 48 | 144 | 480 |
+| granite-3b__int8__f16 | granite-3b | int8 | f16 | 5.770833 | 48 | 144 | 480 |
+| granite-3b__int8__tbq3 | granite-3b | int8 | tbq3 | 5.479167 | 48 | 144 | 480 |
+| granite-3b__int8__tbq4 | granite-3b | int8 | tbq4 | 5.520833 | 48 | 144 | 480 |
+| granite-3b__int8__u4 | granite-3b | int8 | u4 | 5.791667 | 48 | 144 | 480 |
+| granite-3b__int8__u8 | granite-3b | int8 | u8 | 5.770833 | 48 | 144 | 480 |
+| granite-8b__int4__f16 | granite-8b | int4 | f16 | 5.604167 | 48 | 144 | 480 |
+| granite-8b__int4__tbq3 | granite-8b | int4 | tbq3 | 5.208333 | 48 | 144 | 480 |
+| granite-8b__int4__tbq4 | granite-8b | int4 | tbq4 | 5.604167 | 48 | 144 | 480 |
+| granite-8b__int4__u4 | granite-8b | int4 | u4 | 5.375000 | 48 | 144 | 480 |
+| granite-8b__int4__u8 | granite-8b | int4 | u8 | 5.604167 | 48 | 144 | 480 |
+
+*Only passed cases with normalized prompt-level criterion evidence are scored.*
+
+## 10. Device/backend use and fallback verification
+
+Runtime-property metadata records the requested attention and cache activation settings; it is not a substitute for an independent device trace.
+
+### DV-01 — Normalized runtime-property evidence
+
+| Property set | Runtime properties | Evidence status |
+| --- | --- | --- |
+| 1 | {"ATTENTION_BACKEND":"SDPA"} | Verified informational metadata |
+| 2 | {"ATTENTION_BACKEND":"SDPA","KEY_CACHE_PRECISION":"u3","KEY_CACHE_QUANT_ALG":"TURBO","VALUE_CACHE_PRECISION":"u3","VALUE_CACHE_QUANT_ALG":"TURBO"} | Verified informational metadata |
+| 3 | {"ATTENTION_BACKEND":"SDPA","KEY_CACHE_PRECISION":"u4","KEY_CACHE_QUANT_ALG":"SCALAR","VALUE_CACHE_PRECISION":"u4","VALUE_CACHE_QUANT_ALG":"SCALAR"} | Verified informational metadata |
+| 4 | {"ATTENTION_BACKEND":"SDPA","KEY_CACHE_PRECISION":"u4","KEY_CACHE_QUANT_ALG":"TURBO","VALUE_CACHE_PRECISION":"u4","VALUE_CACHE_QUANT_ALG":"TURBO"} | Verified informational metadata |
+| 5 | {"ATTENTION_BACKEND":"SDPA","KEY_CACHE_PRECISION":"u8","KEY_CACHE_QUANT_ALG":"SCALAR","VALUE_CACHE_PRECISION":"u8","VALUE_CACHE_QUANT_ALG":"SCALAR"} | Verified informational metadata |
+
+ATTENTION_BACKEND=SDPA is recorded in the normalized runtime-property sets. Cache activation properties distinguish TurboQuant from scalar or codec configurations. The bundle does not contain an independent device-fallback trace, so this report does not claim that fallback was exercised or excluded beyond the recorded properties.
+
+## 11. Failures, blocks, deviations, and recovery attempts
+
+Every non-passed terminal outcome is retained with its stage, source status, reason, and linked evidence.
+
+### FL-01 — Non-passed outcomes and evidence
+
+| Failure ID | Test case | Status | Stage | Source status | Reason | Evidence IDs |
+| --- | --- | --- | --- | --- | --- | --- |
+| granite-30b__fp16__f16--hardware_preflight_blocked | granite-30b__fp16__f16 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__fp16__tbq3--hardware_preflight_blocked | granite-30b__fp16__tbq3 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__fp16__tbq4--hardware_preflight_blocked | granite-30b__fp16__tbq4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__fp16__u4--hardware_preflight_blocked | granite-30b__fp16__u4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__fp16__u8--hardware_preflight_blocked | granite-30b__fp16__u8 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d7be395e7e5f |
+| granite-30b__int4__f16--hardware_preflight_blocked | granite-30b__int4__f16 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int4__tbq3--hardware_preflight_blocked | granite-30b__int4__tbq3 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int4__tbq4--hardware_preflight_blocked | granite-30b__int4__tbq4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int4__u4--hardware_preflight_blocked | granite-30b__int4__u4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int4__u8--hardware_preflight_blocked | granite-30b__int4__u8 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-d60b4f445021 |
+| granite-30b__int8__f16--hardware_preflight_blocked | granite-30b__int8__f16 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-30b__int8__tbq3--hardware_preflight_blocked | granite-30b__int8__tbq3 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-30b__int8__tbq4--hardware_preflight_blocked | granite-30b__int8__tbq4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-30b__int8__u4--hardware_preflight_blocked | granite-30b__int8__u4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-30b__int8__u8--hardware_preflight_blocked | granite-30b__int8__u8 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-7625c690f16e |
+| granite-3b__fp16__f16--conversion_failed | granite-3b__fp16__f16 | Failed | model_conversion | conversion_failed | emergency_ram_floor_reached | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-3b__fp16__tbq3--conversion_failed | granite-3b__fp16__tbq3 | Failed | model_conversion | conversion_failed | emergency_ram_floor_reached | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-3b__fp16__tbq4--conversion_failed | granite-3b__fp16__tbq4 | Failed | model_conversion | conversion_failed | emergency_ram_floor_reached | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-3b__fp16__u4--conversion_failed | granite-3b__fp16__u4 | Failed | model_conversion | conversion_failed | emergency_ram_floor_reached | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-3b__fp16__u8--conversion_failed | granite-3b__fp16__u8 | Failed | model_conversion | conversion_failed | emergency_ram_floor_reached | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-88b149e9b8eb, openvino-official-upstream-36d151562886 |
+| granite-8b__fp16__f16--hardware_preflight_blocked | granite-8b__fp16__f16 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__fp16__tbq3--hardware_preflight_blocked | granite-8b__fp16__tbq3 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__fp16__tbq4--hardware_preflight_blocked | granite-8b__fp16__tbq4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__fp16__u4--hardware_preflight_blocked | granite-8b__fp16__u4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__fp16__u8--hardware_preflight_blocked | granite-8b__fp16__u8 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-de53b9b4c999 |
+| granite-8b__int8__f16--hardware_preflight_blocked | granite-8b__int8__f16 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+| granite-8b__int8__tbq3--hardware_preflight_blocked | granite-8b__int8__tbq3 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+| granite-8b__int8__tbq4--hardware_preflight_blocked | granite-8b__int8__tbq4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+| granite-8b__int8__u4--hardware_preflight_blocked | granite-8b__int8__u4 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+| granite-8b__int8__u8--hardware_preflight_blocked | granite-8b__int8__u8 | Blocked | conversion_preflight | hardware_preflight_blocked | official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host | openvino-official-upstream-ecd7ea7c9e71, openvino-official-upstream-742a17ebaf17, openvino-official-upstream-965fa680455e |
+
+Final statuses come from the normalized fv2 campaign; performance and quality observations are joined from fv1 only for fv2-passed cases. Hardware preflight blocked configurations are reported as Blocked, never as unavailable.
+
+Recovery and retry history is claimed only where the normalized failure records and linked evidence IDs provide it; an absent recovery record is not converted into a presumed attempt.
+
+## 12. Limitations, uncertainty, robustness checks, and claim boundaries
+
+The normalized attempt ledger contains 5 conversion-failed attempts and 25 hardware-preflight blocks. Blocked cases have no fabricated runtime or quality observations.
+
+Performance summaries use 3 recorded repetitions per passed case. They describe observed medians, selected-repetition TTFT, and worst-observed memory; no confidence interval or population-level uncertainty estimate was collected.
+
+Within-route ranking is valid only on the same model, weight format, cache format, backend, prompt suite, rubric, denominator, and aggregation definition. Cross-repository or legacy-quality comparisons remain descriptive unless a separate comparability matrix confirms every required condition.
+
+> Note: No result establishes clinical safety, educational efficacy, model correctness for unseen tasks, or causal superiority of a quantization method.
+
+## 13. Reproduction guidance
+
+Use the frozen evidence and normalization instructions in docs/testing/final-results/openvino-official-upstream/reproduction/README.md. Regeneration validates source identities and normalizes existing evidence; it does not rerun inference.
+
+### RE-01 — Reproduction inputs and outputs
+
+| Item | Repository-relative location |
+| --- | --- |
+| Canonical attempts | docs/testing/final-results/openvino-official-upstream/results/attempts.csv |
+| Canonical measurements | docs/testing/final-results/openvino-official-upstream/results/measurements.csv |
+| Canonical quality | docs/testing/final-results/openvino-official-upstream/quality/scores.csv |
+| Evidence index | docs/testing/final-results/openvino-official-upstream/evidence/evidence-index.csv |
+| Source workbook | docs/testing/final-results/openvino-official-upstream/results/source/ |
+
+## 14. Evidence index and hashes
+
+The evidence index provides portable identities and hashes for every source item admitted to the normalized campaign bundle.
+
+### EV-01 — Complete normalized evidence index
+
+| Evidence ID | Role | Source label | SHA-256 | Bytes | Repository-relative path | Kind | Input evidence IDs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| openvino-official-upstream-0957a32a76e2 | quality-prompt-input | fv1 prompt input Q35 | 0957a32a76e2fe74be28c143e690d0ec4be35096f3382dd92a92aebca87be433 | 1181 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/0957a32a76e2fe74be28c143e690d0ec4be35096f3382dd92a92aebca87be433.txt | Source | None |
+| openvino-official-upstream-0ec7e2a0bdff | raw-case-result | fv1 raw result granite-3b__int4__tbq4 | 0ec7e2a0bdff09cffc190180a4c1c92020a17cf726ebfb5f71e1a77940926155 | 260481 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int4__tbq4.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-1030c70041d2 | raw-case-result | fv1 raw result granite-3b__int4__u8 | 1030c70041d28ae6a6781f18dba6d25652ff29c70d5addf2ce3f5de7086428ea | 259563 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int4__u8.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-14dbb011f2c4 | missing-model-attempt-manifest | fv2 missing-model evidence guarded-retry-001/attempts/granite-3b__fp16/manifest.json | 14dbb011f2c4a674fbcfbd7cd3ec6b2eb6ceea7cb0d71f933dbc2a96b48a1cdc | 3383 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/guarded-retry-001/attempts/granite-3b__fp16/manifest.json | Source | None |
+| openvino-official-upstream-1b97409e2349 | quality-prompt-input | fv1 prompt input Q40 | 1b97409e23492cd5041096f5b22ab2f14a80fd8d6b960570ccd8cafe23d4ea8b | 1123 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/1b97409e23492cd5041096f5b22ab2f14a80fd8d6b960570ccd8cafe23d4ea8b.txt | Source | None |
+| openvino-official-upstream-1d5fc2893e0c | source-workbook | fv2 revised final workbook | 1d5fc2893e0c7f412140b3fa1a26c4a0c18e3c65ecfa356e80549dc4cd10aff7 | 431513 | outputs/openvino-official-upstream-results/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx | Source | None |
+| openvino-official-upstream-2743f5a029eb | quality-prompt-input | fv1 prompt input Q16 | 2743f5a029eb58855b2bcc261826e3096cbf114fad8ef550644b7abc3c966cc9 | 89 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/2743f5a029eb58855b2bcc261826e3096cbf114fad8ef550644b7abc3c966cc9.txt | Source | None |
+| openvino-official-upstream-277de33c834f | quality-prompt-input | fv1 prompt input Q10 | 277de33c834fc201a480f424bd6b5da18013518836363de336d16cfd363c4e43 | 89 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/277de33c834fc201a480f424bd6b5da18013518836363de336d16cfd363c4e43.txt | Source | None |
+| openvino-official-upstream-27e4c3f8c1be | quality-prompt-input | fv1 prompt input Q03 | 27e4c3f8c1be42db726025869211598d145dac5fb94b2872690c0229daeb8d48 | 86 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/27e4c3f8c1be42db726025869211598d145dac5fb94b2872690c0229daeb8d48.txt | Source | None |
+| openvino-official-upstream-314ad142957f | preflight-input | fv1 preflight input 314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3.txt | 314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3 | 5 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/preflight/inputs/314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3.txt | Source | None |
+| openvino-official-upstream-324bdd409b36 | quality-prompt-input | fv1 prompt input Q48 | 324bdd409b3648d97542738ab7ccf93b0ff44da7444a5004fc209bf546830ddc | 1157 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/324bdd409b3648d97542738ab7ccf93b0ff44da7444a5004fc209bf546830ddc.txt | Source | None |
+| openvino-official-upstream-36d151562886 | conversion-log | fv2 guarded-retry-002 conversion log | 36d15156288619f17c972b5f0af9bc5380fe363cab90a8356feac4e5ca579d65 | 116 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/guarded-retry-002/attempts/granite-3b__fp16/conversion.log | Source | None |
+| openvino-official-upstream-3a694c60f2dc | source-preflight | fv1 TurboQuant preflight | 3a694c60f2dc2b359ad2d1be0d8cd55f255a05b903a4183aaef6781e06e6fd5e | 9714 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/preflight/preflight-receipt.json | Source | openvino-official-upstream-314ad142957f, openvino-official-upstream-ca101275d196 |
+| openvino-official-upstream-3cc4b86e0a52 | quality-prompt-input | fv1 prompt input Q36 | 3cc4b86e0a5231ac1ccff542f8d2ee91b73dfbddb029ebcd44cae353d03f87bf | 1142 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/3cc4b86e0a5231ac1ccff542f8d2ee91b73dfbddb029ebcd44cae353d03f87bf.txt | Source | None |
+| openvino-official-upstream-3ead43950da4 | source-validation | fv1 audit report | 3ead43950da47fbca18b9393f51a88796d0bc8978517da3cfd2da073d38c3176 | 640 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/audit-report.json | Source | None |
+| openvino-official-upstream-43f30876ef84 | quality-prompt-input | fv1 prompt input Q44 | 43f30876ef8424228ab945195b71adf00e48886bbe3f2b28bd26652b00970d8a | 1106 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/43f30876ef8424228ab945195b71adf00e48886bbe3f2b28bd26652b00970d8a.txt | Source | None |
+| openvino-official-upstream-455d04b8f613 | quality-prompt-input | fv1 prompt input Q46 | 455d04b8f61370bdc2197011d5f69990a46d8075405c7a9539bce8afc6442775 | 1141 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/455d04b8f61370bdc2197011d5f69990a46d8075405c7a9539bce8afc6442775.txt | Source | None |
+| openvino-official-upstream-48891656ca1f | quality-prompt-input | fv1 prompt input Q21 | 48891656ca1fc61bdf95f080a267d482fe317ac5237045cca5fa1ddebbf16d3b | 370 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/48891656ca1fc61bdf95f080a267d482fe317ac5237045cca5fa1ddebbf16d3b.txt | Source | None |
+| openvino-official-upstream-53fc6bb93a26 | quality-prompt-input | fv1 prompt input Q23 | 53fc6bb93a26bb0d255c52507517fe6fe39f673a399800038464155c5513dc25 | 350 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/53fc6bb93a26bb0d255c52507517fe6fe39f673a399800038464155c5513dc25.txt | Source | None |
+| openvino-official-upstream-540a9be22729 | quality-prompt-input | fv1 prompt input Q09 | 540a9be22729fd4e0d70775a9f2fcc918e739b9cbaa06e93f1ab353ff3b1c5e8 | 52 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/540a9be22729fd4e0d70775a9f2fcc918e739b9cbaa06e93f1ab353ff3b1c5e8.txt | Source | None |
+| openvino-official-upstream-544112ed79b9 | raw-case-result | fv1 raw result granite-3b__int4__f16 | 544112ed79b9280ac13a99076fcd242b6993c7365f2f2d870962e2662a3b5c62 | 246302 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int4__f16.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-58ad3684b4ef | raw-case-result | fv1 raw result granite-8b__int4__tbq3 | 58ad3684b4ef33b34c11f263efa58a8261c428a6e52aadc321d3137ce94f1696 | 262089 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-8b__int4__tbq3.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-595572cc4baf | quality-prompt-input | fv1 prompt input Q08 | 595572cc4baf62474158ef2e19f8ab8821b6c824d897e358106bbb89244ff39d | 84 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/595572cc4baf62474158ef2e19f8ab8821b6c824d897e358106bbb89244ff39d.txt | Source | None |
+| openvino-official-upstream-5b7486ba7df4 | quality-prompt-input | fv1 prompt input Q33 | 5b7486ba7df49165ff830d1d7c5108bbdd9c19d42947b0977aeeeb077fce6762 | 764 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/5b7486ba7df49165ff830d1d7c5108bbdd9c19d42947b0977aeeeb077fce6762.txt | Source | None |
+| openvino-official-upstream-5cd8ad3dd2c4 | raw-case-result | fv1 raw result granite-8b__int4__u8 | 5cd8ad3dd2c4274a0742db68dbd5a6837d7cfa5569a15a0b9db6f2b21d1646f7 | 262730 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-8b__int4__u8.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-5d616388e740 | raw-case-result | fv1 raw result granite-3b__int8__tbq4 | 5d616388e7408148e4789e3d833dff2f799681046f7632fd50ca57bf098faadc | 257519 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int8__tbq4.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-5e6c30146b19 | raw-case-result | fv1 raw result granite-3b__int8__u4 | 5e6c30146b19de5cb7073d27842ac2cefd9c8f1ed6cd5990e53f1ab7dd38e82e | 256886 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int8__u4.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-5f3981b202e5 | missing-model-source-inventory | fv2 missing-model evidence guarded-retry-001/source-models.json | 5f3981b202e5b968533739c66f1dc998bb50311dc89ada3ef3da13db9c2afae4 | 7932 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/guarded-retry-001/source-models.json | Source | None |
+| openvino-official-upstream-615d04f9c4df | quality-prompt-input | fv1 prompt input Q05 | 615d04f9c4dfa816cff2f874dd1a8e143cd8a0f1eff1b5c7ac34b8f183166fa6 | 81 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/615d04f9c4dfa816cff2f874dd1a8e143cd8a0f1eff1b5c7ac34b8f183166fa6.txt | Source | None |
+| openvino-official-upstream-61f222026965 | quality-prompt-input | fv1 prompt input Q15 | 61f222026965b2f5a430b1e5088fe9d424c4b10e53ac503a33a34dfd472e2db0 | 63 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/61f222026965b2f5a430b1e5088fe9d424c4b10e53ac503a33a34dfd472e2db0.txt | Source | None |
+| openvino-official-upstream-676c2e2ff16d | quality-prompt-input | fv1 prompt input Q30 | 676c2e2ff16d3a649143e708e2c39de48b0472f092082c483b2a172144617d0f | 332 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/676c2e2ff16d3a649143e708e2c39de48b0472f092082c483b2a172144617d0f.txt | Source | None |
+| openvino-official-upstream-67c056150968 | prior-source-results | fv1 comparison index | 67c0561509680cdee3ecead830215c93cd4530bc31a39ed0604a387afb53fde7 | 4769 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/official-openvino-comparison.csv | Source | None |
+| openvino-official-upstream-67ce45459cbf | quality-prompt-input | fv1 prompt input Q32 | 67ce45459cbf6e5552dcbd66d5b1dbdb93b145f747823f367645f545032b7aee | 389 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/67ce45459cbf6e5552dcbd66d5b1dbdb93b145f747823f367645f545032b7aee.txt | Source | None |
+| openvino-official-upstream-6961b4765204 | raw-case-result | fv1 raw result granite-3b__int8__f16 | 6961b4765204ed42b479f271e7bcea8374bb5d67cc77e68c49280568eb685064 | 244152 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int8__f16.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-6a657de4f1a4 | quality-prompt-input | fv1 prompt input Q29 | 6a657de4f1a46dbeb25adffe22bc3c7b023b8e26c14c173c427e5d2064d4a3a0 | 355 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/6a657de4f1a46dbeb25adffe22bc3c7b023b8e26c14c173c427e5d2064d4a3a0.txt | Source | None |
+| openvino-official-upstream-6c81b73be5d3 | raw-case-result | fv1 raw result granite-8b__int4__tbq4 | 6c81b73be5d3793c24cb185d1ac0d917bdbc835fe4e7bc9122bffcac15f72030 | 262046 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-8b__int4__tbq4.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-742a17ebaf17 | source-ledger | fv2 final source rows | 742a17ebaf1758b17a2ba52acf58e729f60236ccd4c32a169084c38e66fc00fd | 39293 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/consolidated/rows.json | Source | None |
+| openvino-official-upstream-7625c690f16e | missing-model-attempt-manifest | fv2 missing-model evidence attempts/granite-30b__int8/manifest.json | 7625c690f16efe62dfc724be89a8fcca335b00f7e6c7b69aa842d2ab9f4dab92 | 4932 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/attempts/granite-30b__int8/manifest.json | Source | None |
+| openvino-official-upstream-776c5fc60b7d | quality-prompt-input | fv1 prompt input Q24 | 776c5fc60b7ddc2c51ceca3c0e7c439973bcf731250758ff394523dc807ea7c4 | 367 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/776c5fc60b7ddc2c51ceca3c0e7c439973bcf731250758ff394523dc807ea7c4.txt | Source | None |
+| openvino-official-upstream-7772a6c1df61 | quality-prompt-input | fv1 prompt input Q31 | 7772a6c1df61229e02cd91db5fbb2b8c6e292ddcf43ff91b6c832deb358ac08c | 302 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/7772a6c1df61229e02cd91db5fbb2b8c6e292ddcf43ff91b6c832deb358ac08c.txt | Source | None |
+| openvino-official-upstream-7a78a81c98a6 | quality-prompt-input | fv1 prompt input Q25 | 7a78a81c98a6383205ad49f85e60b40590560a72d04f2cd915a340dfce85511d | 464 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/7a78a81c98a6383205ad49f85e60b40590560a72d04f2cd915a340dfce85511d.txt | Source | None |
+| openvino-official-upstream-7b3e4e7d379c | quality-prompt-input | fv1 prompt input Q42 | 7b3e4e7d379c102404f7801a205bdadc845f25de7f44fbce7c4b9c918fd75bee | 1123 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/7b3e4e7d379c102404f7801a205bdadc845f25de7f44fbce7c4b9c918fd75bee.txt | Source | None |
+| openvino-official-upstream-7b63b3e81dc4 | quality-prompt-input | fv1 prompt input Q17 | 7b63b3e81dc4212fb5d7e781a990319a5744e2d3008116e7e798ebe61d99c9c7 | 396 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/7b63b3e81dc4212fb5d7e781a990319a5744e2d3008116e7e798ebe61d99c9c7.txt | Source | None |
+| openvino-official-upstream-80abc763effd | quality-prompt-input | fv1 prompt input Q28 | 80abc763effdb50d372eafff10c7fc0daee6034a5414be805e8fd5aad3681001 | 351 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/80abc763effdb50d372eafff10c7fc0daee6034a5414be805e8fd5aad3681001.txt | Source | None |
+| openvino-official-upstream-845d14e24b22 | quality-prompt-input | fv1 prompt input Q04 | 845d14e24b22d9fd9fba5834ce60358dd1797f5ddba96ce12bdf60999276470d | 73 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/845d14e24b22d9fd9fba5834ce60358dd1797f5ddba96ce12bdf60999276470d.txt | Source | None |
+| openvino-official-upstream-87f8e79eaaea | quality-prompt-input | fv1 prompt input Q12 | 87f8e79eaaea4c5260630e44b0fec4a1a57fe02331602d044bab7c29c2eb659f | 71 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/87f8e79eaaea4c5260630e44b0fec4a1a57fe02331602d044bab7c29c2eb659f.txt | Source | None |
+| openvino-official-upstream-88b149e9b8eb | missing-model-attempt-manifest | fv2 missing-model evidence guarded-retry-002/attempts/granite-3b__fp16/manifest.json | 88b149e9b8ebb32b1dc304644a3d47ad1dd9898cecb3a657c5f2a8f6eb86c99d | 4722 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/guarded-retry-002/attempts/granite-3b__fp16/manifest.json | Source | None |
+| openvino-official-upstream-88ec2313af67 | missing-model-attempt-summary | fv2 missing-model evidence attempt-summary.json | 88ec2313af67ceb636bdda528af40823653f0e31f8a0aed02970ce3b6c26a4fc | 28118 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/attempt-summary.json | Source | None |
+| openvino-official-upstream-8a7e943f1a70 | quality-prompt-input | fv1 prompt input Q11 | 8a7e943f1a70337ca1256cdd0c28e274a4d319d56c3d8083c54bef4f89bdba02 | 44 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/8a7e943f1a70337ca1256cdd0c28e274a4d319d56c3d8083c54bef4f89bdba02.txt | Source | None |
+| openvino-official-upstream-8b075f0ffd39 | quality-prompt-input | fv1 prompt input Q47 | 8b075f0ffd39580d4e5f23b1cd3df5f7db208be451bf1c647ca425ce7539b02d | 1103 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/8b075f0ffd39580d4e5f23b1cd3df5f7db208be451bf1c647ca425ce7539b02d.txt | Source | None |
+| openvino-official-upstream-8ed7aacec825 | quality-prompt-input | fv1 prompt input Q34 | 8ed7aacec8256902245374778e794ad30296d02d9760d1c39d244cf7b9f3f283 | 1219 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/8ed7aacec8256902245374778e794ad30296d02d9760d1c39d244cf7b9f3f283.txt | Source | None |
+| openvino-official-upstream-9124358d912e | quality-prompt-input | fv1 prompt input Q45 | 9124358d912e7c1b34b4568a841d150b6e807171f187f11f4ef0f075a07eb46b | 1157 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/9124358d912e7c1b34b4568a841d150b6e807171f187f11f4ef0f075a07eb46b.txt | Source | None |
+| openvino-official-upstream-957608b566cd | quality-prompt-input | fv1 prompt input Q22 | 957608b566cd7c09ffde938e35020c73bb8e76d2526fd3bf665c2bb806a5da63 | 345 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/957608b566cd7c09ffde938e35020c73bb8e76d2526fd3bf665c2bb806a5da63.txt | Source | None |
+| openvino-official-upstream-965b09972a47 | quality-prompt-input | fv1 prompt input Q19 | 965b09972a4704a909dbeca63c6163638eac651e58d1f7be5bf0f181ea6603b0 | 388 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/965b09972a4704a909dbeca63c6163638eac651e58d1f7be5bf0f181ea6603b0.txt | Source | None |
+| openvino-official-upstream-965fa680455e | missing-model-attempt-manifest | fv2 missing-model evidence attempts/granite-8b__int8/manifest.json | 965fa680455e52bc65f18bca36eaf4ce8c56b03c3a32e80cc7ed70bb30cdbb1c | 3400 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/attempts/granite-8b__int8/manifest.json | Source | None |
+| openvino-official-upstream-9ec0df1aac51 | raw-case-result | fv1 raw result granite-8b__int4__f16 | 9ec0df1aac5120b4de30465387252e80744f60501b1a60f89fec006d3221e7db | 249451 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-8b__int4__f16.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-a5731332bcee | quality-prompt-input | fv1 prompt input Q43 | a5731332bceedf440857f21f9160c77f94ddabac76722b7b8c86fe1d69c0f866 | 1105 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/a5731332bceedf440857f21f9160c77f94ddabac76722b7b8c86fe1d69c0f866.txt | Source | None |
+| openvino-official-upstream-ae0e0a006214 | raw-case-result | fv1 raw result granite-3b__int4__tbq3 | ae0e0a006214b4a923d5d331c5cb1f345a41882723cb86b3a47fd96859ee28ba | 260678 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int4__tbq3.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-ae181a94c34b | quality-prompt-input | fv1 prompt input Q20 | ae181a94c34b5a0a1f3099118a6a3b43a794e1fff99177333cd739d94ea7578f | 362 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/ae181a94c34b5a0a1f3099118a6a3b43a794e1fff99177333cd739d94ea7578f.txt | Source | None |
+| openvino-official-upstream-b3e26eae69c3 | indexed-prior-workbook | fv1 original workbook | b3e26eae69c3854dec26536c6d141943572292f8a9ea331cb4de1d88c76b32b4 | 427757 | outputs/openvino-official-upstream-results/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30.xlsx | Source | None |
+| openvino-official-upstream-b4e14dfc41cc | quality-prompt-input | fv1 prompt input Q41 | b4e14dfc41cc0e847b7459dec73ae3c24d82b3c652b9fd4ec2cc5b2888012dda | 1123 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/b4e14dfc41cc0e847b7459dec73ae3c24d82b3c652b9fd4ec2cc5b2888012dda.txt | Source | None |
+| openvino-official-upstream-b5b05787f6d3 | raw-case-result | fv1 raw result granite-3b__int4__u4 | b5b05787f6d3c59f9df0d7fde1c8d8e929cd1911a6495fdea9f18503de553026 | 259367 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int4__u4.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-b74e4c0f599d | source-quality | fv1 quality details | b74e4c0f599d7ef7eaf170a0bbf40cd25d9ddb2a56f232bd04a6036fe4aabdf5 | 2239989 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/experimental-openvino-quality-details.csv | Source | None |
+| openvino-official-upstream-bab45fe4f497 | source-coverage | fv2 final coverage | bab45fe4f497a819729b5b69de61b07b846206b83343d07e113755fcb16ec73b | 173 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/consolidated/official-openvino-coverage.csv | Source | None |
+| openvino-official-upstream-bab45fe4f497a819729b5b69de61b07b846206b83343d07e113755fcb16ec73b | prior-source-coverage | fv1 coverage index | bab45fe4f497a819729b5b69de61b07b846206b83343d07e113755fcb16ec73b | 173 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/official-openvino-coverage.csv | Source | None |
+| openvino-official-upstream-bc078d9f96b0 | source-results | fv2 final comparison results | bc078d9f96b033a4e81dbfcefec4e87c788d9673c567189ef5e8215a7dece0fe | 5599 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/consolidated/official-openvino-comparison.csv | Source | None |
+| openvino-official-upstream-c2b33c08f0a6 | quality-prompt-input | fv1 prompt input Q37 | c2b33c08f0a603144376aeb9af998967745f4fcdb14fcb4c1f6a9fcdab5bc466 | 1150 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/c2b33c08f0a603144376aeb9af998967745f4fcdb14fcb4c1f6a9fcdab5bc466.txt | Source | None |
+| openvino-official-upstream-c53576eaa4e3 | prior-source-ledger | fv1 source rows | c53576eaa4e3b2cc260647b05c39e3aa04a3fe2c71d15b071fd96c6584368b0c | 38376 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/rows.json | Source | None |
+| openvino-official-upstream-c64af7c09c2d | quality-prompt-input | fv1 prompt input Q27 | c64af7c09c2da9782c5443500b3081f36132c88a4f303c7c51771b7693f4fa10 | 328 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/c64af7c09c2da9782c5443500b3081f36132c88a4f303c7c51771b7693f4fa10.txt | Source | None |
+| openvino-official-upstream-c6ba447ec601 | quality-prompt-input | fv1 prompt input Q14 | c6ba447ec6018abfd421e556303883c8fed2bc1a450287a18939a55cfadf776b | 74 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/c6ba447ec6018abfd421e556303883c8fed2bc1a450287a18939a55cfadf776b.txt | Source | None |
+| openvino-official-upstream-ca101275d196 | preflight-input | fv1 preflight input ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0.txt | ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0 | 32 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/preflight/inputs/ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0.txt | Source | None |
+| openvino-official-upstream-ca8ff9902e51 | missing-model-attempt-summary | fv2 missing-model evidence guarded-retry-001/attempt-summary.json | ca8ff9902e518b99d78868a64adb64880b333959e9a6d4f4c7d7877940590484 | 3982 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/guarded-retry-001/attempt-summary.json | Source | None |
+| openvino-official-upstream-cc594ccd64d9 | prior-source-results | fv1 passed measurement index | cc594ccd64d93dee5b14424bc2b8746f41999b1e324d70e6405ef0579eb4a776 | 24970 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/official-openvino-detailed-results.csv | Source | None |
+| openvino-official-upstream-d0adcd32063d | raw-case-result | fv1 raw result granite-3b__int8__u8 | d0adcd32063d68834f2e56562ede3234ec3324d5376335827e6a53bb8c847341 | 257438 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int8__u8.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-d1182d20b03f | raw-case-result | fv1 raw result granite-3b__int8__tbq3 | d1182d20b03f88751d6470c6d83cfce63b6e888ba96de4423cf38e8319fe8365 | 259395 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-3b__int8__tbq3.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-d15fe77e8e99 | quality-prompt-input | fv1 prompt input Q39 | d15fe77e8e99e3f5178ad1ce97ab3e322688336f041c87beb4799480e569b838 | 1179 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/d15fe77e8e99e3f5178ad1ce97ab3e322688336f041c87beb4799480e569b838.txt | Source | None |
+| openvino-official-upstream-d388141601d0 | missing-model-attempt-summary | fv2 missing-model evidence guarded-retry-002/attempt-summary.json | d388141601d02ba319786700da5458cefb64970e672f9b4db0349481074a0230 | 5472 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/guarded-retry-002/attempt-summary.json | Source | None |
+| openvino-official-upstream-d3991034bc6f | quality-prompt-input | fv1 prompt input Q01 | d3991034bc6ffd70c4b65fdef1a0d319a3c678d66f0e79c19c306fd8ab35b8a6 | 85 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/d3991034bc6ffd70c4b65fdef1a0d319a3c678d66f0e79c19c306fd8ab35b8a6.txt | Source | None |
+| openvino-official-upstream-d60b4f445021 | missing-model-attempt-manifest | fv2 missing-model evidence attempts/granite-30b__int4/manifest.json | d60b4f445021ac02661a456b14fb3cc80ab72311ed2a013ee867cab3b4d44ef5 | 4932 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/attempts/granite-30b__int4/manifest.json | Source | None |
+| openvino-official-upstream-d7be395e7e5f | missing-model-attempt-manifest | fv2 missing-model evidence attempts/granite-30b__fp16/manifest.json | d7be395e7e5f04673954f691e26e6249679cba7b041ccafb7d195a66bab48d37 | 4932 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/attempts/granite-30b__fp16/manifest.json | Source | None |
+| openvino-official-upstream-d823c5c77289 | raw-case-result | fv1 raw result granite-8b__int4__u4 | d823c5c7728913465df933f4d534a0e1fdd8a5d7e4de8f9a18f3dcee115a48de | 264516 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/raw/granite-8b__int4__u4.json | Source | openvino-official-upstream-f2b9e8f0f100 |
+| openvino-official-upstream-d8d54a60271b | quality-prompt-input | fv1 prompt input Q06 | d8d54a60271bae4f633eef26af30798e326feb08b43290262847f941658c89a3 | 80 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/d8d54a60271bae4f633eef26af30798e326feb08b43290262847f941658c89a3.txt | Source | None |
+| openvino-official-upstream-dbff31257c78 | quality-prompt-input | fv1 prompt input Q38 | dbff31257c7803ac80b1164258cf636b0b37baa29474bedb54df5044c1d47c8c | 1190 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/dbff31257c7803ac80b1164258cf636b0b37baa29474bedb54df5044c1d47c8c.txt | Source | None |
+| openvino-official-upstream-de53b9b4c999 | missing-model-attempt-manifest | fv2 missing-model evidence attempts/granite-8b__fp16/manifest.json | de53b9b4c999c4005828dbb02eb6e7b9e7cc6ddab2cb266ec97cc01f5615752e | 3400 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/attempts/granite-8b__fp16/manifest.json | Source | None |
+| openvino-official-upstream-def32bad0a39 | quality-prompt-input | fv1 prompt input Q13 | def32bad0a3914f543a3f46a5e3dc43abd9497efff6d607472fe8a0a5d40db96 | 74 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/def32bad0a3914f543a3f46a5e3dc43abd9497efff6d607472fe8a0a5d40db96.txt | Source | None |
+| openvino-official-upstream-e101455e0e6a | quality-prompt-input | fv1 prompt input Q18 | e101455e0e6aba4fb65c29e16bb8814887a932a5d7f910938e597df4872005cd | 349 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/e101455e0e6aba4fb65c29e16bb8814887a932a5d7f910938e597df4872005cd.txt | Source | None |
+| openvino-official-upstream-e2f0ecf9929c | quality-prompt-input | fv1 prompt input Q26 | e2f0ecf9929c76498147257c73a720ed7e121e707fbfbdc1e22bba6ec57ad7f1 | 351 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/e2f0ecf9929c76498147257c73a720ed7e121e707fbfbdc1e22bba6ec57ad7f1.txt | Source | None |
+| openvino-official-upstream-ec8fa99ae159 | missing-model-attempt-manifest | fv2 missing-model evidence attempts/granite-3b__fp16/manifest.json | ec8fa99ae159f92b51c2a5ee5da6fabd20863bf43791a32000bbc2966dc68b02 | 3014 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/attempts/granite-3b__fp16/manifest.json | Source | None |
+| openvino-official-upstream-ecd7ea7c9e71 | source-results | fv2 final detailed results | ecd7ea7c9e71d235d39c4bd29c00b52a7bc4ccdb2b151b7cfe9b6ba4e84c9116 | 25870 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/consolidated/official-openvino-detailed-results.csv | Source | None |
+| openvino-official-upstream-f07ae51054e2 | quality-prompt-input | fv1 prompt input Q07 | f07ae51054e2b27269a123b82863b977083b69464654f8c7f386c0cd6976cd99 | 64 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/f07ae51054e2b27269a123b82863b977083b69464654f8c7f386c0cd6976cd99.txt | Source | None |
+| openvino-official-upstream-f2b9e8f0f100 | benchmark-prompt-input | fv1 shared benchmark prompt input | f2b9e8f0f10053f3a04e1532ecd1e66d026ba1f37e7cde636bc2b5e2748c301c | 123 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/f2b9e8f0f10053f3a04e1532ecd1e66d026ba1f37e7cde636bc2b5e2748c301c.txt | Source | None |
+| openvino-official-upstream-f6a419176fd9 | quality-prompt-input | fv1 prompt input Q02 | f6a419176fd90bc46e237db9a889d799c24b83bc38098f48e7e0605839f8021e | 72 | experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/inputs/f6a419176fd90bc46e237db9a889d799c24b83bc38098f48e7e0605839f8021e.txt | Source | None |
+
+*SHA-256 and byte counts are preserved from the verified normalized evidence records.*
+
+## 15. Revision history
+
+Revision entries describe changes to this generated master report, separately from the source campaign revision.
+
+### RV-01 — Report revision history
+
+| Revision | Date | Change |
+| --- | --- | --- |
+| R1 | 2026-08-30 | Initial evidence-bound master report publication |
+
+Markdown is canonical. DOCX and PDF are generated derivatives; semantic parity and PDF layout validation are recorded beside the report.
