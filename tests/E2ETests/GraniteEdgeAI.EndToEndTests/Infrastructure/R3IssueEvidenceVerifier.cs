@@ -28,6 +28,23 @@ internal sealed record R3IssueEvidence(
     IReadOnlyList<R3ExecutableEvidence> Commands,
     R3ProductionReachability? ProductionReachability);
 
+internal sealed record R4ClosedFinding(
+    string FindingId,
+    IReadOnlyList<R3ExecutableEvidence> Commands,
+    R3ProductionReachability? ProductionReachability);
+
+internal sealed record R4TwoPhaseIssueEvidence(
+    IReadOnlyList<R4ClosedFinding> ClosedPreflightFindings,
+    IReadOnlyList<string> PendingPostAcceptanceIds,
+    R3EvidenceBlob CatalogBlob,
+    string CatalogSubjectCommit,
+    string CatalogSubjectTree)
+{
+    internal bool CanStartAcceptanceMatrix =>
+        ClosedPreflightFindings.Count == 28
+        && PendingPostAcceptanceIds.SequenceEqual(["R3-020", "R3-022"], StringComparer.Ordinal);
+}
+
 internal static class R3IssueEvidenceVerifier
 {
     private static readonly string[] RequiredIssueIds =
@@ -35,6 +52,269 @@ internal static class R3IssueEvidenceVerifier
 
     private static readonly HashSet<string> ExecutableEvidenceTypes =
         new(["behavioralTest", "packageJourney", "nativeJourney"], StringComparer.Ordinal);
+
+    private static readonly string[] RequiredPreflightR3 =
+        RequiredIssueIds.Where(id => id is not "R3-020" and not "R3-022").ToArray();
+
+    private static readonly string[] RequiredR4 =
+        Enumerable.Range(1, 8).Select(index => $"R4-C0-{index:000}").ToArray();
+
+    internal static R4TwoPhaseIssueEvidence VerifyTwoPhase(
+        string closurePath,
+        string catalogPath,
+        string repositoryRoot)
+    {
+        using JsonDocument closureDocument = JsonContract.Open(closurePath);
+        using JsonDocument catalogDocument = JsonContract.Open(catalogPath);
+        JsonElement closure = closureDocument.RootElement;
+        JsonElement catalog = catalogDocument.RootElement;
+        JsonContract.RequireOnly(
+            closure,
+            "schemaVersion", "contract", "coordinator", "createdAtUtc", "productSubject",
+            "evidenceCatalog", "issues", "r4Findings", "preflightPolicy",
+            "postAcceptancePolicy", "nonClaims");
+        if (JsonContract.RequiredInt64(closure, "schemaVersion") != 4
+            || JsonContract.RequiredString(closure, "contract") != "C0-R4-ISSUE-CLOSURE-V4"
+            || JsonContract.RequiredString(closure, "coordinator") != "C0")
+        {
+            throw new InvalidDataException("R4 issue evidence requires the exact schema-v4 closure contract.");
+        }
+
+        JsonContract.RequireOnly(
+            catalog,
+            "schemaVersion", "coordinator", "createdAtUtc", "productSubject", "evidenceBase",
+            "commands", "issues", "r4Findings", "nonClaims");
+        if (JsonContract.RequiredInt64(catalog, "schemaVersion") != 1
+            || JsonContract.RequiredString(catalog, "coordinator") != "C0")
+        {
+            throw new InvalidDataException("R4 issue evidence catalog contract is invalid.");
+        }
+        RequireMatchingSubject(RequiredObject(closure, "productSubject"), RequiredObject(catalog, "productSubject"));
+
+        JsonElement catalogBinding = RequiredObject(closure, "evidenceCatalog");
+        JsonContract.RequireOnly(catalogBinding, "evidenceSubjectCommit", "evidenceSubjectTree", "evidenceBlob");
+        string catalogCommit = JsonContract.RequiredString(catalogBinding, "evidenceSubjectCommit");
+        string catalogTree = JsonContract.RequiredString(catalogBinding, "evidenceSubjectTree");
+        JsonContract.RequireGitObject(catalogCommit, "evidenceSubjectCommit");
+        JsonContract.RequireGitObject(catalogTree, "evidenceSubjectTree");
+        R3EvidenceBlob catalogBlob = ParseEvidenceBlob(RequiredObject(catalogBinding, "evidenceBlob"));
+
+        Dictionary<string, R3ExecutableEvidence> commands = ParseCatalogCommands(RequiredObject(catalog, "commands"));
+        Dictionary<string, JsonElement> catalogIssues = IndexCatalogRows(RequiredArray(catalog, "issues"), "issueId");
+        Dictionary<string, JsonElement> catalogR4 = IndexCatalogRows(RequiredArray(catalog, "r4Findings"), "findingId");
+        RequireExactIds(catalogIssues.Keys, RequiredIssueIds, "catalog R3 identifiers");
+        RequireExactIds(catalogR4.Keys, RequiredR4, "catalog R4 identifiers");
+
+        List<R4ClosedFinding> closed = [];
+        List<string> pending = [];
+        Dictionary<string, JsonElement> closureIssues = IndexCatalogRows(RequiredArray(closure, "issues"), "issueId");
+        Dictionary<string, JsonElement> closureR4 = IndexCatalogRows(RequiredArray(closure, "r4Findings"), "findingId");
+        RequireExactIds(closureIssues.Keys, RequiredIssueIds, "closure R3 identifiers");
+        RequireExactIds(closureR4.Keys, RequiredR4, "closure R4 identifiers");
+
+        foreach (string id in RequiredIssueIds)
+        {
+            JsonElement row = closureIssues[id];
+            if (id is "R3-020" or "R3-022")
+            {
+                ParsePending(row, id);
+                pending.Add(id);
+                continue;
+            }
+            closed.Add(ParseClosed(row, catalogIssues[id], id, commands, repositoryRoot, RequiresProductionReachability(id)));
+        }
+        foreach (string id in RequiredR4)
+        {
+            closed.Add(ParseClosed(closureR4[id], catalogR4[id], id, commands, repositoryRoot, requireReachability: false));
+        }
+
+        ParsePolicies(closure, closed.Select(item => item.FindingId), pending);
+        return new R4TwoPhaseIssueEvidence(closed, pending, catalogBlob, catalogCommit, catalogTree);
+    }
+
+    private static R4ClosedFinding ParseClosed(
+        JsonElement closureRow,
+        JsonElement catalogRow,
+        string id,
+        IReadOnlyDictionary<string, R3ExecutableEvidence> commands,
+        string repositoryRoot,
+        bool requireReachability)
+    {
+        if (JsonContract.RequiredString(closureRow, "phase") != "preflight"
+            || JsonContract.RequiredString(closureRow, "state") != "CLOSED"
+            || RequiredBoolean(closureRow, "productDefectRemains"))
+        {
+            throw new InvalidDataException($"{id} is not a closed preflight finding.");
+        }
+        string[] commandIds = ReadUniqueStrings(RequiredArray(closureRow, "commandIds"), $"{id} commandIds");
+        if (commandIds.Length == 0)
+        {
+            throw new InvalidDataException($"{id} has no executable GREEN command.");
+        }
+        string[] catalogCommandIds = catalogRow.TryGetProperty("commandIds", out JsonElement catalogCommands)
+            && catalogCommands.ValueKind == JsonValueKind.Array
+            ? ReadUniqueStrings(catalogCommands, $"{id} catalog commandIds")
+            : [];
+        if (!commandIds.Order(StringComparer.Ordinal).SequenceEqual(catalogCommandIds.Order(StringComparer.Ordinal), StringComparer.Ordinal))
+        {
+            throw new InvalidDataException($"{id} command binding differs from the evidence catalog.");
+        }
+        R3ExecutableEvidence[] resolved = commandIds.Select(commandId =>
+            commands.TryGetValue(commandId, out R3ExecutableEvidence? command)
+                ? command
+                : throw new InvalidDataException($"{id} references missing command {commandId}.")).ToArray();
+        R3ProductionReachability? reachability = ValidateCatalogPaths(catalogRow, repositoryRoot, id, requireReachability);
+        return new R4ClosedFinding(id, resolved, reachability);
+    }
+
+    private static void ParsePending(JsonElement row, string id)
+    {
+        JsonContract.RequireOnly(
+            row,
+            "issueId", "phase", "state", "productDefectDisposition", "acceptanceOwner", "requiredEvidence");
+        if (JsonContract.RequiredString(row, "phase") != "postAcceptance"
+            || JsonContract.RequiredString(row, "state") != "PENDING_E1_ACCEPTANCE"
+            || JsonContract.RequiredString(row, "productDefectDisposition") != "UNDETERMINED_UNTIL_E1"
+            || JsonContract.RequiredString(row, "acceptanceOwner") != "E1"
+            || ReadUniqueStrings(RequiredArray(row, "requiredEvidence"), $"{id} requiredEvidence").Length == 0)
+        {
+            throw new InvalidDataException($"{id} is not an honest E1 post-acceptance finding.");
+        }
+    }
+
+    private static Dictionary<string, R3ExecutableEvidence> ParseCatalogCommands(JsonElement value)
+    {
+        Dictionary<string, R3ExecutableEvidence> result = new(StringComparer.Ordinal);
+        foreach (JsonProperty property in value.EnumerateObject())
+        {
+            if (!result.TryAdd(property.Name, ParseCommand(property.Value)))
+            {
+                throw new InvalidDataException("Duplicate catalog command identifier.");
+            }
+        }
+        return result;
+    }
+
+    private static Dictionary<string, JsonElement> IndexCatalogRows(JsonElement rows, string idProperty)
+    {
+        Dictionary<string, JsonElement> result = new(StringComparer.Ordinal);
+        foreach (JsonElement row in rows.EnumerateArray())
+        {
+            string id = JsonContract.RequiredString(row, idProperty);
+            if (!result.TryAdd(id, row))
+            {
+                throw new InvalidDataException($"Duplicate {idProperty} '{id}'.");
+            }
+        }
+        return result;
+    }
+
+    private static R3ProductionReachability? ValidateCatalogPaths(
+        JsonElement row,
+        string repositoryRoot,
+        string id,
+        bool requireReachability)
+    {
+        R3ProductionReachability? reachability = null;
+        if (row.TryGetProperty("productionReachability", out JsonElement value))
+        {
+            reachability = ParseReachability(value, id);
+            foreach (string path in new[] { reachability.Definition, reachability.ProductionCaller, reachability.RegistrationPoint, reachability.BehavioralRegressionTest })
+            {
+                RequireExistingRepositoryPath(repositoryRoot, path);
+            }
+        }
+        else if (requireReachability)
+        {
+            throw new InvalidDataException($"{id} production reachability is missing.");
+        }
+        if (row.TryGetProperty("sourceArtifacts", out JsonElement artifacts))
+        {
+            foreach (string path in ReadUniqueStrings(artifacts, $"{id} sourceArtifacts"))
+            {
+                RequireExistingRepositoryPath(repositoryRoot, path);
+            }
+        }
+        return reachability;
+    }
+
+    private static void ParsePolicies(JsonElement closure, IEnumerable<string> closedIds, IReadOnlyList<string> pendingIds)
+    {
+        JsonElement policy = RequiredObject(closure, "preflightPolicy");
+        string[] declaredClosedR3 = ReadUniqueStrings(RequiredArray(policy, "requiredClosedR3"), "requiredClosedR3");
+        string[] declaredPending = ReadUniqueStrings(RequiredArray(policy, "requiredPendingE1Acceptance"), "requiredPendingE1Acceptance");
+        string[] declaredClosedR4 = ReadUniqueStrings(RequiredArray(policy, "requiredClosedR4"), "requiredClosedR4");
+        RequireExactIds(declaredClosedR3, RequiredPreflightR3, "preflight policy R3 identifiers");
+        RequireExactIds(declaredPending, pendingIds, "preflight policy pending identifiers");
+        RequireExactIds(declaredClosedR4, RequiredR4, "preflight policy R4 identifiers");
+        JsonElement post = RequiredObject(closure, "postAcceptancePolicy");
+        if (JsonContract.RequiredString(post, "owner") != "E1")
+        {
+            throw new InvalidDataException("Post-acceptance ownership is not E1.");
+        }
+        _ = closedIds.Count();
+    }
+
+    private static void RequireMatchingSubject(JsonElement left, JsonElement right)
+    {
+        string leftCommit = JsonContract.RequiredString(left, "commit");
+        string leftTree = JsonContract.RequiredString(left, "tree");
+        JsonContract.RequireGitObject(leftCommit, "productSubject.commit");
+        JsonContract.RequireGitObject(leftTree, "productSubject.tree");
+        if (leftCommit != JsonContract.RequiredString(right, "commit")
+            || leftTree != JsonContract.RequiredString(right, "tree"))
+        {
+            throw new InvalidDataException("Closure and catalog product subjects differ.");
+        }
+    }
+
+    private static void RequireExactIds(IEnumerable<string> observedIds, IEnumerable<string> requiredIds, string description)
+    {
+        string[] observed = observedIds.Order(StringComparer.Ordinal).ToArray();
+        string[] required = requiredIds.Order(StringComparer.Ordinal).ToArray();
+        if (!observed.SequenceEqual(required, StringComparer.Ordinal))
+        {
+            throw new InvalidDataException($"Invalid {description}.");
+        }
+    }
+
+    private static string[] ReadUniqueStrings(JsonElement value, string description)
+    {
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException($"{description} must be an array.");
+        }
+        string[] result = value.EnumerateArray().Select(item =>
+            item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString())
+                ? item.GetString()!
+                : throw new InvalidDataException($"{description} contains an invalid value.")).ToArray();
+        if (result.Distinct(StringComparer.Ordinal).Count() != result.Length)
+        {
+            throw new InvalidDataException($"{description} contains duplicates.");
+        }
+        return result;
+    }
+
+    private static void RequireExistingRepositoryPath(string repositoryRoot, string relativePath)
+    {
+        string safe = RequireRepositoryPathValue(relativePath);
+        string root = Path.GetFullPath(repositoryRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        string full = Path.GetFullPath(Path.Combine(root, safe.Replace('/', Path.DirectorySeparatorChar)));
+        if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase) || (!File.Exists(full) && !Directory.Exists(full)))
+        {
+            throw new InvalidDataException("Declared repository evidence path is absent or escaping.");
+        }
+    }
+
+    private static string RequireRepositoryPathValue(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || Path.IsPathFullyQualified(value) || value.Contains('\\')
+            || value.Split('/').Any(segment => segment is "" or "." or ".."))
+        {
+            throw new InvalidDataException("Evidence path must be repository-relative.");
+        }
+        return value;
+    }
 
     internal static IReadOnlyList<R3IssueEvidence> Verify(string manifestPath)
     {
