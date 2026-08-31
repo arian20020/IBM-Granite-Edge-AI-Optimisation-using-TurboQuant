@@ -1,0 +1,50 @@
+{
+  "openvino_versions": [
+    "2026.2.0-1-1827f6458d0-turbo_quant"
+  ],
+  "runtime_properties": [
+    {
+      "ATTENTION_BACKEND": "SDPA"
+    },
+    {
+      "ATTENTION_BACKEND": "SDPA",
+      "KEY_CACHE_CODEC": "polar3",
+      "VALUE_CACHE_CODEC": "polar3"
+    },
+    {
+      "ATTENTION_BACKEND": "SDPA",
+      "KEY_CACHE_CODEC": "polar4",
+      "VALUE_CACHE_CODEC": "polar4"
+    },
+    {
+      "ATTENTION_BACKEND": "SDPA",
+      "KEY_CACHE_CODEC": "tbq3",
+      "VALUE_CACHE_CODEC": "tbq3"
+    },
+    {
+      "ATTENTION_BACKEND": "SDPA",
+      "KEY_CACHE_CODEC": "tbq3_qjl",
+      "VALUE_CACHE_CODEC": "tbq3_qjl"
+    },
+    {
+      "ATTENTION_BACKEND": "SDPA",
+      "KEY_CACHE_CODEC": "tbq4",
+      "VALUE_CACHE_CODEC": "tbq4"
+    },
+    {
+      "ATTENTION_BACKEND": "SDPA",
+      "KEY_CACHE_CODEC": "tbq4_qjl",
+      "VALUE_CACHE_CODEC": "tbq4_qjl"
+    },
+    {
+      "ATTENTION_BACKEND": "SDPA",
+      "KEY_CACHE_PRECISION": "u4",
+      "VALUE_CACHE_PRECISION": "u4"
+    },
+    {
+      "ATTENTION_BACKEND": "SDPA",
+      "KEY_CACHE_PRECISION": "u8",
+      "VALUE_CACHE_PRECISION": "u8"
+    }
+  ]
+}

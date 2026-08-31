@@ -1,0 +1,10 @@
+{
+  "artifact_unavailable": 54,
+  "cache_format_count": 9,
+  "executed": 27,
+  "model_weight_artifact_count": 3,
+  "passed": 27,
+  "planned": 81,
+  "quality_prompts_per_passed_case": 48,
+  "valid": true
+}

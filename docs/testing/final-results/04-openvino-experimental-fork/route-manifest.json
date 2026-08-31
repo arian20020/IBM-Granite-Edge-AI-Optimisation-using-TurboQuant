@@ -1,0 +1,71 @@
+{
+  "attempt_count": 81,
+  "campaign_id": "fv6-2026-08-30",
+  "evidence_count": 81,
+  "failure_count": 54,
+  "hardware": {
+    "reason": "fv6 source evidence records process memory but no portable host manifest",
+    "status": "not_collected"
+  },
+  "measurement_count": 81,
+  "quality_count": 3888,
+  "repository": {
+    "branch": "turbo_quant",
+    "commit": "1827f6458d049de11c1a8203c793af67c99935dc",
+    "source_campaign": "fv6",
+    "source_date": "2026-08-30",
+    "url": "https://github.com/EgorDuplensky/openvino.git"
+  },
+  "route_id": "openvino-experimental-fork",
+  "software": {
+    "openvino_versions": [
+      "2026.2.0-1-1827f6458d0-turbo_quant"
+    ],
+    "runtime_properties": [
+      {
+        "ATTENTION_BACKEND": "SDPA"
+      },
+      {
+        "ATTENTION_BACKEND": "SDPA",
+        "KEY_CACHE_CODEC": "polar3",
+        "VALUE_CACHE_CODEC": "polar3"
+      },
+      {
+        "ATTENTION_BACKEND": "SDPA",
+        "KEY_CACHE_CODEC": "polar4",
+        "VALUE_CACHE_CODEC": "polar4"
+      },
+      {
+        "ATTENTION_BACKEND": "SDPA",
+        "KEY_CACHE_CODEC": "tbq3",
+        "VALUE_CACHE_CODEC": "tbq3"
+      },
+      {
+        "ATTENTION_BACKEND": "SDPA",
+        "KEY_CACHE_CODEC": "tbq3_qjl",
+        "VALUE_CACHE_CODEC": "tbq3_qjl"
+      },
+      {
+        "ATTENTION_BACKEND": "SDPA",
+        "KEY_CACHE_CODEC": "tbq4",
+        "VALUE_CACHE_CODEC": "tbq4"
+      },
+      {
+        "ATTENTION_BACKEND": "SDPA",
+        "KEY_CACHE_CODEC": "tbq4_qjl",
+        "VALUE_CACHE_CODEC": "tbq4_qjl"
+      },
+      {
+        "ATTENTION_BACKEND": "SDPA",
+        "KEY_CACHE_PRECISION": "u4",
+        "VALUE_CACHE_PRECISION": "u4"
+      },
+      {
+        "ATTENTION_BACKEND": "SDPA",
+        "KEY_CACHE_PRECISION": "u8",
+        "VALUE_CACHE_PRECISION": "u8"
+      }
+    ]
+  },
+  "summary_count": 81
+}
