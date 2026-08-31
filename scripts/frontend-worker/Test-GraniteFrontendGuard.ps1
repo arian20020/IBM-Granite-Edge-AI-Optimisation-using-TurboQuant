@@ -5,8 +5,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Invoke-Git([string] $Directory, [string[]] $Arguments) {
-    $output = & git -C $Directory @Arguments 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed:`n$output" }
+    $rawOutput = & git -C $Directory @Arguments 2>&1
+    $exitCode = $LASTEXITCODE
+    $output = $rawOutput | Out-String
+    if ($exitCode -ne 0) { throw "git $($Arguments -join ' ') failed:`n$output" }
     return $output.Trim()
 }
 
@@ -21,8 +23,10 @@ function Invoke-Guard([string[]] $GuardArguments) {
         'run', '--no-build', '--configuration', 'Release',
         '--project', $script:ProjectPath, '--'
     ) + $GuardArguments
-    $output = & dotnet @arguments 2>&1 | Out-String
-    return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = $output.Trim() }
+    $rawOutput = & dotnet @arguments 2>&1
+    $exitCode = $LASTEXITCODE
+    $output = $rawOutput | Out-String
+    return [pscustomobject]@{ ExitCode = $exitCode; Output = $output.Trim() }
 }
 
 function Assert-Exit([object] $Result, [int] $Expected, [string] $Message) {
