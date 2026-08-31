@@ -81,6 +81,16 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
+    public void Missing_prerequisite_block_requires_the_exact_external_preflight_command()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, mutate: (value, _, _) =>
+            ((Dictionary<string, object?>)value["externalBlock"]!)["commandId"] = "APP-CONTROL-GATE");
+
+        Assert.ThrowsExactly<InvalidDataException>(() => VerifyPostFixture(receipt, directory.Path));
+    }
+
+    [TestMethod]
     public void Exact_App_Control_prediscovery_block_closes_only_R3_020()
     {
         using TestDirectory directory = TestDirectory.Create();

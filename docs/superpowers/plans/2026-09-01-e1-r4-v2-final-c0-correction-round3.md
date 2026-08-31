@@ -10,6 +10,12 @@
 
 **Spec:** `C:/Users/Student/.codex/attachments/79d378bb-e5f5-4188-ae2f-418ccf2cb6d7/pasted-text.txt`
 
+**Observed-outcome note:** The original plan anticipated that the successor might be
+blocked by App Control. The committed successor instead executed its focused harness,
+and the final observed block was the absent exact `candidateManifest`. The sealed
+return therefore uses the `missingPrerequisite` contract and does not promote the
+historical App Control event to successor evidence.
+
 ## Global Constraints
 
 - Continue append-only on `test/ucl-e1-native-acceptance-r4-v2` from `fc4c3b96ef71145b36f450cd3c587d42e0e2bba8`.

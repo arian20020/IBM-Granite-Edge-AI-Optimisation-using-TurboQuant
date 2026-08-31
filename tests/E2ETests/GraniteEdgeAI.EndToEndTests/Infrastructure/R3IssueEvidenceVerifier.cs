@@ -401,7 +401,8 @@ internal static class R3IssueEvidenceVerifier
             JsonContract.RequireOnly(observation, "schemaVersion", "observer", "candidateCommit", "candidateTree",
                 "implementationSubjectCommit", "implementationSubjectTree", "kind", "prerequisite",
                 "observedAbsent", "observedAtUtc");
-            if (command.Executed <= 0 || command.Failed <= 0 || command.Passed != 0 || command.Skipped != 0
+            if (commandId != "EXTERNAL-PREREQUISITE-PREFLIGHT"
+                || command.Executed <= 0 || command.Failed <= 0 || command.Passed != 0 || command.Skipped != 0
                 || command.ExitCode == 0 || command.Disposition is not ("blocked" or "failed")
                 || !allowed.Contains(prerequisite)
                 || JsonContract.RequiredInt64(observation, "schemaVersion") != 1

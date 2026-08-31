@@ -244,8 +244,8 @@ function Assert-E1ImplementationBoundary {
         'docs/audits/2026-08-30/evidence/E1-r4-independent-acceptance-v2.json',
         'docs/audits/2026-08-30/evidence/E1-r4-post-acceptance-v2.json',
         'docs/audits/2026-08-30/handoffs/R4-E1.json',
-        'docs/audits/2026-08-30/evidence/E1-r4-external-block-observation-v3.json',
-        'docs/audits/2026-08-30/evidence/E1-r4-independent-final-review-v5.json'
+        'docs/audits/2026-08-30/evidence/E1-r4-external-block-observation-v4.json',
+        'docs/audits/2026-08-30/evidence/E1-r4-independent-final-review-v6.json'
     ) | ForEach-Object { [void]$allowed.Add($_) }
     [void](Invoke-E1Git -RepositoryRoot $RepositoryRoot -Arguments @('merge-base', '--is-ancestor', $ImplementationCommit, 'HEAD'))
     $committed = Invoke-E1Git -RepositoryRoot $RepositoryRoot -Arguments @('diff', '--name-only', "$ImplementationCommit..HEAD", '--')
