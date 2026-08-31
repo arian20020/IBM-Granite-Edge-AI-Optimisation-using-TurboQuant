@@ -51,7 +51,7 @@ param(
     [switch]$TestCleanupFailure,
 
     [Parameter(DontShow = $true)]
-    [switch]$TestForceKillDoesNotExit,
+    [switch]$TestForceKillWaitResultFailure,
 
     [Parameter(DontShow = $true)]
     [switch]$TestCloseIdentityWindowBeforeExport,
@@ -346,25 +346,39 @@ function Get-ValidatedOwnedWordProcess {
 function Stop-ValidatedOwnedWordProcess {
     param(
         [Parameter(Mandatory = $true)][string]$ReceiptPath,
-        [bool]$SimulateNonExit = $false
+        [bool]$InjectWaitResultFailure = $false
     )
 
     $identity = [System.IO.File]::ReadAllText($ReceiptPath) | ConvertFrom-Json
     $ownedWord = Get-ValidatedOwnedWordProcess -ReceiptPath $ReceiptPath -RequireLiveWindow $false
+    $killIssued = $false
+    $waitForExitSucceeded = $false
     try {
-        if ($SimulateNonExit) {
-            throw "The causally owned Word process did not exit after force termination."
-        }
         $ownedWord.Kill()
-        if (-not $ownedWord.WaitForExit(5000)) {
-            throw "The causally owned Word process did not exit after force termination."
+        $killIssued = $true
+        $waitForExitSucceeded = $ownedWord.WaitForExit(5000)
+        if ($InjectWaitResultFailure) {
+            $waitForExitSucceeded = $false
         }
+        if (-not $waitForExitSucceeded) {
+            throw "The exit wait did not confirm force termination of the causally owned Word process."
+        }
+    }
+    catch {
+        $_.Exception.Data["kill_issued"] = $killIssued
+        $_.Exception.Data["wait_for_exit_succeeded"] = $waitForExitSucceeded
+        throw
     }
     finally {
         $ownedWord.Dispose()
     }
     if (-not (Test-ProcessIdentityGone -Identity $identity)) {
-        throw "The causally owned Word process still matches its recorded identity after force termination."
+        $identityError = [System.Management.Automation.RuntimeException]::new(
+            "The causally owned Word process still matches its recorded identity after force termination."
+        )
+        $identityError.Data["kill_issued"] = $killIssued
+        $identityError.Data["wait_for_exit_succeeded"] = $waitForExitSucceeded
+        throw $identityError
     }
 }
 
@@ -972,12 +986,16 @@ try {
             cleanup_succeeded = $false
             word_exited = $false
             worker_exited = $false
+            kill_issued = $false
+            wait_for_exit_succeeded = $false
             error = $null
         }
         try {
             Stop-ValidatedOwnedWordProcess `
                 -ReceiptPath $identityReceipt `
-                -SimulateNonExit $TestForceKillDoesNotExit.IsPresent
+                -InjectWaitResultFailure $TestForceKillWaitResultFailure.IsPresent
+            $terminationStatus.kill_issued = $true
+            $terminationStatus.wait_for_exit_succeeded = $true
             $terminationStatus.word_exited = $true
             $workerIdentity = [System.IO.File]::ReadAllText($workerIdentityReceipt) | ConvertFrom-Json
             if (-not (Test-ProcessIdentityGone -Identity $workerIdentity)) {
@@ -993,6 +1011,12 @@ try {
             $terminationVerified = $terminationStatus.cleanup_succeeded
         }
         catch {
+            if ($_.Exception.Data.Contains("kill_issued")) {
+                $terminationStatus.kill_issued = [bool]$_.Exception.Data["kill_issued"]
+            }
+            if ($_.Exception.Data.Contains("wait_for_exit_succeeded")) {
+                $terminationStatus.wait_for_exit_succeeded = [bool]$_.Exception.Data["wait_for_exit_succeeded"]
+            }
             $terminationStatus.error = $_.Exception.Message
             $preserveOperationDirectory = $true
             Write-JsonReceipt -Value $terminationStatus -Path $parentTerminationReceipt

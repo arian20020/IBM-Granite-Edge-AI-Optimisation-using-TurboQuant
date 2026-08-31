@@ -129,6 +129,10 @@ def _process_exists(process_id: int) -> bool:
         text=True,
         check=True,
     )
+    return any(
+        len(row) >= 2 and row[1].isdigit() and int(row[1]) == process_id
+        for row in csv.reader(result.stdout.splitlines())
+    )
 
 
 def _wait_for_process_exit(process_id: int, timeout_seconds: float = 15) -> bool:
@@ -136,10 +140,6 @@ def _wait_for_process_exit(process_id: int, timeout_seconds: float = 15) -> bool
     while _process_exists(process_id) and time.monotonic() < deadline:
         time.sleep(0.1)
     return not _process_exists(process_id)
-    return any(
-        len(row) >= 2 and row[1].isdigit() and int(row[1]) == process_id
-        for row in csv.reader(result.stdout.splitlines())
-    )
 
 
 def _wait_for_word_process_ids(expected: set[int], timeout_seconds: float = 15) -> set[int]:
@@ -185,6 +185,46 @@ try {
     if (-not $matches) { exit 4 }
     $process.Kill()
     [void]$process.WaitForExit(5000)
+}
+finally {
+    $process.Dispose()
+}
+'''
+    encoded = base64.b64encode(validator.encode("utf-16-le")).decode("ascii")
+    environment = os.environ.copy()
+    environment["FINAL_RESULTS_TEST_IDENTITY"] = json.dumps(identity, separators=(",", ":"))
+    subprocess.run(
+        [
+            _powershell(),
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-EncodedCommand",
+            encoded,
+        ],
+        check=False,
+        env=environment,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+
+
+def _terminate_causally_identified_test_process(identity: dict[str, object]) -> None:
+    validator = r'''
+$ErrorActionPreference = "Stop"
+$identity = $env:FINAL_RESULTS_TEST_IDENTITY | ConvertFrom-Json
+$pidValue = [int]$identity.pid
+$process = Get-Process -Id $pidValue -ErrorAction Stop
+try {
+    $matches = (
+        $process.StartTime.ToUniversalTime().Ticks -eq [int64]$identity.process_start_time_utc_ticks -and
+        [StringComparer]::OrdinalIgnoreCase.Equals(
+            [IO.Path]::GetFullPath($process.Path),
+            [IO.Path]::GetFullPath([string]$identity.executable_path)
+        )
+    )
+    if (-not $matches) { exit 4 }
+    $process.Kill()
+    if (-not $process.WaitForExit(5000)) { exit 5 }
 }
 finally {
     $process.Dispose()
@@ -342,6 +382,11 @@ def _pdf_report() -> Report:
     )
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows tasklist is required")
+def test_process_exists_reports_the_current_process():
+    assert _process_exists(os.getpid()) is True
+
+
 def test_pdf_export_rejects_a_missing_source_without_starting_word(tmp_path):
     result = _invoke_export(tmp_path / "missing.docx", tmp_path / "report.pdf", 5)
 
@@ -422,7 +467,7 @@ def test_attribution_failure_never_selects_or_kills_a_snapshot_word_pid(tmp_path
 
 
 @pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
-def test_startup_timeout_contains_pre_receipt_word_and_worker_only(tmp_path):
+def test_precausal_timeout_preserves_worker_for_cooperative_cleanup_and_preexisting_word(tmp_path):
     docx = tmp_path / "report.docx"
     pdf = tmp_path / "report.pdf"
     worker_pid_path = tmp_path / "export-worker.pid"
@@ -432,36 +477,52 @@ def test_startup_timeout_contains_pre_receipt_word_and_worker_only(tmp_path):
 
     with _pre_existing_hidden_word_session(tmp_path) as (baseline, pre_existing):
         expected = baseline | {int(pre_existing["pid"])}
-        result = _invoke_export(
-            docx,
-            pdf,
-            60,
-            "-StartupTimeoutSeconds",
-            "8",
-            "-TestPreCausalReceiptDelaySeconds",
-            "20",
-            "-TestWorkerPidPath",
-            str(worker_pid_path),
-            "-TestWordActivatedPath",
-            str(activation_path),
-            "-TestOperationDirectoryPath",
-            str(operation_directory),
-        )
+        activation = None
+        worker_pid = None
+        try:
+            result = _invoke_export(
+                docx,
+                pdf,
+                60,
+                "-StartupTimeoutSeconds",
+                "8",
+                "-TestPreCausalReceiptDelaySeconds",
+                "40",
+                "-TestWorkerPidPath",
+                str(worker_pid_path),
+                "-TestWordActivatedPath",
+                str(activation_path),
+                "-TestOperationDirectoryPath",
+                str(operation_directory),
+            )
 
-        assert result.returncode != 0
-        assert "cleanup_unverified" in (result.stdout + result.stderr).casefold()
-        activation = json.loads(activation_path.read_text(encoding="utf-8"))
-        assert int(activation["pid"]) != int(pre_existing["pid"])
-        worker_pid = int(worker_pid_path.read_text(encoding="ascii"))
-        cleanup = json.loads(
-            (operation_directory / "parent-termination.json").read_text(encoding="utf-8")
-        )
-        assert cleanup["source"] == "parent_precausal_safe_failure"
-        assert cleanup["cleanup_succeeded"] is False
-        assert cleanup["word_exited"] is False
-        assert int(pre_existing["pid"]) in _word_process_ids()
-        assert _wait_for_process_exit(worker_pid)
-        assert _wait_for_word_process_ids(expected) == expected
+            assert result.returncode != 0
+            assert "cleanup_unverified" in (result.stdout + result.stderr).casefold()
+            activation = json.loads(activation_path.read_text(encoding="utf-8"))
+            assert int(activation["pid"]) != int(pre_existing["pid"])
+            worker_pid = int(worker_pid_path.read_text(encoding="ascii"))
+            cleanup = json.loads(
+                (operation_directory / "parent-termination.json").read_text(encoding="utf-8")
+            )
+            assert cleanup["source"] == "parent_precausal_safe_failure"
+            assert cleanup["cleanup_succeeded"] is False
+            assert cleanup["word_exited"] is False
+            assert int(pre_existing["pid"]) in _word_process_ids()
+            assert _process_exists(worker_pid) is True
+            assert _wait_for_process_exit(worker_pid, timeout_seconds=30)
+            assert _wait_for_word_process_ids(expected) == expected
+        finally:
+            if activation is not None and _process_exists(int(activation["pid"])):
+                _terminate_causally_identified_test_word(activation)
+            worker_identity_path = operation_directory / "worker-identity.json"
+            if (
+                worker_pid is not None
+                and _process_exists(worker_pid)
+                and worker_identity_path.is_file()
+            ):
+                _terminate_causally_identified_test_process(
+                    json.loads(worker_identity_path.read_text(encoding="utf-8"))
+                )
 
 
 @pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
@@ -514,7 +575,7 @@ def test_cleanup_failure_receipt_is_not_treated_as_success(tmp_path):
 
 
 @pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
-def test_nonterminating_force_kill_preserves_failure_status_and_causal_receipts(tmp_path):
+def test_injected_false_force_kill_wait_result_preserves_failure_status_and_receipts(tmp_path):
     docx = tmp_path / "report.docx"
     pdf = tmp_path / "report.pdf"
     operation_directory = tmp_path / "kill-failure-operation"
@@ -527,18 +588,20 @@ def test_nonterminating_force_kill_preserves_failure_status_and_causal_receipts(
         1,
         "-TestExportDelaySeconds",
         "5",
-        "-TestForceKillDoesNotExit",
+        "-TestForceKillWaitResultFailure",
         "-TestOperationDirectoryPath",
         str(operation_directory),
     )
 
     assert result.returncode != 0
-    assert "did not exit after force termination" in (result.stdout + result.stderr).casefold()
+    assert "exit wait did not confirm force termination" in (result.stdout + result.stderr).casefold()
     termination = json.loads(
         (operation_directory / "parent-termination.json").read_text(encoding="utf-8")
     )
     assert termination["cleanup_succeeded"] is False
     assert termination["word_exited"] is False
+    assert termination["kill_issued"] is True
+    assert termination["wait_for_exit_succeeded"] is False
     assert (operation_directory / "word-identity.json").is_file()
     assert (operation_directory / "worker-identity.json").is_file()
     assert _wait_for_word_process_ids(baseline) == baseline
