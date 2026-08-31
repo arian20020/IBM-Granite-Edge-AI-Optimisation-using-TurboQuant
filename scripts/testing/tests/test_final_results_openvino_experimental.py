@@ -145,6 +145,7 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     assert len(bundle.measurements) == 27 * 3
     assert {item.test_case_id for item in bundle.measurements} == passed_cases
     assert {item.test_case_id for item in bundle.summaries} == passed_cases
+    assert all(len(item.source_measurement_ids) == 3 for item in bundle.summaries)
     assert {item.test_case_id for item in bundle.quality} == passed_cases
     assert len(bundle.failures) == 54
     assert {item.test_case_id for item in bundle.failures} == unavailable_cases
@@ -329,28 +330,40 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     assert data_validation["valid"] is True
     assert set(data_validation["checks"]) == {
         "attempt_identifier_uniqueness",
+        "attempt_identifier_bindings",
         "attempt_source_evidence_references",
         "artifact_unavailable_semantics",
+        "evidence_identifier_bindings",
         "evidence_identifier_uniqueness",
         "evidence_references",
         "exactly_three_distinct_criteria_per_prompt",
         "failure_count",
+        "failure_identifier_bindings",
         "failure_identifier_uniqueness",
         "failure_references",
         "measurement_count",
+        "measurement_identifier_bindings",
         "measurement_identifier_uniqueness",
         "measurement_references",
         "output_count",
+        "output_identifier_bindings",
         "output_identifier_uniqueness",
         "output_references",
+        "output_source_bindings",
         "prompt_count",
+        "prompt_identifier_bindings",
         "prompt_identifier_uniqueness",
         "prompt_references",
+        "prompt_source_bindings",
         "quality_criterion_count",
+        "quality_identifier_bindings",
         "quality_identifier_uniqueness",
+        "quality_prompt_bindings",
         "quality_references",
         "summary_count",
+        "summary_identifier_bindings",
         "summary_identifier_uniqueness",
+        "summary_lineage_and_values",
         "summary_references",
         "unavailable_exclusions",
     }
@@ -474,6 +487,138 @@ def test_validation_receipts_reject_duplicate_output_ids():
     )
 
     assert data["checks"]["output_identifier_uniqueness"]["passed"] is False
+    assert data["valid"] is False
+
+
+@pytest.mark.parametrize(
+    ("collection_name", "field", "replacement", "check_name"),
+    (
+        ("attempts", "attempt_id", "wrong-attempt", "attempt_identifier_bindings"),
+        (
+            "measurements",
+            "measurement_id",
+            "wrong-measurement",
+            "measurement_identifier_bindings",
+        ),
+        (
+            "measurements",
+            "repetition_id",
+            "999",
+            "measurement_identifier_bindings",
+        ),
+        ("summaries", "summary_id", "wrong-summary", "summary_identifier_bindings"),
+        ("quality", "quality_id", "wrong-quality", "quality_identifier_bindings"),
+        ("failures", "failure_id", "wrong-failure", "failure_identifier_bindings"),
+        ("evidence", "evidence_id", "wrong-evidence", "evidence_identifier_bindings"),
+    ),
+)
+def test_validation_receipts_reject_noncanonical_record_identity_bindings(
+    collection_name, field, replacement, check_name
+):
+    bundle = build_experimental_bundle(REPO_ROOT)
+    records = list(getattr(bundle, collection_name))
+    records[0] = replace(records[0], **{field: replacement})
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, **{collection_name: tuple(records)})
+    )
+
+    assert data["checks"][check_name]["passed"] is False
+    assert data["valid"] is False
+
+
+def test_attempt_identifier_uniqueness_is_independent_of_planned_count():
+    bundle = build_experimental_bundle(REPO_ROOT)
+
+    coverage, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, attempts=bundle.attempts[:-1])
+    )
+
+    assert coverage["checks"]["planned_count"]["passed"] is False
+    assert data["checks"]["attempt_identifier_uniqueness"] == {
+        "actual": 80,
+        "expected": 80,
+        "passed": True,
+    }
+
+
+def test_validation_receipts_require_quality_prompt_to_exist_in_prompt_suite():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    quality = list(bundle.quality)
+    quality[0] = replace(quality[0], prompt_id="Q99")
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, quality=tuple(quality))
+    )
+
+    assert data["checks"]["quality_prompt_bindings"]["passed"] is False
+    assert data["valid"] is False
+
+
+def test_validation_receipts_reject_count_preserving_published_prompt_identity_swap():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    first_id, second_id = prompts[0]["prompt_id"], prompts[1]["prompt_id"]
+    prompts[0]["prompt_id"], prompts[1]["prompt_id"] = second_id, first_id
+    for row in outputs:
+        if row["prompt_id"] not in {first_id, second_id}:
+            continue
+        row["prompt_id"] = second_id if row["prompt_id"] == first_id else first_id
+        row["output_id"] = f"{row['test_case_id']}--{row['prompt_id']}--output"
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT,
+        bundle,
+        prompt_rows=prompts,
+        output_rows=outputs,
+    )
+
+    assert data["checks"]["prompt_identifier_uniqueness"]["passed"] is True
+    assert data["checks"]["output_identifier_uniqueness"]["passed"] is True
+    assert data["checks"]["prompt_identifier_bindings"]["passed"] is False
+    assert data["checks"]["output_identifier_bindings"]["passed"] is False
+    assert data["checks"]["quality_prompt_bindings"]["passed"] is False
+    assert data["checks"]["prompt_source_bindings"]["passed"] is False
+    assert data["checks"]["output_source_bindings"]["passed"] is False
+    assert data["valid"] is False
+
+
+def test_validation_receipts_reject_noncanonical_output_identity():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    outputs[0]["output_id"] = "wrong-output"
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT,
+        bundle,
+        prompt_rows=prompts,
+        output_rows=outputs,
+    )
+
+    assert data["checks"]["output_identifier_bindings"]["passed"] is False
+
+
+@pytest.mark.parametrize(
+    ("mutation",),
+    (
+        (lambda summary: replace(summary, source_measurement_ids=(summary.source_measurement_ids[1], summary.source_measurement_ids[0], summary.source_measurement_ids[2])),),
+        (lambda summary: replace(summary, source_measurement_ids=summary.source_measurement_ids[:1]),),
+        (lambda summary: replace(summary, aggregation="incorrect aggregation"),),
+        (lambda summary: replace(summary, value=float(summary.value) + 1.0),),
+    ),
+)
+def test_validation_receipts_reject_wrong_summary_lineage_aggregation_or_value(mutation):
+    bundle = build_experimental_bundle(REPO_ROOT)
+    summaries = list(bundle.summaries)
+    summaries[0] = mutation(summaries[0])
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, summaries=tuple(summaries))
+    )
+
+    assert data["checks"]["summary_lineage_and_values"]["passed"] is False
     assert data["valid"] is False
 
 

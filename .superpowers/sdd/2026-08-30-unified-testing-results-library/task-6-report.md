@@ -249,3 +249,74 @@ The five frozen fv6 evidence hashes remain `016d9424...`, `ebf8a968...`, `2f5739
 ### Remaining integration boundary
 
 The checksum manifest remains intentionally exact for the current 22-file Task 6 route. If Task 8 adds generated report or workbook artifacts, its planned output set must be finalized first and the manifest must then be deliberately regenerated and validated. The current non-destructive manifest API is expected to reject a changed file set unless that explicit regeneration step is performed.
+
+## Fix round 3/5
+
+### Reviewer findings addressed
+
+- Added source-derived canonical identity bindings for attempts, measurements (including run and repetition identity), summaries, criterion-level quality records, failures, evidence, prompts, and outputs. Constructors use the same declared ID helpers, while receipt expectations are keyed from frozen detailed, quality-detail, raw-result, prompt-file, and workbook entities so synchronized record permutations cannot validate themselves.
+- Evidence identity expectations reproduce the canonical compact digest ID and full-digest collision fallback in the frozen source construction order. Each evidence ID is bound to the expected route, campaign, role, repository-relative path, SHA-256, size, source label, and non-derived provenance state.
+- Prompt provenance binds each published prompt ID to the exact frozen suite, domain, length class, prompt-file evidence ID, repository-relative path, and text-content SHA-256. Quality records must reference a prompt that exists in this published suite and retain the frozen prompt suite and same-case raw-result evidence.
+- Output provenance binds each canonical output ID to the exact case/prompt raw run, same-case raw-result evidence, domain, prompt length, status, output-valid and critical-failure flags, prompt score, and SHA-256 recomputed from the raw answer text.
+- All three summaries for every passed case now retain the exact ordered three benchmark repetition measurement IDs. Receipt validation recomputes the expected median decode throughput, TTFT selected by median decode throughput, and worst observed peak working set directly from frozen raw repetitions, and validates the metric-specific ID, unit, aggregation rule, value, and lineage.
+- Attempt ID uniqueness now compares the unique-ID count with the actual attempt-record count. The independent planned-count coverage check continues to require 81 attempts.
+- Added explicit named receipt checks for all canonical identifier bindings, prompt/quality/output source bindings, and exact summary lineage/value validation. The data receipt now exposes 37 named checks; validity remains `all(check["passed"])`.
+
+### RED evidence
+
+Before production changes, the expanded focused suite reported:
+
+```text
+16 failed, 45 passed in 39.28s
+```
+
+The failures showed the existing one-measurement TTFT/peak lineage, missing canonical binding checks, hard-coded attempt uniqueness expectation, acceptance of a nonexistent quality prompt, acceptance of a count-preserving synchronized prompt/output ID swap, and missing exact summary lineage/aggregation/value validation.
+
+A follow-up mutation strengthened the synchronized permutation contract to require the canonical prompt, output, and quality-prompt identity bindings themselves to fail, not only the source-binding checks. It produced the expected focused RED:
+
+```text
+1 failed in 1.40s
+```
+
+### GREEN evidence
+
+The receipt and mutation subset passed:
+
+```text
+33 passed, 28 deselected in 35.79s
+```
+
+After deliberate route regeneration, the complete Task 6 focused suite passed:
+
+```text
+61 passed in 45.01s
+```
+
+The strengthened synchronized-permutation test passed independently:
+
+```text
+1 passed in 1.18s
+```
+
+The relevant final-results/file-generation regression suite passed:
+
+```text
+130 passed in 53.22s
+```
+
+### Generated receipt and integrity audit
+
+```text
+data receipt checks 37/37 passed; valid true
+coverage receipt checks 10/10 passed; valid true
+summaries 81; all 81 contain exactly three ordered source measurement IDs
+manifest entries 22; validation errors []
+workbook source/copy byte-identical
+workbook SHA-256 09820a5b19edb11efd7640f1d9a13802b82fb464ab6e14622998d2565c5aca83
+```
+
+The fixed-mtime idempotence test can make Git's stat cache report the regenerated checksum manifest as unchanged even when its bytes differ from `HEAD`. The manifest is therefore explicitly force-hashed with `git add` during Task 6 staging, and its staged summary/data receipt digests are reviewed before commit.
+
+### Task 8 integration boundary
+
+The route manifest remains an exact receipt for the 22 Task 6 files. Task 8 must deliberately regenerate and validate it after finalizing any added report/workbook artifact set; those later artifacts must not be silently omitted from this provenance boundary.
