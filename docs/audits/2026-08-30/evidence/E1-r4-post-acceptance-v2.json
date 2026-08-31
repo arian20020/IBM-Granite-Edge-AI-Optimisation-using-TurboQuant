@@ -1,35 +1,38 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "workerId": "E1",
   "baseCommit": "b5d2cd34c57368efb9b122cddf16c2ffa2d3895e",
   "baseTree": "a3e4d82095caa9688f30d2463fa5971c788fd33f",
-  "implementationSubjectCommit": "6e8eaabea5e8b0fbf37fe1b9131335247bb0a64e",
-  "implementationSubjectTree": "a6c5958ec917cd110ad24361a4a9f8dec0ebb21d",
+  "implementationSubjectCommit": "7cf892d17f81b87b64b4d634b2e018b9005b7656",
+  "implementationSubjectTree": "777b9af69c14fc60a14adbe7968f9d5ebd980921",
   "disposition": "BLOCKED BY EXTERNAL ENVIRONMENT",
   "report": {
     "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
-    "sha256": "58127194f9ec02c542e80a511e229a487dd490dc191c1d520380440060f70e93",
-    "bytes": 6004
+    "sha256": "40b2f541e9d262e4a72bc46071c5d7cb3d7d333138c807359e50e61391bacc5e",
+    "bytes": 6478
   },
   "evidenceManifest": {
     "path": "docs/audits/2026-08-30/evidence/E1-r4-independent-acceptance-v2.json",
-    "sha256": "1203569337357b2387737cfd6f93a9554da7c65984e4e5c0e050ffedd96701e1",
-    "bytes": 4666
+    "sha256": "4f857687d658263a7e5319d621b4d441333ba1312c950e58bd2ca748653e5fca",
+    "bytes": 4906
   },
   "nativeLockAcquisitions": 0,
-  "cleanupVerified": true,
-  "packageAttempted": false,
-  "packagePassed": false,
-  "appControlChecked": true,
-  "appControlPassed": false,
-  "nativeExecuted": 0,
-  "nativePassed": 0,
-  "nativeFailed": 0,
-  "nativeSkipped": 0,
-  "managedExecuted": 317,
-  "managedPassed": 316,
+  "managedExecuted": 12,
+  "managedPassed": 11,
   "managedFailed": 1,
   "managedSkipped": 0,
   "blockedGatesCountedAsPasses": false,
-  "externalBlock": "Exact candidate, asset, native-stage manifests and predecessor cleanup receipts were absent before lock eligibility."
+  "gateEvidence": {
+    "package": {"commandId":"PACKAGE-ACTIVATION","executed":0,"passed":0,"failed":0,"skipped":0},
+    "appControl": {"commandId":"SECURITY-APP-CONTROL","executed":12,"passed":11,"failed":1,"skipped":0},
+    "native": {"commandId":"NATIVE-EXECUTION","executed":0,"passed":0,"failed":0,"skipped":0},
+    "e2e": {"commandId":"CANDIDATE-E2E","executed":0,"passed":0,"failed":0,"skipped":0},
+    "cleanup": {"executed":true,"passed":true}
+  },
+  "externalBlock": {
+    "kind": "missingPrerequisite",
+    "prerequisite": "candidateManifest",
+    "commandId": "EXTERNAL-PREREQUISITE-PREFLIGHT",
+    "observationId": "E1-r4-external-block-observation-v2.json"
+  }
 }
