@@ -92,6 +92,51 @@ public sealed class E1EvidenceSupportTests
     }
 
     [TestMethod]
+    public void Build_directory_reparse_ancestry_and_incomplete_cleanup_are_rejected()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string target = Path.Combine(directory.Path, "outside");
+        string junction = Path.Combine(directory.Path, "TestResults");
+        Directory.CreateDirectory(target);
+        CreateJunction(junction, target);
+        try
+        {
+            string redirected = Path.Combine(junction, "Audit", "Build");
+            string reparseCommand = $$"""
+                $ErrorActionPreference = 'Stop'
+                Import-Module '{{SupportModule}}' -Force
+                New-E1SafeDirectoryChain -Path '{{Ps(redirected)}}' -RepositoryRoot '{{Ps(directory.Path)}}'
+                """;
+            Assert.AreNotEqual(0, PowerShell(reparseCommand, FindRepositoryRoot()).ExitCode);
+        }
+        finally
+        {
+            if (Directory.Exists(junction)) Directory.Delete(junction);
+        }
+
+        string build = Path.Combine(directory.Path, "TestResults", "Audit", "Build");
+        string createCommand = $$"""
+            $ErrorActionPreference = 'Stop'
+            Import-Module '{{SupportModule}}' -Force
+            New-E1SafeDirectoryChain -Path '{{Ps(build)}}' -RepositoryRoot '{{Ps(directory.Path)}}'
+            """;
+        Assert.AreEqual(0, PowerShell(createCommand, FindRepositoryRoot()).ExitCode);
+        string locked = Path.Combine(build, "locked.bin");
+        File.WriteAllText(locked, "locked");
+        using FileStream lease = new(locked, FileMode.Open, FileAccess.Read, FileShare.None);
+        string cleanupCommand = $$"""
+            $ErrorActionPreference = 'Stop'
+            Import-Module '{{SupportModule}}' -Force
+            Remove-E1SafeDirectoryTree -Path '{{Ps(build)}}' -RepositoryRoot '{{Ps(directory.Path)}}'
+            """;
+        Assert.AreNotEqual(0, PowerShell(cleanupCommand, FindRepositoryRoot()).ExitCode);
+        Assert.IsTrue(File.Exists(locked));
+        lease.Dispose();
+        Assert.AreEqual(0, PowerShell(cleanupCommand, FindRepositoryRoot()).ExitCode);
+        Assert.IsFalse(Directory.Exists(build));
+    }
+
+    [TestMethod]
     public void Trx_requires_fresh_exact_single_passing_identity()
     {
         using TestDirectory directory = TestDirectory.Create();

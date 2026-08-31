@@ -133,7 +133,8 @@ if ($Stage -eq 'Evidence') {
     $buildRoot = Join-Path $repositoryRoot "TestResults\Audit-20260830\E1-Build\$([Guid]::NewGuid().ToString('N'))"
     $buildOutputRoot = Join-Path $buildRoot 'bin'
     $buildIntermediateRoot = Join-Path $buildRoot 'obj'
-    New-Item -ItemType Directory -Force -Path $buildOutputRoot, $buildIntermediateRoot | Out-Null
+    [void](New-E1SafeDirectoryChain -Path $buildOutputRoot -RepositoryRoot $repositoryRoot)
+    [void](New-E1SafeDirectoryChain -Path $buildIntermediateRoot -RepositoryRoot $repositoryRoot)
     $buildStartedUtc = [DateTime]::UtcNow
     $buildEnvironmentNames = @(@(
         'MSBuildSDKsPath', 'MSBuildExtensionsPath', 'MSBuildExtensionsPath32', 'MSBuildExtensionsPath64',
@@ -157,7 +158,7 @@ if ($Stage -eq 'Evidence') {
         if ($LASTEXITCODE -ne 0) { throw "E1 evidence build failed with exit code $LASTEXITCODE." }
     }
     catch {
-        Remove-Item -LiteralPath $buildRoot -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $buildRoot) { Remove-E1SafeDirectoryTree -Path $buildRoot -RepositoryRoot $repositoryRoot }
         throw
     }
     finally {
@@ -166,6 +167,7 @@ if ($Stage -eq 'Evidence') {
         }
     }
     $expectedOutputRoot = $buildOutputRoot
+    [void](Assert-E1SafeDirectoryChain -Path $expectedOutputRoot -RepositoryRoot $repositoryRoot)
     $assemblyCandidates = @(Get-ChildItem $expectedOutputRoot -Filter 'GraniteEdgeAI.EndToEndTests.dll' -Recurse -File |
         Where-Object { $_.FullName -match '[\\/]net8\.0-windows10\.0\.19041\.0[\\/]win-x64[\\/]' -and $_.LastWriteTimeUtc -ge $buildStartedUtc.AddSeconds(-2) })
     if ($assemblyCandidates.Count -ne 1) { throw 'Evidence build did not produce exactly one fresh expected E1 assembly.' }
@@ -198,7 +200,7 @@ if ($Stage -eq 'Evidence') {
         foreach ($name in $runtimeEnvironmentNames) {
             [Environment]::SetEnvironmentVariable($name, $savedRuntimeEnvironment[$name], 'Process')
         }
-        Remove-Item -LiteralPath $buildRoot -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $buildRoot) { Remove-E1SafeDirectoryTree -Path $buildRoot -RepositoryRoot $repositoryRoot }
     }
     return
 }

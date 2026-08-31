@@ -138,6 +138,66 @@ function Get-E1UnsafeManagedEnvironmentNames {
     } | Sort-Object -Unique)
 }
 
+function Assert-E1SafeDirectoryChain {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path,
+        [Parameter(Mandatory = $true)] [string] $RepositoryRoot
+    )
+    $repository = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
+    $target = [IO.Path]::GetFullPath($Path).TrimEnd('\')
+    if (-not $target.StartsWith($repository + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Build directory is outside the repository.'
+    }
+    $repositoryItem = Get-Item -LiteralPath $repository -Force -ErrorAction Stop
+    if (-not $repositoryItem.PSIsContainer -or ($repositoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Repository root is not a regular directory.'
+    }
+    $cursor = $repository
+    foreach ($segment in $target.Substring($repository.Length + 1).Split('\')) {
+        if ([string]::IsNullOrWhiteSpace($segment) -or $segment -in @('.', '..')) { throw 'Build directory syntax is not canonical.' }
+        $cursor = Join-Path $cursor $segment
+        $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+        if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Build directory ancestry is not regular: $segment"
+        }
+    }
+    return $target
+}
+
+function New-E1SafeDirectoryChain {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path,
+        [Parameter(Mandatory = $true)] [string] $RepositoryRoot
+    )
+    $repository = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
+    $target = [IO.Path]::GetFullPath($Path).TrimEnd('\')
+    if (-not $target.StartsWith($repository + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Build directory is outside the repository.' }
+    $cursor = $repository
+    foreach ($segment in $target.Substring($repository.Length + 1).Split('\')) {
+        if ([string]::IsNullOrWhiteSpace($segment) -or $segment -in @('.', '..')) { throw 'Build directory syntax is not canonical.' }
+        $cursor = Join-Path $cursor $segment
+        if (-not (Test-Path -LiteralPath $cursor)) { [void][IO.Directory]::CreateDirectory($cursor) }
+        $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+        if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Build directory ancestry is not regular: $segment"
+        }
+    }
+    return Assert-E1SafeDirectoryChain -Path $target -RepositoryRoot $repository
+}
+
+function Remove-E1SafeDirectoryTree {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path,
+        [Parameter(Mandatory = $true)] [string] $RepositoryRoot
+    )
+    $target = Assert-E1SafeDirectoryChain -Path $Path -RepositoryRoot $RepositoryRoot
+    foreach ($item in @(Get-ChildItem -LiteralPath $target -Force -Recurse -ErrorAction Stop)) {
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Build cleanup refuses a reparse-point descendant.' }
+    }
+    Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction Stop
+    if (Test-Path -LiteralPath $target) { throw 'Build cleanup did not remove the validated directory.' }
+}
+
 function Assert-E1EvidenceAssembly {
     param(
         [Parameter(Mandatory = $true)] [string] $Path,
@@ -257,4 +317,4 @@ function Assert-E1AuthoritativeTrx {
     }
 }
 
-Export-ModuleMember -Function Get-E1TrustedVSTest, Get-E1TrustedDotNet, Get-E1TrustedMSBuild, Get-E1TrustedMSBuildSdkRoot, Get-E1UnsafeManagedEnvironmentNames, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx
+Export-ModuleMember -Function Get-E1TrustedVSTest, Get-E1TrustedDotNet, Get-E1TrustedMSBuild, Get-E1TrustedMSBuildSdkRoot, Get-E1UnsafeManagedEnvironmentNames, Assert-E1SafeDirectoryChain, New-E1SafeDirectoryChain, Remove-E1SafeDirectoryTree, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx
