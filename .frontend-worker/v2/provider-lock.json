@@ -1,33 +1,38 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "profile": "native-winui",
   "generatedAt": "2026-08-31",
   "providers": [
     {
       "id": "microsoft-winui",
       "required": true,
-      "kind": "codex-marketplace-plugin",
+      "kind": "pinned-local-mirror-plugin",
       "repository": "microsoft/win-dev-skills",
       "ref": "68ae65d5c65ee87c3265a7f5abe3aaf97c7e6932",
-      "marketplace": "microsoft-winui",
+      "sourceSubpath": "plugins/winui/agent-plugin",
+      "marketplace": "granite-microsoft-winui-pinned",
       "plugin": "winui",
       "reviewedVersion": "0.6.0",
+      "category": "Developer Tools",
+      "authentication": "ON_INSTALL",
       "authority": "implementation-platform",
       "writeAuthority": false
     },
     {
       "id": "stark",
       "required": true,
-      "kind": "codex-marketplace-plugin",
+      "kind": "pinned-local-mirror-plugin",
       "repository": "f0d010c/stark",
       "ref": "ff94e5b4e1c98d259f3cde9f806406c4528deed4",
-      "distributionRepository": "hashgraph-online/awesome-codex-plugins",
-      "distributionRef": "0ff99e11ba9c2ef21446dc9960033c5c18183a97",
-      "marketplace": "awesome-codex-plugins",
+      "sourceSubpath": ".",
+      "marketplace": "granite-stark-pinned",
       "plugin": "stark",
       "reviewedVersion": "0.7.2",
+      "category": "Developer Tools",
+      "authentication": "ON_INSTALL",
       "authority": "read-only-design-adviser",
-      "writeAuthority": false
+      "writeAuthority": false,
+      "discoveredVia": "hashgraph-online/awesome-codex-plugins"
     },
     {
       "id": "uncodixfy",
@@ -55,12 +60,15 @@
     {
       "id": "figma",
       "required": false,
-      "kind": "official-codex-plugin",
+      "kind": "pinned-local-mirror-plugin",
       "repository": "openai/plugins",
       "ref": "1e285826e604f66f7208f7ac4dba0fe8341d1f57",
-      "marketplace": "openai-curated",
+      "sourceSubpath": "plugins/figma",
+      "marketplace": "granite-figma-pinned",
       "plugin": "figma",
       "reviewedVersion": "2.0.20",
+      "category": "Creativity",
+      "authentication": "ON_INSTALL",
       "authority": "approved-visual-source",
       "writeAuthority": false,
       "notes": "Optional. Use read/inspect workflows only unless the user separately requests a Figma write."
@@ -68,12 +76,15 @@
     {
       "id": "product-design",
       "required": false,
-      "kind": "codex-marketplace-plugin",
+      "kind": "pinned-local-mirror-plugin",
       "repository": "openai/role-specific-plugins",
       "ref": "fe5608d2512a7d6a7b9821ce8a88c48464ecd6e4",
-      "marketplace": "role-specific-plugins",
+      "sourceSubpath": "plugins/product-design",
+      "marketplace": "granite-product-design-pinned",
       "plugin": "product-design",
       "reviewedVersion": "0.1.50",
+      "category": "Creativity",
+      "authentication": "ON_INSTALL",
       "authority": "concept-phase-only",
       "writeAuthority": false
     }
