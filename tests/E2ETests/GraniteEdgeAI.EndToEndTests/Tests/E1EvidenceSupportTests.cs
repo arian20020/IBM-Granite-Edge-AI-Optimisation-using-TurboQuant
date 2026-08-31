@@ -95,6 +95,26 @@ public sealed class E1EvidenceSupportTests
     public void Build_directory_reparse_ancestry_and_incomplete_cleanup_are_rejected()
     {
         using TestDirectory directory = TestDirectory.Create();
+        string rootTarget = Path.Combine(directory.Path, "root-target");
+        string rootJunction = Path.Combine(directory.Path, "root-junction");
+        Directory.CreateDirectory(rootTarget);
+        CreateJunction(rootJunction, rootTarget);
+        try
+        {
+            string externalChild = Path.Combine(rootTarget, "TestResults", "Build");
+            string rootCommand = $$"""
+                $ErrorActionPreference = 'Stop'
+                Import-Module '{{SupportModule}}' -Force
+                New-E1SafeDirectoryChain -Path '{{Ps(Path.Combine(rootJunction, "TestResults", "Build"))}}' -RepositoryRoot '{{Ps(rootJunction)}}'
+                """;
+            Assert.AreNotEqual(0, PowerShell(rootCommand, FindRepositoryRoot()).ExitCode);
+            Assert.IsFalse(Directory.Exists(externalChild));
+        }
+        finally
+        {
+            if (Directory.Exists(rootJunction)) Directory.Delete(rootJunction);
+        }
+
         string target = Path.Combine(directory.Path, "outside");
         string junction = Path.Combine(directory.Path, "TestResults");
         Directory.CreateDirectory(target);

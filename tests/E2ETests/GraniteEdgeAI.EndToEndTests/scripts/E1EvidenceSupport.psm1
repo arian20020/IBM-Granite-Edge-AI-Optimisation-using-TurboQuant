@@ -172,6 +172,10 @@ function New-E1SafeDirectoryChain {
     $repository = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd('\')
     $target = [IO.Path]::GetFullPath($Path).TrimEnd('\')
     if (-not $target.StartsWith($repository + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Build directory is outside the repository.' }
+    $repositoryItem = Get-Item -LiteralPath $repository -Force -ErrorAction Stop
+    if (-not $repositoryItem.PSIsContainer -or ($repositoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Repository root is not a regular directory.'
+    }
     $cursor = $repository
     foreach ($segment in $target.Substring($repository.Length + 1).Split('\')) {
         if ([string]::IsNullOrWhiteSpace($segment) -or $segment -in @('.', '..')) { throw 'Build directory syntax is not canonical.' }
