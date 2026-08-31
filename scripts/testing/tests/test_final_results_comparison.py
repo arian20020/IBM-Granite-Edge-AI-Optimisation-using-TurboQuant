@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
@@ -612,6 +614,13 @@ def test_cross_route_validation_is_derived_from_report_and_catalog_content():
         "The evidence does not support a universal ranking, although left has higher quality than right.",
         "The evidence does not support deployment, and left is better than right by incompatible quality score.",
         "The evidence does not support deployment and left has higher quality than right.",
+        "Left takes first place and right takes second place.",
+        "Left is number one for quality.",
+        "No universal ranking is supported;left ranks first.",
+        "No universal ranking is supported.Repository ranking: left first.",
+        "Left takes 1st place; right takes 2nd place.",
+        "Left is number 1 for quality.",
+        "Left ranks number one and right ranks number two.",
     )
     for wording in ranking_phrasings:
         changed = dataclasses.replace(
@@ -631,6 +640,10 @@ def test_cross_route_validation_is_derived_from_report_and_catalog_content():
         "The evidence does not support ranking and does not establish that left is better than right.",
         "The evidence does not establish whether left is better than right or right is better than left.",
         "The evidence does not establish that left is better than right and right is worse than left.",
+        "Left isn't better than right, and right isn't worse than left.",
+        "Left isn’t better than right, and right isn’t worse than left.",
+        "Left is neither better nor worse than right.",
+        "Neither left nor right is number one for quality.",
     )
     for wording in nonranking_disclaimers:
         changed = dataclasses.replace(
@@ -643,6 +656,64 @@ def test_cross_route_validation_is_derived_from_report_and_catalog_content():
         assert validation["valid"] is True, wording
         assert validation["universal_ranking_present"] is False, wording
         assert validation["incompatible_quality_ranking_present"] is False, wording
+
+
+@pytest.mark.parametrize(
+    "wording",
+    (
+        "Left takes first place and right takes second place.",
+        "Left is number one for quality.",
+        "No universal ranking is supported;left ranks first.",
+        "No universal ranking is supported.Repository ranking: left first.",
+    ),
+)
+def test_ranking_prose_gate_rejects_controller_probes(wording):
+    from scripts.testing.final_results.comparison import (
+        build_catalogs,
+        build_cross_route_report,
+        build_cross_route_validation,
+    )
+
+    bundles = (_bundle("left"), _bundle("right", prompt_suite="different-suite"))
+    report = build_cross_route_report(bundles)
+    changed = dataclasses.replace(
+        report,
+        sections=report.sections + (ReportSection("Unsupported prose", (ReportParagraph(wording),)),),
+    )
+
+    validation = build_cross_route_validation(changed, build_catalogs(bundles), bundles)
+
+    assert validation["valid"] is False
+    assert validation["universal_ranking_present"] is True
+    assert validation["incompatible_quality_ranking_present"] is True
+
+
+@pytest.mark.parametrize(
+    "wording",
+    (
+        "Left isn't better than right, and right isn't worse than left.",
+        "Left is neither better nor worse than right.",
+    ),
+)
+def test_ranking_prose_gate_accepts_controller_negations(wording):
+    from scripts.testing.final_results.comparison import (
+        build_catalogs,
+        build_cross_route_report,
+        build_cross_route_validation,
+    )
+
+    bundles = (_bundle("left"), _bundle("right", prompt_suite="different-suite"))
+    report = build_cross_route_report(bundles)
+    changed = dataclasses.replace(
+        report,
+        sections=report.sections + (ReportSection("Permitted prose", (ReportParagraph(wording),)),),
+    )
+
+    validation = build_cross_route_validation(changed, build_catalogs(bundles), bundles)
+
+    assert validation["valid"] is True
+    assert validation["universal_ranking_present"] is False
+    assert validation["incompatible_quality_ranking_present"] is False
 
 
 def test_package_writer_creates_portable_parity_valid_artifacts_and_catalogs(tmp_path):

@@ -792,11 +792,25 @@ def build_cross_route_validation(
         return position and entity and score
 
     def has_affirmative_ranking_prose(text: str) -> bool:
-        normalized = " ".join(text.casefold().split())
+        normalized = " ".join(text.casefold().replace("’", "'").split())
+        for contraction, expanded in (
+            ("isn't", "is not"),
+            ("aren't", "are not"),
+            ("wasn't", "was not"),
+            ("weren't", "were not"),
+            ("doesn't", "does not"),
+            ("don't", "do not"),
+            ("didn't", "did not"),
+            ("can't", "cannot"),
+            ("couldn't", "could not"),
+            ("wouldn't", "would not"),
+            ("shouldn't", "should not"),
+        ):
+            normalized = normalized.replace(contraction, expanded)
         raw_clauses = [
             clause.strip(" ,:")
             for clause in re.split(
-                r"(?<=[.!?;])\s+|\s+(?:but|however|yet)\s+|"
+                r"(?<=[.!?;])\s*|\s+(?:but|however|yet)\s+|"
                 r",\s*(?:although|while|whereas|despite)\s+",
                 normalized,
             )
@@ -814,8 +828,11 @@ def build_cross_route_validation(
             r"\b(?:best|worst|top|highest|lowest)\s+(?:repository|route|model|configuration|quality|performance|score|throughput)\b",
             r"\b(?:route|repository|model|configuration)\s+(?:is|was|has|had|achieved)\s+(?:the\s+)?(?:best|worst|top|highest|lowest|first|second|third)\b",
             r"\b(?:ranks?|ranked)\s+(?:as\s+)?(?:the\s+)?(?:best|worst|top|first|second|third|above|below)\b",
+            r"\b(?:ranks?|ranked)\s+(?:as\s+)?(?:the\s+)?number\s+(?:one|two|three|1|2|3)\b",
             r"\b(?:places?|placed)\s+(?:first|second|third|ahead|above|below)\b",
+            r"\b(?:takes?|took)\s+(?:the\s+)?(?:first|second|third|1st|2nd|3rd)\s+place\b",
             r"\b(?:route|repository|model|configuration)\s+(?:is|was)\s+(?:first|second|third)\b",
+            r"\b(?:is|was)\s+(?:the\s+)?(?:number\s+(?:one|two|three|1|2|3)|1st|2nd|3rd)\b",
             r"\b(?:higher|lower|better|worse)\b(?:\s+\w+){0,4}\s+than\b",
             r"\b(?:superior|inferior)\b(?:\s+\w+){0,4}\s+to\b",
             r"\b(?:outperforms?|beats?|leads?)\b",
@@ -826,15 +843,37 @@ def build_cross_route_validation(
             r"\b(?:cannot|can't)\s+(?:support|establish|justify|permit|show|demonstrate|rank|be described)\b|"
             r"\b(?:ranking|leaderboard|standings)\b.{0,80}\b(?:unsupported|prohibited|forbidden|not supported)\b"
         )
-        local_negation = re.compile(r"\b(?:no|not|never|without)\b(?:\W+\w+){0,4}\W*$")
+        local_negation = re.compile(
+            r"\b(?:is|are|was|were|has|have|had|does|do|did|can|could|would|should)\s+"
+            r"(?:not|never)(?:\s+\w+){0,3}\s*$|"
+            r"\b(?:no|not|never|without)\b(?:\W+\w+){0,3}\W*$|"
+            r"\bneither\b(?:(?!\b(?:but|however|yet)\b).)*$"
+        )
+        def is_locally_negated(clause: str, claim_start: int) -> bool:
+            prefix = clause[:claim_start]
+            if local_negation.search(prefix):
+                return True
+            no_matches = tuple(re.finditer(r"\bno\b", prefix))
+            if not no_matches:
+                return False
+            no_scope = prefix[no_matches[-1].end():]
+            if re.search(r"\b(?:and|but|however|yet)\b", no_scope):
+                return False
+            if "," in no_scope:
+                preceding_item = no_scope.rsplit(",", 1)[0]
+                if re.search(
+                    r"\b(?:is|are|was|were|has|have|had|does|do|did|can|could|would|should)\s+"
+                    r"(?:not\s+)?\w+",
+                    preceding_item,
+                ):
+                    return False
+            return True
+
         for clause in clauses:
-            if re.match(r"^(?:no|neither|not|without)\b", clause):
-                continue
             denial_matches = tuple(denial.finditer(clause))
             for pattern in claim_patterns:
                 for match in re.finditer(pattern, clause):
-                    local_prefix = clause[:match.start()]
-                    if local_negation.search(local_prefix):
+                    if is_locally_negated(clause, match.start()):
                         continue
                     governed_by_denial = False
                     for denial_match in denial_matches:
