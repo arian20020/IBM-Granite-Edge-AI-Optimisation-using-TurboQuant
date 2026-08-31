@@ -291,6 +291,13 @@ public sealed class E1EndToEndRunnerInvocationTests
             start.Environment["GRANITE_E2E_H1_MANIFEST"] = "C:\\stale\\h1.json";
             start.Environment["GRANITE_E2E_M1_MANIFEST"] = "C:\\stale\\m1.json";
             start.Environment["GRANITE_E2E_Q1_MANIFEST"] = "C:\\stale\\q1.json";
+            start.Environment["MSBuildSDKsPath"] = _directory.Path;
+            start.Environment["MSBuildExtensionsPath"] = _directory.Path;
+            start.Environment["MSBUILD_EXE_PATH"] = Path.Combine(_directory.Path, "fake-msbuild.exe");
+            start.Environment["DOTNET_MSBUILD_SDK_RESOLVER_SDKS_DIR"] = _directory.Path;
+            start.Environment["DOTNET_MSBUILD_SDK_RESOLVER_SDKS_VER"] = "99.0.0";
+            start.Environment["DOTNET_MSBUILD_SDK_RESOLVER_CLI_DIR"] = _directory.Path;
+            start.Environment["NUGET_PLUGIN_PATHS"] = _directory.Path;
             start.ArgumentList.Add("-NoProfile");
             start.ArgumentList.Add("-NonInteractive");
             start.ArgumentList.Add("-ExecutionPolicy");
