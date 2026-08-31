@@ -1,4 +1,21 @@
 {
+  "allowed_scope_types": [
+    "campaign",
+    "mixed",
+    "multi-test",
+    "prompt",
+    "setup",
+    "test"
+  ],
+  "allowed_setup_scope_ids": [
+    "UL-B01",
+    "UL-B02",
+    "UL-B03",
+    "UL-B04",
+    "UL-B05",
+    "UL-B06",
+    "UL-B07"
+  ],
   "attempt_count": 13,
   "deviation_count": 12,
   "errors": [],

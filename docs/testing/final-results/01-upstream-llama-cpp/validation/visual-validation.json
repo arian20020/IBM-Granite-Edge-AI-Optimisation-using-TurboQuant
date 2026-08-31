@@ -72,7 +72,7 @@
     "blank_or_corrupt_pages": "None observed",
     "clipping_or_truncation": "None observed",
     "colour_and_status_legibility": "Consistent navy, teal, blue, and explicit status text",
-    "dense_evidence_table": "Intentionally spans pages 18-46; readable at page zoom",
+    "dense_evidence_table": "Evidence section begins on page 18; the evidence table spans pages 19-46 and is readable at page zoom",
     "table_header_continuity": "Repeated headers present across long tables"
   }
 }

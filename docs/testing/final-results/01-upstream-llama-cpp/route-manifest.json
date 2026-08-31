@@ -54,6 +54,7 @@
         "deviation_id": "UL-DEV-HIST-03",
         "disposition": "Project workload resolved; edge tests unresolved",
         "evidence_ids": [
+          "EVID-d335afb5774f9fb254b4",
           "upstream-llama-cpp-b9f424464ca0"
         ],
         "nonterminal": true,
@@ -100,6 +101,7 @@
         "deviation_id": "UL-DEV-HIST-06",
         "disposition": "Configuration issue, not test failure",
         "evidence_ids": [
+          "EVID-06a4562128adf7b60626",
           "EVID-922fe80006d168c5c124"
         ],
         "nonterminal": true,
@@ -262,6 +264,23 @@
     "recommendation_scope": "UL-08 only as best observed CPU; UL-10 only as best observed Intel GPU; UL-05 only as the recorded fallback.",
     "recorded_fallback_test_id": "UL-05",
     "relationship_validation": {
+      "allowed_scope_types": [
+        "campaign",
+        "mixed",
+        "multi-test",
+        "prompt",
+        "setup",
+        "test"
+      ],
+      "allowed_setup_scope_ids": [
+        "UL-B01",
+        "UL-B02",
+        "UL-B03",
+        "UL-B04",
+        "UL-B05",
+        "UL-B06",
+        "UL-B07"
+      ],
       "attempt_count": 13,
       "deviation_count": 12,
       "errors": [],
@@ -269,6 +288,15 @@
       "failure_relationship_count": 5,
       "valid": true
     },
+    "setup_scope_ids": [
+      "UL-B01",
+      "UL-B02",
+      "UL-B03",
+      "UL-B04",
+      "UL-B05",
+      "UL-B06",
+      "UL-B07"
+    ],
     "source_date": "2026-07-16",
     "source_reconciliation": {
       "evidence_binding_count": 642,
@@ -328,7 +356,16 @@
         "UL-13"
       ],
       "quality_rows_reconciled": 13,
-      "resource_rows_reconciled": 13
+      "resource_rows_reconciled": 13,
+      "setup_scope_ids": [
+        "UL-B01",
+        "UL-B02",
+        "UL-B03",
+        "UL-B04",
+        "UL-B05",
+        "UL-B06",
+        "UL-B07"
+      ]
     },
     "tag": "b9870",
     "url": "https://github.com/ggml-org/llama.cpp",

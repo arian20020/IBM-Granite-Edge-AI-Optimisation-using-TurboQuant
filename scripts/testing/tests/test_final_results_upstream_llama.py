@@ -277,24 +277,44 @@ def test_independent_authorities_reconcile_and_known_divergences_are_explicit():
     }
 
 
-def test_register_and_evidence_binding_mutations_are_rejected(tmp_path):
+def test_register_mutation_is_rejected(tmp_path):
     module = _module()
     register = tmp_path / "register.csv"
     register.write_text("Test_ID,Run_ID\nUL-01,mutated\n", encoding="utf-8")
     with pytest.raises(ValueError, match="unexpected exact UL-01 through UL-13 row"):
         module._assert_no_exact_register_rows(register, "mutated register")
 
+
+@pytest.mark.parametrize(
+    ("field", "mutated_value", "message"),
+    (
+        ("Test_ID", "UL-99", "Evidence-Index binding conflict"),
+        ("Run_ID", "UL-99-R003", "Evidence-Index binding conflict"),
+        ("Repository_Path", "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/UL-99/UL-01-R003/bench-stderr.jsonl", "expected evidence tuple set mismatch"),
+        ("SHA256", "0" * 64, "Evidence-Index hash conflict"),
+    ),
+)
+def test_each_evidence_tuple_mutation_is_rejected_without_reducing_admission(
+    tmp_path, field, mutated_value, message
+):
+    module = _module()
     source = REPOSITORY_ROOT / "docs/testing/Evidence-Index.csv"
     mutated = tmp_path / "Evidence-Index.csv"
-    mutated.write_text(
-        source.read_text(encoding="utf-8-sig").replace(
-            '"UL-01-R003","UL-01","upstream-llama-cpp"',
-            '"UL-99-R003","UL-01","upstream-llama-cpp"',
-            1,
-        ),
-        encoding="utf-8",
+    with source.open(encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+        fields = tuple(rows[0])
+    target = next(
+        row
+        for row in rows
+        if row["Repository_Path"].endswith("/UL-01/UL-01-R003/bench-stderr.jsonl")
     )
-    with pytest.raises(ValueError, match="Evidence-Index binding conflict"):
+    target[field] = mutated_value
+    with mutated.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    with pytest.raises(ValueError, match=message):
         module._evidence_records(REPOSITORY_ROOT, evidence_index_path=mutated)
 
 
@@ -341,6 +361,9 @@ def test_historical_deviation_scopes_and_canonical_failure_relationships_are_sta
         "UL-F01", "UL-F02", "UL-F03", "UL-F04", "UL-F05", "UL-F06", "UL-F07"
     }
     assert all(row["nonterminal"] is True for row in historical)
+    assert bundle.repository["setup_scope_ids"] == [
+        "UL-B01", "UL-B02", "UL-B03", "UL-B04", "UL-B05", "UL-B06", "UL-B07"
+    ]
     assert next(row for row in historical if row["source_failure_id"] == "UL-F01")["scope_type"] == "setup"
     assert next(row for row in historical if row["source_failure_id"] == "UL-F07")["scope_test_ids"] == list(module.EXPECTED_IDS)
     assert len(bundle.failures) == 5
@@ -364,6 +387,69 @@ def test_relationship_validation_detects_attempt_scope_and_evidence_mutations():
     assert receipt["valid"] is False
     assert any("unknown attempt" in error for error in receipt["errors"])
     assert any("unknown evidence" in error for error in receipt["errors"])
+
+
+@pytest.mark.parametrize(
+    ("deviation_id", "changes", "message"),
+    (
+        ("UL-DEV-HIST-01", {"scope_test_ids": ["UL-B99"]}, "unknown setup scope"),
+        ("UL-DEV-HIST-04", {"scope_test_ids": []}, "scope must not be empty"),
+        ("UL-DEV-HIST-04", {"scope_type": "setup"}, "setup scope must contain only"),
+        ("UL-DEV-HIST-06", {"scope_test_ids": ["UL-10"]}, "multi-test scope requires at least two"),
+        ("UL-DEV-HIST-04", {"evidence_ids": []}, "evidence must not be empty"),
+        ("UL-DEV-HIST-04", {"evidence_ids": ["missing-evidence-id"]}, "unknown evidence"),
+    ),
+)
+def test_scope_model_mutations_fail_computed_relationship_validation(
+    deviation_id, changes, message
+):
+    module = _module()
+    bundle = module.build_upstream_llama_bundle(REPOSITORY_ROOT)
+    deviations = list(module.build_upstream_deviation_rows(REPOSITORY_ROOT, bundle))
+    index = next(i for i, row in enumerate(deviations) if row["deviation_id"] == deviation_id)
+    deviations[index] = {**deviations[index], **changes}
+
+    receipt = module.validate_upstream_relationships(bundle, deviations)
+
+    assert receipt["valid"] is False
+    assert any(message in error for error in receipt["errors"])
+
+
+def test_scope_evidence_must_support_the_declared_test_or_setup_ids():
+    module = _module()
+    bundle = module.build_upstream_llama_bundle(REPOSITORY_ROOT)
+    deviations = list(module.build_upstream_deviation_rows(REPOSITORY_ROOT, bundle))
+    index = next(i for i, row in enumerate(deviations) if row["deviation_id"] == "UL-DEV-HIST-06")
+    unrelated = next(
+        evidence.evidence_id
+        for evidence in bundle.evidence
+        if "/UL-01/" in evidence.relative_path
+    )
+    deviations[index] = {**deviations[index], "evidence_ids": [unrelated]}
+
+    receipt = module.validate_upstream_relationships(bundle, deviations)
+
+    assert receipt["valid"] is False
+    assert any("does not support scope UL-10" in error for error in receipt["errors"])
+    assert any("does not support scope UL-12" in error for error in receipt["errors"])
+
+
+def test_precedence_evidence_must_support_its_declared_test_scope():
+    module = _module()
+    bundle = module.build_upstream_llama_bundle(REPOSITORY_ROOT)
+    deviations = list(module.build_upstream_deviation_rows(REPOSITORY_ROOT, bundle))
+    index = next(i for i, row in enumerate(deviations) if row["deviation_id"] == "UL-DEV-UL13-PERFORMANCE")
+    unrelated = next(
+        evidence.evidence_id
+        for evidence in bundle.evidence
+        if "/UL-01/" in evidence.relative_path
+    )
+    deviations[index] = {**deviations[index], "evidence_ids": [unrelated]}
+
+    receipt = module.validate_upstream_relationships(bundle, deviations)
+
+    assert receipt["valid"] is False
+    assert any("does not support scope UL-13" in error for error in receipt["errors"])
 
 
 def test_quality_contract_is_hash_bound_and_fully_preserved():
@@ -445,3 +531,6 @@ def test_pdf_finalizer_uses_the_current_structurally_valid_page_count():
     assert receipt["valid"] is True
     assert receipt["checks"]["page_count"] == 47
     assert receipt["inspected_pages"] == list(range(1, 48))
+    assert receipt["visual_findings"]["dense_evidence_table"] == (
+        "Evidence section begins on page 18; the evidence table spans pages 19-46 and is readable at page zoom"
+    )

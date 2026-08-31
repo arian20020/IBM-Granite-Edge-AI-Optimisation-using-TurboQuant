@@ -70,6 +70,7 @@ Identity values below are retained from WB-01 rather than inferred from the revi
 | performance_register_status | Not collected |
 | performance_register_reason | No UL-01 through UL-13 rows; repetition evidence predates the register |
 | historical_missing_metric_display | Not collected |
+| setup_scope_ids | ['UL-B01', 'UL-B02', 'UL-B03', 'UL-B04', 'UL-B05', 'UL-B06', 'UL-B07'] |
 | machine_id | LENOVO-PF4HMD0T |
 | cpu | 12th Gen Intel Core i5-12450H; 8 cores; 12 logical processors |
 | ram_bytes | 16857817088 |
@@ -325,11 +326,11 @@ The entries below are historical failures, limitations, quality deviations, or p
 
 | Failure ID | Test ID | Code | Description | Resolution | Evidence IDs |
 | --- | --- | --- | --- | --- | --- |
-| UL-F03--UL-13 | UL-13 | GPU | SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes. | Project workload resolved; edge tests unresolved | upstream-llama-cpp-b9f424464ca0 |
-| UL-F04--UL-05 | UL-05 | QUAL | Long-context output omitted required literal prefix. | No | EVID-c7b93a7337fba1ef57e3 |
-| UL-F05--UL-05 | UL-05 | QUAL | Multi-turn exact value degraded from `amber:4821` to `4821`. | No | EVID-b4a16bd806a44a4651e9 |
+| UL-F03--UL-13 | UL-13 | GPU | SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes. | Project workload resolved; edge tests unresolved | EVID-d335afb5774f9fb254b4, upstream-llama-cpp-b9f424464ca0 |
+| UL-F04--UL-05 | UL-05 | QUAL | Long-context output omitted required literal prefix. | No | EVID-971776b67f432946b411, EVID-c7b93a7337fba1ef57e3 |
+| UL-F05--UL-05 | UL-05 | QUAL | Multi-turn exact value degraded from `amber:4821` to `4821`. | No | EVID-971776b67f432946b411, EVID-b4a16bd806a44a4651e9 |
 | UL-F06--UL-10 | UL-10 | PERF | Full Vulkan offload reduced decode throughput relative to one-layer offload. | Configuration issue, not test failure | EVID-922fe80006d168c5c124 |
-| UL-F06--UL-12 | UL-12 | PERF | Full Vulkan offload reduced decode throughput relative to one-layer offload. | Configuration issue, not test failure | EVID-922fe80006d168c5c124 |
+| UL-F06--UL-12 | UL-12 | PERF | Full Vulkan offload reduced decode throughput relative to one-layer offload. | Configuration issue, not test failure | EVID-06a4562128adf7b60626, EVID-922fe80006d168c5c124 |
 
 ### DV-02 — Scoped deviation and precedence ledger
 
@@ -337,10 +338,10 @@ The entries below are historical failures, limitations, quality deviations, or p
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | UL-DEV-HIST-01 | UL-F01 | setup | UL-B05 | True | R001 cache validator reported failure although required keys existed. | Yes, R002/R003 | upstream-llama-cpp-1d7c7f12ccbf |
 | UL-DEV-HIST-02 | UL-F02 | setup | UL-B05 | True | Vulkan repository suite initially passed 51/52. | Yes, 52/52 | upstream-llama-cpp-bbb63ecd783d |
-| UL-DEV-HIST-03 | UL-F03 | mixed | UL-B06, UL-13 | True | SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes. | Project workload resolved; edge tests unresolved | upstream-llama-cpp-b9f424464ca0 |
+| UL-DEV-HIST-03 | UL-F03 | mixed | UL-B06, UL-13 | True | SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes. | Project workload resolved; edge tests unresolved | EVID-d335afb5774f9fb254b4, upstream-llama-cpp-b9f424464ca0 |
 | UL-DEV-HIST-04 | UL-F04 | prompt | UL-05 | True | Long-context output omitted required literal prefix. | No | EVID-c7b93a7337fba1ef57e3 |
 | UL-DEV-HIST-05 | UL-F05 | prompt | UL-05 | True | Multi-turn exact value degraded from `amber:4821` to `4821`. | No | EVID-b4a16bd806a44a4651e9 |
-| UL-DEV-HIST-06 | UL-F06 | multi-test | UL-10, UL-12 | True | Full Vulkan offload reduced decode throughput relative to one-layer offload. | Configuration issue, not test failure | EVID-922fe80006d168c5c124 |
+| UL-DEV-HIST-06 | UL-F06 | multi-test | UL-10, UL-12 | True | Full Vulkan offload reduced decode throughput relative to one-layer offload. | Configuration issue, not test failure | EVID-06a4562128adf7b60626, EVID-922fe80006d168c5c124 |
 | UL-DEV-HIST-07 | UL-F07 | campaign | UL-01, UL-02, UL-03, UL-04, UL-05, UL-06, UL-07, UL-08, UL-09, UL-10, UL-11, UL-12, UL-13 | True | Initial run omitted peak RAM, KV MB and TTFT because llama-bench does not emit all three. | Yes | upstream-llama-cpp-db711113b8e9 |
 | UL-DEV-REGISTER-TEST-RUN |  | campaign | UL-01, UL-02, UL-03, UL-04, UL-05, UL-06, UL-07, UL-08, UL-09, UL-10, UL-11, UL-12, UL-13 | True | Current Test-Run register contains zero exact UL-01 through UL-13 rows. | Indexed logs and WB-01 are the admitted historical authorities; no register rows were invented. | upstream-llama-cpp-0d0e0a927263 |
 | UL-DEV-REGISTER-PERFORMANCE |  | campaign | UL-01, UL-02, UL-03, UL-04, UL-05, UL-06, UL-07, UL-08, UL-09, UL-10, UL-11, UL-12, UL-13 | True | Current Performance register contains zero exact UL-01 through UL-13 rows. | Indexed repetition logs take precedence; no later-register equality is claimed. | upstream-llama-cpp-2c104a7f446f |

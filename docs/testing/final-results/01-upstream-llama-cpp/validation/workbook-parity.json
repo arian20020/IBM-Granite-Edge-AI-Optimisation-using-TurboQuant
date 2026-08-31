@@ -222,6 +222,10 @@
           "Not collected"
         ],
         [
+          "setup_scope_ids",
+          "['UL-B01', 'UL-B02', 'UL-B03', 'UL-B04', 'UL-B05', 'UL-B06', 'UL-B07']"
+        ],
+        [
           "machine_id",
           "LENOVO-PF4HMD0T"
         ],
@@ -1830,7 +1834,7 @@
           "GPU",
           "SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes.",
           "Project workload resolved; edge tests unresolved",
-          "upstream-llama-cpp-b9f424464ca0"
+          "EVID-d335afb5774f9fb254b4, upstream-llama-cpp-b9f424464ca0"
         ],
         [
           "UL-F04--UL-05",
@@ -1838,7 +1842,7 @@
           "QUAL",
           "Long-context output omitted required literal prefix.",
           "No",
-          "EVID-c7b93a7337fba1ef57e3"
+          "EVID-971776b67f432946b411, EVID-c7b93a7337fba1ef57e3"
         ],
         [
           "UL-F05--UL-05",
@@ -1846,7 +1850,7 @@
           "QUAL",
           "Multi-turn exact value degraded from `amber:4821` to `4821`.",
           "No",
-          "EVID-b4a16bd806a44a4651e9"
+          "EVID-971776b67f432946b411, EVID-b4a16bd806a44a4651e9"
         ],
         [
           "UL-F06--UL-10",
@@ -1862,7 +1866,7 @@
           "PERF",
           "Full Vulkan offload reduced decode throughput relative to one-layer offload.",
           "Configuration issue, not test failure",
-          "EVID-922fe80006d168c5c124"
+          "EVID-06a4562128adf7b60626, EVID-922fe80006d168c5c124"
         ]
       ],
       [
@@ -1904,7 +1908,7 @@
           "True",
           "SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes.",
           "Project workload resolved; edge tests unresolved",
-          "upstream-llama-cpp-b9f424464ca0"
+          "EVID-d335afb5774f9fb254b4, upstream-llama-cpp-b9f424464ca0"
         ],
         [
           "UL-DEV-HIST-04",
@@ -1934,7 +1938,7 @@
           "True",
           "Full Vulkan offload reduced decode throughput relative to one-layer offload.",
           "Configuration issue, not test failure",
-          "EVID-922fe80006d168c5c124"
+          "EVID-06a4562128adf7b60626, EVID-922fe80006d168c5c124"
         ],
         [
           "UL-DEV-HIST-07",
@@ -6784,6 +6788,10 @@
           "Not collected"
         ],
         [
+          "setup_scope_ids",
+          "['UL-B01', 'UL-B02', 'UL-B03', 'UL-B04', 'UL-B05', 'UL-B06', 'UL-B07']"
+        ],
+        [
           "machine_id",
           "LENOVO-PF4HMD0T"
         ],
@@ -8392,7 +8400,7 @@
           "GPU",
           "SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes.",
           "Project workload resolved; edge tests unresolved",
-          "upstream-llama-cpp-b9f424464ca0"
+          "EVID-d335afb5774f9fb254b4, upstream-llama-cpp-b9f424464ca0"
         ],
         [
           "UL-F04--UL-05",
@@ -8400,7 +8408,7 @@
           "QUAL",
           "Long-context output omitted required literal prefix.",
           "No",
-          "EVID-c7b93a7337fba1ef57e3"
+          "EVID-971776b67f432946b411, EVID-c7b93a7337fba1ef57e3"
         ],
         [
           "UL-F05--UL-05",
@@ -8408,7 +8416,7 @@
           "QUAL",
           "Multi-turn exact value degraded from `amber:4821` to `4821`.",
           "No",
-          "EVID-b4a16bd806a44a4651e9"
+          "EVID-971776b67f432946b411, EVID-b4a16bd806a44a4651e9"
         ],
         [
           "UL-F06--UL-10",
@@ -8424,7 +8432,7 @@
           "PERF",
           "Full Vulkan offload reduced decode throughput relative to one-layer offload.",
           "Configuration issue, not test failure",
-          "EVID-922fe80006d168c5c124"
+          "EVID-06a4562128adf7b60626, EVID-922fe80006d168c5c124"
         ]
       ],
       [
@@ -8466,7 +8474,7 @@
           "True",
           "SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes.",
           "Project workload resolved; edge tests unresolved",
-          "upstream-llama-cpp-b9f424464ca0"
+          "EVID-d335afb5774f9fb254b4, upstream-llama-cpp-b9f424464ca0"
         ],
         [
           "UL-DEV-HIST-04",
@@ -8496,7 +8504,7 @@
           "True",
           "Full Vulkan offload reduced decode throughput relative to one-layer offload.",
           "Configuration issue, not test failure",
-          "EVID-922fe80006d168c5c124"
+          "EVID-06a4562128adf7b60626, EVID-922fe80006d168c5c124"
         ],
         [
           "UL-DEV-HIST-07",

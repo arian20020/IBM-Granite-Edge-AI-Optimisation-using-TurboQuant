@@ -48,6 +48,9 @@ RESOURCE_RELATIVE = Path(
     "experiments/granite_turboquant_intel/processed-results/upstream-llama-cpp/resource-metrics-2026-07-16.json"
 )
 EVIDENCE_INDEX_RELATIVE = Path("docs/testing/Evidence-Index.csv")
+UPSTREAM_LOG_TREE_RELATIVE = Path(
+    "experiments/granite_turboquant_intel/logs/upstream-llama-cpp"
+)
 TEST_RUN_REGISTER_RELATIVE = Path("docs/testing/Test-Run-Register.csv")
 PERFORMANCE_REGISTER_RELATIVE = Path("docs/testing/Performance-Measurement-Register.csv")
 QUALITY_RUBRIC_RELATIVE = Path(
@@ -111,6 +114,15 @@ def _parse_workbook_matrix(path: Path) -> list[dict[str, str]]:
     if ids != list(EXPECTED_IDS):
         raise ValueError("WB-01 matrix must contain UL-01 through UL-13 exactly once in order")
     return rows
+
+
+def _parse_setup_scope_ids(path: Path) -> list[str]:
+    rows = _table_by_header(path, ("ID", "Check", "Result"))
+    ids = [row["ID"] for row in rows]
+    expected = [f"UL-B{number:02d}" for number in range(1, 8)]
+    if ids != expected:
+        raise ValueError(f"WB-01 setup scope IDs changed: {ids}")
+    return ids
 
 
 def _formal_rows(path: Path) -> dict[str, dict[str, str]]:
@@ -178,26 +190,57 @@ def _evidence_records(
     records: list[EvidenceRecord] = []
     by_path: dict[str, EvidenceRecord] = {}
     ids: set[str] = set()
-    for row in _read_csv(index_path):
-        if (
-            row["Route"] != ROUTE_ID
-            or row["Test_ID"] not in EXPECTED_IDS
-            or not row["Repository_Path"].startswith(
-                "experiments/granite_turboquant_intel/logs/upstream-llama-cpp/"
-            )
-        ):
-            continue
+    expected_by_path: dict[str, tuple[str, str, str]] = {}
+    log_root = root / UPSTREAM_LOG_TREE_RELATIVE
+    for test_id in EXPECTED_IDS:
+        for path in sorted((log_root / test_id).rglob("*")):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(root).as_posix()
+            parts = relative.split("/")
+            if len(parts) < 7 or parts[4] != test_id:
+                raise ValueError(f"malformed expected upstream evidence path: {relative}")
+            expected_by_path[relative] = (test_id, parts[5], hash_file(path))
+    if len(expected_by_path) != 642:
+        raise ValueError(
+            f"expected upstream log tree must contain exactly 642 evidence files, got {len(expected_by_path)}"
+        )
+
+    indexed_rows = _read_csv(index_path)
+    candidate_rows = []
+    for row in indexed_rows:
         relative = row["Repository_Path"].replace("\\", "/")
         parts = relative.split("/")
-        if len(parts) < 7 or (parts[4], parts[5]) != (row["Test_ID"], row["Run_ID"]):
+        if len(parts) >= 7 and parts[:4] == [
+            "experiments", "granite_turboquant_intel", "logs", "upstream-llama-cpp"
+        ] and parts[4] in EXPECTED_IDS:
+            candidate_rows.append(row)
+    candidate_paths = [row["Repository_Path"].replace("\\", "/") for row in candidate_rows]
+    if len(candidate_rows) != 642 or set(candidate_paths) != set(expected_by_path):
+        missing = sorted(set(expected_by_path) - set(candidate_paths))
+        extra = sorted(set(candidate_paths) - set(expected_by_path))
+        raise ValueError(
+            "expected evidence tuple set mismatch: "
+            f"rows={len(candidate_rows)}, missing={missing[:1]}, extra={extra[:1]}"
+        )
+
+    actual_tuples: set[tuple[str, str, str, str]] = set()
+    expected_tuples = {
+        (test_id, run_id, relative, digest)
+        for relative, (test_id, run_id, digest) in expected_by_path.items()
+    }
+    for row in candidate_rows:
+        relative = row["Repository_Path"].replace("\\", "/")
+        expected_test_id, expected_run_id, digest = expected_by_path[relative]
+        if row["Route"] != ROUTE_ID or (row["Test_ID"], row["Run_ID"]) != (
+            expected_test_id,
+            expected_run_id,
+        ):
             raise ValueError(
                 "Evidence-Index binding conflict: "
                 f"{row['Test_ID']} / {row['Run_ID']} / {relative}"
             )
         path = root / relative
-        if not path.is_file():
-            raise FileNotFoundError(path)
-        digest = hash_file(path)
         if digest != row["SHA256"].lower():
             raise ValueError(f"Evidence-Index hash conflict: {relative}")
         if row["Evidence_ID"] in ids or relative in by_path:
@@ -215,6 +258,9 @@ def _evidence_records(
         records.append(record)
         by_path[relative] = record
         ids.add(record.evidence_id)
+        actual_tuples.add((row["Test_ID"], row["Run_ID"], relative, digest))
+    if actual_tuples != expected_tuples:
+        raise ValueError("expected evidence tuple set mismatch after binding validation")
 
     sources = (
         (WORKBOOK_RELATIVE, "controlled-workbook-markdown", "WB-01 v1.4 canonical Markdown"),
@@ -291,6 +337,7 @@ def audit_upstream_llama_sources(
     quality_source = quality_path or root / QUALITY_RELATIVE
     resource_source = resource_path or root / RESOURCE_RELATIVE
     matrix = _parse_workbook_matrix(workbook)
+    setup_scope_ids = _parse_setup_scope_ids(workbook)
     formal = _formal_rows(workbook)
     matrix_by_id = {row["ID"]: row for row in matrix}
     if not all(row["Status"].startswith("Passed") for row in matrix):
@@ -421,6 +468,7 @@ def audit_upstream_llama_sources(
         "exact_performance_register_rows": performance_rows,
         "matrix_ids": list(EXPECTED_IDS),
         "formal_ids": list(EXPECTED_IDS),
+        "setup_scope_ids": setup_scope_ids,
         "evidence_binding_count": indexed_count,
         "resource_rows_reconciled": len(processed_rows),
         "quality_rows_reconciled": len(quality_by_id),
@@ -536,6 +584,24 @@ def _source_evidence_ids(
     )
 
 
+def _canonical_scope_evidence_id(
+    test_id: str, evidence_by_path: Mapping[str, EvidenceRecord]
+) -> str:
+    prefix = f"{UPSTREAM_LOG_TREE_RELATIVE.as_posix()}/{test_id}/{test_id}-R"
+    candidates = sorted(
+        record.evidence_id
+        for path, record in evidence_by_path.items()
+        if path.startswith(prefix) and path.endswith("/bench-stdout.jsonl")
+    )
+    if len(candidates) != 1:
+        raise ValueError(f"expected one canonical benchmark evidence row for {test_id}, got {len(candidates)}")
+    return candidates[0]
+
+
+def _evidence_supports_scope(record: EvidenceRecord, scope_id: str) -> bool:
+    return f"/{scope_id}/" in f"/{record.relative_path}"
+
+
 def _failure_records(path: Path, evidence_by_path: Mapping[str, EvidenceRecord]) -> tuple[FailureRecord, ...]:
     rows = _table_by_header(path, ("Failure ID", "Test ID", "Code", "Description"))
     results: list[FailureRecord] = []
@@ -547,6 +613,8 @@ def _failure_records(path: Path, evidence_by_path: Mapping[str, EvidenceRecord])
     }
     for row in rows:
         for test_id in canonical_scopes.get(row["Failure ID"], ()):
+            evidence_ids = set(_source_evidence_ids(row["Evidence"], evidence_by_path))
+            evidence_ids.add(_canonical_scope_evidence_id(test_id, evidence_by_path))
             results.append(
                 FailureRecord(
                     route_id=ROUTE_ID,
@@ -558,7 +626,7 @@ def _failure_records(path: Path, evidence_by_path: Mapping[str, EvidenceRecord])
                     stage=row["Code"],
                     reason=row["Description"],
                     source_status=row["Resolved?"],
-                    evidence_ids=_source_evidence_ids(row["Evidence"], evidence_by_path),
+                    evidence_ids=tuple(sorted(evidence_ids)),
                 )
             )
     return tuple(results)
@@ -584,6 +652,19 @@ def build_upstream_deviation_rows(
     rows: list[dict[str, object]] = []
     for source in workbook_rows:
         scope_type, scope_ids = scope_map[source["Failure ID"]]
+        scoped_evidence = set(_source_evidence_ids(source["Evidence"], evidence_by_path))
+        if scope_type not in {"campaign"}:
+            for scope_id in scope_ids:
+                if scope_id in EXPECTED_IDS and not any(
+                    _evidence_supports_scope(
+                        next(item for item in bundle.evidence if item.evidence_id == evidence_id),
+                        scope_id,
+                    )
+                    for evidence_id in scoped_evidence
+                ):
+                    scoped_evidence.add(
+                        _canonical_scope_evidence_id(scope_id, evidence_by_path)
+                    )
         rows.append(
             {
                 "deviation_id": f"UL-DEV-HIST-{source['Failure ID'][-2:]}",
@@ -594,7 +675,7 @@ def build_upstream_deviation_rows(
                 "code": source["Code"],
                 "description": source["Description"],
                 "disposition": source["Resolved?"],
-                "evidence_ids": list(_source_evidence_ids(source["Evidence"], evidence_by_path)),
+                "evidence_ids": sorted(scoped_evidence),
             }
         )
 
@@ -667,10 +748,15 @@ def validate_upstream_relationships(
 ) -> dict[str, object]:
     attempt_ids = {item.attempt_id for item in bundle.attempts}
     test_ids = {item.test_case_id for item in bundle.attempts}
-    evidence_ids = {item.evidence_id for item in bundle.evidence}
+    evidence_by_id = {item.evidence_id: item for item in bundle.evidence}
+    evidence_ids = set(evidence_by_id)
+    setup_ids = set(bundle.repository.get("setup_scope_ids", []))
+    expected_setup_ids = {f"UL-B{number:02d}" for number in range(1, 8)}
     errors: list[str] = []
     if test_ids != set(EXPECTED_IDS):
         errors.append("attempt test set does not equal UL-01 through UL-13")
+    if setup_ids != expected_setup_ids:
+        errors.append("setup scope authority does not equal WB-declared UL-B01 through UL-B07")
     if any(item.status is not Status.PASSED or not item.executed for item in bundle.attempts):
         errors.append("all 13 canonical attempts must remain executed and passed")
     for failure in bundle.failures:
@@ -678,13 +764,33 @@ def validate_upstream_relationships(
             errors.append(f"failure {failure.failure_id} references unknown test {failure.test_case_id}")
         if failure.attempt_id not in attempt_ids:
             errors.append(f"failure {failure.failure_id} references unknown attempt {failure.attempt_id}")
+        if not failure.evidence_ids:
+            errors.append(f"failure {failure.failure_id} evidence must not be empty")
         for evidence_id in failure.evidence_ids:
             if evidence_id not in evidence_ids:
                 errors.append(f"failure {failure.failure_id} references unknown evidence {evidence_id}")
+        existing_evidence = [
+            evidence_by_id[evidence_id]
+            for evidence_id in failure.evidence_ids
+            if evidence_id in evidence_by_id
+        ]
+        if failure.test_case_id in test_ids and not any(
+            _evidence_supports_scope(record, failure.test_case_id)
+            for record in existing_evidence
+        ):
+            errors.append(
+                f"failure {failure.failure_id} evidence does not support scope {failure.test_case_id}"
+            )
 
     seen_deviations: set[str] = set()
-    setup_pattern = re.compile(r"UL-B\d{2}")
     allowed_scope_types = {"setup", "test", "prompt", "multi-test", "mixed", "campaign"}
+    campaign_authority_roles = {
+        "controlled-workbook-markdown",
+        "resource-summary",
+        "test-run-register",
+        "performance-register",
+    }
+    test_authority_roles = {"controlled-workbook-markdown", "quality-scoring"}
     for row in deviations:
         deviation_id = str(row["deviation_id"])
         if deviation_id in seen_deviations:
@@ -693,17 +799,74 @@ def validate_upstream_relationships(
         if row.get("nonterminal") is not True:
             errors.append(f"deviation {deviation_id} is not explicitly nonterminal")
         scope_type = str(row.get("scope_type"))
-        scopes = list(row.get("scope_test_ids", []))
+        raw_scopes = row.get("scope_test_ids")
+        scopes = list(raw_scopes) if isinstance(raw_scopes, (list, tuple)) else []
         if scope_type not in allowed_scope_types:
             errors.append(f"deviation {deviation_id} has unknown scope type {scope_type}")
-        for scope in scopes:
-            if scope not in test_ids and setup_pattern.fullmatch(str(scope)) is None:
-                errors.append(f"deviation {deviation_id} has invalid scope {scope}")
-        if scope_type == "campaign" and set(scopes) != test_ids:
-            errors.append(f"deviation {deviation_id} campaign scope is incomplete")
-        for evidence_id in row.get("evidence_ids", []):
+        if not scopes:
+            errors.append(f"deviation {deviation_id} scope must not be empty")
+        if len(scopes) != len(set(scopes)):
+            errors.append(f"deviation {deviation_id} scope contains duplicate IDs")
+
+        if scope_type == "setup":
+            for scope in scopes:
+                if isinstance(scope, str) and re.fullmatch(r"UL-B\d{2}", scope) and scope not in setup_ids:
+                    errors.append(f"deviation {deviation_id} has unknown setup scope {scope}")
+            if any(scope not in setup_ids for scope in scopes):
+                errors.append(f"deviation {deviation_id} setup scope must contain only WB-declared setup IDs")
+        elif scope_type in {"test", "prompt"}:
+            if len(scopes) != 1 or any(scope not in test_ids for scope in scopes):
+                errors.append(
+                    f"deviation {deviation_id} {scope_type} scope requires exactly one canonical UL test ID"
+                )
+        elif scope_type == "multi-test":
+            if len(scopes) < 2:
+                errors.append(f"deviation {deviation_id} multi-test scope requires at least two canonical UL test IDs")
+            if any(scope not in test_ids for scope in scopes):
+                errors.append(f"deviation {deviation_id} multi-test scope contains a noncanonical ID")
+        elif scope_type == "mixed":
+            if any(scope not in setup_ids | test_ids for scope in scopes):
+                errors.append(f"deviation {deviation_id} mixed scope contains an unknown ID")
+            if not any(scope in setup_ids for scope in scopes) or not any(
+                scope in test_ids for scope in scopes
+            ):
+                errors.append(f"deviation {deviation_id} mixed scope requires setup and canonical test IDs")
+        elif scope_type == "campaign" and scopes != list(EXPECTED_IDS):
+            errors.append(f"deviation {deviation_id} campaign scope must exactly expand UL-01 through UL-13")
+
+        raw_evidence_ids = row.get("evidence_ids")
+        row_evidence_ids = (
+            list(raw_evidence_ids) if isinstance(raw_evidence_ids, (list, tuple)) else []
+        )
+        if not row_evidence_ids:
+            errors.append(f"deviation {deviation_id} evidence must not be empty")
+        for evidence_id in row_evidence_ids:
             if evidence_id not in evidence_ids:
                 errors.append(f"deviation {deviation_id} references unknown evidence {evidence_id}")
+        existing_evidence = [
+            evidence_by_id[evidence_id]
+            for evidence_id in row_evidence_ids
+            if evidence_id in evidence_by_id
+        ]
+        if scope_type == "campaign":
+            if not any(record.role in campaign_authority_roles for record in existing_evidence):
+                errors.append(f"deviation {deviation_id} evidence does not support campaign scope")
+        else:
+            historical = bool(row.get("source_failure_id"))
+            for scope in scopes:
+                direct_support = any(
+                    _evidence_supports_scope(record, str(scope))
+                    for record in existing_evidence
+                )
+                global_test_support = not historical and scope in test_ids and any(
+                    record.role in test_authority_roles for record in existing_evidence
+                )
+                if scope in setup_ids | test_ids and not (
+                    direct_support or global_test_support
+                ):
+                    errors.append(
+                        f"deviation {deviation_id} evidence does not support scope {scope}"
+                    )
     return {
         "valid": not errors,
         "errors": errors,
@@ -711,6 +874,8 @@ def validate_upstream_relationships(
         "failure_relationship_count": len(bundle.failures),
         "deviation_count": len(deviations),
         "evidence_count": len(bundle.evidence),
+        "allowed_scope_types": sorted(allowed_scope_types),
+        "allowed_setup_scope_ids": sorted(setup_ids),
     }
 
 
@@ -853,6 +1018,7 @@ def build_upstream_llama_bundle(repo_root: Path) -> RouteBundle:
             "performance_register_status": NOT_COLLECTED,
             "performance_register_reason": "No UL-01 through UL-13 rows; repetition evidence predates the register",
             "historical_missing_metric_display": NOT_COLLECTED,
+            "setup_scope_ids": source_audit["setup_scope_ids"],
             "source_reconciliation": source_audit,
         },
         hardware={
@@ -1296,7 +1462,7 @@ def finalize_upstream_llama_route(repo_root: Path) -> dict[str, object]:
             "blank_or_corrupt_pages": "None observed",
             "table_header_continuity": "Repeated headers present across long tables",
             "colour_and_status_legibility": "Consistent navy, teal, blue, and explicit status text",
-            "dense_evidence_table": "Intentionally spans pages 18-46; readable at page zoom",
+            "dense_evidence_table": "Evidence section begins on page 18; the evidence table spans pages 19-46 and is readable at page zoom",
         },
         "temporary_contact_sheets_committed": False,
     }
@@ -1307,6 +1473,7 @@ def finalize_upstream_llama_route(repo_root: Path) -> dict[str, object]:
         route / "validation/validation-report.md",
         "# Validation report\n\nCoverage: Passed. Data: Passed. Markdown/DOCX semantic parity: Passed. "
         f"Word PDF export: Passed. All {len(reader.pages)} PDF pages rendered and visually inspected: Passed. "
+        "Evidence section begins on page 18; the evidence table spans pages 19-46. "
         "Every admitted source path and SHA-256 was verified; historical register and raw-results gaps remain explicit.",
     )
     integrity = {
