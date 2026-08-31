@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "coordinator": "C0",
-  "updatedAtUtc": "2026-08-31T02:04:02Z",
+  "updatedAtUtc": "2026-08-31T03:53:34Z",
   "frozenSource": {
     "commit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
     "tree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91"
@@ -19,26 +19,39 @@
     "tree": "78c96061690b8ede285b83712219ba05af34a5dc",
     "remoteEqualityVerified": true
   },
+  "finalCandidate": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-e1-issued-base-v1",
+    "commit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+    "tree": "2e92e172679d1558972846694306d28ad56e2cf4",
+    "remoteEqualityVerified": true,
+    "registerPublicationRef": "refs/remotes/origin/integration/ucl-r4-specialist-reconciliation-v1",
+    "publicationNote": "The immutable E1 base remains at the product subject; the coordinator ref advances only for dispatch documentation."
+  },
   "candidateEvidence": {
     "report": {
       "path": "docs/audits/2026-08-30/C0-r4-specialist-reconciliation.md",
-      "sha256": "12442e775d2848ae58ede50455e760e5b7ec65b2a321e32e84d7a26bacc2f5fc",
-      "bytes": 7422
+      "sha256": "2f95224ea370bfe46a0a1e1fca55c2a52a8ede65eadf3066e35f4a64b0a4e13c",
+      "bytes": 5903
     },
     "manifest": {
       "path": "docs/audits/2026-08-30/evidence/C0-r4-specialist-reconciliation.json",
-      "sha256": "2ecbbcf8e4fd15f587d5b4b6169745beadc59b665f9e24444f1b3fe1bb01ecda",
-      "bytes": 4546
+      "sha256": "92e08f9b94249b7aa5f0c760eedb5ecb6100e61f94cd06fba0a9e23105299979",
+      "bytes": 4429
     },
     "receipt": {
       "path": "docs/audits/2026-08-30/handoffs/R4-C0.json",
-      "sha256": "4069876155a09ff80a8d5e5cf0569b03fa843c79c4ed4791f04074d3ff937da0",
-      "bytes": 1423
+      "sha256": "fc5bee96a3dda12b87409a2367b06685e68afe3cfd89972792a03e82db524410",
+      "bytes": 1422
     },
     "issueLedger": {
       "path": "docs/audits/2026-08-30/C0-r4-issue-ledger.md",
-      "sha256": "8587ffb709866a8d3fe0c35cc49a3fc735ca90afd4a7d85e857ea391223ce3ee",
-      "bytes": 3133
+      "sha256": "21cb06cd4395846feedb7ff9410faf13514841498db4134e021b0d0519963d08",
+      "bytes": 3584
+    },
+    "issueClosure": {
+      "path": "docs/audits/2026-08-30/evidence/C0-r4-issue-closure.json",
+      "sha256": "ad28d3e3434839f33589ffd18ec1e142058c8470f5bf448d7c699260f3aedc3e",
+      "bytes": 2540
     }
   },
   "workers": [
@@ -149,12 +162,12 @@
       "downstreamReplayRequirements": [
         "Q1 must start only from refs/remotes/origin/integration/ucl-r4-q1-issued-base-v1 at commit 218ad08fb4ebad7b39d90fd2f906c4f234d66495 and tree 78c96061690b8ede285b83712219ba05af34a5dc.",
         "Q1 must preserve the H1 display-only trust boundary and rerun affected cross-feature contracts after any owned delta.",
-        "E1 remains blocked until C0 accepts Q1, republishes, and freezes the exact final candidate."
+        "Historical sequence satisfied: C0 accepted Q1, remediated coordinator lifecycle findings, and froze the exact E1 candidate."
       ]
     },
     {
       "workerId": "Q1",
-      "state": "DISPATCHED",
+      "state": "ACCEPTED",
       "issuedBaseRef": "refs/remotes/origin/integration/ucl-r4-q1-issued-base-v1",
       "issuedBaseCommit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
       "issuedBaseTree": "78c96061690b8ede285b83712219ba05af34a5dc",
@@ -172,6 +185,69 @@
         "path": "docs/audits/2026-08-30/evidence/C0-r4-Q1-launch-packet.json",
         "sha256": "971768d81a051210e902ebd5fa1801eccb5f491cd46aede4483221aeacaa6d60",
         "bytes": 4274
+      },
+      "returnedRef": "refs/remotes/origin/validation/ucl-q1-optimisation-candidate-r4",
+      "returnedAliasRef": "refs/remotes/origin/audit/ucl-q1-optimisation-candidate-r4",
+      "returnedTip": "8627de7100a814ad53adc91456b3f0b3b918d349",
+      "returnedTree": "d6022a7e395d5e98755a1f7dad97eacafa4bb13a",
+      "implementationSubjectCommit": "8769ec80b2474cb5d638d1ad0c4b4ffdbe2ac38d",
+      "implementationSubjectTree": "b068ca7f35b7b0b79fff294b8d59ed77df7acdbd",
+      "report": {
+        "path": "docs/audits/2026-08-30/Q1-optimisation-result-binding-r4.md",
+        "sha256": "3aa988c9cb768617df1276d5944ceb54abb5131af4e28151e622ff0a24adb414",
+        "bytes": 6425
+      },
+      "evidenceManifest": {
+        "path": "docs/audits/2026-08-30/evidence/Q1-optimisation-result-binding-r4.json",
+        "sha256": "30faa849ea9c089eebdaf3f4000d56a4acc45dff2af9f6684eba889c84a4299b",
+        "bytes": 3435
+      },
+      "receipt": {
+        "path": "docs/audits/2026-08-30/handoffs/R4-Q1.json",
+        "sha256": "56351b12fe96f799823d64023509ede9384459eb45d64cd8dc767d1b111669cb",
+        "bytes": 1408
+      },
+      "independentReviewResult": "NO_REMAINING_CRITICAL_OR_IMPORTANT_AFTER_C0_LIFECYCLE_REMEDIATION",
+      "testArithmetic": {
+        "returnedReceiptTotals": { "discovered": 461, "executed": 461, "passed": 461, "failed": 0, "skipped": 0 },
+        "c0IntegratedAffectedTotals": { "discovered": 466, "executed": 466, "passed": 466, "failed": 0, "skipped": 0 },
+        "c0SupplementaryChecks": { "securityAudit": "12/12", "cleanupInventory": "729/729 at implementation subject", "managedDebugX64Build": "passed with zero errors" }
+      },
+      "nativeDisposition": "blocked",
+      "c0IntakeDecision": "ACCEPTED_AFTER_C0_LIFECYCLE_REMEDIATION",
+      "integratedCommit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+      "integratedTree": "2e92e172679d1558972846694306d28ad56e2cf4",
+      "supersededCandidate": {
+        "ref": "refs/remotes/origin/integration/ucl-r4-q1-issued-base-v1",
+        "commit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+        "tree": "78c96061690b8ede285b83712219ba05af34a5dc"
+      },
+      "downstreamReplayRequirements": [
+        "E1 must start only from refs/remotes/origin/integration/ucl-r4-e1-issued-base-v1 at commit 429298d3328a62d4fcf2f5f3f12821342be4a23c and tree 2e92e172679d1558972846694306d28ad56e2cf4.",
+        "E1 must preserve the exact accepted H1 and Q1 lineage and may not make product fixes.",
+        "Any product correction invalidates all E1 evidence and requires a new immutable base and complete rerun."
+      ]
+    },
+    {
+      "workerId": "E1",
+      "state": "DISPATCHED",
+      "issuedBaseRef": "refs/remotes/origin/integration/ucl-r4-e1-issued-base-v1",
+      "issuedBaseCommit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+      "issuedBaseTree": "2e92e172679d1558972846694306d28ad56e2cf4",
+      "prompt": {
+        "filename": "03-E1-R4-EXACT-CANDIDATE-MASTER-PROMPT.md",
+        "sha256": "3d48774a58d109f72d77d70bec0c01d3f9baf312d81fa22f54113a622dfa9e07",
+        "bytes": 7803
+      },
+      "ownership": [
+        "independent release-veto harness and evidence",
+        "exact-final-candidate validation and verbatim verdict",
+        "no product fixes"
+      ],
+      "launchPacket": {
+        "path": "docs/audits/2026-08-30/evidence/C0-r4-E1-launch-packet.json",
+        "sha256": "d0a685bd325b32c7476b207f56ff7caa0a1627d958434dd7ccc5016382c448b7",
+        "bytes": 3882
       },
       "returnedRef": null,
       "returnedTip": null,
@@ -196,64 +272,12 @@
       "independentReviewResult": "PENDING_RETURN",
       "testArithmetic": null,
       "nativeDisposition": "not-run",
-      "c0IntakeDecision": "PENDING_RETURN",
-      "integratedCommit": null,
-      "supersededCandidate": {
-        "ref": "refs/remotes/origin/integration/ucl-r4-h1-issued-base-v1",
-        "commit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
-        "tree": "5f50b480d39cbfbeb1ff74fab866b6a995418868"
-      },
-      "downstreamReplayRequirements": [
-        "C0 must independently verify Q1 remote equality, ancestry, owned paths, hashes, schemas, arithmetic, privacy, blockers, and review.",
-        "Any accepted Q1 production correction supersedes this issued candidate and requires affected C0 replay before final freeze.",
-        "E1 must not start until the accepted post-Q1 candidate is pushed and frozen."
-      ]
-    },
-    {
-      "workerId": "E1",
-      "state": "NOT_STARTED",
-      "issuedBaseRef": null,
-      "issuedBaseCommit": null,
-      "issuedBaseTree": null,
-      "prompt": {
-        "filename": "03-E1-R4-EXACT-CANDIDATE-MASTER-PROMPT.md",
-        "sha256": "3d48774a58d109f72d77d70bec0c01d3f9baf312d81fa22f54113a622dfa9e07",
-        "bytes": 7803
-      },
-      "ownership": [
-        "independent release-veto harness and evidence",
-        "exact-final-candidate validation and verbatim verdict",
-        "no product fixes"
-      ],
-      "launchPacket": null,
-      "returnedRef": null,
-      "returnedTip": null,
-      "returnedTree": null,
-      "implementationSubjectCommit": null,
-      "implementationSubjectTree": null,
-      "report": {
-        "path": null,
-        "sha256": null,
-        "bytes": null
-      },
-      "evidenceManifest": {
-        "path": null,
-        "sha256": null,
-        "bytes": null
-      },
-      "receipt": {
-        "path": null,
-        "sha256": null,
-        "bytes": null
-      },
-      "independentReviewResult": "NOT_STARTED",
-      "testArithmetic": null,
-      "nativeDisposition": "not-run",
-      "c0IntakeDecision": "WAIT_FOR_ACCEPTED_Q1_AND_FINAL_FREEZE",
+      "c0IntakeDecision": "WAIT_FOR_RETURN",
       "integratedCommit": null,
       "supersededCandidate": null,
       "downstreamReplayRequirements": [
-        "Issue only from the exact final post-Q1 frozen candidate.",
+        "Branch only from refs/remotes/origin/integration/ucl-r4-e1-issued-base-v1 and verify exact commit/tree before testing.",
+        "Own tests, evidence and verdict only; do not make product fixes.",
         "Any product correction after E1 invalidates all E1 evidence and requires a complete E1 rerun."
       ]
     }

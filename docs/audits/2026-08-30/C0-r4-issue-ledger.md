@@ -1,34 +1,47 @@
-# C0 R4 preliminary candidate issue ledger
+# C0 R4 final candidate issue ledger
 
-Implementation subject: `3be52f0b0763cd0ba164b13914d8b0b4f37433e8`
+Final product candidate: `429298d3328a62d4fcf2f5f3f12821342be4a23c` / `2e92e172679d1558972846694306d28ad56e2cf4`
 
-## T1 deterministic product obligations
+## Deterministic product obligations
 
-| ID | Original RED obligation | Preliminary disposition | Evidence |
+| ID | Obligation | Final disposition | Evidence |
 | --- | --- | --- | --- |
-| T1-01A | Proportional reserve row 1 | Closed | typed currently-available memory, bounded proportional reserve, and independent oracle pass |
-| T1-01B | Proportional reserve row 2 | Closed | same production policy passes the second boundary row |
-| T1-01C | Proportional reserve row 3 | Closed | same production policy passes the near-boundary row without negative budget |
-| T1-02 | Zero available memory establishes zero budget | Closed | typed zero availability projects an established zero budget without throwing or fabricating capacity |
-| T1-03 | Substituted terminal journey identity is suppressed | Closed | terminal publication remains bound to the active exact journey identity |
-| T1-04 | Published GGUF lookup rejects non-exact result authority | Closed | registry lookup binds the exact execution result identity and hashes |
-| T1-05 | Retiring an unsealed lease removes staged output/publication | Closed | Q1 custody and recovery behavior leaves no publication authority; quarantine is created only when recovery needs it |
-| T1-06 | Quantizer environment is allowlisted and diagnostics disabled | Closed | S1 trusted environment policy is the production seam used by the quantizer path |
-| T1-07 | Recommended model download action is functionally wired | Closed | canonical five-entry authority, verified handoff subscription, one-time claim, retirement, and navigation are integrated |
-| T1-08 | OpenVINO Chat/export requires exact result and lifecycle token | Closed | exact Chat target and persistent export seams replace ambient directory authority |
+| T1-01A | Proportional reserve row 1 | CLOSED | bounded typed reserve oracle |
+| T1-01B | Proportional reserve row 2 | CLOSED | bounded typed reserve oracle |
+| T1-01C | Proportional reserve row 3 | CLOSED | near-boundary oracle without negative budget |
+| T1-02 | Zero available memory establishes zero budget | CLOSED | typed zero-availability projection |
+| T1-03 | Suppress substituted terminal journey identity | CLOSED | exact active journey publication |
+| T1-04 | Reject non-exact published GGUF authority | CLOSED | exact execution identity and hashes |
+| T1-05 | Remove staged output/publication for unsealed lease | CLOSED | Q1 custody and recovery contracts |
+| T1-06 | Allowlist quantizer environment and disable diagnostics | CLOSED | S1 trusted environment seam |
+| T1-07 | Wire recommended-model download action | CLOSED | canonical authority and one-time claim |
+| T1-08 | Require exact OpenVINO result and lifecycle token | CLOSED | exact Chat/export destination facade |
 
-Cross-feature result: 114 discovered, 114 executed, 114 passed, 0 failed, 0 skipped.
+## C0 post-Q1 lifecycle findings
 
-## Remaining campaign and environment blockers
+| ID | Finding | Final disposition | Evidence |
+| --- | --- | --- | --- |
+| R4-C0-001 | Duplicate Chat admission could replace a live target | CLOSED | duplicate rejected; behavioral regression in Q1 identity suite |
+| R4-C0-002 | Retirement could race new destination admission | CLOSED | admission closes atomically before cancellation/join |
+| R4-C0-003 | Synchronous dispose could bypass ordered async retirement | CLOSED | one published shutdown task serves Dispose and ShutdownAsync |
+| R4-C0-004 | Optimization `async void` failures could escape | CLOSED | all intent faults bounded and reported |
+| R4-C0-005 | Chat could resurrect during shutdown | CLOSED | shared handoff gate closes permanently and joins |
+| R4-C0-006 | A global intent gate could suppress Cancel during Confirm | CLOSED | global gate removed; Cancel remains concurrent |
+| R4-C0-007 | A throwing cancellation callback could strand shutdown | CLOSED | callback failures cannot prevent shutdown-task publication/completion |
+| R4-C0-008 | Back or Done could retire while Chat still used a target | CLOSED | Chat/Back/Done share lease, gate, and exact page/coordinator revalidation |
+
+All rows above are closed on the final product candidate. Independent re-review returned PASS with no remaining Critical or Important finding.
+
+## Environment and campaign blockers
 
 | ID | State | Owner/next action |
 | --- | --- | --- |
-| H1-R4 | DISPATCHED | H1 validates the exact immutable issued base, hardware truth, degraded optional-probe behavior, compatibility projection, and available package/native/visual gates |
-| Q1-R4 | NOT_STARTED | Wait for C0 acceptance and publication of H1 output |
-| E1-R4 | NOT_STARTED | Wait for accepted Q1 integration and final C0 freeze |
-| NATIVE-GGUF-STAGE | BLOCKED_EXTERNAL | Exact pinned `GgufQuantizerStageDirectory` input is absent; no binary or hash may be invented |
-| NATIVE-OPENVINO-STAGES | BLOCKED_EXTERNAL | Seven controlled tests skip because verified native-stage inputs are absent |
-| WINUI-PACKAGE-CONTEXT | BLOCKED_EXTERNAL | Direct DLL execution fails with `REGDB_E_CLASSNOTREG`; use the installed package/VSTest recipe when available |
-| APP-CONTROL | BLOCKED_EXTERNAL | Unsigned fresh apphosts are rejected; policy was not weakened |
-| SIGNED-PACKAGE | NOT_STARTED | H1/Q1/E1 must execute only when all pinned inputs and shared native lock are available |
-| VISUAL-ACCEPTANCE | NOT_STARTED | H1 and later E1 must capture and inspect candidate-bound screenshots if the exact app can launch |
+| H1-R4 | ACCEPTED | C0 preserved returned evidence and remediation record |
+| Q1-R4 | ACCEPTED | C0 integrated the return and closed coordinator-owned lifecycle findings |
+| E1-R4 | DISPATCHED | E1 independently validates the exact immutable final candidate |
+| NATIVE-AUTH-LOCK | BLOCKED_EXTERNAL | E1 may acquire only the approved shared native lock and exact authorization |
+| NATIVE-GGUF-STAGE | BLOCKED_EXTERNAL | exact pinned stage input is absent; no binary/hash may be invented |
+| NATIVE-OPENVINO-STAGES | BLOCKED_EXTERNAL | exact verified native-stage inputs remain absent |
+| APP-CONTROL | BLOCKED_EXTERNAL | unsigned fresh apphosts and packaged runner are policy-blocked |
+| SIGNED-PACKAGE | PENDING_E1 | E1 records only evidence actually obtainable on its candidate-bound host |
+| VISUAL-PERFORMANCE | PENDING_E1 | E1 claims these gates only if the exact candidate can execute |

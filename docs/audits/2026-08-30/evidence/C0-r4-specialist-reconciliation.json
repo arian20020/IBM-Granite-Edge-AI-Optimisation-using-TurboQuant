@@ -2,38 +2,32 @@
   "schemaVersion": 2,
   "workerId": "C0",
   "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
-  "evidenceSubjectCommit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
-  "evidenceSubjectTree": "5f50b480d39cbfbeb1ff74fab866b6a995418868",
-  "createdAtUtc": "2026-08-31T00:21:35Z",
-  "route": [
-    "shared",
-    "gguf",
-    "openvino"
-  ],
+  "evidenceSubjectCommit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+  "evidenceSubjectTree": "2e92e172679d1558972846694306d28ad56e2cf4",
+  "createdAtUtc": "2026-08-31T03:53:34Z",
+  "route": ["shared", "gguf", "openvino"],
   "evidenceStatus": "mixed",
   "report": {
     "path": "docs/audits/2026-08-30/C0-r4-specialist-reconciliation.md",
-    "sha256": "12442e775d2848ae58ede50455e760e5b7ec65b2a321e32e84d7a26bacc2f5fc",
-    "bytes": 7422
+    "sha256": "2f95224ea370bfe46a0a1e1fca55c2a52a8ede65eadf3066e35f4a64b0a4e13c",
+    "bytes": 5903
   },
   "inputs": [
     {
       "kind": "git-commit",
-      "id": "c0-subject-3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
+      "id": "h1-return-75689afc92489c885d20c57ca1d983523d76b3a4",
       "evidenceGrade": "verified"
     },
     {
-      "kind": "git-bundle",
-      "id": "C0-R4-REQUIRED-REFS-2026-08-30.bundle",
-      "sha256": "378594b273d8143bc34ecefff1826593b386271b025a7151536540a004d9f742",
-      "bytes": 22518915,
+      "kind": "git-commit",
+      "id": "q1-return-8627de7100a814ad53adc91456b3f0b3b918d349",
       "evidenceGrade": "verified"
     },
     {
       "kind": "worker-prompt",
-      "id": "H1-R4-UCL-INTEL-MASTER-PROMPT",
-      "sha256": "f09cd973e2da5321ef01dd3392206c49bcbe21da8d61d7d09219640bf29798cc",
-      "bytes": 8098,
+      "id": "E1-R4-EXACT-CANDIDATE-MASTER-PROMPT",
+      "sha256": "3d48774a58d109f72d77d70bec0c01d3f9baf312d81fa22f54113a622dfa9e07",
+      "bytes": 7803,
       "evidenceGrade": "verified"
     }
   ],
@@ -41,136 +35,51 @@
     {
       "kind": "issue-ledger",
       "id": "C0-r4-issue-ledger.md",
-      "sha256": "8587ffb709866a8d3fe0c35cc49a3fc735ca90afd4a7d85e857ea391223ce3ee",
-      "bytes": 3133,
+      "sha256": "21cb06cd4395846feedb7ff9410faf13514841498db4134e021b0d0519963d08",
+      "bytes": 3584,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "issue-closure",
+      "id": "C0-r4-issue-closure.json",
+      "sha256": "ad28d3e3434839f33589ffd18ec1e142058c8470f5bf448d7c699260f3aedc3e",
+      "bytes": 2540,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "launch-packet",
+      "id": "C0-r4-E1-launch-packet.json",
+      "sha256": "d0a685bd325b32c7476b207f56ff7caa0a1627d958434dd7ccc5016382c448b7",
+      "bytes": 3882,
       "evidenceGrade": "verified"
     },
     {
       "kind": "git-tree",
-      "id": "c0-tree-5f50b480d39cbfbeb1ff74fab866b6a995418868",
+      "id": "c0-tree-2e92e172679d1558972846694306d28ad56e2cf4",
       "evidenceGrade": "verified"
     }
   ],
   "commands": [
-    {
-      "id": "C0-CROSSFEATURE",
-      "exitCode": 0,
-      "discovered": 114,
-      "executed": 114,
-      "passed": 114,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "passed"
-    },
-    {
-      "id": "C0-DOWNLOAD-AUTH",
-      "exitCode": 0,
-      "discovered": 30,
-      "executed": 30,
-      "passed": 30,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "passed"
-    },
-    {
-      "id": "C0-MI-CONTRACTS",
-      "exitCode": 0,
-      "discovered": 428,
-      "executed": 428,
-      "passed": 428,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "passed"
-    },
-    {
-      "id": "C0-COMPATIBILITY",
-      "exitCode": 0,
-      "discovered": 1062,
-      "executed": 1062,
-      "passed": 1062,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "passed"
-    },
-    {
-      "id": "C0-HARDWARE-FOUNDATION",
-      "exitCode": 0,
-      "discovered": 234,
-      "executed": 234,
-      "passed": 234,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "passed"
-    },
-    {
-      "id": "C0-MI-TRANSPORT",
-      "exitCode": 0,
-      "discovered": 27,
-      "executed": 27,
-      "passed": 27,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "passed"
-    },
-    {
-      "id": "C0-MI-WORKER",
-      "exitCode": 0,
-      "discovered": 78,
-      "executed": 78,
-      "passed": 78,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "passed"
-    },
-    {
-      "id": "C0-MI-WORKERCLIENT",
-      "exitCode": 0,
-      "discovered": 121,
-      "executed": 121,
-      "passed": 121,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "passed"
-    },
-    {
-      "id": "C0-OPENVINO-PACKAGING",
-      "exitCode": 0,
-      "discovered": 11,
-      "executed": 11,
-      "passed": 4,
-      "failed": 0,
-      "skipped": 7,
-      "disposition": "mixed"
-    },
-    {
-      "id": "C0-UNITTESTS-BUILD",
-      "exitCode": 0,
-      "discovered": 0,
-      "executed": 0,
-      "passed": 0,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "passed"
-    },
-    {
-      "id": "C0-PACKAGE-BUILD",
-      "exitCode": 1,
-      "discovered": 0,
-      "executed": 0,
-      "passed": 0,
-      "failed": 0,
-      "skipped": 0,
-      "disposition": "blocked"
-    }
+    { "id": "C0-OPENVINO-OPTIMIZATION", "exitCode": 0, "discovered": 55, "executed": 55, "passed": 55, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-OPENVINO-CONTRACTS", "exitCode": 0, "discovered": 202, "executed": 202, "passed": 202, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-OPENVINO-WORKERCLIENT", "exitCode": 0, "discovered": 17, "executed": 17, "passed": 17, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-GGUF-CONTRACTS", "exitCode": 0, "discovered": 7, "executed": 7, "passed": 7, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-GGUF-WORKERCLIENT", "exitCode": 0, "discovered": 19, "executed": 19, "passed": 19, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-Q1-IDENTITY", "exitCode": 0, "discovered": 51, "executed": 51, "passed": 51, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-CROSSFEATURE", "exitCode": 0, "discovered": 115, "executed": 115, "passed": 115, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-SECURITY-AUDIT", "exitCode": 0, "discovered": 12, "executed": 12, "passed": 12, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-CLEANUP-INVENTORY", "exitCode": 0, "discovered": 3, "executed": 3, "passed": 3, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-APP-DEBUG-X64-BUILD", "exitCode": 0, "discovered": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "disposition": "passed" },
+    { "id": "C0-WINUI-PACKAGED-RUN", "exitCode": 1, "discovered": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "disposition": "blocked" }
   ],
   "blockers": [
-    "The exact pinned GGUF quantizer stage is absent, so the ordinary Release/package target fails closed before packaging.",
-    "Seven controlled OpenVINO packaging tests skip because their verified native-stage inputs are unavailable.",
-    "The WinUI UnitTests DLL cannot execute outside package context on this machine and reports REGDB_E_CLASSNOTREG."
+    "Q1 native authorization and shared lock were not published, so native, package, visual and performance execution was unavailable.",
+    "Exact pinned GGUF and OpenVINO native-stage inputs are absent; managed builds use explicit external-stage opt-outs and do not claim native or package acceptance.",
+    "Windows Application Control blocks the packaged WinUI runner and freshly generated unsigned apphosts with 0x800711C7."
   ],
   "nonClaims": [
-    "No signed-package installation or Windows Application Control acceptance is claimed.",
-    "No authoritative Intel-native GGUF, OpenVINO, TurboQuant, performance, screenshot, or accessibility acceptance is claimed.",
-    "This preliminary checkpoint is not E1 release acceptance and main was not merged or pushed."
+    "No signed-package, full native journey, Intel performance, screenshot, accessibility or final release acceptance is claimed.",
+    "Security and cleanup verifier rows are supplementary and excluded from the 466-test non-overlapping affected matrix.",
+    "E1 remains the independent release-veto authority; main was not modified or pushed."
   ]
 }

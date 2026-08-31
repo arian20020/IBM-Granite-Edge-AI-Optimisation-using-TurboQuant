@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "campaign": "E1-R4-EXACT-CANDIDATE",
+  "state": "DISPATCHED",
+  "issuedBy": "C0",
+  "issuedAtUtc": "2026-08-31T03:53:34Z",
+  "prompt": {
+    "archive": "UCL-R4-Remaining-Worker-Prompts.zip",
+    "entry": "UCL-R4-Remaining-Worker-Prompts/03-E1-R4-EXACT-CANDIDATE-MASTER-PROMPT.md",
+    "sha256": "3d48774a58d109f72d77d70bec0c01d3f9baf312d81fa22f54113a622dfa9e07",
+    "bytes": 7803
+  },
+  "coordinatorRegister": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-specialist-reconciliation-v1",
+    "path": "docs/audits/2026-08-30/evidence/C0-r4-worker-register.json",
+    "note": "The coordinator ref advances only for dispatch documentation; test the immutable issued base below."
+  },
+  "finalCandidate": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-e1-issued-base-v1",
+    "commit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+    "tree": "2e92e172679d1558972846694306d28ad56e2cf4",
+    "remoteEqualityVerified": true
+  },
+  "acceptedLineage": {
+    "h1": {
+      "returnedTip": "75689afc92489c885d20c57ca1d983523d76b3a4",
+      "implementationSubject": "99294b544f1f2f53c8b1d19456ded6fac0f2b3bb",
+      "c0Decision": "ACCEPTED_AFTER_C0_REMEDIATION"
+    },
+    "q1": {
+      "returnedTip": "8627de7100a814ad53adc91456b3f0b3b918d349",
+      "returnedTree": "d6022a7e395d5e98755a1f7dad97eacafa4bb13a",
+      "implementationSubject": "8769ec80b2474cb5d638d1ad0c4b4ffdbe2ac38d",
+      "implementationTree": "b068ca7f35b7b0b79fff294b8d59ed77df7acdbd",
+      "c0Decision": "ACCEPTED_AFTER_C0_LIFECYCLE_REMEDIATION"
+    }
+  },
+  "c0Verification": {
+    "affectedManagedTests": { "discovered": 466, "executed": 466, "passed": 466, "failed": 0, "skipped": 0 },
+    "securityAudit": "12/12",
+    "cleanupInventoryAtImplementationSubject": "729/729",
+    "cleanupInventoryAfterDispatchRegistration": "731/731",
+    "managedDebugX64Build": "passed with 0 warnings and 0 errors under explicit missing-external-stage opt-outs",
+    "unitTestsProjectBuild": "passed with 13 inherited warnings and 0 errors",
+    "independentReview": "PASS_NO_REMAINING_CRITICAL_OR_IMPORTANT",
+    "issueClosure": "docs/audits/2026-08-30/evidence/C0-r4-issue-closure.json"
+  },
+  "ownership": [
+    "independent release-veto tests and evidence",
+    "exact-final-candidate native package visual performance and accessibility attempts when authorized and available",
+    "schema-valid E1 report evidence manifest receipt and verbatim final disposition"
+  ],
+  "forbiddenOwnership": [
+    "product fixes or production behavior changes",
+    "rewriting H1 Q1 or C0 returned artifacts",
+    "weakening blockers tests privacy policy or candidate identity",
+    "main branch changes or release integration"
+  ],
+  "knownExternalBlocks": [
+    "native authorization and shared native lock were not available to Q1",
+    "exact native GGUF and OpenVINO stage inputs are absent on the C0 host",
+    "Windows Application Control blocked unsigned apphosts and packaged WinUI test startup"
+  ],
+  "return": {
+    "branch": "test/ucl-e1-native-acceptance-r4",
+    "requiredDispositions": [
+      "APPROVED FOR MAIN INTEGRATION",
+      "CHANGES REQUIRED",
+      "BLOCKED BY EXTERNAL ENVIRONMENT"
+    ],
+    "required": [
+      "pushed remote/local-equal return ref tip and tree",
+      "proof the tested base ref commit and tree exactly match this packet",
+      "complete command arithmetic with blocked and unrun gates excluded from passing totals",
+      "schema-valid E1 report evidence manifest and receipt with verified hashes and bytes",
+      "candidate-bound native package screenshot accessibility and performance evidence only where actually executed",
+      "verbatim final disposition and typed C0 intake sequence"
+    ]
+  },
+  "invalidationRule": "Any product correction after this freeze invalidates all E1 evidence and requires a new immutable base and complete E1 rerun."
+}

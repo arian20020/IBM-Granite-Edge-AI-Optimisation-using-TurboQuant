@@ -3,34 +3,34 @@
   "workerId": "C0",
   "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
   "frozenSourceTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
-  "baseCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
-  "baseTree": "fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91",
+  "baseCommit": "218ad08fb4ebad7b39d90fd2f906c4f234d66495",
+  "baseTree": "78c96061690b8ede285b83712219ba05af34a5dc",
   "branch": "integration/ucl-r4-specialist-reconciliation-v1",
-  "implementationSubjectCommit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
-  "implementationSubjectTree": "5f50b480d39cbfbeb1ff74fab866b6a995418868",
+  "implementationSubjectCommit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+  "implementationSubjectTree": "2e92e172679d1558972846694306d28ad56e2cf4",
   "worktreeCleanAtHandoff": true,
-  "completedAtUtc": "2026-08-31T00:21:35Z",
+  "completedAtUtc": "2026-08-31T03:53:34Z",
   "report": {
     "path": "docs/audits/2026-08-30/C0-r4-specialist-reconciliation.md",
-    "sha256": "12442e775d2848ae58ede50455e760e5b7ec65b2a321e32e84d7a26bacc2f5fc",
-    "bytes": 7422
+    "sha256": "2f95224ea370bfe46a0a1e1fca55c2a52a8ede65eadf3066e35f4a64b0a4e13c",
+    "bytes": 5903
   },
   "transport": "remote",
   "remoteRef": "refs/remotes/origin/integration/ucl-r4-specialist-reconciliation-v1",
   "bundle": null,
   "evidenceManifest": {
     "path": "docs/audits/2026-08-30/evidence/C0-r4-specialist-reconciliation.json",
-    "sha256": "2ecbbcf8e4fd15f587d5b4b6169745beadc59b665f9e24444f1b3fe1bb01ecda",
-    "bytes": 4546,
-    "evidenceSubjectCommit": "3be52f0b0763cd0ba164b13914d8b0b4f37433e8",
-    "evidenceSubjectTree": "5f50b480d39cbfbeb1ff74fab866b6a995418868"
+    "sha256": "92e08f9b94249b7aa5f0c760eedb5ecb6100e61f94cd06fba0a9e23105299979",
+    "bytes": 4429,
+    "evidenceSubjectCommit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+    "evidenceSubjectTree": "2e92e172679d1558972846694306d28ad56e2cf4"
   },
   "testTotals": {
-    "discovered": 2105,
-    "executed": 2105,
-    "passed": 2098,
+    "discovered": 466,
+    "executed": 466,
+    "passed": 466,
     "failed": 0,
-    "skipped": 7
+    "skipped": 0
   },
-  "nativeDisposition": "mixed"
+  "nativeDisposition": "blocked"
 }

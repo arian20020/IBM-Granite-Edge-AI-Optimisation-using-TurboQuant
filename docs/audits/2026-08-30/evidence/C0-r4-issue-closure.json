@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "coordinator": "C0",
+  "createdAtUtc": "2026-08-31T03:53:34Z",
+  "candidate": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-e1-issued-base-v1",
+    "commit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+    "tree": "2e92e172679d1558972846694306d28ad56e2cf4"
+  },
+  "independentReview": "PASS_NO_REMAINING_CRITICAL_OR_IMPORTANT",
+  "closures": [
+    { "id": "T1-01A", "state": "CLOSED", "verification": "bounded typed reserve oracle" },
+    { "id": "T1-01B", "state": "CLOSED", "verification": "bounded typed reserve oracle" },
+    { "id": "T1-01C", "state": "CLOSED", "verification": "near-boundary oracle without negative budget" },
+    { "id": "T1-02", "state": "CLOSED", "verification": "typed zero-availability projection" },
+    { "id": "T1-03", "state": "CLOSED", "verification": "exact active journey publication" },
+    { "id": "T1-04", "state": "CLOSED", "verification": "exact execution identity and hashes" },
+    { "id": "T1-05", "state": "CLOSED", "verification": "Q1 custody and recovery contracts" },
+    { "id": "T1-06", "state": "CLOSED", "verification": "S1 trusted environment seam" },
+    { "id": "T1-07", "state": "CLOSED", "verification": "canonical authority and one-time claim" },
+    { "id": "T1-08", "state": "CLOSED", "verification": "exact Chat/export destination facade" },
+    { "id": "R4-C0-001", "state": "CLOSED", "verification": "duplicate Chat admission rejected without replacement" },
+    { "id": "R4-C0-002", "state": "CLOSED", "verification": "retirement closes admission before cancellation and join" },
+    { "id": "R4-C0-003", "state": "CLOSED", "verification": "Dispose and ShutdownAsync converge on one ordered task" },
+    { "id": "R4-C0-004", "state": "CLOSED", "verification": "optimization intent faults are bounded and reported" },
+    { "id": "R4-C0-005", "state": "CLOSED", "verification": "shutdown closes and joins the handoff gate" },
+    { "id": "R4-C0-006", "state": "CLOSED", "verification": "Cancel remains concurrent with Confirm" },
+    { "id": "R4-C0-007", "state": "CLOSED", "verification": "throwing cancellation callbacks cannot strand shutdown" },
+    { "id": "R4-C0-008", "state": "CLOSED", "verification": "Chat Back and Done share lease gate and exact revalidation" }
+  ],
+  "remainingProductFindings": [],
+  "externalBlockers": [
+    "native authorization and shared lock were not available to Q1",
+    "exact pinned native stage inputs are absent",
+    "Windows Application Control blocks unsigned apphosts and the packaged runner"
+  ]
+}
