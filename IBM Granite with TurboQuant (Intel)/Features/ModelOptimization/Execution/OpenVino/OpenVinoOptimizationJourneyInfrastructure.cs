@@ -167,10 +167,6 @@ internal sealed class OpenVinoOptimizationExecutor(
 
     public OptimizationRoute Route => OptimizationRoute.OpenVino;
 
-    // Compatibility seam for shared composition. Ambient publication lookup is
-    // deliberately disabled; C0 must pass State.Result to the exact APIs below.
-    internal string? LastPublishedDirectory => null;
-
     internal bool TryGetPublishedOutput(
         OptimizationExecutionResult result,
         out OpenVinoPublishedOutput? publication) =>

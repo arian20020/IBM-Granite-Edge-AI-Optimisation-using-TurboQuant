@@ -10,6 +10,22 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 
 namespace GraniteEdgeAI.Features.ModelOptimization.Storage;
 
+internal sealed class GgufPublishedOutputLease(
+    string filePath,
+    string fileSha256,
+    ulong fileLengthBytes,
+    FileStream retainedHandle) : IDisposable
+{
+    private FileStream? _retainedHandle = retainedHandle;
+
+    internal string FilePath { get; } = filePath;
+    internal string FileSha256 { get; } = fileSha256;
+    internal ulong FileLengthBytes { get; } = fileLengthBytes;
+
+    public void Dispose() =>
+        Interlocked.Exchange(ref _retainedHandle, null)?.Dispose();
+}
+
 internal sealed class OptimizationOutputRegistry
 {
     private readonly object _gate = new();
@@ -152,6 +168,50 @@ internal sealed class OptimizationOutputRegistry
                                           or OverflowException)
         {
             return false;
+        }
+    }
+
+    internal bool TryAcquirePublishedGguf(
+        OptimizationExecutionResult result,
+        out GgufPublishedOutputLease? lease)
+    {
+        lease = null;
+        if (!TryGetPublishedGgufFile(
+                result, out string? path, out string? digest, out ulong length))
+        {
+            return false;
+        }
+
+        FileStream? retained = null;
+        try
+        {
+            retained = new FileStream(path!, FileMode.Open, FileAccess.Read,
+                FileShare.Read, 128 * 1024,
+                FileOptions.SequentialScan);
+            if ((ulong)retained.Length != length)
+            {
+                return false;
+            }
+            string retainedDigest = Convert.ToHexString(SHA256.HashData(retained))
+                .ToLowerInvariant();
+            if (!string.Equals(retainedDigest, digest, StringComparison.Ordinal))
+            {
+                return false;
+            }
+            lease = new GgufPublishedOutputLease(
+                path!, retainedDigest, length, retained);
+            retained = null;
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException
+                                          or UnauthorizedAccessException
+                                          or InvalidOperationException)
+        {
+            return false;
+        }
+        finally
+        {
+            retained?.Dispose();
         }
     }
 
