@@ -1,0 +1,36 @@
+provider: uncodixfy-winui-v2
+required: true
+stage:
+  - post-direction-audit
+  - post-render-audit
+authority: heuristic-read-only-adviser
+source_revision: e0e028058b5259debdd94b78147c6d6c77bf7da2
+retain:
+  - Avoid indiscriminate cards and nested cards without semantic hierarchy.
+  - Avoid oversized radii, pill overload, decorative labels, fake metrics, fake charts, glows, filler copy, and excessive padding.
+  - Avoid generic dashboard hero areas inside repeated-use operational workflows.
+  - Avoid ornamental motion and visual elements without a product purpose.
+  - Keep copy factual and never imply an unavailable capability.
+  - Reuse the existing palette and design system before inventing new colours.
+override_for_winui:
+  - Segoe UI Variable remains the native default for shell and general Windows UI.
+  - IBM and Granite blue are valid when represented through reviewed semantic resources.
+  - Clear Windows heading hierarchy is valid and required.
+  - Mica is valid once at window backdrop level; Acrylic is valid for appropriate transient surfaces.
+  - Purposeful asymmetry and native translation or opacity motion are allowed when accessible and adaptive.
+  - Native control dimensions, interaction states, and layout replace fixed web sidebar and CSS rules.
+reject:
+  - No headlines of any sort.
+  - No blue.
+  - Never use Segoe UI.
+  - Never use asymmetry.
+  - CSS-specific shadow or breakpoint rules applied literally to XAML.
+  - Any recommendation that conflicts with native accessibility, platform behaviour, an approved design, or backend truth.
+output_contract:
+  format: findings
+  severities:
+    - blocker
+    - high
+    - medium
+    - low
+  production_edits: false
