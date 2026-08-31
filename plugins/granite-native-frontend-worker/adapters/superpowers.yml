@@ -1,0 +1,26 @@
+provider: superpowers
+required: true
+stage:
+  - design
+  - planning
+  - implementation
+  - debugging
+  - verification
+authority: development-methodology-only
+pinned_revision: 1e285826e604f66f7208f7ac4dba0fe8341d1f57
+required_skills_by_stage:
+  creative_or_design:
+    - brainstorming
+  multi_step_plan:
+    - writing-plans
+  implementation:
+    - test-driven-development
+  unexpected_failure:
+    - systematic-debugging
+  completion_claim:
+    - verification-before-completion
+rules:
+  - Superpowers governs process discipline, not visual direction or WinUI API truth.
+  - Design approval and the implementation lock remain hard gates.
+  - Use isolated branches or worktrees for implementation campaigns.
+  - Never replace current evidence with an assertion that a task should work.
