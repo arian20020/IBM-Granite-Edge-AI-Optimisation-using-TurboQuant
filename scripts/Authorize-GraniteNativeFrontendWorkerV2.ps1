@@ -28,8 +28,10 @@ $ErrorActionPreference = 'Stop'
 $requiredPhrase = 'AUTHORIZE GRANITE FRONTEND V2 IMPLEMENTATION'
 
 function Invoke-Git([string[]] $Arguments) {
-    $output = & git @Arguments 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) {
+    $rawOutput = & git @Arguments 2>&1
+    $exitCode = $LASTEXITCODE
+    $output = $rawOutput | Out-String
+    if ($exitCode -ne 0) {
         throw "git $($Arguments -join ' ') failed:`n$output"
     }
     return $output.Trim()
