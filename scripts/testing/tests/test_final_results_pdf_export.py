@@ -129,6 +129,13 @@ def _process_exists(process_id: int) -> bool:
         text=True,
         check=True,
     )
+
+
+def _wait_for_process_exit(process_id: int, timeout_seconds: float = 15) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while _process_exists(process_id) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    return not _process_exists(process_id)
     return any(
         len(row) >= 2 and row[1].isdigit() and int(row[1]) == process_id
         for row in csv.reader(result.stdout.splitlines())
@@ -420,6 +427,7 @@ def test_startup_timeout_contains_pre_receipt_word_and_worker_only(tmp_path):
     pdf = tmp_path / "report.pdf"
     worker_pid_path = tmp_path / "export-worker.pid"
     activation_path = tmp_path / "export-word-activated.json"
+    operation_directory = tmp_path / "startup-operation"
     _renderer()(_pdf_report(), docx)
 
     with _pre_existing_hidden_word_session(tmp_path) as (baseline, pre_existing):
@@ -430,21 +438,29 @@ def test_startup_timeout_contains_pre_receipt_word_and_worker_only(tmp_path):
             60,
             "-StartupTimeoutSeconds",
             "8",
-            "-TestPreReceiptDelaySeconds",
+            "-TestPreCausalReceiptDelaySeconds",
             "20",
             "-TestWorkerPidPath",
             str(worker_pid_path),
             "-TestWordActivatedPath",
             str(activation_path),
+            "-TestOperationDirectoryPath",
+            str(operation_directory),
         )
 
         assert result.returncode != 0
-        assert "startup timeout" in (result.stdout + result.stderr).casefold()
+        assert "cleanup_unverified" in (result.stdout + result.stderr).casefold()
         activation = json.loads(activation_path.read_text(encoding="utf-8"))
         assert int(activation["pid"]) != int(pre_existing["pid"])
         worker_pid = int(worker_pid_path.read_text(encoding="ascii"))
-        assert _process_exists(worker_pid) is False
+        cleanup = json.loads(
+            (operation_directory / "parent-termination.json").read_text(encoding="utf-8")
+        )
+        assert cleanup["source"] == "parent_precausal_safe_failure"
+        assert cleanup["cleanup_succeeded"] is False
+        assert cleanup["word_exited"] is False
         assert int(pre_existing["pid"]) in _word_process_ids()
+        assert _wait_for_process_exit(worker_pid)
         assert _wait_for_word_process_ids(expected) == expected
 
 
@@ -466,3 +482,86 @@ def test_worker_waits_for_parent_identity_acknowledgement_before_fast_export(tmp
     assert result.returncode == 0, result.stdout + result.stderr
     assert pdf.read_bytes().startswith(b"%PDF-")
     assert _wait_for_word_process_ids(baseline) == baseline
+
+
+@pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
+def test_cleanup_failure_receipt_is_not_treated_as_success(tmp_path):
+    docx = tmp_path / "report.docx"
+    pdf = tmp_path / "report.pdf"
+    operation_directory = tmp_path / "cleanup-failure-operation"
+    _renderer()(_pdf_report(), docx)
+    baseline = _word_process_ids()
+
+    result = _invoke_export(
+        docx,
+        pdf,
+        60,
+        "-TestCleanupFailure",
+        "-TestOperationDirectoryPath",
+        str(operation_directory),
+    )
+
+    assert result.returncode != 0
+    assert "cleanup verification failed" in (result.stdout + result.stderr).casefold()
+    cleanup = json.loads(
+        (operation_directory / "worker-cleanup.json").read_text(encoding="utf-8")
+    )
+    assert cleanup["cleanup_succeeded"] is False
+    assert cleanup["word_exited"] is True
+    assert cleanup["attempts"]["application_quit"]["attempted"] is True
+    assert cleanup["attempts"]["application_quit"]["succeeded"] is False
+    assert _wait_for_word_process_ids(baseline) == baseline
+
+
+@pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
+def test_nonterminating_force_kill_preserves_failure_status_and_causal_receipts(tmp_path):
+    docx = tmp_path / "report.docx"
+    pdf = tmp_path / "report.pdf"
+    operation_directory = tmp_path / "kill-failure-operation"
+    _renderer()(_pdf_report(), docx)
+    baseline = _word_process_ids()
+
+    result = _invoke_export(
+        docx,
+        pdf,
+        1,
+        "-TestExportDelaySeconds",
+        "5",
+        "-TestForceKillDoesNotExit",
+        "-TestOperationDirectoryPath",
+        str(operation_directory),
+    )
+
+    assert result.returncode != 0
+    assert "did not exit after force termination" in (result.stdout + result.stderr).casefold()
+    termination = json.loads(
+        (operation_directory / "parent-termination.json").read_text(encoding="utf-8")
+    )
+    assert termination["cleanup_succeeded"] is False
+    assert termination["word_exited"] is False
+    assert (operation_directory / "word-identity.json").is_file()
+    assert (operation_directory / "worker-identity.json").is_file()
+    assert _wait_for_word_process_ids(baseline) == baseline
+
+
+@pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
+def test_export_timeout_uses_stable_identity_after_original_hwnd_disappears(tmp_path):
+    docx = tmp_path / "report.docx"
+    pdf = tmp_path / "report.pdf"
+    _renderer()(_pdf_report(), docx)
+
+    with _pre_existing_hidden_word_session(tmp_path) as (baseline, pre_existing):
+        expected = baseline | {int(pre_existing["pid"])}
+        result = _invoke_export(
+            docx,
+            pdf,
+            1,
+            "-TestExportDelaySeconds",
+            "5",
+            "-TestCloseIdentityWindowBeforeExport",
+        )
+
+        assert result.returncode != 0
+        assert "export exceeded the 1 second timeout" in (result.stdout + result.stderr)
+        assert int(pre_existing["pid"]) in _word_process_ids()
+        assert _wait_for_word_process_ids(expected) == expected

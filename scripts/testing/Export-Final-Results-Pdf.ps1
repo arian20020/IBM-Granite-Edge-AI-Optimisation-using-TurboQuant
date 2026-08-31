@@ -44,6 +44,22 @@ param(
     [string]$TestWordActivatedPath,
 
     [Parameter(DontShow = $true)]
+    [ValidateRange(0, 300)]
+    [int]$TestPreCausalReceiptDelaySeconds = 0,
+
+    [Parameter(DontShow = $true)]
+    [switch]$TestCleanupFailure,
+
+    [Parameter(DontShow = $true)]
+    [switch]$TestForceKillDoesNotExit,
+
+    [Parameter(DontShow = $true)]
+    [switch]$TestCloseIdentityWindowBeforeExport,
+
+    [Parameter(DontShow = $true)]
+    [string]$TestOperationDirectoryPath,
+
+    [Parameter(DontShow = $true)]
     [string]$ParentAcknowledgementPath,
 
     [Parameter(DontShow = $true)]
@@ -56,7 +72,10 @@ param(
     [string]$ParentCancellationPath,
 
     [Parameter(DontShow = $true)]
-    [string]$WorkerCleanupAcknowledgementPath
+    [string]$WorkerCleanupAcknowledgementPath,
+
+    [Parameter(DontShow = $true)]
+    [string]$WorkerIdentityReceiptPath
 )
 
 Set-StrictMode -Version Latest
@@ -198,6 +217,57 @@ function Write-WordIdentityReceipt {
     }
 }
 
+function Write-JsonReceipt {
+    param(
+        [Parameter(Mandatory = $true)]$Value,
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    Write-WordIdentityReceipt -Identity $Value -Path $Path
+}
+
+function Get-ProcessIdentity {
+    param([Parameter(Mandatory = $true)][System.Diagnostics.Process]$Process)
+
+    return [ordered]@{
+        pid = $Process.Id
+        process_start_time_utc_ticks = $Process.StartTime.ToUniversalTime().Ticks
+        executable_path = [System.IO.Path]::GetFullPath($Process.Path)
+    }
+}
+
+function Test-ProcessIdentityGone {
+    param([Parameter(Mandatory = $true)]$Identity)
+
+    try {
+        $candidate = [System.Diagnostics.Process]::GetProcessById([int]$Identity.pid)
+    }
+    catch [System.ArgumentException] {
+        return $true
+    }
+    catch { return $false }
+    try {
+        if ($candidate.HasExited) {
+            return $true
+        }
+        try {
+            return -not (
+                $candidate.StartTime.ToUniversalTime().Ticks -eq [int64]$Identity.process_start_time_utc_ticks -and
+                [System.StringComparer]::OrdinalIgnoreCase.Equals(
+                    [System.IO.Path]::GetFullPath($candidate.Path),
+                    [System.IO.Path]::GetFullPath([string]$Identity.executable_path)
+                )
+            )
+        }
+        catch {
+            return $candidate.HasExited
+        }
+    }
+    finally {
+        $candidate.Dispose()
+    }
+}
+
 function Write-AtomicSignal {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -216,7 +286,10 @@ function Write-AtomicSignal {
 }
 
 function Get-ValidatedOwnedWordProcess {
-    param([Parameter(Mandatory = $true)][string]$ReceiptPath)
+    param(
+        [Parameter(Mandatory = $true)][string]$ReceiptPath,
+        [bool]$RequireLiveWindow = $true
+    )
 
     if (-not (Test-Path -LiteralPath $ReceiptPath -PathType Leaf)) {
         throw "The causal Word identity receipt is missing."
@@ -235,17 +308,19 @@ function Get-ValidatedOwnedWordProcess {
         throw "The causal Word identity receipt contains invalid identity values."
     }
 
-    Initialize-WordWindowApi
-    if (-not [FinalResultsWordWindowApi]::IsWindow([IntPtr]$recordedHwnd)) {
-        throw "The recorded Word window no longer exists."
-    }
-    [uint32]$mappedPid = 0
-    $threadId = [FinalResultsWordWindowApi]::GetWindowThreadProcessId(
-        [IntPtr]$recordedHwnd,
-        [ref]$mappedPid
-    )
-    if ($threadId -eq 0 -or [int]$mappedPid -ne $recordedPid) {
-        throw "The recorded Word window no longer maps to the recorded process."
+    if ($RequireLiveWindow) {
+        Initialize-WordWindowApi
+        if (-not [FinalResultsWordWindowApi]::IsWindow([IntPtr]$recordedHwnd)) {
+            throw "The recorded Word window no longer exists."
+        }
+        [uint32]$mappedPid = 0
+        $threadId = [FinalResultsWordWindowApi]::GetWindowThreadProcessId(
+            [IntPtr]$recordedHwnd,
+            [ref]$mappedPid
+        )
+        if ($threadId -eq 0 -or [int]$mappedPid -ne $recordedPid) {
+            throw "The recorded Word window no longer maps to the recorded process."
+        }
     }
 
     $candidate = Get-Process -Id $recordedPid -ErrorAction Stop
@@ -258,7 +333,7 @@ function Get-ValidatedOwnedWordProcess {
             [System.StringComparer]::OrdinalIgnoreCase.Equals($actualPath, $recordedPath)
         )
         if (-not $valid) {
-            throw "The recorded Word process identity no longer matches PID, HWND, start time, and executable path."
+            throw "The recorded Word process identity no longer matches PID, start time, and executable path."
         }
         return $candidate
     }
@@ -269,15 +344,27 @@ function Get-ValidatedOwnedWordProcess {
 }
 
 function Stop-ValidatedOwnedWordProcess {
-    param([Parameter(Mandatory = $true)][string]$ReceiptPath)
+    param(
+        [Parameter(Mandatory = $true)][string]$ReceiptPath,
+        [bool]$SimulateNonExit = $false
+    )
 
-    $ownedWord = Get-ValidatedOwnedWordProcess -ReceiptPath $ReceiptPath
+    $identity = [System.IO.File]::ReadAllText($ReceiptPath) | ConvertFrom-Json
+    $ownedWord = Get-ValidatedOwnedWordProcess -ReceiptPath $ReceiptPath -RequireLiveWindow $false
     try {
+        if ($SimulateNonExit) {
+            throw "The causally owned Word process did not exit after force termination."
+        }
         $ownedWord.Kill()
-        [void]$ownedWord.WaitForExit(5000)
+        if (-not $ownedWord.WaitForExit(5000)) {
+            throw "The causally owned Word process did not exit after force termination."
+        }
     }
     finally {
         $ownedWord.Dispose()
+    }
+    if (-not (Test-ProcessIdentityGone -Identity $identity)) {
+        throw "The causally owned Word process still matches its recorded identity after force termination."
     }
 }
 
@@ -294,8 +381,11 @@ function Invoke-WordPdfExport {
         [Parameter(Mandatory = $true)][int]$HandshakeTimeoutSeconds,
         [Parameter(Mandatory = $true)][int]$ExportDelaySeconds,
         [Parameter(Mandatory = $true)][int]$PreReceiptDelaySeconds,
+        [Parameter(Mandatory = $true)][int]$PreCausalReceiptDelaySeconds,
         [AllowEmptyString()][string]$WordActivatedPath,
-        [Parameter(Mandatory = $true)][bool]$ForceAttributionFailure
+        [Parameter(Mandatory = $true)][bool]$ForceAttributionFailure,
+        [Parameter(Mandatory = $true)][bool]$InjectCleanupFailure,
+        [Parameter(Mandatory = $true)][bool]$CloseIdentityWindowBeforeExport
     )
 
     $word = $null
@@ -303,86 +393,151 @@ function Invoke-WordPdfExport {
     $identityDocument = $null
     $document = $null
     $window = $null
+    $identity = $null
+    $operationError = $null
+    $attempts = [ordered]@{}
+    foreach ($attemptName in @(
+        "document_close", "document_release", "identity_document_close",
+        "identity_document_release", "window_release", "documents_release",
+        "application_quit", "application_release"
+    )) {
+        $attempts[$attemptName] = [ordered]@{
+            attempted = $false
+            succeeded = $false
+            error = $null
+        }
+    }
     try {
-        $word = New-Object -ComObject Word.Application
-        $word.Visible = $false
-        $word.DisplayAlerts = 0
-        $word.ScreenUpdating = $false
-        $word.AutomationSecurity = 3
+        try {
+            $word = New-Object -ComObject Word.Application
+            $word.Visible = $false
+            $word.DisplayAlerts = 0
+            $word.ScreenUpdating = $false
+            $word.AutomationSecurity = 3
 
-        $documents = $word.Documents
-        $identityDocument = $documents.Add()
-        $window = $word.ActiveWindow
-        $identity = Get-CausalWordIdentity -WordWindow $window
-        if ($ForceAttributionFailure) {
-            throw "causal Word attribution failed by explicit test control."
-        }
-        if (-not [string]::IsNullOrWhiteSpace($WordActivatedPath)) {
-            Write-WordIdentityReceipt -Identity $identity -Path $WordActivatedPath
-        }
-        Write-WordIdentityReceipt -Identity $identity -Path $ContainmentReceiptPath
-        $containmentDeadline = [datetime]::UtcNow.AddSeconds($HandshakeTimeoutSeconds)
-        while (-not (Test-Path -LiteralPath $ContainmentAcknowledgementPath -PathType Leaf)) {
-            if (Test-Path -LiteralPath $CancellationPath -PathType Leaf) {
-                throw "Word startup was cancelled before causal ownership acknowledgement."
+            $documents = $word.Documents
+            $identityDocument = $documents.Add()
+            $window = $word.ActiveWindow
+            $identity = Get-CausalWordIdentity -WordWindow $window
+            if ($ForceAttributionFailure) {
+                throw "causal Word attribution failed by explicit test control."
             }
-            if ([datetime]::UtcNow -ge $containmentDeadline) {
-                throw "Timed out waiting for causal Word ownership acknowledgement."
+            if (-not [string]::IsNullOrWhiteSpace($WordActivatedPath)) {
+                Write-WordIdentityReceipt -Identity $identity -Path $WordActivatedPath
             }
-            Start-Sleep -Milliseconds 25
-        }
-        if ($PreReceiptDelaySeconds -gt 0) {
-            $preReceiptDeadline = [datetime]::UtcNow.AddSeconds($PreReceiptDelaySeconds)
-            while ([datetime]::UtcNow -lt $preReceiptDeadline) {
+            if ($PreCausalReceiptDelaySeconds -gt 0) {
+                Start-Sleep -Seconds $PreCausalReceiptDelaySeconds
+            }
+            Write-WordIdentityReceipt -Identity $identity -Path $ContainmentReceiptPath
+            $containmentDeadline = [datetime]::UtcNow.AddSeconds($HandshakeTimeoutSeconds)
+            while (-not (Test-Path -LiteralPath $ContainmentAcknowledgementPath -PathType Leaf)) {
                 if (Test-Path -LiteralPath $CancellationPath -PathType Leaf) {
-                    throw "Word startup was cancelled before publication of the public identity receipt."
+                    throw "Word startup was cancelled before causal ownership acknowledgement."
+                }
+                if ([datetime]::UtcNow -ge $containmentDeadline) {
+                    throw "Timed out waiting for causal Word ownership acknowledgement."
                 }
                 Start-Sleep -Milliseconds 25
             }
-        }
-        Write-WordIdentityReceipt -Identity $identity -Path $ReceiptPath
-        $validationDeadline = [datetime]::UtcNow.AddSeconds($HandshakeTimeoutSeconds)
-        while (-not (Test-Path -LiteralPath $AcknowledgementPath -PathType Leaf)) {
-            if (Test-Path -LiteralPath $CancellationPath -PathType Leaf) {
-                throw "Word startup was cancelled before parent identity acknowledgement."
+            if ($PreReceiptDelaySeconds -gt 0) {
+                $preReceiptDeadline = [datetime]::UtcNow.AddSeconds($PreReceiptDelaySeconds)
+                while ([datetime]::UtcNow -lt $preReceiptDeadline) {
+                    if (Test-Path -LiteralPath $CancellationPath -PathType Leaf) {
+                        throw "Word startup was cancelled before publication of the public identity receipt."
+                    }
+                    Start-Sleep -Milliseconds 25
+                }
             }
-            if ([datetime]::UtcNow -ge $validationDeadline) {
-                throw "Timed out waiting for parent identity acknowledgement."
+            Write-WordIdentityReceipt -Identity $identity -Path $ReceiptPath
+            $validationDeadline = [datetime]::UtcNow.AddSeconds($HandshakeTimeoutSeconds)
+            while (-not (Test-Path -LiteralPath $AcknowledgementPath -PathType Leaf)) {
+                if (Test-Path -LiteralPath $CancellationPath -PathType Leaf) {
+                    throw "Word startup was cancelled before parent identity acknowledgement."
+                }
+                if ([datetime]::UtcNow -ge $validationDeadline) {
+                    throw "Timed out waiting for parent identity acknowledgement."
+                }
+                Start-Sleep -Milliseconds 25
             }
-            Start-Sleep -Milliseconds 25
-        }
 
-        $document = $documents.Open($SourcePath, $false, $true)
-        if ($ExportDelaySeconds -gt 0) {
-            Start-Sleep -Seconds $ExportDelaySeconds
+            $attempts.identity_document_close.attempted = $true
+            [object]$earlySaveIdentityChanges = 0
+            $identityDocument.Close([ref]$earlySaveIdentityChanges)
+            $attempts.identity_document_close.succeeded = $true
+            $attempts.identity_document_release.attempted = $true
+            [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($identityDocument)
+            $attempts.identity_document_release.succeeded = $true
+            $identityDocument = $null
+            $attempts.window_release.attempted = $true
+            [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($window)
+            $attempts.window_release.succeeded = $true
+            $window = $null
+            if ($CloseIdentityWindowBeforeExport) {
+                Start-Sleep -Milliseconds 500
+            }
+
+            $document = $documents.Open($SourcePath, $false, $true)
+            if ($ExportDelaySeconds -gt 0) {
+                Start-Sleep -Seconds $ExportDelaySeconds
+            }
+            $document.ExportAsFixedFormat($DestinationPath, 17)
+            if (-not (Test-Path -LiteralPath $DestinationPath -PathType Leaf)) {
+                throw "Word returned without creating the requested PDF."
+            }
         }
-        $document.ExportAsFixedFormat($DestinationPath, 17)
-        if (-not (Test-Path -LiteralPath $DestinationPath -PathType Leaf)) {
-            throw "Word returned without creating the requested PDF."
+        catch {
+            $operationError = $_
         }
     }
     finally {
         if ($null -ne $document) {
+            $attempts.document_close.attempted = $true
             [object]$saveDocumentChanges = 0
-            try { $document.Close([ref]$saveDocumentChanges) } catch { Write-Warning $_.Exception.Message }
-            try { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($document) }
-                catch { Write-Warning $_.Exception.Message }
+            try {
+                $document.Close([ref]$saveDocumentChanges)
+                $attempts.document_close.succeeded = $true
+            }
+            catch { $attempts.document_close.error = $_.Exception.Message }
+            $attempts.document_release.attempted = $true
+            try {
+                [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($document)
+                $attempts.document_release.succeeded = $true
+            }
+            catch { $attempts.document_release.error = $_.Exception.Message }
         }
         if ($null -ne $identityDocument) {
+            $attempts.identity_document_close.attempted = $true
             [object]$saveIdentityChanges = 0
-            try { $identityDocument.Close([ref]$saveIdentityChanges) } catch { Write-Warning $_.Exception.Message }
-            try { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($identityDocument) }
-                catch { Write-Warning $_.Exception.Message }
+            try {
+                $identityDocument.Close([ref]$saveIdentityChanges)
+                $attempts.identity_document_close.succeeded = $true
+            }
+            catch { $attempts.identity_document_close.error = $_.Exception.Message }
+            $attempts.identity_document_release.attempted = $true
+            try {
+                [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($identityDocument)
+                $attempts.identity_document_release.succeeded = $true
+            }
+            catch { $attempts.identity_document_release.error = $_.Exception.Message }
         }
         if ($null -ne $window) {
-            try { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($window) }
-                catch { Write-Warning $_.Exception.Message }
+            $attempts.window_release.attempted = $true
+            try {
+                [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($window)
+                $attempts.window_release.succeeded = $true
+            }
+            catch { $attempts.window_release.error = $_.Exception.Message }
         }
         if ($null -ne $documents) {
-            try { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($documents) }
-                catch { Write-Warning $_.Exception.Message }
+            $attempts.documents_release.attempted = $true
+            try {
+                [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($documents)
+                $attempts.documents_release.succeeded = $true
+            }
+            catch { $attempts.documents_release.error = $_.Exception.Message }
         }
         if ($null -ne $word) {
+            $attempts.application_quit.attempted = $true
             [object]$saveWordChanges = 0
             [object]$originalFormat = 0
             [object]$routeDocument = 0
@@ -392,17 +547,143 @@ function Invoke-WordPdfExport {
                     [ref]$originalFormat,
                     [ref]$routeDocument
                 )
+                if ($InjectCleanupFailure) {
+                    throw "Application.Quit failure injected for cleanup verification testing."
+                }
+                $attempts.application_quit.succeeded = $true
             }
-            catch { Write-Warning $_.Exception.Message }
-            try { [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($word) }
-                catch { Write-Warning $_.Exception.Message }
+            catch { $attempts.application_quit.error = $_.Exception.Message }
+            $attempts.application_release.attempted = $true
+            try {
+                [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($word)
+                $attempts.application_release.succeeded = $true
+            }
+            catch { $attempts.application_release.error = $_.Exception.Message }
         }
         [System.GC]::Collect()
         [System.GC]::WaitForPendingFinalizers()
         [System.GC]::Collect()
         [System.GC]::WaitForPendingFinalizers()
-        try { Write-AtomicSignal -Path $CleanupAcknowledgementPath }
-        catch { Write-Warning $_.Exception.Message }
+        $wordExited = $false
+        if ($null -ne $identity) {
+            $exitDeadline = [datetime]::UtcNow.AddSeconds(5)
+            do {
+                $wordExited = Test-ProcessIdentityGone -Identity $identity
+                if (-not $wordExited) { Start-Sleep -Milliseconds 50 }
+            } while (-not $wordExited -and [datetime]::UtcNow -lt $exitDeadline)
+        }
+        $attemptsSucceeded = $true
+        foreach ($attempt in $attempts.Values) {
+            if ($attempt.attempted -and -not $attempt.succeeded) {
+                $attemptsSucceeded = $false
+            }
+        }
+        $cleanup = [ordered]@{
+            source = "worker"
+            attempts = $attempts
+            word_exited = $wordExited
+            worker_exited = $false
+            cleanup_succeeded = ($wordExited -and $attemptsSucceeded)
+        }
+        Write-JsonReceipt -Value $cleanup -Path $CleanupAcknowledgementPath
+    }
+    if ($null -ne $operationError) {
+        throw $operationError
+    }
+    if (-not $cleanup.cleanup_succeeded) {
+        throw "Word cleanup verification failed; see the preserved cleanup receipt."
+    }
+}
+
+function Get-ValidatedProcessFromReceipt {
+    param(
+        [Parameter(Mandatory = $true)][string]$ReceiptPath,
+        [Parameter(Mandatory = $true)][string]$ExpectedExecutablePath,
+        [int]$ExpectedPid = 0
+    )
+
+    try {
+        $identity = [System.IO.File]::ReadAllText($ReceiptPath) | ConvertFrom-Json
+        $recordedPid = [int]$identity.pid
+        $recordedTicks = [int64]$identity.process_start_time_utc_ticks
+        $recordedPath = [System.IO.Path]::GetFullPath([string]$identity.executable_path)
+    }
+    catch {
+        throw "The process identity receipt is missing or malformed. $($_.Exception.Message)"
+    }
+    if ($recordedPid -le 0 -or $recordedTicks -le 0) {
+        throw "The process identity receipt contains invalid values."
+    }
+    if ($ExpectedPid -gt 0 -and $recordedPid -ne $ExpectedPid) {
+        throw "The process identity receipt does not identify the expected child process."
+    }
+    if (-not [System.StringComparer]::OrdinalIgnoreCase.Equals(
+        $recordedPath,
+        [System.IO.Path]::GetFullPath($ExpectedExecutablePath)
+    )) {
+        throw "The process identity receipt executable does not match the expected executable."
+    }
+
+    $candidate = Get-Process -Id $recordedPid -ErrorAction Stop
+    try {
+        if (
+            $candidate.StartTime.ToUniversalTime().Ticks -ne $recordedTicks -or
+            -not [System.StringComparer]::OrdinalIgnoreCase.Equals(
+                [System.IO.Path]::GetFullPath($candidate.Path),
+                $recordedPath
+            )
+        ) {
+            throw "The process no longer matches its recorded PID, start time, and executable path."
+        }
+        return $candidate
+    }
+    catch {
+        $candidate.Dispose()
+        throw
+    }
+}
+
+function Stop-ValidatedProcessFromReceipt {
+    param(
+        [Parameter(Mandatory = $true)][string]$ReceiptPath,
+        [Parameter(Mandatory = $true)][string]$ExpectedExecutablePath,
+        [int]$ExpectedPid = 0
+    )
+
+    $identity = [System.IO.File]::ReadAllText($ReceiptPath) | ConvertFrom-Json
+    $process = Get-ValidatedProcessFromReceipt `
+        -ReceiptPath $ReceiptPath `
+        -ExpectedExecutablePath $ExpectedExecutablePath `
+        -ExpectedPid $ExpectedPid
+    try {
+        $process.Kill()
+        if (-not $process.WaitForExit(5000)) {
+            throw "The causally identified process did not exit after force termination."
+        }
+    }
+    finally {
+        $process.Dispose()
+    }
+    if (-not (Test-ProcessIdentityGone -Identity $identity)) {
+        throw "The causally identified process still matches its identity after force termination."
+    }
+}
+
+function Test-VerifiedWorkerCleanupReceipt {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $false
+    }
+    try {
+        $cleanup = [System.IO.File]::ReadAllText($Path) | ConvertFrom-Json
+        return (
+            $cleanup.word_exited -eq $true -and
+            $cleanup.cleanup_succeeded -eq $true
+        )
+    }
+    catch {
+        return $false
     }
 }
 
@@ -440,7 +721,8 @@ if ($Worker) {
         $WorkerContainmentReceiptPath,
         $ParentContainmentAcknowledgementPath,
         $ParentCancellationPath,
-        $WorkerCleanupAcknowledgementPath
+        $WorkerCleanupAcknowledgementPath,
+        $WorkerIdentityReceiptPath
     )) {
         if ([string]::IsNullOrWhiteSpace($requiredWorkerPath)) {
             throw "All worker containment and cancellation paths are required in worker mode."
@@ -453,6 +735,15 @@ if ($Worker) {
             [System.Text.Encoding]::ASCII
         )
     }
+    $workerProcess = Get-Process -Id $PID -ErrorAction Stop
+    try {
+        Write-JsonReceipt `
+            -Value (Get-ProcessIdentity -Process $workerProcess) `
+            -Path $WorkerIdentityReceiptPath
+    }
+    finally {
+        $workerProcess.Dispose()
+    }
     try {
         Invoke-WordPdfExport -SourcePath $source -DestinationPath $destination `
             -ReceiptPath $OwnedWordReceiptPath `
@@ -464,8 +755,11 @@ if ($Worker) {
             -HandshakeTimeoutSeconds ($StartupTimeoutSeconds + 10) `
             -ExportDelaySeconds $TestExportDelaySeconds `
             -PreReceiptDelaySeconds $TestPreReceiptDelaySeconds `
+            -PreCausalReceiptDelaySeconds $TestPreCausalReceiptDelaySeconds `
             -WordActivatedPath $TestWordActivatedPath `
-            -ForceAttributionFailure $TestAttributionFailure.IsPresent
+            -ForceAttributionFailure $TestAttributionFailure.IsPresent `
+            -InjectCleanupFailure $TestCleanupFailure.IsPresent `
+            -CloseIdentityWindowBeforeExport $TestCloseIdentityWindowBeforeExport.IsPresent
         exit 0
     }
     catch {
@@ -485,23 +779,31 @@ if (-not [string]::IsNullOrWhiteSpace($destinationDirectory)) {
     [void][System.IO.Directory]::CreateDirectory($destinationDirectory)
 }
 
-$operationDirectory = Join-Path ([System.IO.Path]::GetTempPath()) (
-    "granite-final-results-pdf-" + [System.Guid]::NewGuid().ToString("N")
-)
+$externalOperationDirectory = -not [string]::IsNullOrWhiteSpace($TestOperationDirectoryPath)
+if ($externalOperationDirectory) {
+    $operationDirectory = [System.IO.Path]::GetFullPath($TestOperationDirectoryPath)
+}
+else {
+    $operationDirectory = Join-Path ([System.IO.Path]::GetTempPath()) (
+        "granite-final-results-pdf-" + [System.Guid]::NewGuid().ToString("N")
+    )
+}
 [void][System.IO.Directory]::CreateDirectory($operationDirectory)
 $identityReceipt = Join-Path $operationDirectory "word-identity.json"
 $containmentReceipt = Join-Path $operationDirectory "word-containment-identity.json"
+$workerIdentityReceipt = Join-Path $operationDirectory "worker-identity.json"
 $containmentAcknowledgement = Join-Path $operationDirectory "word-contained.ack"
 $parentAcknowledgement = Join-Path $operationDirectory "parent-validated.ack"
 $parentCancellation = Join-Path $operationDirectory "parent-cancel.signal"
-$workerCleanupAcknowledgement = Join-Path $operationDirectory "worker-cleanup.ack"
+$workerCleanupAcknowledgement = Join-Path $operationDirectory "worker-cleanup.json"
+$parentTerminationReceipt = Join-Path $operationDirectory "parent-termination.json"
 $workerError = Join-Path $operationDirectory "worker-error.txt"
 $child = $null
 $handshakeComplete = $false
 $containmentEstablished = $false
-$wordCleanupAttempted = $false
-$ownedWordTerminated = $false
-$preserveOperationDirectory = $false
+$cleanupVerified = $false
+$terminationVerified = $false
+$preserveOperationDirectory = $externalOperationDirectory
 
 try {
     $commandParts = @(
@@ -517,12 +819,20 @@ try {
         "-ParentContainmentAcknowledgementPath " + (ConvertTo-SingleQuotedLiteral -Value $containmentAcknowledgement),
         "-ParentCancellationPath " + (ConvertTo-SingleQuotedLiteral -Value $parentCancellation),
         "-WorkerCleanupAcknowledgementPath " + (ConvertTo-SingleQuotedLiteral -Value $workerCleanupAcknowledgement),
+        "-WorkerIdentityReceiptPath " + (ConvertTo-SingleQuotedLiteral -Value $workerIdentityReceipt),
         "-WorkerErrorPath " + (ConvertTo-SingleQuotedLiteral -Value $workerError),
         "-TestExportDelaySeconds $TestExportDelaySeconds",
-        "-TestPreReceiptDelaySeconds $TestPreReceiptDelaySeconds"
+        "-TestPreReceiptDelaySeconds $TestPreReceiptDelaySeconds",
+        "-TestPreCausalReceiptDelaySeconds $TestPreCausalReceiptDelaySeconds"
     )
     if ($TestAttributionFailure) {
         $commandParts += "-TestAttributionFailure"
+    }
+    if ($TestCleanupFailure) {
+        $commandParts += "-TestCleanupFailure"
+    }
+    if ($TestCloseIdentityWindowBeforeExport) {
+        $commandParts += "-TestCloseIdentityWindowBeforeExport"
     }
     if (-not [string]::IsNullOrWhiteSpace($TestWorkerPidPath)) {
         $commandParts += "-TestWorkerPidPath " + (
@@ -576,41 +886,77 @@ try {
         $startupTimedOut = -not $child.HasExited
         if (-not $child.HasExited) {
             Write-AtomicSignal -Path $parentCancellation
-            $cleanupDeadline = [datetime]::UtcNow.AddSeconds(10)
+            $cleanupDeadline = [datetime]::UtcNow.AddSeconds(2)
             while (
                 -not $child.HasExited -and
-                -not (Test-Path -LiteralPath $workerCleanupAcknowledgement -PathType Leaf) -and
                 [datetime]::UtcNow -lt $cleanupDeadline
             ) {
                 Start-Sleep -Milliseconds 50
             }
         }
-        if (
-            -not $child.HasExited -and
-            (Test-Path -LiteralPath $workerCleanupAcknowledgement -PathType Leaf)
-        ) {
-            [void]$child.WaitForExit(5000)
-        }
-        if (-not $child.HasExited -and $containmentEstablished) {
-            Stop-ValidatedOwnedWordProcess -ReceiptPath $containmentReceipt
-            $wordCleanupAttempted = $true
-            $ownedWordTerminated = $true
-            $child.Kill()
-            [void]$child.WaitForExit(5000)
-        }
+        $cleanupVerified = ($child.HasExited -and (
+            Test-VerifiedWorkerCleanupReceipt -Path $workerCleanupAcknowledgement
+        ))
         if ($startupTimedOut) {
-            if (-not $containmentEstablished -and -not $child.HasExited) {
+            if (-not $cleanupVerified) {
+                $terminationStatus = [ordered]@{
+                    source = "parent_precausal_safe_failure"
+                    cleanup_succeeded = $false
+                    word_exited = $false
+                    worker_exited = $false
+                    error = $null
+                }
+                if (-not $containmentEstablished) {
+                    $terminationStatus.error = (
+                        "cleanup_unverified: no causal Word HWND receipt exists; possible orphan. " +
+                        "No Word PID or worker was force-terminated."
+                    )
+                    $preserveOperationDirectory = $true
+                    Write-JsonReceipt -Value $terminationStatus -Path $parentTerminationReceipt
+                    throw (
+                        "Word startup timeout cleanup_unverified; possible orphan. No causal Word " +
+                        "receipt existed, so no Word PID or worker was force-terminated."
+                    )
+                }
+                try {
+                    $terminationStatus.source = "parent_causal_receipt_fallback"
+                    Stop-ValidatedOwnedWordProcess -ReceiptPath $containmentReceipt
+                    $terminationStatus.word_exited = $true
+                    $workerIdentity = [System.IO.File]::ReadAllText($workerIdentityReceipt) | ConvertFrom-Json
+                    if (-not (Test-ProcessIdentityGone -Identity $workerIdentity)) {
+                        Stop-ValidatedProcessFromReceipt `
+                            -ReceiptPath $workerIdentityReceipt `
+                            -ExpectedExecutablePath $powerShellExecutable `
+                            -ExpectedPid $child.Id
+                    }
+                    $terminationStatus.worker_exited = Test-ProcessIdentityGone -Identity $workerIdentity
+                    $terminationStatus.cleanup_succeeded = (
+                        $terminationStatus.word_exited -and $terminationStatus.worker_exited
+                    )
+                    $terminationVerified = $terminationStatus.cleanup_succeeded
+                }
+                catch {
+                    $terminationStatus.error = $_.Exception.Message
+                    $preserveOperationDirectory = $true
+                    Write-JsonReceipt -Value $terminationStatus -Path $parentTerminationReceipt
+                    throw (
+                        "Word startup timeout cleanup could not be verified; causal evidence was preserved. " +
+                        $_.Exception.Message
+                    )
+                }
+                Write-JsonReceipt -Value $terminationStatus -Path $parentTerminationReceipt
+            }
+            if (-not ($cleanupVerified -or $terminationVerified)) {
                 $preserveOperationDirectory = $true
-                throw (
-                    "Word startup timeout occurred before causal ownership validation; cancellation was " +
-                    "requested but cleanup was not acknowledged. The worker and Word were not " +
-                    "force-terminated."
-                )
+                throw "Word startup timeout cleanup was not verified; causal evidence was preserved."
             }
             throw (
-                "Word startup timeout after $StartupTimeoutSeconds second(s); the worker " +
-                "performed cooperative COM cleanup, or the revalidated causally owned Word process was terminated."
+                "Word startup timeout after $StartupTimeoutSeconds second(s); owned Word and worker exit were verified."
             )
+        }
+        if (-not $cleanupVerified) {
+            $preserveOperationDirectory = $true
+            throw "Word cleanup verification failed during startup; causal evidence was preserved."
         }
         $detail = Read-WorkerError -Path $workerError
         throw (
@@ -621,19 +967,47 @@ try {
     }
 
     if (-not $child.WaitForExit($TimeoutSeconds * 1000)) {
-        $validatedWord = Get-ValidatedOwnedWordProcess -ReceiptPath $identityReceipt
-        $validatedWord.Dispose()
-        Stop-ValidatedOwnedWordProcess -ReceiptPath $identityReceipt
-        $wordCleanupAttempted = $true
-        $ownedWordTerminated = $true
-        if (-not $child.HasExited) {
-            $child.Kill()
-            [void]$child.WaitForExit(5000)
+        $terminationStatus = [ordered]@{
+            source = "parent_export_timeout"
+            cleanup_succeeded = $false
+            word_exited = $false
+            worker_exited = $false
+            error = $null
         }
+        try {
+            Stop-ValidatedOwnedWordProcess `
+                -ReceiptPath $identityReceipt `
+                -SimulateNonExit $TestForceKillDoesNotExit.IsPresent
+            $terminationStatus.word_exited = $true
+            $workerIdentity = [System.IO.File]::ReadAllText($workerIdentityReceipt) | ConvertFrom-Json
+            if (-not (Test-ProcessIdentityGone -Identity $workerIdentity)) {
+                Stop-ValidatedProcessFromReceipt `
+                    -ReceiptPath $workerIdentityReceipt `
+                    -ExpectedExecutablePath $powerShellExecutable `
+                    -ExpectedPid $child.Id
+            }
+            $terminationStatus.worker_exited = Test-ProcessIdentityGone -Identity $workerIdentity
+            $terminationStatus.cleanup_succeeded = (
+                $terminationStatus.word_exited -and $terminationStatus.worker_exited
+            )
+            $terminationVerified = $terminationStatus.cleanup_succeeded
+        }
+        catch {
+            $terminationStatus.error = $_.Exception.Message
+            $preserveOperationDirectory = $true
+            Write-JsonReceipt -Value $terminationStatus -Path $parentTerminationReceipt
+            throw $_
+        }
+        Write-JsonReceipt -Value $terminationStatus -Path $parentTerminationReceipt
         throw "Word PDF export exceeded the $TimeoutSeconds second timeout."
     }
 
     $child.Refresh()
+    $cleanupVerified = Test-VerifiedWorkerCleanupReceipt -Path $workerCleanupAcknowledgement
+    if (-not $cleanupVerified) {
+        $preserveOperationDirectory = $true
+        throw "Word cleanup verification failed; causal receipts were preserved."
+    }
     if ($child.ExitCode -ne 0) {
         throw "Word PDF export worker failed with exit code $($child.ExitCode). $(Read-WorkerError -Path $workerError)"
     }
@@ -649,40 +1023,22 @@ finally {
                 $cleanupDeadline = [datetime]::UtcNow.AddSeconds(10)
                 while (
                     -not $child.HasExited -and
-                    -not (Test-Path -LiteralPath $workerCleanupAcknowledgement -PathType Leaf) -and
                     [datetime]::UtcNow -lt $cleanupDeadline
                 ) {
                     Start-Sleep -Milliseconds 50
                 }
             }
-            if (
-                -not $child.HasExited -and
-                (Test-Path -LiteralPath $workerCleanupAcknowledgement -PathType Leaf)
-            ) {
-                [void]$child.WaitForExit(5000)
+            if ($child.HasExited -and -not $cleanupVerified -and -not $terminationVerified) {
+                $cleanupVerified = Test-VerifiedWorkerCleanupReceipt -Path $workerCleanupAcknowledgement
             }
-            if (-not $child.HasExited -and $containmentEstablished -and -not $wordCleanupAttempted) {
-                try {
-                    Stop-ValidatedOwnedWordProcess -ReceiptPath $containmentReceipt
-                    $wordCleanupAttempted = $true
-                    $ownedWordTerminated = $true
-                }
-                catch { Write-Warning $_.Exception.Message }
-                if (-not $child.HasExited -and $ownedWordTerminated) {
-                    $child.Kill()
-                    [void]$child.WaitForExit(5000)
-                }
-            }
-            if (-not $child.HasExited) {
-                $preserveOperationDirectory = $true
-            }
-            if (-not $child.HasExited) {
-                [void]$child.WaitForExit(5000)
-            }
+            if (-not $child.HasExited) { $preserveOperationDirectory = $true }
         }
         finally {
             $child.Dispose()
         }
+    }
+    if (-not ($cleanupVerified -or $terminationVerified)) {
+        $preserveOperationDirectory = $true
     }
     if (-not $preserveOperationDirectory -and (Test-Path -LiteralPath $operationDirectory)) {
         Remove-Item -LiteralPath $operationDirectory -Recurse -Force
