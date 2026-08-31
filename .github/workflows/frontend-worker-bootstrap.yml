@@ -74,10 +74,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Fetch protected base branch
-        shell: pwsh
-        run: git fetch --no-tags origin +refs/heads/integration/ucl-cross-route-native-validation-v1:refs/remotes/origin/integration/ucl-cross-route-native-validation-v1
-
       - name: Parse JSON, YAML, and TOML metadata
         shell: pwsh
         run: |
