@@ -2,15 +2,15 @@
   "schemaVersion": 2,
   "workerId": "E1",
   "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
-  "evidenceSubjectCommit": "e3dee59e8fe57ae9b7176f851d3ca6acd9536dec",
-  "evidenceSubjectTree": "0fa34d9b169b598dca79e5c074813944e4c0e6e3",
+  "evidenceSubjectCommit": "41e7efa23404eaae6a344204d0c7649487d1acd5",
+  "evidenceSubjectTree": "cdaa88099f5754811a0d3bdb1c49c884ac1607cc",
   "createdAtUtc": "2026-08-31T14:08:36Z",
   "route": ["shared", "gguf", "openvino"],
   "evidenceStatus": "blocked",
   "report": {
     "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
-    "sha256": "506a84d61daf160ebcc7972759631ef33eb0c88f303169809397cf17a82a9575",
-    "bytes": 7688
+    "sha256": "c36ed7de0e8cf451ad239bfb22942644521d877fa2f38a9046047fc146042b14",
+    "bytes": 7962
   },
   "inputs": [
     {"kind":"validated-candidate-base","id":"b5d2cd34c57368efb9b122cddf16c2ffa2d3895e","evidenceGrade":"verified"},
@@ -19,8 +19,8 @@
     {"kind":"issue-evidence-catalog","id":"C0-r4-issue-evidence-index-v2.json","sha256":"13dd8e4e103d82dd8449e4b37e46b538725aea67fdeef18d92dd02760f8d488c","bytes":18924,"evidenceGrade":"verified"}
   ],
   "outputs": [
-    {"kind":"implementation-subject","id":"e3dee59e8fe57ae9b7176f851d3ca6acd9536dec","evidenceGrade":"verified"},
-    {"kind":"audit-report","id":"E1-r4-independent-acceptance-v2.md","sha256":"506a84d61daf160ebcc7972759631ef33eb0c88f303169809397cf17a82a9575","bytes":7688,"evidenceGrade":"verified"},
+    {"kind":"implementation-subject","id":"41e7efa23404eaae6a344204d0c7649487d1acd5","evidenceGrade":"verified"},
+    {"kind":"audit-report","id":"E1-r4-independent-acceptance-v2.md","sha256":"c36ed7de0e8cf451ad239bfb22942644521d877fa2f38a9046047fc146042b14","bytes":7962,"evidenceGrade":"verified"},
     {"kind":"post-acceptance-evaluation","id":"R3-020","evidenceGrade":"verified"},
     {"kind":"post-acceptance-evaluation","id":"R3-022","evidenceGrade":"verified"}
   ],

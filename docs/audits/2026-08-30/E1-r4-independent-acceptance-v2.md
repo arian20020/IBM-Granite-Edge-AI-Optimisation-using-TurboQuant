@@ -13,7 +13,7 @@ All candidate-controlled preflight, deterministic, managed, source, security, pr
 - Coordinator ref: `refs/remotes/origin/integration/ucl-r4-specialist-reconciliation-v1`
 - Coordinator commit/tree: `fa4174fa45b66f0e6c71b9127bc603fcdea1607a` / `a2fe0500954e05e3985ea2f6be5af4a22acf7463`
 - Unchanged production subject commit/tree: `429298d3328a62d4fcf2f5f3f12821342be4a23c` / `2e92e172679d1558972846694306d28ad56e2cf4`
-- E1 implementation subject commit/tree: `e3dee59e8fe57ae9b7176f851d3ca6acd9536dec` / `0fa34d9b169b598dca79e5c074813944e4c0e6e3`
+- E1 implementation subject commit/tree: `41e7efa23404eaae6a344204d0c7649487d1acd5` / `cdaa88099f5754811a0d3bdb1c49c884ac1607cc`
 - Return branch: `test/ucl-e1-native-acceptance-r4-v2`
 
 The coordinator register marked H1 and Q1 accepted and E1 dispatched. Their already accepted lineage was verified from committed evidence; no new candidate-bound receipt was required at entry. The fresh isolated v2 worktree preserved the historical first worktree and return. Five historical E1-only test-infrastructure commits were replayed, then the verifier was corrected test-first. No production file changed.
@@ -27,7 +27,7 @@ The fail-closed verifier resolved the schema-v4 closure from the pushed candidat
 - Preflight: R3-001 through R3-019 and R3-021 closed exactly once; all R4-C0-001 through R4-C0-008 closed exactly once.
 - Post acceptance: R3-020 and R3-022 were correctly pending at entry. E1 now supplies a candidate-bound return receipt and an honest external-prerequisite disposition. Their native/package/visual/performance requirements remain unexecuted, not passed.
 
-The preflight verifier regression was observed red before implementation, then three focused schema-v4 tests passed. Independent review identified the missing second phase; a new post-acceptance test was observed red, then the focused post-capable set passed 4/4. The post verifier binds exact base and implementation identities, hashes the report and manifest, reconciles managed arithmetic, rejects blocked gates counted as passes, and fail-closes cleanup, App Control, lock, package-attempt, external-block, and disposition fields. The real candidate preflight passed 1/1. A subsequent fresh run against the finalized candidate-bound post record was blocked at assembly load by App Control `0x800711C7`; it is not counted as a pass.
+The preflight verifier regression was observed red before implementation, then three focused schema-v4 tests passed. Independent review identified the missing second phase; a new post-acceptance test was observed red, then the focused post-capable set passed 4/4. The post verifier binds exact base and implementation identities, hashes the report and manifest, reconciles managed arithmetic, rejects blocked gates counted as passes, and fail-closes cleanup, App Control, lock, package-attempt, external-block, and disposition fields. A further review found an approval-only fail-open path; E1 added a rejection test and an explicit rule that approval requires package execution, at least one native-lock acquisition, and no external block. The corrected assembly builds with 0 warnings/errors. The real candidate preflight passed 1/1. Fresh execution of the finalized evaluator was blocked at assembly load by App Control `0x800711C7`; neither that execution nor the added approval test is counted as a pass.
 
 ## Complete authoritative command arithmetic
 
