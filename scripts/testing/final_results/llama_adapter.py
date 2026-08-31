@@ -1519,6 +1519,9 @@ ATOMICBOT_ADJUDICATION_RELATIVE = (
 )
 ATOMICBOT_PROMPT_SHA256 = "9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f"
 ATOMICBOT_RUBRIC_SHA256 = "a36016f66e02c9e28f0938cf81335dc4b522e9f92b7d9bad3031f90b7ef91d90"
+ATOMICBOT_QUALITY_SUMMARY_SHA256 = "c7333ff5faf191f9ddb9993c158d943a41d0d640b8c8d61055a4cdbe6c2e1ff9"
+ATOMICBOT_ADJUDICATION_SHA256 = "7c6bbfd833d30218445cf8ebe2dbafb9fea7560563cb3461eff6dc55747c1e30"
+ATOMICBOT_QUALITY_REGISTER_SHA256 = "4d8e327caf025090b61c917152ba3f656209376e2365b11c40eeaf0c3236797c"
 ATOMICBOT_DIMENSION_FIELDS = {
     "correctness_and_grounding": (0.30, "Correctness_and_Grounding_0_to_10"),
     "instruction_and_format_adherence": (0.25, "Instruction_and_Format_0_to_10"),
@@ -1530,6 +1533,13 @@ ATOMICBOT_WORKBOOK_PRECEDENCE = (
     "Test-Run register for runtime status; Performance register/current summaries for performance and utilization; "
     "Quality-Evaluation register/current quality artifacts for quality"
 )
+ATOMICBOT_DEVIATION_SCOPES = {
+    "FAIL-AB-UI-ASSET": ("setup", ("AB-B02", "AB-B05")),
+    "FAIL-AB-DEVICE-GUARD": ("setup", ("AB-B04",)),
+    "FAIL-AB-08Q-MEMORY": ("test", ("AB-08Q",)),
+    "FAIL-AB-8B-SAFETY": ("multi-test", ("AB-KV8-F16-4K", "AB-15M")),
+    "FAIL-AB-P5-TIMEOUT": ("mixed", ("P5", "AB-06")),
+}
 
 
 def _atomicbot_source_record(
@@ -1631,6 +1641,7 @@ def audit_atomicbot_sources(
     joined: list[dict[str, object]] = []
     resource_sources: list[dict[str, object]] = []
     current_summaries: dict[str, dict[str, object]] = {}
+    workbook_expected_duplicates: dict[str, dict[str, str]] = {}
     performance_by_test: dict[str, list[dict[str, str]]] = defaultdict(list)
     for row in performance:
         performance_by_test[row["Test_ID"]].append(row)
@@ -1662,6 +1673,20 @@ def audit_atomicbot_sources(
         }
         if any(not _atomicbot_float_equal(row[field], value) for field, value in checks.items()):
             raise ValueError(f"performance register field conflict: {row['Measurement_ID']}")
+        raw_rows = _read_csv(root / raw_relative)
+        raw_cpu = [float(sample["cpu_percent"]) for sample in raw_rows]
+        raw_gpu = [float(sample["gpu_percent"]) for sample in raw_rows]
+        raw_checks = {
+            "CPU_Mean_Percent": statistics.mean(raw_cpu), "CPU_Median_Percent": statistics.median(raw_cpu),
+            "CPU_Peak_Percent": max(raw_cpu), "GPU_Engine_Mean_Percent": statistics.mean(raw_gpu),
+            "GPU_Engine_Median_Percent": statistics.median(raw_gpu), "GPU_Engine_Peak_Percent": max(raw_gpu),
+        }
+        if (
+            len(raw_cpu) != int(payload["utilization"]["cpu_percent"]["sample_count"])
+            or len(raw_gpu) != int(payload["utilization"]["gpu_percent"]["sample_count"])
+            or any(not _atomicbot_float_equal(row[field], value) for field, value in raw_checks.items())
+        ):
+            raise ValueError(f"raw utilization source conflict: {row['Measurement_ID']}")
         joined.append({"measurement_id": row["Measurement_ID"], "test_case_id": row["Test_ID"], "run_id": row["Run_ID"], **raw_join})
         resource_sources.append({
             "measurement_id": row["Measurement_ID"], "test_case_id": row["Test_ID"],
@@ -1682,16 +1707,30 @@ def audit_atomicbot_sources(
         if payload["samples"] != expected_samples:
             raise ValueError(f"current server summary sample conflict: {test_id}")
         aggregate = payload["aggregate"]
+        sample_count = sum(
+            int(sample["utilization"]["cpu_percent"]["sample_count"])
+            for sample in expected_samples
+        )
         aggregate_checks = (
             (aggregate["ttft_ms"]["median"], statistics.median(float(row["TTFT_ms"]) for row in rows), 0.000001),
             (aggregate["peak_ram_mb"]["max"] * 1048576, max(int(row["Peak_Working_Set_Bytes"]) for row in rows), 1.0),
             (aggregate["kv_mb"]["median"] * 1048576, statistics.median(int(row["KV_Cache_Allocated_Bytes"]) for row in rows), 1.0),
             (aggregate["cpu_percent"]["mean"], statistics.mean(float(row["CPU_Mean_Percent"]) for row in rows), 0.000001),
             (aggregate["gpu_percent"]["mean"], statistics.mean(float(row["GPU_Engine_Mean_Percent"]) for row in rows), 0.000001),
+            (aggregate["cpu_percent"]["median"], statistics.median(float(row["CPU_Median_Percent"]) for row in rows), 0.000001),
+            (aggregate["cpu_percent"]["peak"], max(float(row["CPU_Peak_Percent"]) for row in rows), 0.000001),
+            (aggregate["cpu_percent"]["sample_count"], sample_count, 0.0),
+            (aggregate["gpu_percent"]["median"], statistics.median(float(row["GPU_Engine_Median_Percent"]) for row in rows), 0.000001),
+            (aggregate["gpu_percent"]["peak"], max(float(row["GPU_Engine_Peak_Percent"]) for row in rows), 0.000001),
+            (aggregate["gpu_percent"]["sample_count"], sample_count, 0.0),
         )
         if any(not _atomicbot_float_equal(left, right, tolerance) for left, right, tolerance in aggregate_checks):
             raise ValueError(f"current server summary aggregate conflict: {test_id}")
         current_summaries[test_id] = {"relative_path": relative.as_posix(), "sha256": hash_file(root / relative)}
+        workbook_expected_duplicates[test_id] = {
+            "cpu": " / ".join(f"{float(aggregate['cpu_percent'][key]):.2f}" for key in ("mean", "median", "peak")),
+            "gpu": " / ".join(f"{float(aggregate['gpu_percent'][key]):.2f}" for key in ("mean", "median", "peak")),
+        }
 
     throughput_sources: list[dict[str, object]] = []
     safety_ids = {"AB-KV8-F16-4K", "AB-15M"}
@@ -1741,6 +1780,12 @@ def audit_atomicbot_sources(
         for row in workbook_results
     ):
         raise ValueError("overwritten Quality/Status pattern conflict")
+    if any(
+        row["CPU mean/median/peak %"] != workbook_expected_duplicates[row["Test ID"]]["cpu"]
+        or row["GPU mean/median/peak %"] != workbook_expected_duplicates[row["Test ID"]]["gpu"]
+        for row in workbook_results
+    ):
+        raise ValueError("overwritten Quality/Status value conflict")
 
     prompt_path = root / ATOMICBOT_PROMPT_RELATIVE
     rubric_path = root / ATOMICBOT_RUBRIC_RELATIVE
@@ -1811,6 +1856,15 @@ def audit_atomicbot_sources(
         if abs(statistics.mean(prompt_scores) - float(row["quality_mean"])) > 0.00005:
             raise ValueError(f"quality mean conflict: {row['test_id']}")
 
+    # Cross-source agreement is necessary but not sufficient: these independent
+    # source pins stop coordinated edits from redefining the published quality.
+    if hash_file(root / ATOMICBOT_QUALITY_RELATIVE) != ATOMICBOT_QUALITY_SUMMARY_SHA256:
+        raise ValueError("quality summary authority hash conflict")
+    if hash_file(root / ATOMICBOT_ADJUDICATION_RELATIVE) != ATOMICBOT_ADJUDICATION_SHA256:
+        raise ValueError("quality adjudication authority hash conflict")
+    if hash_file(root / ATOMICBOT_QUALITY_REGISTER_RELATIVE) != ATOMICBOT_QUALITY_REGISTER_SHA256:
+        raise ValueError("quality register authority hash conflict")
+
     setup = _table_by_header(workbook, ("ID", "Check", "Result")); setup_counts = Counter()
     for row in setup:
         value = row["Result"].casefold()
@@ -1819,18 +1873,12 @@ def audit_atomicbot_sources(
     deviations = [row for row in _read_csv(root / "docs/testing/Failure-Register.csv") if row["Route"] == ATOMICBOT_ROUTE_ID]
     if len(deviations) != 5:
         raise ValueError("AtomicBot deviation completeness conflict")
-    scope_rules = {
-        "FAIL-AB-UI-ASSET": ("setup", ["AB-B02", "AB-B05"]),
-        "FAIL-AB-DEVICE-GUARD": ("setup", ["AB-B04"]),
-        "FAIL-AB-08Q-MEMORY": ("test", ["AB-08Q"]),
-        "FAIL-AB-8B-SAFETY": ("multi-test", ["AB-KV8-F16-4K", "AB-15M"]),
-        "FAIL-AB-P5-TIMEOUT": ("mixed", ["P5", "AB-06"]),
-    }
     deviation_rows = []
     for row in deviations:
-        if row["Failure_ID"] not in scope_rules:
+        if row["Failure_ID"] not in ATOMICBOT_DEVIATION_SCOPES:
             raise ValueError(f"deviation taxonomy conflict: {row['Failure_ID']}")
-        scope_type, scope_ids = scope_rules[row["Failure_ID"]]
+        scope_type, expected_scope_ids = ATOMICBOT_DEVIATION_SCOPES[row["Failure_ID"]]
+        scope_ids = list(expected_scope_ids)
         if row["Test_ID"].split("/") != scope_ids:
             raise ValueError(f"deviation scope conflict: {row['Failure_ID']}")
         deviation_rows.append({
@@ -1868,7 +1916,9 @@ def audit_atomicbot_sources(
         "quality_evaluation_rows_reconciled": 114, "quality_adjudication_bindings_reconciled": 114,
         "quality_weighted_scores_recomputed": 114, "quality_means_recomputed": 19,
         "workbook_overwritten_result_rows": 19, "workbook_excluded_columns": ["Quality /10", "Status"],
+        "workbook_duplicate_pairs_value_reconciled": 19,
         "workbook_precedence": ATOMICBOT_WORKBOOK_PRECEDENCE,
+        "quality_authority_hashes_authenticated": 3,
         "stale_index_missing_paths": stale_missing, "stale_index_hash_conflicts": stale_hash,
         "index_row_count": len(indexed), "duplicate_evidence_id": "EVID-e3b0c44298fc1c149afb",
         "duplicate_evidence_id_paths": len(duplicate_paths), "duplicate_evidence_id_extra_rows": len(duplicate_paths) - 1,
@@ -2071,6 +2121,7 @@ def build_atomicbot_bundle(repo_root: Path) -> RouteBundle:
         "current_server_summaries_reconciled", "formal_throughput_sources_reconciled", "master_summary_rows_reconciled",
         "quality_evaluation_rows_reconciled", "quality_adjudication_bindings_reconciled",
         "quality_weighted_scores_recomputed", "quality_means_recomputed", "workbook_overwritten_result_rows",
+        "quality_authority_hashes_authenticated", "workbook_duplicate_pairs_value_reconciled",
         "workbook_excluded_columns", "workbook_precedence", "stale_index_missing_paths", "stale_index_hash_conflicts",
         "index_row_count", "duplicate_evidence_id", "duplicate_evidence_id_paths", "duplicate_evidence_id_extra_rows",
         "duplicate_evidence_paths", "master_summary_chronology",
@@ -2126,17 +2177,17 @@ def build_atomicbot_report(bundle: RouteBundle) -> Report:
         ReportSection(SECTION_ORDER[1], (ReportParagraph("All 19 controlled runtime configurations passed. One repository test remained blocked by Windows Device Guard; that setup block is not a runtime failure. Evidence establishes runtime activation, memory reduction, and observed device placement, with explicit limitations."),)),
         ReportSection(SECTION_ORDER[2], (ReportParagraph("TurboQuant reduced measured KV allocation in matched cases. Quality was response- and backend-dependent and does not support a precision-ordered or unconditional recommendation."), _table("KF-01", "Decision-relevant result summary", ("Test", "Decode tok/s", "TTFT ms", "Peak WS MiB", "CPU mean %", "GPU mean %", "Quality /10"), perf_rows))),
         ReportSection(SECTION_ORDER[3], (ReportParagraph(f"Repository {bundle.repository['url']}; detached commit {bundle.repository['commit']}. Portable hardware and software identities are preserved in system JSON without machine-local paths. Historically uncollected fields are `Not collected`."),)),
-        ReportSection(SECTION_ORDER[4], (ReportParagraph("WB-02 v1.7 controls the exact 19-row ladder. The publication normalizes existing evidence and does not rerun inference. The workbook's Quality /10 and Status cells were overwritten by duplicate CPU/GPU triples in all 19 result rows; those cells are excluded. Runtime status comes from the Test-Run register, performance/utilization from the Performance register and current summaries, and quality from the Quality-Evaluation register and current quality artifacts."), _table("SC-01", "Controlled runtime matrix", ("Test", "Model", "Weights", "Cache", "Backend", "Status"), matrix_rows))),
+        ReportSection(SECTION_ORDER[4], (ReportParagraph("WB-02 v1.7 controls the exact 19-row ladder. The publication normalizes existing evidence and does not rerun inference. The workbook's Quality /10 and Status cells were overwritten by duplicate CPU/GPU triples in all 19 result rows; every duplicate pair is reconciled to the exact current performance aggregate before those cells are excluded. Runtime status comes from the Test-Run register, performance/utilization from the Performance register and current summaries, and quality from independently authenticated quality authorities."), _table("SC-01", "Controlled runtime matrix", ("Test", "Model", "Weights", "Cache", "Backend", "Status"), matrix_rows))),
         ReportSection(SECTION_ORDER[5], (_table("AV-01", "Model/cache/backend availability", ("Test", "Model", "Weights", "Cache", "Backend", "Status"), matrix_rows),)),
         ReportSection(SECTION_ORDER[6], (_table("AC-01", "Complete runtime attempt accounting", ("Test", "Attempt", "Status", "Reason"), ((a.test_case_id, a.attempt_id, a.status.display_label, a.reason) for a in bundle.attempts)), ReportNote("Runtime: 19 Passed, 0 Blocked. Setup: one Device Guard block/partial and one unsupported TurboQuant-specific SYCL item are reported separately."))),
         ReportSection(SECTION_ORDER[7], (ReportParagraph("TTFT, peak working set, KV allocation, and utilization reconcile 57 registered observations to their live measurement JSON; raw utilization CSV supports utilization only. Decode throughput is represented separately by 19 formal measurements: 17 formal summaries and three generation-eval events for each of two controlled safety-bypass rows. No utilization artifact is cited for throughput."), _table("PF-01", "Validated aggregate performance", ("Test", "Decode tok/s", "TTFT ms", "Peak WS MiB", "CPU mean %", "GPU mean %", "Quality /10"), perf_rows))),
-        ReportSection(SECTION_ORDER[8], (ReportParagraph("Each of 114 outputs is bound by SHA-256 to GTQ-PROMPTS-v1, GTQ-QUALITY-RUBRIC-v1, a content-keyed adjudication, a Quality-Evaluation register row, and its per-test summary. Scores are recomputed from weighted dimensions (30/25/20/15/10) and the smallest applicable critical cap; all 19 means are recomputed. The application remains limited/provisional, calibration is Not collected, and results are not directly comparable with OpenVINO."), _table("QL-01", "Preserved historical prompt means", ("Test", "Mean /10", "Method boundary"), ((test_id, f"{quality_means[test_id]:.3f}", "Limited/provisional; no OpenVINO ranking") for test_id in ATOMICBOT_EXPECTED_IDS)))),
+        ReportSection(SECTION_ORDER[8], (ReportParagraph("Each of 114 outputs is bound by SHA-256 to GTQ-PROMPTS-v1, GTQ-QUALITY-RUBRIC-v1, a content-keyed adjudication, a Quality-Evaluation register row, and its per-test summary. The summary, adjudication, and register authorities are independently pinned, so coordinated internally consistent edits cannot redefine published quality. Scores are recomputed from weighted dimensions (30/25/20/15/10) and the smallest applicable critical cap; all 19 means are recomputed. The application remains limited/provisional, calibration is Not collected, and results are not directly comparable with OpenVINO."), _table("QL-01", "Preserved historical prompt means", ("Test", "Mean /10", "Method boundary"), ((test_id, f"{quality_means[test_id]:.3f}", "Limited/provisional; no OpenVINO ranking") for test_id in ATOMICBOT_EXPECTED_IDS)))),
         ReportSection(SECTION_ORDER[9], (ReportParagraph("CPU, Vulkan-hybrid, and Vulkan-native placement were observed. Partial Vulkan rows intentionally retained CPU KV; this is not silent fallback. Exact per-run CPU/GPU observations are preserved."),)),
         ReportSection(SECTION_ORDER[10], (ReportParagraph("Five nonterminal deviations are explicit and typed: two setup scopes, one test scope, one multi-test scope, and one mixed prompt/test scope. Device Guard blocked one repository executable; memory and safety gates were resolved by controlled retest; the P5 timeout remains preserved as a scored empty output. None is converted into a runtime failure or silently filtered."),)),
         ReportSection(SECTION_ORDER[11], (ReportParagraph("The historical Evidence Index audit is exact: 828 AtomicBot rows, 38 missing paths, 263 existing-path hash mismatches, and one Evidence_ID duplicated over five empty stdout paths (four extra rows). Only 57 exact indexed utilization tuples substantiate registered utilization; live measurement JSON and formal throughput sources are admitted under their current path/hash. Quality remains provisional, P1-P6 is not a general benchmark, and no direct OpenVINO score comparison is permitted."), ReportNote("Missing historical fields remain `Not collected`, never zero."))),
         ReportSection(SECTION_ORDER[12], (ReportParagraph("Use reproduction/commands.md to regenerate normalized artifacts, render DOCX, export PDF through the owned Word process, finalize receipts, and rerun focused validation. It does not rerun benchmarks."),)),
         ReportSection(SECTION_ORDER[13], (ReportParagraph("Each admitted source has a repository-relative path and SHA-256. Every material performance, quality, runtime, deviation, workbook-precedence, and stale-index claim is mapped in evidence/claim-evidence-map.csv. Stale unjoined index rows are a recorded source-control limitation."), _table("EV-01", "Admitted evidence", ("Evidence ID", "Role", "SHA-256", "Repository-relative path"), evidence_rows))),
-        ReportSection(SECTION_ORDER[14], (ReportParagraph("R1 (2026-07-17): initial unified evidence-bound publication from WB-02 v1.7. R1 hardening receipt: authority-file binding, full score recomputation, separated performance provenance, workbook-corruption precedence, typed deviations, exact stale-index inventory, and portable outputs. Generated DOCX/PDF are derivatives."),)),
+        ReportSection(SECTION_ORDER[14], (ReportParagraph("R1 (2026-07-17): initial unified evidence-bound publication from WB-02 v1.7. R1 hardening receipt: independently pinned quality authorities, full score recomputation, separated performance provenance, exact workbook-duplicate value reconciliation, explicit deviation relationships, exact stale-index inventory, and portable outputs. Generated DOCX/PDF are derivatives."),)),
     )
     return Report(
         title="AtomicBot TurboQuant Final Test Report", route_id=ATOMICBOT_ROUTE_ID,
@@ -2163,7 +2214,35 @@ def _atomicbot_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
     for item in bundle.quality:
         if item.test_case_id not in tests or item.source_evidence_id not in evidence:
             errors.append(f"quality relationship: {item.quality_id}")
-    return {"valid": not errors, "errors": errors, "attempt_count": len(attempts), "measurement_count": len(measurement_ids), "quality_count": len(bundle.quality), "evidence_count": len(evidence)}
+    deviations = bundle.repository.get("deviation_rows", [])
+    deviation_errors: list[str] = []
+    if not isinstance(deviations, list) or len(deviations) != len(ATOMICBOT_DEVIATION_SCOPES):
+        deviation_errors.append("deviation ID set: expected exactly five controlled deviations")
+        deviations = deviations if isinstance(deviations, list) else []
+    deviation_by_id = {
+        row.get("deviation_id"): row for row in deviations if isinstance(row, dict)
+    }
+    if set(deviation_by_id) != set(ATOMICBOT_DEVIATION_SCOPES) or len(deviation_by_id) != len(deviations):
+        deviation_errors.append("deviation ID set: IDs must be exact and unique")
+    for deviation_id, (expected_type, expected_scope_ids) in ATOMICBOT_DEVIATION_SCOPES.items():
+        row = deviation_by_id.get(deviation_id)
+        if row is None:
+            continue
+        if row.get("scope_type") != expected_type or tuple(row.get("scope_ids", ())) != expected_scope_ids:
+            deviation_errors.append(f"deviation scope: {deviation_id}")
+        if row.get("nonterminal") is not True:
+            deviation_errors.append(f"deviation terminal flag: {deviation_id}")
+        cited = row.get("evidence_ids", [])
+        if not isinstance(cited, list) or not cited or not set(cited) <= evidence:
+            deviation_errors.append(f"deviation evidence: {deviation_id}")
+    errors.extend(deviation_errors)
+    return {
+        "valid": not errors, "errors": errors, "attempt_count": len(attempts),
+        "measurement_count": len(measurement_ids), "quality_count": len(bundle.quality),
+        "evidence_count": len(evidence), "deviation_count": len(deviations),
+        "deviation_ids": sorted(str(row.get("deviation_id")) for row in deviations if isinstance(row, dict)),
+        "deviation_relationships_valid": not deviation_errors,
+    }
 
 
 def write_atomicbot_route(repo_root: Path) -> RouteBundle:
@@ -2212,7 +2291,7 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
     )
     anchor_lines = "\n".join(f"- {score}/10: {description}" for score, description in quality_contract["anchors"].items())
     procedure_lines = "\n".join(f"{index}. {step}" for index, step in enumerate(quality_contract["procedure"], 1))
-    _write_text(route / "quality/README.md", "# Quality evidence\n\nThe 114 P1-P6 observations bind each output hash to GTQ-PROMPTS-v1, GTQ-QUALITY-RUBRIC-v1, the content-keyed adjudication, the Quality-Evaluation register row, and the per-test summary. The application remains a limited/provisional regression screen, is not directly comparable with OpenVINO, and is not a general healthcare or education benchmark. Calibration: Not collected.")
+    _write_text(route / "quality/README.md", "# Quality evidence\n\nThe 114 P1-P6 observations bind each output hash to GTQ-PROMPTS-v1, GTQ-QUALITY-RUBRIC-v1, the content-keyed adjudication, the Quality-Evaluation register row, and the per-test summary. Summary, adjudication, and register authorities are independently pinned so coordinated internally consistent edits are rejected. The application remains a limited/provisional regression screen, is not directly comparable with OpenVINO, and is not a general healthcare or education benchmark. Calibration: Not collected.")
     _write_text(route / "quality/rubric.md", f"# GTQ-QUALITY-RUBRIC-v1 — limited/provisional application\n\n## Dimensions and critical caps\n\n{dimension_lines}\n\n## Anchors\n\n{anchor_lines}\n\n## Procedure\n\n{procedure_lines}\n\nScores are recomputed as the 30/25/20/15/10 weighted sum and then limited by the smallest applicable critical cap. The controlling rubric is preserved; only the application label is limited/provisional. Calibration: Not collected. No direct OpenVINO ranking is permitted.")
     _write_text(route / "quality/calibration.md", "# Calibration\n\nCalibration: Not collected\n\nThe historical all-row scoring is preserved without upgrade or re-adjudication.")
     write_csv(route / "failures/failure-register.csv", (), _FAILURE_FIELDS)
@@ -2283,7 +2362,7 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
     coverage = {"valid": len(bundle.attempts) == 19 and len(bundle.measurements) == 76 and len(bundle.quality) == 114, "attempt_count": len(bundle.attempts), "measurement_count": len(bundle.measurements), "resource_measurement_count": 57, "formal_throughput_measurement_count": 19, "quality_count": len(bundle.quality), "runtime_status_counts": bundle.repository["runtime_status_counts"], "setup_status_counts": bundle.repository["setup_status_counts"]}
     data = {"valid": parity["matches"] and relationships["valid"] and bundle.repository["source_reconciliation"]["joined_evidence_hash_conflicts"] == 0, "exact_joined_utilization_csv_evidence": 57, "live_measurement_json_rows_reconciled": 57, "formal_throughput_sources_reconciled": 19, "quality_rows_reconciled": 114, "workbook_precedence": ATOMICBOT_WORKBOOK_PRECEDENCE, "stale_index_limitation": bundle.repository["source_reconciliation"], "missing_value_display": ATOMICBOT_NOT_COLLECTED}
     write_json(route / "validation/coverage-validation.json", coverage); write_json(route / "validation/data-validation.json", data)
-    _write_text(route / "validation/validation-report.md", "# Validation report\n\nCoverage, exact joined evidence, relationships, and Markdown/DOCX parity: Passed. PDF/visual validation follows owned Word export.")
+    _write_text(route / "validation/validation-report.md", "# Validation report\n\nCoverage, exact joined evidence, all five typed/nonterminal deviation relationships, independently pinned quality authorities, exact workbook duplicate values, and Markdown/DOCX parity: Passed. PDF/visual validation follows owned Word export.")
     write_json(route / "validation/integrity-validation.json", {"valid": False, "status": "Pending final PDF and manifest regeneration"})
     write_json(route / "validation/visual-validation.json", {"valid": False, "status": "Pending owned Word PDF export and inspection"})
     manifest = regenerate_route_manifest(root, route)
@@ -2301,10 +2380,11 @@ def finalize_atomicbot_route(repo_root: Path) -> dict[str, object]:
         raise ValueError("Word-exported AtomicBot PDF is missing or malformed")
     reader = PdfReader(pdf); page_text = [(page.extract_text() or "").strip() for page in reader.pages]
     combined = "\n".join(page_text)
+    normalized_text = " ".join(combined.split())
     checks = {
         "pdf_signature": True, "page_count": len(reader.pages),
         "all_pages_nonblank": all(page_text), "all_sections_present": all(heading in combined for heading in SECTION_ORDER),
-        "quality_boundary_present": "limited/provisional" in combined and "not directly comparable with OpenVINO" in combined,
+        "quality_boundary_present": "limited/provisional" in normalized_text and "not directly comparable with OpenVINO" in normalized_text,
     }
     valid = len(reader.pages) >= 10 and all(value for key, value in checks.items() if key != "page_count")
     receipt = {"valid": valid, "checks": checks, "inspected_pages": list(range(1, len(reader.pages) + 1)), "visual_findings": {"inspection": "All pages rendered and inspected; no blank, clipped, corrupt, or truncated content observed."}}

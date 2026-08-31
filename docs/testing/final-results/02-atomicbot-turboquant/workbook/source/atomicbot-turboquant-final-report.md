@@ -49,7 +49,7 @@ Repository https://github.com/AtomicBot-ai/atomic-llama-cpp-turboquant; detached
 
 ## 5. Objectives, scope, test matrix, and execution sequence
 
-WB-02 v1.7 controls the exact 19-row ladder. The publication normalizes existing evidence and does not rerun inference. The workbook's Quality /10 and Status cells were overwritten by duplicate CPU/GPU triples in all 19 result rows; those cells are excluded. Runtime status comes from the Test-Run register, performance/utilization from the Performance register and current summaries, and quality from the Quality-Evaluation register and current quality artifacts.
+WB-02 v1.7 controls the exact 19-row ladder. The publication normalizes existing evidence and does not rerun inference. The workbook's Quality /10 and Status cells were overwritten by duplicate CPU/GPU triples in all 19 result rows; every duplicate pair is reconciled to the exact current performance aggregate before those cells are excluded. Runtime status comes from the Test-Run register, performance/utilization from the Performance register and current summaries, and quality from independently authenticated quality authorities.
 
 ### SC-01 — Controlled runtime matrix
 
@@ -159,7 +159,7 @@ TTFT, peak working set, KV allocation, and utilization reconcile 57 registered o
 
 ## 9. Quality methodology and results
 
-Each of 114 outputs is bound by SHA-256 to GTQ-PROMPTS-v1, GTQ-QUALITY-RUBRIC-v1, a content-keyed adjudication, a Quality-Evaluation register row, and its per-test summary. Scores are recomputed from weighted dimensions (30/25/20/15/10) and the smallest applicable critical cap; all 19 means are recomputed. The application remains limited/provisional, calibration is Not collected, and results are not directly comparable with OpenVINO.
+Each of 114 outputs is bound by SHA-256 to GTQ-PROMPTS-v1, GTQ-QUALITY-RUBRIC-v1, a content-keyed adjudication, a Quality-Evaluation register row, and its per-test summary. The summary, adjudication, and register authorities are independently pinned, so coordinated internally consistent edits cannot redefine published quality. Scores are recomputed from weighted dimensions (30/25/20/15/10) and the smallest applicable critical cap; all 19 means are recomputed. The application remains limited/provisional, calibration is Not collected, and results are not directly comparable with OpenVINO.
 
 ### QL-01 — Preserved historical prompt means
 
@@ -500,4 +500,4 @@ Each admitted source has a repository-relative path and SHA-256. Every material 
 
 ## 15. Revision history
 
-R1 (2026-07-17): initial unified evidence-bound publication from WB-02 v1.7. R1 hardening receipt: authority-file binding, full score recomputation, separated performance provenance, workbook-corruption precedence, typed deviations, exact stale-index inventory, and portable outputs. Generated DOCX/PDF are derivatives.
+R1 (2026-07-17): initial unified evidence-bound publication from WB-02 v1.7. R1 hardening receipt: independently pinned quality authorities, full score recomputation, separated performance provenance, exact workbook-duplicate value reconciliation, explicit deviation relationships, exact stale-index inventory, and portable outputs. Generated DOCX/PDF are derivatives.

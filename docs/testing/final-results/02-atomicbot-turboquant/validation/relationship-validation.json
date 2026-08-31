@@ -1,5 +1,14 @@
 {
   "attempt_count": 19,
+  "deviation_count": 5,
+  "deviation_ids": [
+    "FAIL-AB-08Q-MEMORY",
+    "FAIL-AB-8B-SAFETY",
+    "FAIL-AB-DEVICE-GUARD",
+    "FAIL-AB-P5-TIMEOUT",
+    "FAIL-AB-UI-ASSET"
+  ],
+  "deviation_relationships_valid": true,
   "errors": [],
   "evidence_count": 286,
   "measurement_count": 76,

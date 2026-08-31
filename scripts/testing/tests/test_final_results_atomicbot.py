@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from scripts.testing.final_results.llama_adapter import (
     ATOMICBOT_EXPECTED_IDS,
+    _atomicbot_relationship_receipt,
     audit_atomicbot_sources,
     build_atomicbot_bundle,
     finalize_atomicbot_route,
@@ -109,6 +110,7 @@ def test_quality_dimensions_caps_contract_register_and_means_reconcile():
     assert audit["quality_adjudication_bindings_reconciled"] == 114
     assert audit["quality_weighted_scores_recomputed"] == 114
     assert audit["quality_means_recomputed"] == 19
+    assert audit["quality_authority_hashes_authenticated"] == 3
     assert contract["prompt_set_id"] == "GTQ-PROMPTS-v1"
     assert contract["rubric_id"] == "GTQ-QUALITY-RUBRIC-v1"
     assert contract["dimension_weights"] == {
@@ -174,6 +176,52 @@ def test_synchronized_quality_score_and_mean_mutation_is_still_rejected(tmp_path
         build_atomicbot_bundle(root)
 
 
+def test_coordinated_quality_authority_tampering_is_rejected_independently(tmp_path: Path):
+    root = _copy_sources(tmp_path)
+    quality_path = root / "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/quality-summary.json"
+    quality = json.loads(quality_path.read_text(encoding="utf-8"))
+    response_hash = quality["rows"][0]["prompts"]["P1"]["response_sha256"]
+    affected_tests = set()
+    for summary_row in quality["rows"]:
+        prompt = summary_row["prompts"]["P1"]
+        if prompt["response_sha256"] == response_hash:
+            old_score = float(prompt["score"])
+            prompt["score"] = 8.0
+            summary_row["quality_mean"] = float(summary_row["quality_mean"]) + ((8.0 - old_score) / 6)
+            affected_tests.add(summary_row["test_id"])
+    quality_path.write_text(json.dumps(quality), encoding="utf-8")
+
+    adjudication_path = root / "experiments/raw-results/atomicbot-turboquant/2026-07-17/quality-all-rows/quality-adjudications.json"
+    adjudications = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    adjudications[f"P1:{response_hash}"]["dimensions"] = {
+        "correctness_and_grounding": 8,
+        "instruction_and_format_adherence": 8,
+        "completeness_and_fact_retention": 8,
+        "relevance_clarity_and_coherence": 8,
+        "stability_and_output_integrity": 8,
+    }
+    adjudication_path.write_text(json.dumps(adjudications), encoding="utf-8")
+
+    register_path = root / "docs/testing/Quality-Evaluation-Register.csv"
+    rows = list(csv.DictReader(register_path.open(encoding="utf-8-sig", newline="")))
+    for row in rows:
+        if row["Route"] != "atomicbot-turboquant" or row["Test_ID"] not in affected_tests or row["Prompt_ID"] != "P1":
+            continue
+        for field in (
+            "Correctness_and_Grounding_0_to_10", "Instruction_and_Format_0_to_10",
+            "Completeness_and_Fact_Retention_0_to_10", "Relevance_Clarity_Coherence_0_to_10",
+            "Stability_and_Integrity_0_to_10",
+        ):
+            row[field] = "8"
+        row["Weighted_Score_0_to_10"] = "8.00"
+    with register_path.open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=rows[0].keys(), lineterminator="\n")
+        writer.writeheader(); writer.writerows(rows)
+
+    with pytest.raises(ValueError, match="quality (summary|adjudication|register) authority hash conflict"):
+        build_atomicbot_bundle(root)
+
+
 @pytest.mark.parametrize(
     ("source", "mutator", "message"),
     (
@@ -231,6 +279,7 @@ def test_workbook_overwritten_quality_status_pattern_is_explicit_and_excluded():
     bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
     audit = bundle.repository["source_reconciliation"]
     assert audit["workbook_overwritten_result_rows"] == 19
+    assert audit["workbook_duplicate_pairs_value_reconciled"] == 19
     assert audit["workbook_excluded_columns"] == ["Quality /10", "Status"]
     assert audit["workbook_precedence"] == (
         "Test-Run register for runtime status; Performance register/current summaries for performance and utilization; "
@@ -244,6 +293,18 @@ def test_workbook_corruption_pattern_mutation_is_rejected(tmp_path: Path):
     text = path.read_text(encoding="utf-8")
     path.write_text(text.replace("| 64.51 / 64.09 / 66.41 | 0.00 / 0.00 / 0.00 | 64.51 / 64.09 / 66.41 | 0.00 / 0.00 / 0.00 |", "| 64.51 / 64.09 / 66.41 | 0.00 / 0.00 / 0.00 | 6.22 | Pass |", 1), encoding="utf-8")
     with pytest.raises(ValueError, match="overwritten Quality/Status pattern"):
+        build_atomicbot_bundle(root)
+
+
+def test_coherent_fabricated_workbook_duplicate_values_are_rejected(tmp_path: Path):
+    root = _copy_sources(tmp_path)
+    path = root / "docs/testing/workbooks/text-templates/02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1.md"
+    text = path.read_text(encoding="utf-8")
+    original = "| 64.51 / 64.09 / 66.41 | 0.00 / 0.00 / 0.00 | 64.51 / 64.09 / 66.41 | 0.00 / 0.00 / 0.00 |"
+    fabricated = "| 99.99 / 99.99 / 99.99 | 88.88 / 88.88 / 88.88 | 99.99 / 99.99 / 99.99 | 88.88 / 88.88 / 88.88 |"
+    assert original in text
+    path.write_text(text.replace(original, fabricated, 1), encoding="utf-8")
+    with pytest.raises(ValueError, match="overwritten Quality/Status value conflict"):
         build_atomicbot_bundle(root)
 
 
@@ -358,6 +419,13 @@ def test_route_generation_has_common_structure_schema_parity_and_honest_caveats(
     assert "Not collected" in text
     assert json.loads((ROUTE / "validation/workbook-parity.json").read_text())["matches"] is True
     assert json.loads((ROUTE / "validation/relationship-validation.json").read_text())["valid"] is True
+    relationship = json.loads((ROUTE / "validation/relationship-validation.json").read_text())
+    assert relationship["deviation_count"] == 5
+    assert relationship["deviation_relationships_valid"] is True
+    assert set(relationship["deviation_ids"]) == {
+        "FAIL-AB-UI-ASSET", "FAIL-AB-DEVICE-GUARD", "FAIL-AB-08Q-MEMORY",
+        "FAIL-AB-8B-SAFETY", "FAIL-AB-P5-TIMEOUT",
+    }
     assert json.loads((ROUTE / "validation/coverage-validation.json").read_text())["valid"] is True
     assert json.loads((ROUTE / "validation/data-validation.json").read_text())["valid"] is True
 
@@ -385,6 +453,24 @@ def test_all_canonical_records_validate_against_shared_schemas_and_references():
     assert all(item.attempt_id in attempts and item.source_evidence_id in evidence for item in bundle.measurements)
     assert all(set(item.source_measurement_ids) <= measurements for item in bundle.summaries)
     assert all(item.source_evidence_id in evidence for item in bundle.quality)
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_error"),
+    (
+        (lambda row: row.update(deviation_id="FAIL-FABRICATED"), "deviation ID set"),
+        (lambda row: row.update(scope_type="test"), "deviation scope"),
+        (lambda row: row.update(scope_ids=["AB-01"]), "deviation scope"),
+        (lambda row: row.update(nonterminal=False), "deviation terminal flag"),
+        (lambda row: row.update(evidence_ids=["EVID-MISSING"]), "deviation evidence"),
+    ),
+)
+def test_relationship_receipt_rejects_deviation_mutations(mutator, expected_error):
+    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+    mutator(bundle.repository["deviation_rows"][0])
+    receipt = _atomicbot_relationship_receipt(bundle)
+    assert receipt["valid"] is False
+    assert any(expected_error in error for error in receipt["errors"])
 
 
 def test_generated_inventory_manifest_and_reproduction_contract():

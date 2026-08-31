@@ -2,7 +2,7 @@
   "checks": {
     "all_pages_nonblank": true,
     "all_sections_present": true,
-    "page_count": 21,
+    "page_count": 22,
     "pdf_signature": true,
     "quality_boundary_present": true
   },
@@ -27,7 +27,8 @@
     18,
     19,
     20,
-    21
+    21,
+    22
   ],
   "valid": true,
   "visual_findings": {
