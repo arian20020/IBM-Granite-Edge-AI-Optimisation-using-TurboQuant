@@ -109,6 +109,14 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
         Assert.ThrowsExactly<InvalidDataException>(() => R3IssueEvidenceVerifier.VerifyPostAcceptance(
             receipt, directory.Path, new string('a', 40), new string('b', 40),
             new string('c', 40), new string('d', 40)));
+
+        mutated = File.ReadAllText(receipt)
+            .Replace("\"blockedGatesCountedAsPasses\":true", "\"blockedGatesCountedAsPasses\":false")
+            .Replace("BLOCKED BY EXTERNAL ENVIRONMENT", "APPROVED FOR MAIN INTEGRATION");
+        File.WriteAllText(receipt, mutated);
+        Assert.ThrowsExactly<InvalidDataException>(() => R3IssueEvidenceVerifier.VerifyPostAcceptance(
+            receipt, directory.Path, new string('a', 40), new string('b', 40),
+            new string('c', 40), new string('d', 40)));
     }
 
     private static object FileBinding(string path)

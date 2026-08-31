@@ -184,6 +184,11 @@ internal static class R3IssueEvidenceVerifier
         {
             throw new InvalidDataException("External pre-lock block evidence is inconsistent.");
         }
+        if (disposition == "APPROVED FOR MAIN INTEGRATION"
+            && (!packageAttempted || lockAcquisitions <= 0 || !string.Equals(externalBlock, "none", StringComparison.Ordinal)))
+        {
+            throw new InvalidDataException("Approval requires completed package/native lock evidence and no external block.");
+        }
         return new R4PostAcceptanceEvidence(disposition, ClosesR3_020: true, ClosesR3_022: true);
     }
 
