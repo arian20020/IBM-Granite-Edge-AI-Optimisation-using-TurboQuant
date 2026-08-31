@@ -3,26 +3,32 @@
   "workerId": "E1",
   "baseCommit": "b5d2cd34c57368efb9b122cddf16c2ffa2d3895e",
   "baseTree": "a3e4d82095caa9688f30d2463fa5971c788fd33f",
-  "implementationSubjectCommit": "41e7efa23404eaae6a344204d0c7649487d1acd5",
-  "implementationSubjectTree": "cdaa88099f5754811a0d3bdb1c49c884ac1607cc",
+  "implementationSubjectCommit": "6e8eaabea5e8b0fbf37fe1b9131335247bb0a64e",
+  "implementationSubjectTree": "a6c5958ec917cd110ad24361a4a9f8dec0ebb21d",
   "disposition": "BLOCKED BY EXTERNAL ENVIRONMENT",
   "report": {
     "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
-    "sha256": "c36ed7de0e8cf451ad239bfb22942644521d877fa2f38a9046047fc146042b14",
-    "bytes": 7962
+    "sha256": "58127194f9ec02c542e80a511e229a487dd490dc191c1d520380440060f70e93",
+    "bytes": 6004
   },
   "evidenceManifest": {
     "path": "docs/audits/2026-08-30/evidence/E1-r4-independent-acceptance-v2.json",
-    "sha256": "19a3dcd1c2ae9a2d027f80c72a8007804587359e18d4d29cd34636af7a314b19",
-    "bytes": 4269
+    "sha256": "1203569337357b2387737cfd6f93a9554da7c65984e4e5c0e050ffedd96701e1",
+    "bytes": 4666
   },
   "nativeLockAcquisitions": 0,
   "cleanupVerified": true,
   "packageAttempted": false,
+  "packagePassed": false,
   "appControlChecked": true,
-  "managedExecuted": 311,
-  "managedPassed": 311,
-  "managedFailed": 0,
+  "appControlPassed": false,
+  "nativeExecuted": 0,
+  "nativePassed": 0,
+  "nativeFailed": 0,
+  "nativeSkipped": 0,
+  "managedExecuted": 317,
+  "managedPassed": 316,
+  "managedFailed": 1,
   "managedSkipped": 0,
   "blockedGatesCountedAsPasses": false,
   "externalBlock": "Exact candidate, asset, native-stage manifests and predecessor cleanup receipts were absent before lock eligibility."

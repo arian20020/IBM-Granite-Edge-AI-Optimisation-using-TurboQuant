@@ -2,15 +2,15 @@
   "schemaVersion": 2,
   "workerId": "E1",
   "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
-  "evidenceSubjectCommit": "41e7efa23404eaae6a344204d0c7649487d1acd5",
-  "evidenceSubjectTree": "cdaa88099f5754811a0d3bdb1c49c884ac1607cc",
-  "createdAtUtc": "2026-08-31T14:08:36Z",
+  "evidenceSubjectCommit": "6e8eaabea5e8b0fbf37fe1b9131335247bb0a64e",
+  "evidenceSubjectTree": "a6c5958ec917cd110ad24361a4a9f8dec0ebb21d",
+  "createdAtUtc": "2026-08-31T16:41:04Z",
   "route": ["shared", "gguf", "openvino"],
   "evidenceStatus": "blocked",
   "report": {
     "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
-    "sha256": "c36ed7de0e8cf451ad239bfb22942644521d877fa2f38a9046047fc146042b14",
-    "bytes": 7962
+    "sha256": "58127194f9ec02c542e80a511e229a487dd490dc191c1d520380440060f70e93",
+    "bytes": 6004
   },
   "inputs": [
     {"kind":"validated-candidate-base","id":"b5d2cd34c57368efb9b122cddf16c2ffa2d3895e","evidenceGrade":"verified"},
@@ -19,34 +19,36 @@
     {"kind":"issue-evidence-catalog","id":"C0-r4-issue-evidence-index-v2.json","sha256":"13dd8e4e103d82dd8449e4b37e46b538725aea67fdeef18d92dd02760f8d488c","bytes":18924,"evidenceGrade":"verified"}
   ],
   "outputs": [
-    {"kind":"implementation-subject","id":"41e7efa23404eaae6a344204d0c7649487d1acd5","evidenceGrade":"verified"},
-    {"kind":"audit-report","id":"E1-r4-independent-acceptance-v2.md","sha256":"c36ed7de0e8cf451ad239bfb22942644521d877fa2f38a9046047fc146042b14","bytes":7962,"evidenceGrade":"verified"},
+    {"kind":"implementation-subject","id":"6e8eaabea5e8b0fbf37fe1b9131335247bb0a64e","evidenceGrade":"verified"},
+    {"kind":"audit-report","id":"E1-r4-independent-acceptance-v2.md","sha256":"58127194f9ec02c542e80a511e229a487dd490dc191c1d520380440060f70e93","bytes":6004,"evidenceGrade":"verified"},
+    {"kind":"independent-final-review","id":"E1-r4-independent-final-review-v2.md","sha256":"f739ee50305bf8857815033f516cf3d05b34fd6dee41083cde91d0c461e629f1","bytes":1302,"evidenceGrade":"verified"},
     {"kind":"post-acceptance-evaluation","id":"R3-020","evidenceGrade":"verified"},
-    {"kind":"post-acceptance-evaluation","id":"R3-022","evidenceGrade":"verified"}
+    {"kind":"post-acceptance-evaluation","id":"R3-022","evidenceGrade":"blocked"}
   ],
   "commands": [
-    {"id":"E1-DETERMINISTIC","exitCode":0,"discovered":34,"executed":34,"passed":34,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"E1-DETERMINISTIC","exitCode":0,"discovered":40,"executed":40,"passed":40,"failed":0,"skipped":0,"disposition":"passed"},
     {"id":"E1-SCHEMA-V4-PREFLIGHT","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"E1-COMBINED-PREFLIGHT-ATTEMPT","exitCode":1,"discovered":2,"executed":2,"passed":1,"failed":1,"skipped":0,"disposition":"failed"},
     {"id":"OPENVINO-OPTIMIZATION","exitCode":0,"discovered":55,"executed":55,"passed":55,"failed":0,"skipped":0,"disposition":"passed"},
     {"id":"OPENVINO-WORKER-CLIENT","exitCode":0,"discovered":17,"executed":17,"passed":17,"failed":0,"skipped":0,"disposition":"passed"},
     {"id":"GGUF-QUANT-CONTRACTS","exitCode":0,"discovered":7,"executed":7,"passed":7,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"GGUF-WORKER-FIRST","exitCode":1,"discovered":19,"executed":19,"passed":18,"failed":1,"skipped":0,"disposition":"failed"},
-    {"id":"GGUF-WORKER-RERUN","exitCode":0,"discovered":19,"executed":19,"passed":19,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"GGUF-QUANT-WORKER","exitCode":0,"discovered":19,"executed":19,"passed":19,"failed":0,"skipped":0,"disposition":"passed"},
     {"id":"Q1-IDENTITY","exitCode":0,"discovered":51,"executed":51,"passed":51,"failed":0,"skipped":0,"disposition":"passed"},
     {"id":"CROSS-FEATURE","exitCode":0,"discovered":115,"executed":115,"passed":115,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"SECURITY-APP-CONTROL","exitCode":0,"discovered":12,"executed":12,"passed":12,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"E1-POST-ACCEPTANCE-FINAL","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"SECURITY-APP-CONTROL","exitCode":1,"discovered":12,"executed":12,"passed":11,"failed":1,"skipped":0,"disposition":"blocked"},
     {"id":"OPENVINO-BROAD","exitCode":0,"discovered":496,"executed":496,"passed":489,"failed":0,"skipped":7,"disposition":"mixed"},
-    {"id":"E1-POST-ACCEPTANCE-FINAL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"NATIVE-PACKAGE-CAMPAIGN","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"}
+    {"id":"NATIVE-PACKAGE-UI-PERFORMANCE","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"}
   ],
   "blockers": [
-    "Exact candidate, asset, native-stage manifests and predecessor native cleanup receipts are absent from the approved host.",
-    "The shared native lock may be acquired only after those exact prerequisites exist, so signed package activation and native execution were ineligible.",
-    "Windows Application Control blocked the freshly rebuilt E1 test assembly with 0x800711C7; policy was not weakened."
+    "Exact candidate, asset, native-stage manifests and predecessor cleanup receipts are absent from the approved host.",
+    "The shared native lock may be acquired only after those exact prerequisites exist; package activation and native/UI/performance execution remain ineligible.",
+    "R3-022 remains blocked and unresolved because its required package/native/E2E evidence was not executed."
+    ,"Windows Application Control blocked the hostile unsigned security fixture with 0x800711C7; policy was not weakened."
   ],
   "nonClaims": [
     "No package activation, packaged discovery, native GGUF/OpenVINO, real-model, Chat/export runtime, screenshot, accessibility, visual, or performance pass is claimed.",
-    "The broad OpenVINO suite, its seven guarded skips, and the superseded first GGUF attempt are excluded from the 311-test receipt total.",
-    "No production, machine-security, or main-branch change was made."
+    "The broad OpenVINO suite, seven guarded skips, combined legacy preflight failure, failed security command, blocked gates, and discovery narrative are excluded from the canonical 306-test total.",
+    "No product, machine-security, tested-base, or main-branch change was made."
   ]
 }

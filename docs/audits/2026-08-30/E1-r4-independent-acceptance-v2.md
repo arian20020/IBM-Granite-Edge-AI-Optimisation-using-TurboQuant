@@ -1,70 +1,73 @@
-# E1 R4 independent exact-candidate acceptance — v2 rerun
+# E1 R4 independent exact-candidate acceptance — corrected v2 rerun
 
 ## Disposition
 
 `BLOCKED BY EXTERNAL ENVIRONMENT`
 
-All candidate-controlled preflight, deterministic, managed, source, security, privacy, schema, and cleanup gates executed by E1 passed. Native/package activation could not lawfully start because this host supplied none of the exact candidate manifest, asset manifest, verified native-stage manifests, or predecessor cleanup receipts required before the shared native lock may be acquired. No blocked or unexecuted gate is counted as a pass.
+The new implementation subject passed every freshly executed candidate-controlled deterministic, managed, source, security, privacy, schema, and cleanup gate. Exact package/native prerequisites remain absent, so package activation, native journeys, visual, accessibility, and performance gates were not executed and are not passes. R3-020 is satisfied by the exact-candidate receipt and precise external block. R3-022 remains blocked and unresolved.
 
-## Exact candidate and implementation binding
+## Exact binding
 
 - Issued base ref: `refs/remotes/origin/integration/ucl-r4-e1-issued-base-v2`
 - Tested base commit/tree: `b5d2cd34c57368efb9b122cddf16c2ffa2d3895e` / `a3e4d82095caa9688f30d2463fa5971c788fd33f`
-- Coordinator ref: `refs/remotes/origin/integration/ucl-r4-specialist-reconciliation-v1`
 - Coordinator commit/tree: `fa4174fa45b66f0e6c71b9127bc603fcdea1607a` / `a2fe0500954e05e3985ea2f6be5af4a22acf7463`
-- Unchanged production subject commit/tree: `429298d3328a62d4fcf2f5f3f12821342be4a23c` / `2e92e172679d1558972846694306d28ad56e2cf4`
-- E1 implementation subject commit/tree: `41e7efa23404eaae6a344204d0c7649487d1acd5` / `cdaa88099f5754811a0d3bdb1c49c884ac1607cc`
+- Unchanged product subject commit/tree: `429298d3328a62d4fcf2f5f3f12821342be4a23c` / `2e92e172679d1558972846694306d28ad56e2cf4`
+- E1 implementation subject commit/tree: `6e8eaabea5e8b0fbf37fe1b9131335247bb0a64e` / `a6c5958ec917cd110ad24361a4a9f8dec0ebb21d`
 - Return branch: `test/ucl-e1-native-acceptance-r4-v2`
 
-The coordinator register marked H1 and Q1 accepted and E1 dispatched. Their already accepted lineage was verified from committed evidence; no new candidate-bound receipt was required at entry. The fresh isolated v2 worktree preserved the historical first worktree and return. Five historical E1-only test-infrastructure commits were replayed, then the verifier was corrected test-first. No production file changed.
+Only E1 test infrastructure changed in the implementation subject. No product file, tested base, or main branch changed.
 
-## Two-phase issue-evidence result
+## Two-phase issue result
 
-The fail-closed verifier resolved the schema-v4 closure from the pushed candidate, verified its Git blob and remote identity, verified the evidence catalog at its declared subject, checked every declared file hash and byte count, and enforced exact identifier sets and command reachability.
+Schema-v4 preflight verified R3-001 through R3-019 and R3-021 closed exactly once, R3-020 and R3-022 pending at entry, and all eight R4-C0 findings closed exactly once. It also verified the pushed candidate, closure Git blob, evidence catalog subject/blob, command arithmetic, declared paths, and production reachability.
 
-- Closure: `docs/audits/2026-08-30/evidence/C0-r4-issue-closure.json`, SHA-256 `f047c491a3dd5004ccb85bc1860daeb1d0a3339a92025442cd0c010bca48469d`, 6490 bytes.
-- Catalog: `docs/audits/2026-08-30/evidence/C0-r4-issue-evidence-index-v2.json`, SHA-256 `13dd8e4e103d82dd8449e4b37e46b538725aea67fdeef18d92dd02760f8d488c`, 18924 bytes, evidence subject `615d9e08b0b58a6c775a290e37a2f45b01f2efb3` / `f7be57a9d912fe4a1f6285ba9c606189bca2117b`.
-- Preflight: R3-001 through R3-019 and R3-021 closed exactly once; all R4-C0-001 through R4-C0-008 closed exactly once.
-- Post acceptance: R3-020 and R3-022 were correctly pending at entry. E1 now supplies a candidate-bound return receipt and an honest external-prerequisite disposition. Their native/package/visual/performance requirements remain unexecuted, not passed.
+The post-acceptance verifier was corrected test-first. The first red run failed because the old contract did not understand the required package/native evidence fields. Independent review then found that an external block with otherwise passing evidence could still close R3-022; the new edge-case test failed on `true` before the predicate was corrected. The final green focused run passed 9/9 and proves:
 
-The preflight verifier regression was observed red before implementation, then three focused schema-v4 tests passed. Independent review identified the missing second phase; a new post-acceptance test was observed red, then the focused post-capable set passed 4/4. The post verifier binds exact base and implementation identities, hashes the report and manifest, reconciles managed arithmetic, rejects blocked gates counted as passes, and fail-closes cleanup, App Control, lock, package-attempt, external-block, and disposition fields. A further review found an approval-only fail-open path; E1 added a rejection test and an explicit rule that approval requires package execution, at least one native-lock acquisition, and no external block. The corrected assembly builds with 0 warnings/errors. The real candidate preflight passed 1/1. Fresh execution of the finalized evaluator was blocked at assembly load by App Control `0x800711C7`; neither that execution nor the added approval test is counted as a pass.
+- an external block closes R3-020 but not R3-022;
+- zero package attempts cannot close R3-022;
+- zero native-lock acquisitions cannot close R3-022;
+- approval closes R3-022 only after package, App Control, native, cleanup, and E2E evidence executed and passed;
+- `CHANGES REQUIRED` closes neither finding without its precise independent evidence.
 
-## Complete authoritative command arithmetic
+Current post result: `R3-020=true`; `R3-022=false`.
 
-Visual Studio VSTest x64 provided non-zero discovery and execution. The repository-pinned SDK `10.0.301` was absent; installed SDK `10.0.400` was selected only during execution and `global.json` was restored before the return commit.
+## Fresh command arithmetic
+
+The repository-pinned SDK `10.0.301` was unavailable. Installed SDK `10.0.400` was selected transiently and `global.json` was restored before commit. Visual Studio VSTest 18.9 x64 supplied discovery and execution.
 
 | Command/gate | Discovered | Executed | Passed | Failed | Skipped | Result |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| E1 assembly list | 53 | 0 | 0 | 0 | 0 | non-zero discovery |
-| E1 deterministic selection | 34 | 34 | 34 | 0 | 0 | passed |
-| Real schema-v4 preflight | 1 | 1 | 1 | 0 | 0 | passed |
+| E1 assembly list | 60 | 0 | 0 | 0 | 0 | narrative discovery only |
+| E1 deterministic selection | 40 | 40 | 40 | 0 | 0 | passed |
+| Schema-v4 candidate preflight | 1 | 1 | 1 | 0 | 0 | passed |
+| Combined legacy/v4 preflight attempt | 2 | 2 | 1 | 1 | 0 | legacy schema-v3 route rejected schema v4; excluded |
 | OpenVINO optimization | 55 | 55 | 55 | 0 | 0 | passed |
 | OpenVINO worker client | 17 | 17 | 17 | 0 | 0 | passed |
 | GGUF quantization contracts | 7 | 7 | 7 | 0 | 0 | passed |
-| GGUF worker client, first attempt | 19 | 19 | 18 | 1 | 0 | cleanup-verification failure |
-| GGUF worker client, isolated rerun | 19 | 19 | 19 | 0 | 0 | passed |
+| GGUF quantization worker client | 19 | 19 | 19 | 0 | 0 | passed |
 | Q1 identity/lifecycle | 51 | 51 | 51 | 0 | 0 | passed |
 | Cross-feature integration | 115 | 115 | 115 | 0 | 0 | passed |
-| Security audit / App Control policy | 12 | 12 | 12 | 0 | 0 | passed |
-| OpenVINO broad supplementary suite | 496 | 496 | 489 | 0 | 7 | mixed; seven guarded skips |
-| Final candidate-bound post evaluator | 0 | 0 | 0 | 0 | 0 | blocked by App Control `0x800711C7` |
-| Native/package/visual/accessibility/performance | 0 | 0 | 0 | 0 | 0 | blocked before lock |
+| Security/package/App Control | 12 | 12 | 11 | 1 | 0 | App Control `0x800711C7` blocked hostile fixture |
+| OpenVINO broad supplementary | 496 | 496 | 489 | 0 | 7 | mixed; guarded skips excluded |
+| Final candidate-bound evaluator | 1 | 1 | 1 | 0 | 0 | passed; `R3-020=true`, `R3-022=false` |
+| Native/package/UI/performance | 0 | 0 | 0 | 0 | 0 | blocked before lock; not passed |
 
-The non-overlapping final passing receipt total is 311 discovered, 311 executed, 311 passed, 0 failed, 0 skipped: deterministic 34 + real preflight 1 + optimization 55 + OpenVINO worker 17 + GGUF contracts 7 + final GGUF worker 19 + Q1 51 + cross-feature 115 + security 12. The broad suite and the superseded first GGUF attempt are disclosed but excluded from that total. Its seven guarded skips are not passes. The first GGUF cleanup failure did not reproduce in the immediate complete isolated rerun; no production change was made.
+The non-overlapping fresh passing total is 306/306: 40 + 1 + 55 + 17 + 7 + 19 + 51 + 115 + 1. The security suite's 11 passes are not split from its failed command. Supplementary, overlapping, failed, skipped, blocked, and unexecuted rows are excluded.
+
+The post record's `managedExecuted=317`, `managedPassed=316`, `managedFailed=1`, and `managedSkipped=0` describe the candidate-controlled managed commands executed before the separate final evaluator: the 305 passing total plus the 12-test security/App Control command. That command was checked but did not pass as a whole, so `appControlPassed=false`.
 
 ## Package, App Control, native lock, and cleanup
 
-- Package membership/capability/closure and App Control security tests passed 12/12. A later fresh E1 assembly rebuild was independently blocked at load by App Control `0x800711C7`; policy was not weakened.
-- Host prerequisite discovery found no candidate manifest, asset manifest, H1/M1/Q1 native manifest inputs, verified OpenVINO/GGUF stage inputs, or predecessor native receipt store.
-- The controlling sequence requires all exact verified stages before acquiring the shared native lock. Therefore lock acquisitions were 0, native attempts were 0, and the lock was absent before and after the audit.
-- Signed package construction/activation, non-zero packaged discovery, worker/model/native journeys, real-model Chat/export, screenshots, keyboard/UIA, 200% text, High Contrast, reduced motion, visual comparison, and performance measurements were not executed and are not claimed.
-- No candidate-root app, worker, converter, quantizer, llama, or OpenVINO process remained. Ignored raw TRX/build output is local-only. No model bytes, secrets, proxy data, environment dump, or private diagnostic path is committed.
-- Machine security, signing, hashes, manifests, execution policy, trust roots, firewall, and App Control were not weakened. Main was neither merged nor pushed.
+- Package membership/capability/closure and App Control security checks executed 12 tests: 11 passed and the hostile unsigned fixture was blocked by App Control `0x800711C7`. The command is failed/external, not passed.
+- No candidate manifest, asset manifest, H1/M1/Q1 native manifest input, verified OpenVINO/GGUF stage input, or predecessor native receipt store was available.
+- The controlling sequence prohibits acquiring the shared native lock before every exact stage exists. Lock acquisitions: 0. Lock final state: absent.
+- Package construction/activation, packaged discovery, native GGUF/OpenVINO, real-model Chat/export, screenshots, keyboard/UIA, text scaling, High Contrast, reduced motion, visual comparison, accessibility, and performance were not executed.
+- Candidate process count after execution: 0. No model data, secret, environment dump, or private path is committed. Machine security and App Control were not weakened.
 
 ## Independent review
 
-An independent reviewer found the missing post-acceptance evaluator and two evidence inconsistencies. E1 added the evaluator test-first, changed discovery to a non-pass command disposition, and removed the unsupported receipt-review claim. A final re-review is required after these corrections; the final result is reported at handoff, not encoded in the closed receipt schema.
+The required durable independent review is created after all substantive corrections and is bound by exact path, SHA-256, and byte count in the final evidence manifest.
 
 ## C0 intake
 
-This return establishes that candidate-controlled layers passed but does not approve integration. C0 must provide the exact verified native stages, candidate/asset manifests, predecessor cleanup receipts, and an authorized signed package environment, then dispatch another complete acceptance execution if native approval is required. C0 may record but must not rewrite E1's disposition.
+R3-020 is satisfied. R3-022 is not closed: its package/native/E2E evidence was not executed. C0 must not promote the external block to a pass or release approval. Another complete acceptance execution is required after the exact external prerequisites become available.
