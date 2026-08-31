@@ -94,10 +94,16 @@ internal sealed class HardwareEvidenceCollectionCoordinator : IHardwareEvidenceC
             tasks.Add(neuralProcessor);
 
             progress.Report(HardwareInspectionRunStage.CheckingLocalInferenceRuntimes);
-            llmFit = RunExternalAsync(
-                externalLane,
-                captureToken => _capture.CaptureLlmFitAsync(tools.LlmFit, captureToken),
-                lifetime.Token);
+            llmFit = tools.LlmFit is { } verifiedLlmFit
+                ? RunExternalAsync(
+                    externalLane,
+                    captureToken => _capture.CaptureLlmFitAsync(verifiedLlmFit, captureToken),
+                    lifetime.Token)
+                : Task.FromResult(LlmFitHardwareEvidence.Unavailable(
+                    LlmFitCommandContract.ToolId,
+                    LlmFitCommandContract.Version,
+                    _timeProvider.GetUtcNow().ToUniversalTime(),
+                    LlmFitDiagnosticCode.ToolNotAvailable));
             llamaCpp = RunExternalAsync(
                 externalLane,
                 captureToken => _capture.CaptureLlamaCppAsync(tools.LlamaCpp, captureToken),

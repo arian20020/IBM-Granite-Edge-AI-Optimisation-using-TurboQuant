@@ -19,6 +19,7 @@ public enum LlmFitGpuDetectionState
 
 public enum LlmFitDiagnosticCode
 {
+    ToolNotAvailable,
     ToolIdentityMismatch,
     CommandContractMismatch,
     VersionStartFailed,

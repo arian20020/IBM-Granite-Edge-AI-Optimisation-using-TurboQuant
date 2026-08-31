@@ -10,6 +10,7 @@ public enum NpuDetectionState
 public enum HardwareSnapshotUsability
 {
     Usable,
+    DisplayOnly,
     NotUsable,
 }
 

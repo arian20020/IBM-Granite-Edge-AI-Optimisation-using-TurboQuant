@@ -37,7 +37,7 @@ public sealed class FixedHardwareToolAcquisitionTests
     }
 
     [TestMethod]
-    public void Acquire_MapsMissingAndRejectedLlmFitBeforeProbeVerification()
+    public void Acquire_MissingOptionalLlmFitStillVerifiesProbeButRejectedLlmFitFailsClosed()
     {
         using VerifiedPackagedToolFixture llmFit = VerifiedPackagedToolFixture.CreateLlmFit("success");
         using VerifiedPackagedToolFixture llamaCpp = VerifiedPackagedToolFixture.CreateLlamaCpp("success");
@@ -50,8 +50,16 @@ public sealed class FixedHardwareToolAcquisitionTests
             CreateProbeManifest(llamaCpp.PackageRoot),
             (_, _, _) => { calls++; return TrustedToolVerificationResult.Verified(llamaCpp.Tool); });
 
-        AssertFailure(missing.Acquire(), HardwareToolAcquisitionDiagnosticCode.ToolNotAvailable);
-        Assert.AreEqual(0, calls);
+        HardwareToolAcquisitionResult degraded = missing.Acquire();
+        Assert.IsTrue(degraded.IsSuccess);
+        Assert.IsNotNull(degraded.Lease);
+        Assert.AreSame(llamaCpp.Tool, degraded.Lease.LlamaCpp);
+        Assert.IsNull(degraded.Lease.LlmFit);
+        Assert.AreEqual(
+            HardwareToolAcquisitionDiagnosticCode.ToolNotAvailable,
+            degraded.Lease.LlmFitDiagnostic);
+        Assert.AreEqual(1, calls);
+        degraded.Lease.Dispose();
 
         FixedHardwareToolAcquisition rejected = Create(
             llmFit,

@@ -32,9 +32,9 @@ internal sealed class HardwareEvidenceResolutionResult
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(evidence);
-        if (snapshot.Usability != HardwareSnapshotUsability.Usable)
+        if (snapshot.Usability == HardwareSnapshotUsability.NotUsable)
         {
-            throw new ArgumentException("A resolved result requires a usable snapshot.", nameof(snapshot));
+            throw new ArgumentException("A resolved result requires displayable facts.", nameof(snapshot));
         }
 
         if (!ReferenceEquals(snapshot.Evidence, evidence))
