@@ -1,5 +1,7 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using GraniteEdgeAI.Features.ApplicationFaults;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Journey;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.SourceCustody;
@@ -10,8 +12,10 @@ namespace GraniteEdgeAI.Features.Onboarding;
 
 public sealed partial class OnboardingShellPage
 {
+    private readonly object _shutdownGate = new();
     private readonly ModelSourceCustodyRegistry _modelSourceCustodyRegistry = new();
     private CurrentModelChatLaunchRegistry? _currentModelChatLaunchRegistry;
+    private Task? _shutdownTask;
 
     private CurrentModelChatLaunchRegistry CurrentModelChatLaunchRegistry =>
         _currentModelChatLaunchRegistry ??=
@@ -66,29 +70,113 @@ public sealed partial class OnboardingShellPage
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
-            return;
-        }
-        _lifetimeCancellation.Cancel();
-        RetireActiveOptimizationChatTarget();
-        InvalidateActiveHardwareJourney();
-        _currentModelChatLaunchRegistry?.Dispose();
-        _modelSourceCustodyRegistry.Dispose();
-        _handoffRegistry.Dispose();
-        _lifetimeCancellation.Dispose();
+        Task shutdown = EnsureShutdownStarted();
+        _ = shutdown.ContinueWith(
+            static task => _ = task.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted
+                | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
-    internal async Task ShutdownAsync()
+    internal Task ShutdownAsync() => EnsureShutdownStarted();
+
+    private Task EnsureShutdownStarted()
+    {
+        TaskCompletionSource completion;
+        lock (_shutdownGate)
+        {
+            if (_shutdownTask is not null)
+            {
+                return _shutdownTask;
+            }
+
+            completion = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _shutdownTask = completion.Task;
+            Interlocked.Exchange(ref _disposed, 1);
+        }
+
+        _ = CompleteShutdownAsync(completion);
+        return completion.Task;
+    }
+
+    private async Task CompleteShutdownAsync(TaskCompletionSource completion)
+    {
+        Exception? failure = null;
+        try
+        {
+            try
+            {
+                await _lifetimeCancellation.CancelAsync();
+            }
+            catch (Exception exception)
+            {
+                ReportShutdownFault(exception);
+            }
+
+            await _optimizationChatHandoff.CloseAsync();
+            await ShutdownCoreAsync();
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+            BoundedApplicationFaultReporter.Shared.Report(
+                ApplicationFault.FromException(
+                    ApplicationFaultCode.ShutdownUnexpected,
+                    exception));
+        }
+        finally
+        {
+            try
+            {
+                InvalidateActiveHardwareJourney();
+                _currentModelChatLaunchRegistry?.Dispose();
+                _modelSourceCustodyRegistry.Dispose();
+                _handoffRegistry.Dispose();
+                _optimizationChatHandoff.Dispose();
+                _lifetimeCancellation.Dispose();
+            }
+            catch (Exception exception)
+            {
+                failure ??= exception;
+            }
+        }
+
+        if (failure is null)
+        {
+            completion.TrySetResult();
+        }
+        else
+        {
+            completion.TrySetException(failure);
+        }
+    }
+
+    private async Task ShutdownCoreAsync()
     {
         StageFrame.IsHitTestVisible = false;
 
         if (_attachedModelInspectionPage is { } inspectionPage)
         {
-            await inspectionPage.RetireForNavigationAsync();
+            try
+            {
+                await inspectionPage.RetireForNavigationAsync();
+            }
+            catch (Exception exception)
+            {
+                ReportShutdownFault(exception);
+            }
         }
 
-        await RetireOptimizationAsync();
+        try
+        {
+            await RetireOptimizationAsync();
+        }
+        catch (Exception exception)
+        {
+            ReportShutdownFault(exception);
+        }
 
         if (_attachedChatPage is { } chatPage)
         {
@@ -99,14 +187,33 @@ public sealed partial class OnboardingShellPage
         if (_chatController is { } chatController)
         {
             _chatController = null;
-            await chatController.DisposeAsync();
+            try
+            {
+                await chatController.DisposeAsync();
+            }
+            catch (Exception exception)
+            {
+                ReportShutdownFault(exception);
+            }
         }
-        RetireActiveOptimizationChatTarget();
+        try
+        {
+            RetireActiveOptimizationChatTarget();
+        }
+        catch (Exception exception)
+        {
+            ReportShutdownFault(exception);
+        }
 
         DetachCompatibilityPage();
         DetachHardwareInspectionPage();
         DetachModelInspectionPage();
         DetachModelImportPage();
-        Dispose();
     }
+
+    private static void ReportShutdownFault(Exception exception) =>
+        BoundedApplicationFaultReporter.Shared.Report(
+            ApplicationFault.FromException(
+                ApplicationFaultCode.ShutdownUnexpected,
+                exception));
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,11 +11,8 @@ namespace GraniteEdgeAI.Features.Onboarding;
 
 public sealed partial class OnboardingShellPage
 {
-    private readonly object _optimizationDestinationGate = new();
-    private readonly HashSet<Task> _optimizationDestinationOperations = [];
-    private OptimizationDestinationFacade? _optimizationDestinations;
-    private CancellationTokenSource? _optimizationLifecycleCancellation;
-    private OptimizationChatTarget? _activeOptimizationChatTarget;
+    private OptimizationDestinationLifecycle? _optimizationDestinationLifecycle;
+    private OptimizationDestinationLifecycle? _optimizedChatDestinationLifecycle;
 
     private OptimizationDestinationFacade CreateOptimizationDestinationFacade(
         OptimizationExecutionPlan plan,
@@ -55,131 +51,83 @@ public sealed partial class OnboardingShellPage
         OptimizationDestinationFacade destinations)
     {
         ArgumentNullException.ThrowIfNull(destinations);
-        if (_optimizationDestinations is not null
-            || _optimizationLifecycleCancellation is not null)
+        if (_optimizationDestinationLifecycle is not null)
         {
             throw new InvalidOperationException(
                 "The previous optimization destination lifecycle is still active.");
         }
 
-        _optimizationDestinations = destinations;
-        _optimizationLifecycleCancellation =
-            CancellationTokenSource.CreateLinkedTokenSource(
-                _lifetimeCancellation.Token);
+        _optimizationDestinationLifecycle = new OptimizationDestinationLifecycle(
+            destinations, _lifetimeCancellation.Token);
     }
 
-    private CancellationToken OptimizationDestinationToken =>
-        _optimizationLifecycleCancellation?.Token
-        ?? _lifetimeCancellation.Token;
-
-    private async Task<OptimizationChatTarget?>
-        CreateOptimizationChatTargetAsync(
-            OptimizationExecutionResult result,
-            CancellationToken cancellationToken)
+    private Task<OptimizationChatTargetUse?> CreateOptimizationChatTargetAsync(
+        OptimizationExecutionResult result)
     {
-        OptimizationDestinationFacade? destinations = _optimizationDestinations;
-        if (destinations is null)
-        {
-            return null;
-        }
-
-        OptimizationChatTarget? target = await TrackOptimizationDestinationOperationAsync(
-            destinations.CreateChatTargetAsync(result, cancellationToken));
-        if (target is null)
-        {
-            return null;
-        }
-
-        OptimizationChatTarget? previous = Interlocked.Exchange(
-            ref _activeOptimizationChatTarget, target);
-        previous?.Dispose();
-        return target;
+        OptimizationDestinationLifecycle? lifecycle =
+            _optimizationDestinationLifecycle;
+        return lifecycle is null
+            ? Task.FromResult<OptimizationChatTargetUse?>(null)
+            : lifecycle.CreateChatTargetUseAsync(result);
     }
 
     private Task<OptimizationDestinationExportResult> ExportOptimizedModelAsync(
         OptimizationExecutionResult result,
         string destination,
-        ulong maximumBytes,
-        CancellationToken cancellationToken)
+        ulong maximumBytes)
     {
-        OptimizationDestinationFacade? destinations = _optimizationDestinations;
-        return destinations is null
+        OptimizationDestinationLifecycle? lifecycle =
+            _optimizationDestinationLifecycle;
+        return lifecycle is null
             ? Task.FromResult(OptimizationDestinationExportResult.For(
                 result,
                 OptimizationDestinationExportDisposition.ResultRejected))
-            : TrackOptimizationDestinationOperationAsync(
-                destinations.ExportPersistentAsync(
-                    result,
-                    destination,
-                    maximumBytes,
-                    cancellationToken));
+            : lifecycle.ExportPersistentAsync(result, destination, maximumBytes);
     }
 
-    private async Task<T> TrackOptimizationDestinationOperationAsync<T>(
-        Task<T> operation)
+    private async Task RetireOptimizationDestinationLifecycleAsync(
+        bool preserveChatTarget)
     {
-        ArgumentNullException.ThrowIfNull(operation);
-        lock (_optimizationDestinationGate)
+        OptimizationDestinationLifecycle? lifecycle = Interlocked.Exchange(
+            ref _optimizationDestinationLifecycle, null);
+        if (lifecycle is null)
         {
-            _optimizationDestinationOperations.Add(operation);
+            return;
         }
 
         try
         {
-            return await operation;
+            await lifecycle.RetireAsync();
         }
         finally
         {
-            lock (_optimizationDestinationGate)
+            if (preserveChatTarget)
             {
-                _optimizationDestinationOperations.Remove(operation);
+                OptimizationDestinationLifecycle? previous =
+                    Interlocked.CompareExchange(
+                        ref _optimizedChatDestinationLifecycle,
+                        lifecycle,
+                        null);
+                if (previous is not null)
+                {
+                    lifecycle.RetireChatTarget();
+                    throw new InvalidOperationException(
+                        "An optimized chat destination already owns custody.");
+                }
+            }
+            else
+            {
+                lifecycle.RetireChatTarget();
             }
         }
     }
 
-    private async Task RetireOptimizationDestinationLifecycleAsync()
+    private void RetireActiveOptimizationChatTarget()
     {
-        CancellationTokenSource? cancellation = Interlocked.Exchange(
-            ref _optimizationLifecycleCancellation, null);
-        if (cancellation is not null)
-        {
-            await cancellation.CancelAsync();
-        }
-
-        while (true)
-        {
-            Task[] operations;
-            lock (_optimizationDestinationGate)
-            {
-                operations = [.. _optimizationDestinationOperations];
-            }
-            if (operations.Length == 0)
-            {
-                break;
-            }
-
-            try
-            {
-                await Task.WhenAll(operations);
-            }
-            catch (OperationCanceledException) when (
-                cancellation?.IsCancellationRequested == true)
-            {
-                // Lifecycle retirement owns this cancellation.
-            }
-            catch (Exception) when (cancellation is not null)
-            {
-                // The initiating UI operation observes its own typed failure;
-                // retirement only joins it before releasing journey custody.
-            }
-        }
-
-        _optimizationDestinations = null;
-        cancellation?.Dispose();
+        _optimizationDestinationLifecycle?.RetireChatTarget();
+        Interlocked.Exchange(
+            ref _optimizedChatDestinationLifecycle, null)?.RetireChatTarget();
     }
-
-    private void RetireActiveOptimizationChatTarget() =>
-        Interlocked.Exchange(ref _activeOptimizationChatTarget, null)?.Dispose();
 
     private sealed class UnavailableOptimizationDestinationRoute(
         OptimizationRoute route) : IOptimizationDestinationRoute

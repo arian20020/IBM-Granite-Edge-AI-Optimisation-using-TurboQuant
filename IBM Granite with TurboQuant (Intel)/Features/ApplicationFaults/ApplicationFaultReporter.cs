@@ -6,6 +6,8 @@ namespace GraniteEdgeAI.Features.ApplicationFaults;
 internal enum ApplicationFaultCode
 {
     CompatibilityEvaluationUnexpected,
+    OptimizationOperationUnexpected,
+    ShutdownUnexpected,
     GgufChatOperationUnexpected,
     GgufChatRetirementUnexpected,
     GgufChatInitializationCleanupUnexpected,

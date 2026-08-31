@@ -251,7 +251,7 @@ public sealed class RemediationGapContractTests
     }
 
     [TestMethod]
-    public void OpenVinoChatAndExportSourceCompositionRequiresExactResultAndLifecycleToken()
+    public void OpenVinoChatAndExportSourceCompositionRequiresExactResultLifecycle()
     {
         var failures = new List<string>();
         string shellPath = AppFile(
@@ -259,7 +259,7 @@ public sealed class RemediationGapContractTests
         RequireCompiledByAppProject(shellPath, failures);
         string shell = File.ReadAllText(shellPath);
         string method = MethodBody(shell,
-            "LaunchOptimizedChatAsync");
+            "LaunchOptimizedChatCoreAsync");
         string export = MethodBody(shell,
             "SaveOptimizedModelAsync");
         string selectionPath = AppFile(
@@ -269,16 +269,12 @@ public sealed class RemediationGapContractTests
 
         RequireToken(method, "CreateOptimizationChatTargetAsync",
             "Chat does not use the exact-result destination facade", failures);
-        RequireLifecycleInvocation(method, "CreateOptimizationChatTargetAsync",
-            ["state.Result"], failures);
-        RejectToken(method, "CancellationToken.None",
-            "Chat uses CancellationToken.None instead of a lifecycle token", failures);
+        RequireInvocationStatement(method, "CreateOptimizationChatTargetAsync",
+            "Chat does not invoke the exact-result lifecycle owner", failures);
         RejectToken(method, "LastPublishedDirectory",
             "Chat still trusts LastPublishedDirectory", failures);
-        RequireLifecycleInvocation(export, "ExportOptimizedModelAsync",
-            ["state.Result", "destination", "maximumBytes"], failures);
-        RejectToken(export, "CancellationToken.None",
-            "export uses CancellationToken.None instead of a lifecycle token", failures);
+        RequireInvocationStatement(export, "ExportOptimizedModelAsync",
+            "export does not invoke the exact-result lifecycle owner", failures);
         RejectToken(export, "LastPublishedDirectory",
             "export still trusts LastPublishedDirectory", failures);
         string conversionIntent = MethodBody(selection, "TryRequestFolderInspection");
@@ -327,14 +323,22 @@ public sealed class RemediationGapContractTests
         string lifecycle = ReadAppFile(
             "Features", "Onboarding",
             "OnboardingShellPage.OptimizationDestinations.cs");
+        string lifecycleOwner = ReadAppFile(
+            "Features", "ModelOptimization", "Storage",
+            "OptimizationDestinationLifecycle.cs");
         string navigation = NormalizeCode(MethodBody(
             shell, "NavigateToOptimization"));
         string chat = NormalizeCode(MethodBody(
+            shell, "LaunchOptimizedChatCoreAsync"));
+        string chatHandoff = NormalizeCode(MethodBody(
             shell, "LaunchOptimizedChatAsync"));
         string export = NormalizeCode(MethodBody(
             shell, "SaveOptimizedModelAsync"));
-        string retirement = NormalizeCode(MethodBody(
-            shell, "RetireOptimizationAsync"));
+        string intentHandler = NormalizeCode(MethodBody(
+            shell, "OptimizationPage_IntentRequested"));
+        string compatibilityReturn = NormalizeCode(MethodBody(
+            shell, "ReturnFromOptimizationAsync"));
+        string retirement = NormalizeCode(shell);
         string lifecycleCode = NormalizeCode(lifecycle);
 
         StringAssert.Contains(navigation,
@@ -342,11 +346,22 @@ public sealed class RemediationGapContractTests
         StringAssert.Contains(navigation,
             "BeginOptimizationDestinationLifecycle(");
         StringAssert.Contains(chat,
-            "CreateOptimizationChatTargetAsync(state.Result,cancellationToken)");
+            "CreateOptimizationChatTargetAsync(state.Result)");
+        StringAssert.Contains(chatHandoff,
+            "_optimizationChatHandoff.TryEnterAsync(_lifetimeCancellation.Token)");
+        StringAssert.Contains(chatHandoff,
+            "ReferenceEquals(_optimizationCoordinator,coordinator)");
+        StringAssert.Contains(compatibilityReturn,
+            "_optimizationChatHandoff.TryEnterAsync(_lifetimeCancellation.Token)");
+        StringAssert.Contains(compatibilityReturn,
+            "ReferenceEquals(_optimizationCoordinator,coordinator)");
+        Assert.IsFalse(intentHandler.Contains(
+            "_optimizationIntentActive", StringComparison.Ordinal),
+            "The shell must not suppress Cancel while Confirm is running.");
         StringAssert.Contains(export,
-            "ExportOptimizedModelAsync(state.Result,destination,maximumBytes,cancellationToken)");
+            "ExportOptimizedModelAsync(state.Result,destination,maximumBytes)");
         StringAssert.Contains(retirement,
-            "RetireOptimizationDestinationLifecycleAsync()");
+            "RetireOptimizationDestinationLifecycleAsync(preserveChatTarget)");
         StringAssert.Contains(lifecycleCode,
             "newGgufOptimizationDestinationRoute(plan,outputs,_modelSourceCustodyRegistry)");
         StringAssert.Contains(lifecycleCode,
@@ -354,13 +369,16 @@ public sealed class RemediationGapContractTests
         StringAssert.Contains(lifecycleCode,
             "newOptimizationDestinationFacade(gguf,openVino)");
         StringAssert.Contains(lifecycleCode,
-            "_activeOptimizationChatTarget");
+            "_optimizationDestinationLifecycle");
         StringAssert.Contains(lifecycleCode,
             "RetireActiveOptimizationChatTarget");
-        StringAssert.Contains(lifecycleCode,
-            "CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCancellation.Token)");
-        StringAssert.Contains(lifecycleCode,
-            "catch(Exception)when(cancellationisnotnull)");
+        string ownerCode = NormalizeCode(lifecycleOwner);
+        StringAssert.Contains(ownerCode,
+            "CancellationTokenSource.CreateLinkedTokenSource(lifetimeCancellation)");
+        StringAssert.Contains(ownerCode,
+            "_state=LifecycleState.Retiring;_facade=null;");
+        StringAssert.Contains(ownerCode,
+            "_chatAdmissionPending||_chatTargetisnotnull");
     }
 
     [TestMethod]

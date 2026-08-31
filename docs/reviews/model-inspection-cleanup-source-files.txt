@@ -160,6 +160,7 @@ IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/ModelIns
 IBM Granite with TurboQuant (Intel)/Features/ModelInspection/ViewModels/README.md
 IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Execution/OpenVino/OpenVinoOptimizationDestinationRoute.cs
 IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/OptimizationDestinationFacade.cs
+IBM Granite with TurboQuant (Intel)/Features/ModelOptimization/Storage/OptimizationDestinationLifecycle.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/OnboardingStageIndicator.xaml.cs
 IBM Granite with TurboQuant (Intel)/Features/Onboarding/Controls/README.md
