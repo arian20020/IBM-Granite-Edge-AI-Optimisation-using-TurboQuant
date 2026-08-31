@@ -1,4 +1,4 @@
-# E1 R4 v2 independent exact-candidate acceptance — Round 3
+# E1 R4 v2 independent exact-candidate acceptance — C0 intake correction
 
 ## Disposition
 
@@ -12,11 +12,13 @@ No package, native, candidate E2E, UI, visual, accessibility, performance or rel
 
 - Issued base ref: `refs/remotes/origin/integration/ucl-r4-e1-issued-base-v2`
 - Tested base commit/tree: `b5d2cd34c57368efb9b122cddf16c2ffa2d3895e` / `a3e4d82095caa9688f30d2463fa5971c788fd33f`
-- Round 3 implementation subject commit/tree: `fc6790c9920dca0036d5566777ec720164a6723b` / `995df9e0fef43434867438eece2f7c5dbbb8c973`
-- Rejected return: `fc4c3b96ef71145b36f450cd3c587d42e0e2bba8`
+- Final implementation subject commit/tree: `ded192b245e6f220469c4721e2a8cda9435123f1` / `b87a4e03b1b3c4eef4d63bf804fc8a0d0734a20d`
+- Superseded return: `e5405f0111c10a10dde49a470902b3d522924318`
 - Return branch: `test/ucl-e1-native-acceptance-r4-v2`
 
-The implementation range changes exactly seven permitted E1 files: the Round 3 plan, `R3IssueEvidenceVerifier.cs`, `R4TwoPhaseIssueEvidenceVerifierTests.cs`, `E1EvidenceSupportTests.cs`, `E1EndToEndRunnerInvocationTests.cs`, `E1EvidenceSupport.psm1`, and `Invoke-E1EndToEnd.ps1`. Product files, the immutable base and `main` are unchanged.
+The C0 intake correction changes only the Round 3 plan, `R3IssueEvidenceVerifier.cs`, `R4TwoPhaseIssueEvidenceVerifierTests.cs`, `E1EvidenceSupportTests.cs`, and `E1EvidenceSupport.psm1`. Product files, the immutable base and `main` are unchanged.
+
+The intake review found that the missing-prerequisite branch accepted any positive failed command. The final verifier now requires the exact `EXTERNAL-PREREQUISITE-PREFLIGHT` command, and a negative regression proves that an unrelated failed App Control command cannot close R3-020. The artifact boundary advanced to observation v4 and review v6; superseded artifact names are rejected after the final implementation subject.
 
 ## Round 3 corrections
 
@@ -28,11 +30,11 @@ The production Evidence runner now creates or validates the complete `TestResult
 
 ## Actual final-subject execution
 
-The exact-subject rebuild used canonical Program Files dotnet and SDK `10.0.400` MSBuild with `SourceRevisionId=fc6790c9920dca0036d5566777ec720164a6723b`. Build exit was 0 with zero reported warnings and zero errors. The fresh assembly was 282112 bytes with SHA-256 `68af38887d4a59071d67aac606f1e48ba2ec8dad2d26966c9e23af4e8592aee9` and product version `1.0.0+fc6790c9920dca0036d5566777ec720164a6723b`.
+The exact-subject rebuild used canonical Program Files dotnet with `SourceRevisionId=ded192b245e6f220469c4721e2a8cda9435123f1`. Build exit was 0 with zero reported warnings and zero errors. The fresh assembly was 283136 bytes with SHA-256 `21e07d2d2da896e9e154818e61c4a517168bbb78a87c43fee16fe2f8d7bef1bc` and product version `1.0.0+ded192b245e6f220469c4721e2a8cda9435123f1`.
 
 | Command/gate | Discovered | Executed | Passed | Failed | Skipped | Exit/result |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| Round 3 focused harness | 36 | 36 | 36 | 0 | 0 | 0; passed |
+| C0 intake focused harness | 37 | 37 | 37 | 0 | 0 | 0; passed |
 | External prerequisite preflight | 1 | 1 | 0 | 1 | 0 | 1; candidate manifest absent |
 | Package activation | 0 | 0 | 0 | 0 | 0 | 1; blocked, not executed |
 | App Control gate | 0 | 0 | 0 | 0 | 0 | 1; blocked, not executed |
@@ -40,7 +42,7 @@ The exact-subject rebuild used canonical Program Files dotnet and SDK `10.0.400`
 | Candidate E2E | 0 | 0 | 0 | 0 | 0 | 1; blocked, not executed |
 | Final candidate-bound evaluator | 1 | 1 | 1 | 0 | 0 | 0; passed |
 
-The final canonical non-overlapping total is 37/37. Every test-command row satisfies `discovered == executed` and `executed == passed + failed + skipped`. Blocked and historical results are excluded. The exact final evaluator identity executed once and passed once with zero failures and zero skips.
+The final canonical non-overlapping total is 38/38. Every test-command row satisfies `discovered == executed` and `executed == passed + failed + skipped`. Blocked and historical results are excluded. The exact final evaluator identity executed once and passed once with zero failures and zero skips.
 
 The rejected return's exact-subject E1 assembly was previously blocked by Windows Application Control with `0x800711C7`. That historical result is not promoted to this successor subject: the successor's first focused attempt executed and passed, so no unchanged-binary retry was performed and no successor App Control observation is claimed.
 
@@ -54,6 +56,6 @@ The rejected return's exact-subject E1 assembly was previously blocked by Window
 
 ## Reviews and issue result
 
-The first independent implementation review found two Important issues: unchecked `Int64` overflow and incomplete missing-prerequisite `0/0` negative coverage. Both were corrected test-first in the successor subject. The successor implementation review and the final six-artifact review each found zero Critical, zero Important and zero Minor findings and returned `PASS_NO_REMAINING_CRITICAL_OR_IMPORTANT`. The final reviewer confirmed that substituting a successor App Control observation would fabricate evidence because the successor harness executed 36/36; the observed missing `candidateManifest` is therefore the truthful canonical external block.
+Earlier reviews found and corrected unchecked `Int64` overflow, incomplete missing-prerequisite `0/0` coverage, and non-exact missing-prerequisite command binding. The final independent implementation review found zero Critical and zero Important findings and returned `PASS_NO_REMAINING_CRITICAL_OR_IMPORTANT`. Historical App Control evidence remains non-promoted; the observed missing `candidateManifest` is the truthful canonical external block.
 
 Final issue result: `R3-020=true`; `R3-022=false`.

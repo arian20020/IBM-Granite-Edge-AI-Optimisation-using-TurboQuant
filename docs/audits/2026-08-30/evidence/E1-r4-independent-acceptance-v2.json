@@ -2,15 +2,15 @@
   "schemaVersion": 2,
   "workerId": "E1",
   "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
-  "evidenceSubjectCommit": "fc6790c9920dca0036d5566777ec720164a6723b",
-  "evidenceSubjectTree": "995df9e0fef43434867438eece2f7c5dbbb8c973",
-  "createdAtUtc": "2026-08-31T23:29:15Z",
+  "evidenceSubjectCommit": "ded192b245e6f220469c4721e2a8cda9435123f1",
+  "evidenceSubjectTree": "b87a4e03b1b3c4eef4d63bf804fc8a0d0734a20d",
+  "createdAtUtc": "2026-08-31T23:55:28Z",
   "route": ["shared", "gguf", "openvino"],
   "evidenceStatus": "blocked",
   "report": {
     "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
-    "sha256": "dc55a744759ba08ee6803f1af1d0d5504c84f04c5eb1898c294d6bb454b95875",
-    "bytes": 5530
+    "sha256": "a56dede1325d959621cc981e79edeb6a16bf5c52b1cb24e0dcc517fa9b5c588f",
+    "bytes": 5647
   },
   "inputs": [
     {"kind":"validated-candidate-base","id":"b5d2cd34c57368efb9b122cddf16c2ffa2d3895e","evidenceGrade":"verified"},
@@ -19,11 +19,11 @@
     {"kind":"issue-evidence-catalog","id":"C0-r4-issue-evidence-index-v2.json","sha256":"13dd8e4e103d82dd8449e4b37e46b538725aea67fdeef18d92dd02760f8d488c","bytes":18924,"evidenceGrade":"verified"}
   ],
   "outputs": [
-    {"kind":"independent-final-review","id":"E1-r4-independent-final-review-v5.json","sha256":"0eb09180d642419909dd2e53e82000bd48d345885bbb30c1037dd0e10abcd6b4","bytes":335,"evidenceGrade":"verified"},
-    {"kind":"external-block-observation","id":"E1-r4-external-block-observation-v3.json","sha256":"8fafb33001d5544ef6533adb1683edda0448f2d071b906e4f4748c57ef58b0cf","bytes":466,"evidenceGrade":"verified"}
+    {"kind":"independent-final-review","id":"E1-r4-independent-final-review-v6.json","sha256":"e0309ccb21cae65dd3b9590dc28fae8822619a8a8112bdb2161855910fe9875d","bytes":335,"evidenceGrade":"verified"},
+    {"kind":"external-block-observation","id":"E1-r4-external-block-observation-v4.json","sha256":"1bc15ec1e3ca5f2f15b1815ff0b3fc98773242fe34f16cc82686c2f0b9551f1b","bytes":466,"evidenceGrade":"verified"}
   ],
   "commands": [
-    {"id":"E1-FOCUSED-HARNESS","exitCode":0,"discovered":36,"executed":36,"passed":36,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"E1-FOCUSED-HARNESS","exitCode":0,"discovered":37,"executed":37,"passed":37,"failed":0,"skipped":0,"disposition":"passed"},
     {"id":"EXTERNAL-PREREQUISITE-PREFLIGHT","exitCode":1,"discovered":1,"executed":1,"passed":0,"failed":1,"skipped":0,"disposition":"blocked"},
     {"id":"PACKAGE-ACTIVATION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
     {"id":"SECURITY-APP-CONTROL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
@@ -37,7 +37,7 @@
     "R3-022 remains blocked and unresolved because package, App Control, native and candidate E2E evidence was not executed."
   ],
   "nonClaims": [
-    "The rejected return's 0x800711C7 event is historical and is not relabelled as successor-subject evidence; the successor focused command passed 36/36.",
+    "The rejected return's 0x800711C7 event is historical and is not relabelled as successor-subject evidence; the final focused command passed 37/37.",
     "No package activation, native GGUF/OpenVINO, real-model, UI, visual, accessibility, performance or release pass is claimed.",
     "Blocked and unexecuted rows are not counted as passes; no product, machine-security, tested-base or main-branch change was made."
   ]

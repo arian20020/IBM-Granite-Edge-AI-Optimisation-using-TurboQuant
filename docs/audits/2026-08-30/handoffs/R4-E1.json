@@ -6,25 +6,25 @@
   "baseCommit": "b5d2cd34c57368efb9b122cddf16c2ffa2d3895e",
   "baseTree": "a3e4d82095caa9688f30d2463fa5971c788fd33f",
   "branch": "test/ucl-e1-native-acceptance-r4-v2",
-  "implementationSubjectCommit": "fc6790c9920dca0036d5566777ec720164a6723b",
-  "implementationSubjectTree": "995df9e0fef43434867438eece2f7c5dbbb8c973",
+  "implementationSubjectCommit": "ded192b245e6f220469c4721e2a8cda9435123f1",
+  "implementationSubjectTree": "b87a4e03b1b3c4eef4d63bf804fc8a0d0734a20d",
   "worktreeCleanAtHandoff": true,
-  "completedAtUtc": "2026-08-31T23:29:15Z",
+  "completedAtUtc": "2026-08-31T23:55:28Z",
   "report": {
     "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
-    "sha256": "dc55a744759ba08ee6803f1af1d0d5504c84f04c5eb1898c294d6bb454b95875",
-    "bytes": 5530
+    "sha256": "a56dede1325d959621cc981e79edeb6a16bf5c52b1cb24e0dcc517fa9b5c588f",
+    "bytes": 5647
   },
   "transport": "remote",
   "remoteRef": "refs/remotes/origin/test/ucl-e1-native-acceptance-r4-v2",
   "bundle": null,
   "evidenceManifest": {
     "path": "docs/audits/2026-08-30/evidence/E1-r4-independent-acceptance-v2.json",
-    "sha256": "b37f937118bb2b7328cf1f152b5e3298eb34783d12b690eacdb084aba15ed30c",
-    "bytes": 3443,
-    "evidenceSubjectCommit": "fc6790c9920dca0036d5566777ec720164a6723b",
-    "evidenceSubjectTree": "995df9e0fef43434867438eece2f7c5dbbb8c973"
+    "sha256": "3fa82349887823b30d5b06a7eac998cda285e2f36d2c066d50eda83916b9ac68",
+    "bytes": 3439,
+    "evidenceSubjectCommit": "ded192b245e6f220469c4721e2a8cda9435123f1",
+    "evidenceSubjectTree": "b87a4e03b1b3c4eef4d63bf804fc8a0d0734a20d"
   },
-  "testTotals": {"discovered":37,"executed":37,"passed":37,"failed":0,"skipped":0},
+  "testTotals": {"discovered":38,"executed":38,"passed":38,"failed":0,"skipped":0},
   "nativeDisposition": "blocked"
 }
