@@ -58,32 +58,34 @@ Repository, hardware, and software identities remain in each route package and i
 
 The gate evaluates route-wide protocol signatures and does not pair values across unmatched configurations.
 
-### CP-01 — Machine-readable comparability matrix
+### CP-01 — Comparability decision matrix
 
-| Left route | Right route | Metric | Classification | Reason codes |
-| --- | --- | --- | --- | --- |
-| animehacker-tq3-0 | atomicbot-turboquant | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| animehacker-tq3-0 | atomicbot-turboquant | quality | descriptive_only | ["model_mismatch","scoring_version_mismatch"] |
-| animehacker-tq3-0 | openvino-experimental-fork | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch"] |
-| animehacker-tq3-0 | openvino-experimental-fork | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
-| animehacker-tq3-0 | openvino-official-upstream | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch"] |
-| animehacker-tq3-0 | openvino-official-upstream | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
-| animehacker-tq3-0 | upstream-llama-cpp | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| animehacker-tq3-0 | upstream-llama-cpp | quality | descriptive_only | ["model_mismatch","scoring_version_mismatch","denominator_mismatch"] |
-| atomicbot-turboquant | openvino-experimental-fork | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| atomicbot-turboquant | openvino-experimental-fork | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
-| atomicbot-turboquant | openvino-official-upstream | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| atomicbot-turboquant | openvino-official-upstream | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
-| atomicbot-turboquant | upstream-llama-cpp | generation_tokens_per_second | not_comparable | ["repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| atomicbot-turboquant | upstream-llama-cpp | quality | descriptive_only | ["scoring_version_mismatch","denominator_mismatch"] |
-| openvino-experimental-fork | openvino-official-upstream | generation_tokens_per_second | direct | ["all_required_dimensions_match"] |
-| openvino-experimental-fork | openvino-official-upstream | quality | direct | ["all_required_dimensions_match"] |
-| openvino-experimental-fork | upstream-llama-cpp | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| openvino-experimental-fork | upstream-llama-cpp | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
-| openvino-official-upstream | upstream-llama-cpp | generation_tokens_per_second | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| openvino-official-upstream | upstream-llama-cpp | quality | descriptive_only | ["model_mismatch","backend_class_mismatch","prompt_set_mismatch","rubric_mismatch","scoring_version_mismatch","denominator_mismatch","aggregation_mismatch"] |
+| Left route | Right route | Metric | Classification | Matched | Left only | Right only | Reason summary |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| animehacker-tq3-0 | atomicbot-turboquant | generation_tokens_per_second | not_comparable | 0 | 7 | 19 | no_matched_case_ids |
+| animehacker-tq3-0 | atomicbot-turboquant | quality | descriptive_only | 0 | 7 | 19 | no_matched_case_ids; +3 more (see catalog CSV) |
+| animehacker-tq3-0 | openvino-experimental-fork | generation_tokens_per_second | not_comparable | 0 | 7 | 27 | no_matched_case_ids |
+| animehacker-tq3-0 | openvino-experimental-fork | quality | descriptive_only | 0 | 7 | 27 | no_matched_case_ids; +8 more (see catalog CSV) |
+| animehacker-tq3-0 | openvino-official-upstream | generation_tokens_per_second | not_comparable | 0 | 7 | 15 | no_matched_case_ids |
+| animehacker-tq3-0 | openvino-official-upstream | quality | descriptive_only | 0 | 7 | 15 | no_matched_case_ids; +8 more (see catalog CSV) |
+| animehacker-tq3-0 | upstream-llama-cpp | generation_tokens_per_second | not_comparable | 0 | 7 | 13 | no_matched_case_ids |
+| animehacker-tq3-0 | upstream-llama-cpp | quality | descriptive_only | 0 | 7 | 13 | no_matched_case_ids; +4 more (see catalog CSV) |
+| atomicbot-turboquant | openvino-experimental-fork | generation_tokens_per_second | not_comparable | 0 | 19 | 27 | no_matched_case_ids |
+| atomicbot-turboquant | openvino-experimental-fork | quality | descriptive_only | 0 | 19 | 27 | no_matched_case_ids; +8 more (see catalog CSV) |
+| atomicbot-turboquant | openvino-official-upstream | generation_tokens_per_second | not_comparable | 0 | 19 | 15 | no_matched_case_ids |
+| atomicbot-turboquant | openvino-official-upstream | quality | descriptive_only | 0 | 19 | 15 | no_matched_case_ids; +8 more (see catalog CSV) |
+| atomicbot-turboquant | upstream-llama-cpp | generation_tokens_per_second | not_comparable | 0 | 19 | 13 | no_matched_case_ids |
+| atomicbot-turboquant | upstream-llama-cpp | quality | descriptive_only | 0 | 19 | 13 | no_matched_case_ids; +3 more (see catalog CSV) |
+| openvino-experimental-fork | openvino-official-upstream | generation_tokens_per_second | direct | 15 | 12 | 0 | all_required_dimensions_match |
+| openvino-experimental-fork | openvino-official-upstream | quality | direct | 15 | 12 | 0 | all_required_dimensions_match |
+| openvino-experimental-fork | upstream-llama-cpp | generation_tokens_per_second | not_comparable | 0 | 27 | 13 | no_matched_case_ids |
+| openvino-experimental-fork | upstream-llama-cpp | quality | descriptive_only | 0 | 27 | 13 | no_matched_case_ids; +8 more (see catalog CSV) |
+| openvino-official-upstream | upstream-llama-cpp | generation_tokens_per_second | not_comparable | 0 | 15 | 13 | no_matched_case_ids |
+| openvino-official-upstream | upstream-llama-cpp | quality | descriptive_only | 0 | 15 | 13 | no_matched_case_ids; +8 more (see catalog CSV) |
 
 *Direct still requires consumers to match individual model/configuration rows.*
+
+*Complete machine-readable reason codes, details, case IDs, and signature mismatches are retained in the comparability catalog CSV.*
 
 ## 6. Model, weight, cache-format, and backend availability
 
@@ -290,30 +292,30 @@ Throughput is direct only where model, input length, output length, backend clas
 
 | Left route | Right route | Classification | Reason codes |
 | --- | --- | --- | --- |
-| animehacker-tq3-0 | atomicbot-turboquant | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| animehacker-tq3-0 | openvino-experimental-fork | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch"] |
-| animehacker-tq3-0 | openvino-official-upstream | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch"] |
-| animehacker-tq3-0 | upstream-llama-cpp | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| atomicbot-turboquant | openvino-experimental-fork | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| atomicbot-turboquant | openvino-official-upstream | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| atomicbot-turboquant | upstream-llama-cpp | not_comparable | ["repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| animehacker-tq3-0 | atomicbot-turboquant | not_comparable | ["no_matched_case_ids"] |
+| animehacker-tq3-0 | openvino-experimental-fork | not_comparable | ["no_matched_case_ids"] |
+| animehacker-tq3-0 | openvino-official-upstream | not_comparable | ["no_matched_case_ids"] |
+| animehacker-tq3-0 | upstream-llama-cpp | not_comparable | ["no_matched_case_ids"] |
+| atomicbot-turboquant | openvino-experimental-fork | not_comparable | ["no_matched_case_ids"] |
+| atomicbot-turboquant | openvino-official-upstream | not_comparable | ["no_matched_case_ids"] |
+| atomicbot-turboquant | upstream-llama-cpp | not_comparable | ["no_matched_case_ids"] |
 | openvino-experimental-fork | openvino-official-upstream | direct | ["all_required_dimensions_match"] |
-| openvino-experimental-fork | upstream-llama-cpp | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
-| openvino-official-upstream | upstream-llama-cpp | not_comparable | ["model_mismatch","input_length_mismatch","output_length_mismatch","backend_class_mismatch","repetition_treatment_mismatch","input_length_missing","output_length_missing"] |
+| openvino-experimental-fork | upstream-llama-cpp | not_comparable | ["no_matched_case_ids"] |
+| openvino-official-upstream | upstream-llama-cpp | not_comparable | ["no_matched_case_ids"] |
 
 ## 9. Quality methodology and results
 
-Quality ranking additionally requires the identical prompt set, rubric, scoring version, denominator, and aggregation.
+Quality ranking additionally requires the identical prompt set, prompt-suite identity, rubric, scoring version, denominator, and aggregation.
 
 ### QM-01 — Quality methodology boundaries
 
-| Route | Prompt set | Rubric | Scoring version | Denominator set |
-| --- | --- | --- | --- | --- |
-| animehacker-tq3-0 | P1, P2, P3, P4, P5, P6 | GTQ-QUALITY-RUBRIC-v1 | historical-harsh-content-adjudication | 60.0 |
-| atomicbot-turboquant | P1, P2, P3, P4, P5, P6 | GTQ-QUALITY-RUBRIC-v1 | v1-recomputed-and-evidence-bound; application limited/provisional | 60.0 |
-| openvino-experimental-fork | Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48 | objective-quality-weighted-5-3-2-output-health-gate | experimental-openvino-objective-quality/v2 | 480.0 |
-| openvino-official-upstream | Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48 | objective-quality-weighted-5-3-2-output-health-gate | experimental-openvino-objective-quality/v2 | 480.0 |
-| upstream-llama-cpp | P1, P2, P3, P4, P5, P6 | GTQ-QUALITY-RUBRIC-v1 | WB-01-v1.4-conservative-format-caps | 40.0, 60.0 |
+| Route | Prompt set | Prompt suite | Rubric | Scoring version | Denominator set |
+| --- | --- | --- | --- | --- | --- |
+| animehacker-tq3-0 | P1, P2, P3, P4, P5, P6 | GTQ-PROMPTS-v1 | GTQ-QUALITY-RUBRIC-v1 | historical-harsh-content-adjudication | 60.0 |
+| atomicbot-turboquant | P1, P2, P3, P4, P5, P6 | GTQ-PROMPTS-v1 | GTQ-QUALITY-RUBRIC-v1 | v1-recomputed-and-evidence-bound; application limited/provisional | 60.0 |
+| openvino-experimental-fork | Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48 | OPENVINO-SECTOR-EXPERIENCE-QUALITY-v3 | objective-quality-weighted-5-3-2-output-health-gate | experimental-openvino-objective-quality/v2 | 480.0 |
+| openvino-official-upstream | Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48 | OPENVINO-SECTOR-EXPERIENCE-QUALITY-v3 | objective-quality-weighted-5-3-2-output-health-gate | experimental-openvino-objective-quality/v2 | 480.0 |
+| upstream-llama-cpp | P1, P2, P3, P4, P5, P6 | GTQ-PROMPTS-v1 | GTQ-QUALITY-RUBRIC-v1 | WB-01-v1.4-conservative-format-caps | 40.0, 60.0 |
 
 > Note: OpenVINO v3 and legacy llama quality evidence are descriptive only; incompatible quality scores are not ranked.
 

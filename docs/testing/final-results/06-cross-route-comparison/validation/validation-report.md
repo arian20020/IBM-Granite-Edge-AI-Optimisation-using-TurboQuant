@@ -1,3 +1,7 @@
 # Validation report
 
-Comparability reason coverage, complete status retention, unsupported-ranking prohibition, and Markdown/DOCX semantic parity: Passed. PDF visual validation follows owned Word export.
+Derived cross-route data/report validation and Markdown/DOCX semantic parity: Passed.
+
+Automated PDF rendering and structural checks: Passed.
+
+Manual full-page visual QA: Passed.

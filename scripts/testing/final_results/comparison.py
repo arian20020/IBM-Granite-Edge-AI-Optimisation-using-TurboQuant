@@ -40,11 +40,19 @@ class Comparability:
     classification: str
     reasons: tuple[str, ...]
     reason_details: Mapping[str, Mapping[str, object]]
+    matched_case_ids: tuple[str, ...] = ()
+    left_only_case_ids: tuple[str, ...] = ()
+    right_only_case_ids: tuple[str, ...] = ()
+    signature_mismatches: tuple[Mapping[str, object], ...] = ()
 
     def __post_init__(self) -> None:
         if self.classification not in _LEVELS:
             raise ValueError(f"unsupported comparability classification: {self.classification!r}")
         object.__setattr__(self, "reasons", tuple(self.reasons))
+        object.__setattr__(self, "matched_case_ids", tuple(self.matched_case_ids))
+        object.__setattr__(self, "left_only_case_ids", tuple(self.left_only_case_ids))
+        object.__setattr__(self, "right_only_case_ids", tuple(self.right_only_case_ids))
+        object.__setattr__(self, "signature_mismatches", tuple(dict(row) for row in self.signature_mismatches))
         object.__setattr__(
             self,
             "reason_details",
@@ -56,12 +64,33 @@ class Comparability:
         """Compatibility alias for consumers that call the decision a level."""
         return self.classification
 
+    @property
+    def matched_case_count(self) -> int:
+        return len(self.matched_case_ids)
+
+    @property
+    def left_only_case_count(self) -> int:
+        return len(self.left_only_case_ids)
+
+    @property
+    def right_only_case_count(self) -> int:
+        return len(self.right_only_case_ids)
+
     def to_row(self) -> dict[str, object]:
         return {
             "classification": self.classification,
             "reason_codes_json": json.dumps(self.reasons, separators=(",", ":")),
             "reason_details_json": json.dumps(
                 self.reason_details, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ),
+            "matched_case_count": self.matched_case_count,
+            "matched_case_ids_json": json.dumps(self.matched_case_ids, separators=(",", ":")),
+            "left_only_case_count": self.left_only_case_count,
+            "left_only_case_ids_json": json.dumps(self.left_only_case_ids, separators=(",", ":")),
+            "right_only_case_count": self.right_only_case_count,
+            "right_only_case_ids_json": json.dumps(self.right_only_case_ids, separators=(",", ":")),
+            "signature_mismatches_json": json.dumps(
+                self.signature_mismatches, ensure_ascii=False, sort_keys=True, separators=(",", ":")
             ),
         }
 
@@ -83,59 +112,66 @@ def _backend_class(value: str) -> str:
     return token
 
 
-def _passed_case_ids(bundle: RouteBundle) -> set[str]:
-    return {row.test_case_id for row in bundle.attempts if row.status is Status.PASSED}
+def _passed_attempts_by_case(bundle: RouteBundle) -> dict[str, list[object]]:
+    result: dict[str, list[object]] = defaultdict(list)
+    for row in bundle.attempts:
+        if row.status is Status.PASSED:
+            result[row.test_case_id].append(row)
+    return result
 
 
-def _models(bundle: RouteBundle, case_ids: set[str]) -> frozenset[str]:
-    return frozenset(
-        str(row.model_id).casefold()
-        for row in bundle.attempts
-        if row.test_case_id in case_ids and row.model_id
-    )
+def _one_or_many(values: Iterable[object]) -> object:
+    unique = sorted({_jsonable(value) if not isinstance(value, dict) else json.dumps(value, sort_keys=True) for value in values}, key=str)
+    decoded = [json.loads(value) if isinstance(value, str) and value.startswith(("{", "[")) else value for value in unique]
+    if not decoded:
+        return {"status": "missing"}
+    return decoded[0] if len(decoded) == 1 else decoded
 
 
-def _backends(bundle: RouteBundle, case_ids: set[str]) -> frozenset[str]:
-    explicit = {
-        _backend_class(str(row.backend_id))
-        for row in bundle.attempts
-        if row.test_case_id in case_ids and row.backend_id
-    }
-    if explicit:
-        return frozenset(explicit)
-    if bundle.route_id.startswith("openvino-"):
-        return frozenset({"cpu"})
-    return frozenset()
-
-
-def _throughput_signature(bundle: RouteBundle, metric: str) -> dict[str, object] | None:
-    summaries = [row for row in bundle.summaries if row.metric_name == metric and row.value is not None]
-    if not summaries:
-        return None
-    case_ids = {row.test_case_id for row in summaries} & _passed_case_ids(bundle)
-    if not case_ids:
-        return None
-    measurement_ids = {
-        measurement_id
-        for row in summaries
-        if row.test_case_id in case_ids
-        for measurement_id in row.source_measurement_ids
-    }
-    measurements = [
-        row for row in bundle.measurements
-        if row.test_case_id in case_ids
-        and (not measurement_ids or row.measurement_id in measurement_ids)
-    ]
+def _case_identity(bundle: RouteBundle, case_id: str, attempts: Mapping[str, Sequence[object]]) -> dict[str, object]:
+    rows = attempts.get(case_id, ())
+    models = [str(row.model_id).casefold() for row in rows if row.model_id]
+    backends = [_backend_class(str(row.backend_id)) for row in rows if row.backend_id]
+    if not backends and bundle.route_id.startswith("openvino-"):
+        backends = ["cpu"]
     return {
-        "models": _models(bundle, case_ids),
-        "input_lengths": frozenset(row.input_tokens for row in measurements if row.input_tokens is not None),
-        "output_lengths": frozenset(row.output_tokens for row in measurements if row.output_tokens is not None),
-        "backend_classes": _backends(bundle, case_ids),
-        "repetition_treatments": frozenset(
-            (row.aggregation.casefold(), len(row.source_measurement_ids)) for row in summaries if row.test_case_id in case_ids
-        ),
-        "metric_definitions": frozenset((row.metric_name, row.unit.casefold()) for row in summaries),
+        "model_identity": _one_or_many(models),
+        "backend_class": _one_or_many(backends),
     }
+
+
+def _throughput_signatures(bundle: RouteBundle, metric: str) -> dict[str, dict[str, object]]:
+    attempts = _passed_attempts_by_case(bundle)
+    summaries_by_case: dict[str, list[object]] = defaultdict(list)
+    for row in bundle.summaries:
+        if row.metric_name == metric and row.value is not None and row.test_case_id in attempts:
+            summaries_by_case[row.test_case_id].append(row)
+    measurements_by_case: dict[str, dict[str, object]] = defaultdict(dict)
+    for row in bundle.measurements:
+        measurements_by_case[row.test_case_id][row.measurement_id] = row
+    result: dict[str, dict[str, object]] = {}
+    for case_id, summaries in sorted(summaries_by_case.items()):
+        selected_measurements = [
+            measurements_by_case[case_id][measurement_id]
+            for summary in summaries
+            for measurement_id in summary.source_measurement_ids
+            if measurement_id in measurements_by_case[case_id]
+        ]
+        signature = _case_identity(bundle, case_id, attempts)
+        signature.update({
+            "input_length": _one_or_many(row.input_tokens for row in selected_measurements if row.input_tokens is not None),
+            "output_length": _one_or_many(row.output_tokens for row in selected_measurements if row.output_tokens is not None),
+            "repetition_treatment": _one_or_many({
+                "aggregation": row.aggregation.casefold(),
+                "source_measurement_count": len(row.source_measurement_ids),
+            } for row in summaries),
+            "metric_definition": _one_or_many({
+                "metric_name": row.metric_name,
+                "unit": row.unit.casefold(),
+            } for row in summaries),
+        })
+        result[case_id] = signature
+    return result
 
 
 def _quality_aggregation(bundle: RouteBundle, rows: Sequence[object]) -> str:
@@ -148,47 +184,185 @@ def _quality_aggregation(bundle: RouteBundle, rows: Sequence[object]) -> str:
     return "arithmetic mean of per-prompt scores"
 
 
-def _quality_signature(bundle: RouteBundle) -> dict[str, object] | None:
-    rows = [row for row in bundle.quality if row.score is not None and row.maximum_score is not None]
-    if not rows:
-        return None
-    case_ids = {row.test_case_id for row in rows} & _passed_case_ids(bundle)
-    rows = [row for row in rows if row.test_case_id in case_ids]
-    if not rows:
-        return None
-    denominator_by_case: dict[str, float] = defaultdict(float)
-    for row in rows:
-        denominator_by_case[row.test_case_id] += float(row.maximum_score)
+def _quality_signatures(bundle: RouteBundle) -> dict[str, dict[str, object]]:
+    attempts = _passed_attempts_by_case(bundle)
+    by_case: dict[str, list[object]] = defaultdict(list)
+    for row in bundle.quality:
+        if row.score is not None and row.test_case_id in attempts:
+            by_case[row.test_case_id].append(row)
+    result: dict[str, dict[str, object]] = {}
+    for case_id, rows in sorted(by_case.items()):
+        identity = _case_identity(bundle, case_id, attempts)
+        prompt_set = sorted({str(row.prompt_id) for row in rows if row.prompt_id})
+        maximums = [float(row.maximum_score) for row in rows if row.maximum_score is not None]
+        row_signatures: dict[str, dict[str, object]] = {}
+        for row in rows:
+            prompt_key = str(row.prompt_id) if row.prompt_id else f"__missing_prompt__:{row.quality_id}"
+            criterion_key = str(row.criterion_id) if row.criterion_id else f"__missing_criterion__:{row.quality_id}"
+            row_id = f"{prompt_key}::{criterion_key}"
+            if row_id in row_signatures:
+                row_id = f"{row_id}::{row.quality_id}"
+            row_signatures[row_id] = {
+                "prompt_id": str(row.prompt_id) if row.prompt_id else {"status": "missing"},
+                "criterion_id": str(row.criterion_id) if row.criterion_id else {"status": "missing"},
+                "prompt_suite": str(row.prompt_suite_id) if row.prompt_suite_id else {"status": "missing"},
+                "rubric": str(row.rubric_id) if row.rubric_id else {"status": "missing"},
+                "scoring_version": str(row.scoring_version) if row.scoring_version else {"status": "missing"},
+                "maximum_score": float(row.maximum_score) if row.maximum_score is not None else {"status": "missing"},
+            }
+        identity.update({
+            "prompt_set": prompt_set if prompt_set else {"status": "missing"},
+            "denominator": round(sum(maximums), 12) if len(maximums) == len(rows) else {"status": "missing"},
+            "aggregation": _quality_aggregation(bundle, rows) or {"status": "missing"},
+            "rows": row_signatures,
+        })
+        result[case_id] = identity
+    return result
+
+
+def _quality_method_profile(signatures: Mapping[str, Mapping[str, object]]) -> dict[str, object]:
+    models: set[str] = set()
+    backends: set[str] = set()
+    prompts: set[str] = set()
+    prompt_ids: set[str] = set()
+    criterion_ids: set[str] = set()
+    suites: set[str] = set()
+    rubrics: set[str] = set()
+    versions: set[str] = set()
+    denominators: set[object] = set()
+    aggregations: set[str] = set()
+    for signature in signatures.values():
+        if not _missing_status(signature["model_identity"]):
+            model_values = signature["model_identity"] if isinstance(signature["model_identity"], list) else [signature["model_identity"]]
+            models.update(str(value) for value in model_values)
+        if not _missing_status(signature["backend_class"]):
+            backend_values = signature["backend_class"] if isinstance(signature["backend_class"], list) else [signature["backend_class"]]
+            backends.update(str(value) for value in backend_values)
+        prompt_set = signature["prompt_set"]
+        if isinstance(prompt_set, list):
+            prompts.update(str(value) for value in prompt_set)
+        denominator = signature["denominator"]
+        if not _missing_status(denominator):
+            denominators.add(denominator)
+        aggregation = signature["aggregation"]
+        if not _missing_status(aggregation):
+            aggregations.add(str(aggregation))
+        for row in signature["rows"].values():
+            if not _missing_status(row["prompt_id"]):
+                prompt_ids.add(str(row["prompt_id"]))
+            if not _missing_status(row["criterion_id"]):
+                criterion_ids.add(str(row["criterion_id"]))
+            if not _missing_status(row["prompt_suite"]):
+                suites.add(str(row["prompt_suite"]))
+            if not _missing_status(row["rubric"]):
+                rubrics.add(str(row["rubric"]))
+            if not _missing_status(row["scoring_version"]):
+                versions.add(str(row["scoring_version"]))
     return {
-        "models": _models(bundle, case_ids),
-        "backend_classes": _backends(bundle, case_ids),
-        "prompt_set": frozenset(str(row.prompt_id) for row in rows if row.prompt_id),
-        "rubrics": frozenset(str(row.rubric_id) for row in rows if row.rubric_id),
-        "scoring_versions": frozenset(str(row.scoring_version) for row in rows if row.scoring_version),
-        "denominators": frozenset(round(value, 12) for value in denominator_by_case.values()),
-        "aggregations": frozenset({_quality_aggregation(bundle, rows)}),
+        "model_identity": sorted(models),
+        "backend_class": sorted(backends),
+        "prompt_set": sorted(prompts),
+        "prompt_id": sorted(prompt_ids),
+        "criterion_id": sorted(criterion_ids),
+        "prompt_suite": sorted(suites),
+        "rubric": sorted(rubrics),
+        "scoring_version": sorted(versions),
+        "denominator": sorted(denominators, key=str),
+        "aggregation": sorted(aggregations),
     }
 
 
-def _missing_decision(side: str) -> Comparability:
-    reason = f"{side}_metric_evidence_missing"
-    return Comparability(
-        "not_comparable",
-        (reason,),
-        {reason: {"left": "missing" if side == "left" else "present", "right": "missing" if side == "right" else "present"}},
-    )
+def _quality_method_missing_locations(
+    signatures: Mapping[str, Mapping[str, object]],
+) -> dict[str, list[dict[str, str]]]:
+    """Return named route-method locations lacking required quality metadata."""
+    missing: dict[str, list[dict[str, str]]] = {
+        field: []
+        for field in (
+            "model_identity", "backend_class", "prompt_set", "prompt_id", "criterion_id",
+            "prompt_suite", "rubric", "scoring_version", "denominator", "aggregation",
+        )
+    }
+    for case_id, signature in signatures.items():
+        for field in ("model_identity", "backend_class", "prompt_set", "denominator", "aggregation"):
+            if _missing_status(signature[field]):
+                missing[field].append({"case_id": case_id})
+        for row_id, row in signature["rows"].items():
+            for field in ("prompt_id", "criterion_id", "prompt_suite", "rubric", "scoring_version"):
+                if _missing_status(row[field]):
+                    missing[field].append({"case_id": case_id, "row_id": row_id})
+    return missing
 
 
-def _record_difference(
-    reasons: list[str],
-    details: dict[str, dict[str, object]],
-    code: str,
+def _quality_profile_value(
+    profile: Mapping[str, object],
+    field: str,
+    missing_locations: Mapping[str, Sequence[Mapping[str, str]]],
+) -> object:
+    locations = missing_locations[field]
+    if not locations:
+        return profile[field]
+    return {"status": "missing", "locations": [dict(location) for location in locations]}
+
+
+def _missing_status(value: object) -> bool:
+    return isinstance(value, dict) and value == {"status": "missing"}
+
+
+def _scope(left: Mapping[str, object], right: Mapping[str, object]) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    left_ids = set(left)
+    right_ids = set(right)
+    return tuple(sorted(left_ids & right_ids)), tuple(sorted(left_ids - right_ids)), tuple(sorted(right_ids - left_ids))
+
+
+def _add_mismatch(
+    mismatches: list[dict[str, object]],
+    *,
+    case_id: str,
+    field: str,
     left: object,
     right: object,
+    row_id: str | None = None,
 ) -> None:
-    if left != right:
-        reasons.append(code)
-        details[code] = {"left": _jsonable(left), "right": _jsonable(right)}
+    item = {"case_id": case_id, "field": field, "left": _jsonable(left), "right": _jsonable(right)}
+    if row_id is not None:
+        item["row_id"] = row_id
+    mismatches.append(item)
+
+
+def _reason_details(reasons: Sequence[str], mismatches: Sequence[Mapping[str, object]]) -> dict[str, dict[str, object]]:
+    return {
+        reason: {"mismatches": [dict(row) for row in mismatches if row.get("reason_code") == reason]}
+        for reason in reasons
+    }
+
+
+def _missing_metric_decision(
+    left_signatures: Mapping[str, object], right_signatures: Mapping[str, object]
+) -> Comparability | None:
+    if left_signatures and right_signatures:
+        return None
+    reasons = tuple(
+        reason
+        for missing, reason in (
+            (not left_signatures, "left_metric_evidence_missing"),
+            (not right_signatures, "right_metric_evidence_missing"),
+        )
+        if missing
+    )
+    status = {
+        "left": {"status": "present" if left_signatures else "missing"},
+        "right": {"status": "present" if right_signatures else "missing"},
+    }
+    matched, left_only, right_only = _scope(left_signatures, right_signatures)
+    return Comparability(
+        "not_comparable",
+        reasons,
+        {reason: dict(status) for reason in reasons},
+        matched,
+        left_only,
+        right_only,
+    )
 
 
 def classify_comparability(left: RouteBundle, right: RouteBundle, metric: str) -> Comparability:
@@ -204,71 +378,164 @@ def classify_comparability(left: RouteBundle, right: RouteBundle, metric: str) -
 
     normalized_metric = metric.strip().casefold().replace("-", "_").replace(" ", "_")
     if normalized_metric in {"quality", "quality_score", "quality_ranking"}:
-        left_signature = _quality_signature(left)
-        right_signature = _quality_signature(right)
-        if left_signature is None:
-            return _missing_decision("left")
-        if right_signature is None:
-            return _missing_decision("right")
-        reasons: list[str] = []
-        details: dict[str, dict[str, object]] = {}
-        _record_difference(reasons, details, "model_mismatch", left_signature["models"], right_signature["models"])
-        _record_difference(reasons, details, "backend_class_mismatch", left_signature["backend_classes"], right_signature["backend_classes"])
-        _record_difference(reasons, details, "prompt_set_mismatch", left_signature["prompt_set"], right_signature["prompt_set"])
-        _record_difference(reasons, details, "rubric_mismatch", left_signature["rubrics"], right_signature["rubrics"])
-        _record_difference(reasons, details, "scoring_version_mismatch", left_signature["scoring_versions"], right_signature["scoring_versions"])
-        _record_difference(reasons, details, "denominator_mismatch", left_signature["denominators"], right_signature["denominators"])
-        _record_difference(reasons, details, "aggregation_mismatch", left_signature["aggregations"], right_signature["aggregations"])
-        if reasons:
-            return Comparability("descriptive_only", tuple(reasons), details)
+        left_signatures = _quality_signatures(left)
+        right_signatures = _quality_signatures(right)
+        missing = _missing_metric_decision(left_signatures, right_signatures)
+        if missing:
+            return missing
+        matched, left_only, right_only = _scope(left_signatures, right_signatures)
+        if not matched:
+            left_profile = _quality_method_profile(left_signatures)
+            right_profile = _quality_method_profile(right_signatures)
+            left_missing = _quality_method_missing_locations(left_signatures)
+            right_missing = _quality_method_missing_locations(right_signatures)
+            profile_mismatches: list[dict[str, object]] = []
+            profile_reasons = ["no_matched_case_ids"]
+            profile_codes = {
+                "model_identity": "model_mismatch",
+                "backend_class": "backend_class_mismatch",
+                "prompt_set": "prompt_set_mismatch",
+                "prompt_id": "prompt_set_mismatch",
+                "criterion_id": "rubric_mismatch",
+                "prompt_suite": "prompt_suite_mismatch",
+                "rubric": "rubric_mismatch",
+                "scoring_version": "scoring_version_mismatch",
+                "denominator": "denominator_mismatch",
+                "aggregation": "aggregation_mismatch",
+            }
+            for field, code in profile_codes.items():
+                left_value = _quality_profile_value(left_profile, field, left_missing)
+                right_value = _quality_profile_value(right_profile, field, right_missing)
+                missing_code = f"{field}_missing"
+                if left_missing[field] or right_missing[field]:
+                    selected_code = missing_code
+                elif left_value != right_value:
+                    selected_code = code
+                else:
+                    continue
+                if selected_code not in profile_reasons:
+                    profile_reasons.append(selected_code)
+                if left_value != right_value or selected_code.endswith("_missing"):
+                    _add_mismatch(
+                        profile_mismatches,
+                        case_id="__route_method_profile__",
+                        field=field,
+                        left=left_value,
+                        right=right_value,
+                    )
+                    profile_mismatches[-1]["reason_code"] = selected_code
+            hard_missing = any(reason.endswith("_missing") for reason in profile_reasons)
+            return Comparability(
+                "not_comparable" if hard_missing else "descriptive_only",
+                tuple(profile_reasons),
+                {
+                    "no_matched_case_ids": {"left": {"case_ids": list(left_only)}, "right": {"case_ids": list(right_only)}},
+                    **_reason_details(profile_reasons[1:], profile_mismatches),
+                },
+                matched, left_only, right_only, tuple(profile_mismatches),
+            )
+        mismatches: list[dict[str, object]] = []
+        reason_order: list[str] = []
+
+        def record(code: str, case_id: str, field: str, left_value: object, right_value: object, row_id: str | None = None) -> None:
+            if code not in reason_order:
+                reason_order.append(code)
+            _add_mismatch(mismatches, case_id=case_id, field=field, left=left_value, right=right_value, row_id=row_id)
+            mismatches[-1]["reason_code"] = code
+
+        for case_id in matched:
+            left_case = left_signatures[case_id]
+            right_case = right_signatures[case_id]
+            for field, code in (
+                ("model_identity", "model_mismatch"),
+                ("backend_class", "backend_class_mismatch"),
+                ("prompt_set", "prompt_set_mismatch"),
+                ("denominator", "denominator_mismatch"),
+                ("aggregation", "aggregation_mismatch"),
+            ):
+                left_value, right_value = left_case[field], right_case[field]
+                if _missing_status(left_value) or _missing_status(right_value):
+                    record(f"{field}_missing", case_id, field, left_value, right_value)
+                elif left_value != right_value:
+                    record(code, case_id, field, left_value, right_value)
+            left_rows = left_case["rows"]
+            right_rows = right_case["rows"]
+            row_ids = sorted(set(left_rows) | set(right_rows))
+            for row_id in row_ids:
+                if row_id not in left_rows or row_id not in right_rows:
+                    record(
+                        "quality_row_set_mismatch", case_id, "quality_row",
+                        left_rows.get(row_id, {"status": "missing"}),
+                        right_rows.get(row_id, {"status": "missing"}), row_id,
+                    )
+                    continue
+                for field, code in (
+                    ("prompt_id", "prompt_set_mismatch"),
+                    ("criterion_id", "rubric_mismatch"),
+                    ("prompt_suite", "prompt_suite_mismatch"),
+                    ("rubric", "rubric_mismatch"),
+                    ("scoring_version", "scoring_version_mismatch"),
+                    ("maximum_score", "denominator_mismatch"),
+                ):
+                    left_value, right_value = left_rows[row_id][field], right_rows[row_id][field]
+                    if _missing_status(left_value) or _missing_status(right_value):
+                        record(f"{field}_missing", case_id, field, left_value, right_value, row_id)
+                    elif left_value != right_value:
+                        record(code, case_id, field, left_value, right_value, row_id)
+        if reason_order:
+            hard_missing = any(reason.endswith("_missing") for reason in reason_order)
+            classification = "not_comparable" if hard_missing else "descriptive_only"
+            return Comparability(
+                classification, tuple(reason_order), _reason_details(reason_order, mismatches),
+                matched, left_only, right_only, tuple(mismatches),
+            )
         return Comparability(
-            "direct",
-            ("all_required_dimensions_match",),
-            {"all_required_dimensions_match": {"left": left.route_id, "right": right.route_id}},
+            "direct", ("all_required_dimensions_match",),
+            {"all_required_dimensions_match": {"matched_case_ids": list(matched)}},
+            matched, left_only, right_only,
         )
 
     try:
         canonical_metric = _THROUGHPUT_ALIASES[normalized_metric]
     except KeyError as error:
         raise ValueError(f"unsupported comparison metric: {metric!r}") from error
-    left_signature = _throughput_signature(left, canonical_metric)
-    right_signature = _throughput_signature(right, canonical_metric)
-    if left_signature is None:
-        return _missing_decision("left")
-    if right_signature is None:
-        return _missing_decision("right")
-
-    reasons = []
-    details = {}
-    for key, code in (
-        ("models", "model_mismatch"),
-        ("input_lengths", "input_length_mismatch"),
-        ("output_lengths", "output_length_mismatch"),
-        ("backend_classes", "backend_class_mismatch"),
-        ("repetition_treatments", "repetition_treatment_mismatch"),
-        ("metric_definitions", "metric_definition_mismatch"),
-    ):
-        _record_difference(reasons, details, code, left_signature[key], right_signature[key])
-    for key, code in (
-        ("models", "model_identity_missing"),
-        ("input_lengths", "input_length_missing"),
-        ("output_lengths", "output_length_missing"),
-        ("backend_classes", "backend_class_missing"),
-        ("repetition_treatments", "repetition_treatment_missing"),
-        ("metric_definitions", "metric_definition_missing"),
-    ):
-        if not left_signature[key] or not right_signature[key]:
-            if code not in reasons:
-                reasons.append(code)
-                details[code] = {
-                    "left": _jsonable(left_signature[key]),
-                    "right": _jsonable(right_signature[key]),
-                }
+    left_signatures = _throughput_signatures(left, canonical_metric)
+    right_signatures = _throughput_signatures(right, canonical_metric)
+    missing = _missing_metric_decision(left_signatures, right_signatures)
+    if missing:
+        return missing
+    matched, left_only, right_only = _scope(left_signatures, right_signatures)
+    if not matched:
+        return Comparability(
+            "not_comparable", ("no_matched_case_ids",),
+            {"no_matched_case_ids": {"left": {"case_ids": list(left_only)}, "right": {"case_ids": list(right_only)}}},
+            matched, left_only, right_only,
+        )
+    mismatches: list[dict[str, object]] = []
+    reasons: list[str] = []
+    field_codes = (
+        ("model_identity", "model_mismatch"),
+        ("input_length", "input_length_mismatch"),
+        ("output_length", "output_length_mismatch"),
+        ("backend_class", "backend_class_mismatch"),
+        ("repetition_treatment", "repetition_treatment_mismatch"),
+        ("metric_definition", "metric_definition_mismatch"),
+    )
+    for case_id in matched:
+        for field, mismatch_code in field_codes:
+            left_value = left_signatures[case_id][field]
+            right_value = right_signatures[case_id][field]
+            code = f"{field}_missing" if _missing_status(left_value) or _missing_status(right_value) else mismatch_code
+            if _missing_status(left_value) or _missing_status(right_value) or left_value != right_value:
+                if code not in reasons:
+                    reasons.append(code)
+                _add_mismatch(mismatches, case_id=case_id, field=field, left=left_value, right=right_value)
+                mismatches[-1]["reason_code"] = code
     if not reasons:
         return Comparability(
-            "direct",
-            ("all_required_dimensions_match",),
-            {"all_required_dimensions_match": {"left": left.route_id, "right": right.route_id}},
+            "direct", ("all_required_dimensions_match",),
+            {"all_required_dimensions_match": {"matched_case_ids": list(matched)}},
+            matched, left_only, right_only,
         )
     hard_codes = {
         "model_mismatch",
@@ -281,8 +548,12 @@ def classify_comparability(left: RouteBundle, right: RouteBundle, metric: str) -
         "repetition_treatment_missing",
         "metric_definition_missing",
     }
+    hard_codes.update({reason for reason in reasons if reason.endswith("_missing")})
     classification = "not_comparable" if hard_codes.intersection(reasons) else "normalized_with_caveat"
-    return Comparability(classification, tuple(reasons), details)
+    return Comparability(
+        classification, tuple(reasons), _reason_details(reasons, mismatches),
+        matched, left_only, right_only, tuple(mismatches),
+    )
 
 
 def _pairs(bundles: Sequence[RouteBundle]) -> Iterable[tuple[RouteBundle, RouteBundle]]:
@@ -416,6 +687,136 @@ def build_catalogs(bundles: Sequence[RouteBundle]) -> dict[str, list[dict[str, o
     }
 
 
+def build_cross_route_validation(
+    report: Report,
+    catalogs: Mapping[str, Sequence[Mapping[str, object]]],
+    bundles: Sequence[RouteBundle],
+) -> dict[str, object]:
+    """Derive comparison validation facts from the report and generated rows."""
+    comparison_rows = list(catalogs.get("comparability-matrix.csv", ()))
+    campaign_rows = list(catalogs.get("campaign-summary.csv", ()))
+    expected_attempts = {
+        (bundle.route_id, bundle.campaign_id, row.test_case_id, row.attempt_id)
+        for bundle in bundles
+        for row in bundle.attempts
+    }
+    published_attempts = {
+        (str(row.get("route_id")), str(row.get("campaign_id")), str(row.get("test_case_id")), str(row.get("attempt_id")))
+        for row in campaign_rows
+    }
+    complete_attempt_accounting = published_attempts == expected_attempts and len(campaign_rows) == len(expected_attempts)
+    expected_comparison_rows = _comparison_rows(tuple(bundles))
+    comparison_catalog_matches_bundles = comparison_rows == expected_comparison_rows
+
+    reason_errors: list[str] = []
+    for index, row in enumerate(comparison_rows):
+        try:
+            reasons = json.loads(str(row["reason_codes_json"]))
+            details = json.loads(str(row["reason_details_json"]))
+            mismatches = json.loads(str(row["signature_mismatches_json"]))
+            matched = json.loads(str(row["matched_case_ids_json"]))
+            left_only = json.loads(str(row["left_only_case_ids_json"]))
+            right_only = json.loads(str(row["right_only_case_ids_json"]))
+            if not reasons or not isinstance(details, dict) or not isinstance(mismatches, list):
+                reason_errors.append(f"row {index}: missing machine-readable reason content")
+            if int(row["matched_case_count"]) != len(matched):
+                reason_errors.append(f"row {index}: matched case count mismatch")
+            if int(row["left_only_case_count"]) != len(left_only):
+                reason_errors.append(f"row {index}: left-only case count mismatch")
+            if int(row["right_only_case_count"]) != len(right_only):
+                reason_errors.append(f"row {index}: right-only case count mismatch")
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            reason_errors.append(f"row {index}: {error}")
+
+    tables = [
+        block
+        for section in report.sections
+        for block in section.blocks
+        if isinstance(block, ReportTable)
+    ]
+    def is_ranking_table(table: ReportTable) -> bool:
+        label = f"{table.table_id} {table.title}".casefold()
+        if any(token in label for token in ("rank", "leaderboard", "scorecard", "standings", "best repository", "best route")):
+            return True
+        columns = {column.casefold().strip() for column in table.columns}
+        position = bool(columns & {"rank", "ranking", "position", "place"})
+        entity = bool(columns & {"repository", "route", "model", "configuration"})
+        score = bool(columns & {"score", "quality", "performance", "composite", "overall"})
+        return position and entity and score
+
+    def has_affirmative_ranking_prose(text: str) -> bool:
+        normalized = " ".join(text.casefold().split())
+        patterns = (
+            "repository ranking", "route ranking", "quality leaderboard", "performance leaderboard",
+            "ranked repositories", "ranked routes", "best repository:", "best route:",
+        )
+        if not any(pattern in normalized for pattern in patterns):
+            return False
+        negative_boundaries = (
+            "no universal ranking", "no repository ranking", "no route ranking",
+            "not ranked", "without a universal ranking", "without universal ranking",
+            "no universal best repository", "no universal best route",
+        )
+        return not any(boundary in normalized for boundary in negative_boundaries)
+
+    ranking_tables = [table.table_id for table in tables if is_ranking_table(table)]
+    ranking_prose = [
+        f"section:{section_index}/block:{block_index}"
+        for section_index, section in enumerate(report.sections, start=1)
+        for block_index, block in enumerate(section.blocks, start=1)
+        if isinstance(block, (ReportParagraph, ReportNote)) and has_affirmative_ranking_prose(block.text)
+    ]
+    comparison_tables = [table for table in tables if table.table_id == "CP-01"]
+    expected_report_rows = tuple(
+        (
+            *(str(row[field]) for field in (
+                "left_route_id", "right_route_id", "metric", "classification", "matched_case_count",
+                "left_only_case_count", "right_only_case_count",
+            )),
+            _report_reason_summary(row),
+        )
+        for row in comparison_rows
+    )
+    report_comparison_matrix_matches_catalog = (
+        len(comparison_tables) == 1 and comparison_tables[0].rows == expected_report_rows
+    )
+    universal_ranking_present = bool(ranking_tables or ranking_prose)
+    nondirect_quality = [
+        row for row in comparison_rows
+        if row.get("metric") == "quality" and row.get("classification") != "direct"
+    ]
+    incompatible_quality_ranking_present = bool((ranking_tables or ranking_prose) and nondirect_quality)
+    expected_decisions = len(tuple(_pairs(tuple(bundles)))) * 2
+    decision_count_valid = len(comparison_rows) == expected_decisions
+    valid = all((
+        not reason_errors,
+        complete_attempt_accounting,
+        comparison_catalog_matches_bundles,
+        decision_count_valid,
+        report_comparison_matrix_matches_catalog,
+        not universal_ranking_present,
+        not incompatible_quality_ranking_present,
+    ))
+    return {
+        "valid": valid,
+        "decision_count": len(comparison_rows),
+        "expected_decision_count": expected_decisions,
+        "decision_count_valid": decision_count_valid,
+        "report_comparison_matrix_matches_catalog": report_comparison_matrix_matches_catalog,
+        "classifications": dict(sorted(Counter(str(row.get("classification")) for row in comparison_rows).items())),
+        "machine_readable_reasons_present": not reason_errors,
+        "reason_validation_errors": reason_errors,
+        "complete_attempt_accounting": complete_attempt_accounting,
+        "comparison_catalog_matches_bundles": comparison_catalog_matches_bundles,
+        "expected_attempt_count": len(expected_attempts),
+        "published_attempt_count": len(campaign_rows),
+        "universal_ranking_present": universal_ranking_present,
+        "ranking_table_ids": ranking_tables,
+        "ranking_prose_locations": ranking_prose,
+        "incompatible_quality_ranking_present": incompatible_quality_ranking_present,
+    }
+
+
 def _table(
     table_id: str,
     title: str,
@@ -431,6 +832,17 @@ def _table(
         rows=tuple(tuple(str(cell) for cell in row) for row in rows),
         footnotes=tuple(footnotes),
     )
+
+
+def _report_reason_summary(row: Mapping[str, object]) -> str:
+    """Keep the report readable while the catalog retains complete reason JSON."""
+    try:
+        codes = [str(code) for code in json.loads(str(row["reason_codes_json"]))]
+    except (KeyError, TypeError, json.JSONDecodeError):
+        return "Invalid reason JSON; see machine-readable catalog"
+    if len(codes) <= 2:
+        return "; ".join(codes)
+    return f"{codes[0]}; +{len(codes) - 1} more (see catalog CSV)"
 
 
 def _route_conclusion(bundle: RouteBundle) -> str:
@@ -484,9 +896,12 @@ def build_cross_route_report(bundles: Sequence[RouteBundle]) -> Report:
         (
             row["left_route_id"],
             row["right_route_id"],
-            row["metric"],
-            row["classification"],
-            row["reason_codes_json"],
+                row["metric"],
+                row["classification"],
+                row["matched_case_count"],
+                row["left_only_case_count"],
+                row["right_only_case_count"],
+                _report_reason_summary(row),
         )
         for row in comparisons
     ]
@@ -503,17 +918,19 @@ def build_cross_route_report(bundles: Sequence[RouteBundle]) -> Report:
     ]
     method_rows = []
     for bundle in ordered:
-        signature = _quality_signature(bundle)
-        if signature is None:
-            method_rows.append((bundle.route_id, "Not collected", "Not collected", "Not collected", "Not rankable"))
+        signatures = _quality_signatures(bundle)
+        if not signatures:
+            method_rows.append((bundle.route_id, "Not collected", "Not collected", "Not collected", "Not collected", "Not rankable"))
         else:
+            profile = _quality_method_profile(signatures)
             method_rows.append(
                 (
                     bundle.route_id,
-                    ", ".join(sorted(signature["prompt_set"])),
-                    ", ".join(sorted(signature["rubrics"])),
-                    ", ".join(sorted(signature["scoring_versions"])),
-                    ", ".join(str(value) for value in sorted(signature["denominators"])),
+                    ", ".join(profile["prompt_set"]),
+                    ", ".join(profile["prompt_suite"]),
+                    ", ".join(profile["rubric"]),
+                    ", ".join(profile["scoring_version"]),
+                    ", ".join(str(value) for value in profile["denominator"]),
                 )
             )
     source_dates = [
@@ -560,8 +977,11 @@ def build_cross_route_report(bundles: Sequence[RouteBundle]) -> Report:
         )),
         ReportSection(SECTION_ORDER[4], (
             ReportParagraph("The gate evaluates route-wide protocol signatures and does not pair values across unmatched configurations."),
-            _table("CP-01", "Machine-readable comparability matrix", ("Left route", "Right route", "Metric", "Classification", "Reason codes"), comparison_rows,
-                   footnotes=("Direct still requires consumers to match individual model/configuration rows.",)),
+            _table("CP-01", "Comparability decision matrix", ("Left route", "Right route", "Metric", "Classification", "Matched", "Left only", "Right only", "Reason summary"), comparison_rows,
+                   footnotes=(
+                       "Direct still requires consumers to match individual model/configuration rows.",
+                       "Complete machine-readable reason codes, details, case IDs, and signature mismatches are retained in the comparability catalog CSV.",
+                   )),
         )),
         ReportSection(SECTION_ORDER[5], (
             ReportParagraph("Passed, failed, blocked, unavailable, and other explicit statuses remain visible; absence is never zero."),
@@ -583,8 +1003,8 @@ def build_cross_route_report(bundles: Sequence[RouteBundle]) -> Report:
             )),
         )),
         ReportSection(SECTION_ORDER[8], (
-            ReportParagraph("Quality ranking additionally requires the identical prompt set, rubric, scoring version, denominator, and aggregation."),
-            _table("QM-01", "Quality methodology boundaries", ("Route", "Prompt set", "Rubric", "Scoring version", "Denominator set"), method_rows),
+            ReportParagraph("Quality ranking additionally requires the identical prompt set, prompt-suite identity, rubric, scoring version, denominator, and aggregation."),
+            _table("QM-01", "Quality methodology boundaries", ("Route", "Prompt set", "Prompt suite", "Rubric", "Scoring version", "Denominator set"), method_rows),
             ReportNote("OpenVINO v3 and legacy llama quality evidence are descriptive only; incompatible quality scores are not ranked."),
         )),
         ReportSection(SECTION_ORDER[9], (
@@ -678,16 +1098,10 @@ def write_cross_route_package(
         "comparability_decision_count": len(comparison_rows),
         "universal_ranking_permitted": False,
     })
-    write_json(route / "validation/cross-route-validation.json", {
-        "valid": True,
-        "decision_count": len(comparison_rows),
-        "classifications": dict(sorted(Counter(str(row["classification"]) for row in comparison_rows).items())),
-        "machine_readable_reasons_present": all(json.loads(str(row["reason_codes_json"])) for row in comparison_rows),
-        "universal_ranking_present": False,
-        "incompatible_quality_ranking_present": False,
-    })
+    cross_route_validation = build_cross_route_validation(report, catalogs, bundles)
+    write_json(route / "validation/cross-route-validation.json", cross_route_validation)
     _write_text(route / "README.md", "# Guarded cross-route comparison\n\nThis route preserves complete status accounting and publishes protocol-gated comparisons without a universal repository score.")
-    _write_text(route / "protocol/comparability-policy.md", "# Comparability policy\n\nThroughput requires compatible model, input length, output length, backend class, repetition treatment, and metric definition. Quality additionally requires identical prompt set, rubric, scoring version, denominator, and aggregation. Incompatible methods are descriptive only.")
+    _write_text(route / "protocol/comparability-policy.md", "# Comparability policy\n\nThroughput requires compatible model, input length, output length, backend class, repetition treatment, and metric definition. Quality additionally requires identical prompt set, prompt-suite identity, rubric, scoring version, denominator, and aggregation. Missing required metadata is not comparable; incompatible complete methods are descriptive only.")
     _write_text(route / "reproduction/README.md", "# Reproduction\n\nRegeneration normalizes the existing five RouteBundle objects; it does not rerun inference.")
     _write_text(route / "reproduction/commands.md", "# Commands\n\nUse `write_cross_route_package` to render Markdown/DOCX and catalogs, export only the owned DOCX through `Export-Final-Results-Pdf.ps1`, then use `finalize_cross_route_package`.\n")
     _write_text(route / "evidence/claim-evidence-map.csv", "claim_id,claim_boundary\nCROSS-BOUNDARY-001,No universal ranking; source evidence remains in five route packages\n")
@@ -697,11 +1111,15 @@ def write_cross_route_package(
     render_docx(report, docx)
     parity = compare_markdown_docx(markdown, docx)
     write_json(route / "validation/workbook-parity.json", parity)
-    write_json(route / "validation/visual-validation.json", {"valid": False, "status": "Pending owned Word PDF export and page inspection"})
+    write_json(route / "validation/visual-validation.json", {"valid": False, "status": "Pending owned Word PDF export and automated rendering checks"})
+    write_json(route / "validation/manual-visual-qa.json", {"valid": False, "status": "Pending manual full-page visual QA"})
     write_json(route / "validation/integrity-validation.json", {"valid": False, "status": "Pending final PDF and manifest regeneration"})
-    _write_text(route / "validation/validation-report.md", "# Validation report\n\nComparability reason coverage, complete status retention, unsupported-ranking prohibition, and Markdown/DOCX semantic parity: Passed. PDF visual validation follows owned Word export.")
-    if not parity["matches"]:
-        raise ValueError("cross-route Markdown/DOCX parity failed")
+    _write_text(
+        route / "validation/validation-report.md",
+        "# Validation report\n\nDerived cross-route validation and Markdown/DOCX semantic parity passed. Automated PDF rendering and structural checks are pending owned Word export. Manual full-page visual QA is recorded separately when performed.",
+    )
+    if not parity["matches"] or not cross_route_validation["valid"]:
+        raise ValueError("cross-route data/report validation failed")
     manifest = regenerate_route_manifest(root, route)
     errors = validate_sha256_manifest(root, manifest)
     if errors:
@@ -710,7 +1128,11 @@ def write_cross_route_package(
 
 
 def finalize_cross_route_package(repo_root: Path, *, output_root: Path | None = None) -> dict[str, object]:
-    """Validate the owned Word PDF, record all-page QA, and reseal the manifest."""
+    """Validate PDF structure and automated all-page rendering, then reseal."""
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="builtin type .* has no __module__ attribute", category=DeprecationWarning)
+        import fitz
     from pypdf import PdfReader
 
     root = Path(repo_root).resolve(strict=True)
@@ -722,6 +1144,17 @@ def finalize_cross_route_package(repo_root: Path, *, output_root: Path | None = 
     reader = PdfReader(pdf)
     page_text = [(page.extract_text() or "").strip() for page in reader.pages]
     combined = "\n".join(page_text)
+    rendered_pages: list[int] = []
+    rendered_dimensions_positive = True
+    rendered_pages_have_nonwhite_pixels = True
+    with fitz.open(pdf) as rendered_document:
+        for page_number, page in enumerate(rendered_document, 1):
+            pixmap = page.get_pixmap(matrix=fitz.Matrix(1.0, 1.0), alpha=False)
+            rendered_pages.append(page_number)
+            rendered_dimensions_positive = rendered_dimensions_positive and pixmap.width > 0 and pixmap.height > 0
+            rendered_pages_have_nonwhite_pixels = rendered_pages_have_nonwhite_pixels and any(
+                value < 250 for value in pixmap.samples
+            )
     checks = {
         "pdf_signature": True,
         "page_count": len(page_text),
@@ -729,17 +1162,22 @@ def finalize_cross_route_package(repo_root: Path, *, output_root: Path | None = 
         "all_sections_present": all(heading in combined for heading in SECTION_ORDER),
         "ranking_boundary_present": "No universal best repository" in combined,
         "quality_boundary_present": "Incompatible quality scores are not ranked" in combined,
+        "every_page_rendered": rendered_pages == list(range(1, len(page_text) + 1)),
+        "rendered_dimensions_positive": rendered_dimensions_positive,
+        "rendered_pages_have_nonwhite_pixels": rendered_pages_have_nonwhite_pixels,
     }
     valid = len(page_text) >= 4 and all(value for key, value in checks.items() if key != "page_count")
     receipt = {
         "valid": valid,
         "checks": checks,
-        "inspected_pages": list(range(1, len(page_text) + 1)),
-        "visual_findings": {
-            "inspection_method": "Rendered every PDF page with PyMuPDF and inspected all full-page images",
-            "inspection": "Every rendered page inspected for blank, clipped, corrupt, overlapping, or truncated content.",
+        "automated_rendering": {
+            "engine": "PyMuPDF",
+            "rendered_page_count": len(rendered_pages),
+            "rendered_pages": rendered_pages,
             "temporary_page_images_committed": False,
         },
+        "manual_visual_qa_performed": False,
+        "claim_boundary": "Automated checks do not establish absence of clipping, overlap, or other visual-layout defects.",
     }
     if not valid:
         raise ValueError(f"cross-route PDF structural validation failed: {checks}")
@@ -750,10 +1188,63 @@ def finalize_cross_route_package(repo_root: Path, *, output_root: Path | None = 
         "pdf_sha256": hash_file(pdf),
         "pdf_size_bytes": pdf.stat().st_size,
     })
+    manual_path = route / "validation/manual-visual-qa.json"
+    manual = json.loads(manual_path.read_text(encoding="utf-8")) if manual_path.is_file() else {"valid": False}
+    _write_text(
+        route / "validation/validation-report.md",
+        "# Validation report\n\nDerived cross-route data/report validation and Markdown/DOCX semantic parity: Passed.\n\nAutomated PDF rendering and structural checks: Passed.\n\nManual full-page visual QA: "
+        + ("Passed." if manual.get("valid") else "Pending."),
+    )
     manifest = regenerate_route_manifest(root, route)
     errors = validate_sha256_manifest(root, manifest)
     if errors:
         raise ValueError(f"cross-route final manifest validation failed: {errors}")
+    return receipt
+
+
+def record_cross_route_manual_visual_qa(
+    repo_root: Path,
+    inspected_pages: Sequence[int],
+    findings: str,
+    *,
+    output_root: Path | None = None,
+) -> dict[str, object]:
+    """Record separately performed human review only for an exact all-page set."""
+    from pypdf import PdfReader
+
+    root = Path(repo_root).resolve(strict=True)
+    output = (Path(output_root) if output_root else root / "docs/testing/final-results").resolve()
+    route = output / "06-cross-route-comparison"
+    pdf = route / "workbook/generated/cross-route-comparison-final-report.pdf"
+    if not pdf.is_file():
+        raise ValueError("cross-route PDF is missing")
+    page_count = len(PdfReader(pdf).pages)
+    pages = tuple(inspected_pages)
+    if pages != tuple(range(1, page_count + 1)):
+        raise ValueError("manual visual QA must cover all PDF pages exactly once in page order")
+    if not findings.strip():
+        raise ValueError("manual visual QA requires findings")
+    receipt = {
+        "valid": True,
+        "inspection_method": "Manual review of full-page PyMuPDF renders",
+        "inspected_pages": list(pages),
+        "page_count": page_count,
+        "findings": findings.strip(),
+        "temporary_page_images_committed": False,
+    }
+    write_json(route / "validation/manual-visual-qa.json", receipt)
+    automated_path = route / "validation/visual-validation.json"
+    automated = json.loads(automated_path.read_text(encoding="utf-8")) if automated_path.is_file() else {"valid": False}
+    _write_text(
+        route / "validation/validation-report.md",
+        "# Validation report\n\nDerived cross-route data/report validation and Markdown/DOCX semantic parity: Passed.\n\nAutomated PDF rendering and structural checks: "
+        + ("Passed." if automated.get("valid") else "Pending.")
+        + "\n\nManual full-page visual QA: Passed.",
+    )
+    manifest = regenerate_route_manifest(root, route)
+    errors = validate_sha256_manifest(root, manifest)
+    if errors:
+        raise ValueError(f"cross-route manual-QA manifest validation failed: {errors}")
     return receipt
 
 
@@ -762,6 +1253,8 @@ __all__ = [
     "classify_comparability",
     "build_catalogs",
     "build_cross_route_report",
+    "build_cross_route_validation",
     "write_cross_route_package",
     "finalize_cross_route_package",
+    "record_cross_route_manual_visual_qa",
 ]

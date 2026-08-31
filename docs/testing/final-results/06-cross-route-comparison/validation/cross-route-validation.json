@@ -4,9 +4,19 @@
     "direct": 2,
     "not_comparable": 9
   },
+  "comparison_catalog_matches_bundles": true,
+  "complete_attempt_accounting": true,
   "decision_count": 20,
+  "decision_count_valid": true,
+  "expected_attempt_count": 169,
+  "expected_decision_count": 20,
   "incompatible_quality_ranking_present": false,
   "machine_readable_reasons_present": true,
+  "published_attempt_count": 169,
+  "ranking_prose_locations": [],
+  "ranking_table_ids": [],
+  "reason_validation_errors": [],
+  "report_comparison_matrix_matches_catalog": true,
   "universal_ranking_present": false,
   "valid": true
 }

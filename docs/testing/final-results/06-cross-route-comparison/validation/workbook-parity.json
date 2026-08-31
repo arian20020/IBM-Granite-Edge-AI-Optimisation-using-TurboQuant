@@ -11,7 +11,7 @@
       "4. Repository, branch, commit, build, hardware, and software identity",
       "ID-01 — Route identity index",
       "5. Objectives, scope, test matrix, and execution sequence",
-      "CP-01 — Machine-readable comparability matrix",
+      "CP-01 — Comparability decision matrix",
       "6. Model, weight, cache-format, and backend availability",
       "SS-01 — Status totals by route",
       "7. Complete attempt accounting",
@@ -41,7 +41,7 @@
       "4. Repository, branch, commit, build, hardware, and software identity",
       "ID-01 — Route identity index",
       "5. Objectives, scope, test matrix, and execution sequence",
-      "CP-01 — Machine-readable comparability matrix",
+      "CP-01 — Comparability decision matrix",
       "6. Model, weight, cache-format, and backend availability",
       "SS-01 — Status totals by route",
       "7. Complete attempt accounting",
@@ -210,147 +210,210 @@
           "Right route",
           "Metric",
           "Classification",
-          "Reason codes"
+          "Matched",
+          "Left only",
+          "Right only",
+          "Reason summary"
         ],
         [
           "animehacker-tq3-0",
           "atomicbot-turboquant",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "7",
+          "19",
+          "no_matched_case_ids"
         ],
         [
           "animehacker-tq3-0",
           "atomicbot-turboquant",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"scoring_version_mismatch\"]"
+          "0",
+          "7",
+          "19",
+          "no_matched_case_ids; +3 more (see catalog CSV)"
         ],
         [
           "animehacker-tq3-0",
           "openvino-experimental-fork",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\"]"
+          "0",
+          "7",
+          "27",
+          "no_matched_case_ids"
         ],
         [
           "animehacker-tq3-0",
           "openvino-experimental-fork",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "7",
+          "27",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "animehacker-tq3-0",
           "openvino-official-upstream",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\"]"
+          "0",
+          "7",
+          "15",
+          "no_matched_case_ids"
         ],
         [
           "animehacker-tq3-0",
           "openvino-official-upstream",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "7",
+          "15",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "animehacker-tq3-0",
           "upstream-llama-cpp",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "7",
+          "13",
+          "no_matched_case_ids"
         ],
         [
           "animehacker-tq3-0",
           "upstream-llama-cpp",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\"]"
+          "0",
+          "7",
+          "13",
+          "no_matched_case_ids; +4 more (see catalog CSV)"
         ],
         [
           "atomicbot-turboquant",
           "openvino-experimental-fork",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "19",
+          "27",
+          "no_matched_case_ids"
         ],
         [
           "atomicbot-turboquant",
           "openvino-experimental-fork",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "19",
+          "27",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "atomicbot-turboquant",
           "openvino-official-upstream",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "19",
+          "15",
+          "no_matched_case_ids"
         ],
         [
           "atomicbot-turboquant",
           "openvino-official-upstream",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "19",
+          "15",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "atomicbot-turboquant",
           "upstream-llama-cpp",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "19",
+          "13",
+          "no_matched_case_ids"
         ],
         [
           "atomicbot-turboquant",
           "upstream-llama-cpp",
           "quality",
           "descriptive_only",
-          "[\"scoring_version_mismatch\",\"denominator_mismatch\"]"
+          "0",
+          "19",
+          "13",
+          "no_matched_case_ids; +3 more (see catalog CSV)"
         ],
         [
           "openvino-experimental-fork",
           "openvino-official-upstream",
           "generation_tokens_per_second",
           "direct",
-          "[\"all_required_dimensions_match\"]"
+          "15",
+          "12",
+          "0",
+          "all_required_dimensions_match"
         ],
         [
           "openvino-experimental-fork",
           "openvino-official-upstream",
           "quality",
           "direct",
-          "[\"all_required_dimensions_match\"]"
+          "15",
+          "12",
+          "0",
+          "all_required_dimensions_match"
         ],
         [
           "openvino-experimental-fork",
           "upstream-llama-cpp",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "27",
+          "13",
+          "no_matched_case_ids"
         ],
         [
           "openvino-experimental-fork",
           "upstream-llama-cpp",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "27",
+          "13",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "openvino-official-upstream",
           "upstream-llama-cpp",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "15",
+          "13",
+          "no_matched_case_ids"
         ],
         [
           "openvino-official-upstream",
           "upstream-llama-cpp",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "15",
+          "13",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ]
       ],
       [
@@ -1953,43 +2016,43 @@
           "animehacker-tq3-0",
           "atomicbot-turboquant",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "animehacker-tq3-0",
           "openvino-experimental-fork",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "animehacker-tq3-0",
           "openvino-official-upstream",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "animehacker-tq3-0",
           "upstream-llama-cpp",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "atomicbot-turboquant",
           "openvino-experimental-fork",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "atomicbot-turboquant",
           "openvino-official-upstream",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "atomicbot-turboquant",
           "upstream-llama-cpp",
           "not_comparable",
-          "[\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "openvino-experimental-fork",
@@ -2001,19 +2064,20 @@
           "openvino-experimental-fork",
           "upstream-llama-cpp",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "openvino-official-upstream",
           "upstream-llama-cpp",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ]
       ],
       [
         [
           "Route",
           "Prompt set",
+          "Prompt suite",
           "Rubric",
           "Scoring version",
           "Denominator set"
@@ -2021,6 +2085,7 @@
         [
           "animehacker-tq3-0",
           "P1, P2, P3, P4, P5, P6",
+          "GTQ-PROMPTS-v1",
           "GTQ-QUALITY-RUBRIC-v1",
           "historical-harsh-content-adjudication",
           "60.0"
@@ -2028,6 +2093,7 @@
         [
           "atomicbot-turboquant",
           "P1, P2, P3, P4, P5, P6",
+          "GTQ-PROMPTS-v1",
           "GTQ-QUALITY-RUBRIC-v1",
           "v1-recomputed-and-evidence-bound; application limited/provisional",
           "60.0"
@@ -2035,6 +2101,7 @@
         [
           "openvino-experimental-fork",
           "Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48",
+          "OPENVINO-SECTOR-EXPERIENCE-QUALITY-v3",
           "objective-quality-weighted-5-3-2-output-health-gate",
           "experimental-openvino-objective-quality/v2",
           "480.0"
@@ -2042,6 +2109,7 @@
         [
           "openvino-official-upstream",
           "Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48",
+          "OPENVINO-SECTOR-EXPERIENCE-QUALITY-v3",
           "objective-quality-weighted-5-3-2-output-health-gate",
           "experimental-openvino-objective-quality/v2",
           "480.0"
@@ -2049,6 +2117,7 @@
         [
           "upstream-llama-cpp",
           "P1, P2, P3, P4, P5, P6",
+          "GTQ-PROMPTS-v1",
           "GTQ-QUALITY-RUBRIC-v1",
           "WB-01-v1.4-conservative-format-caps",
           "40.0, 60.0"
@@ -2294,147 +2363,210 @@
           "Right route",
           "Metric",
           "Classification",
-          "Reason codes"
+          "Matched",
+          "Left only",
+          "Right only",
+          "Reason summary"
         ],
         [
           "animehacker-tq3-0",
           "atomicbot-turboquant",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "7",
+          "19",
+          "no_matched_case_ids"
         ],
         [
           "animehacker-tq3-0",
           "atomicbot-turboquant",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"scoring_version_mismatch\"]"
+          "0",
+          "7",
+          "19",
+          "no_matched_case_ids; +3 more (see catalog CSV)"
         ],
         [
           "animehacker-tq3-0",
           "openvino-experimental-fork",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\"]"
+          "0",
+          "7",
+          "27",
+          "no_matched_case_ids"
         ],
         [
           "animehacker-tq3-0",
           "openvino-experimental-fork",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "7",
+          "27",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "animehacker-tq3-0",
           "openvino-official-upstream",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\"]"
+          "0",
+          "7",
+          "15",
+          "no_matched_case_ids"
         ],
         [
           "animehacker-tq3-0",
           "openvino-official-upstream",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "7",
+          "15",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "animehacker-tq3-0",
           "upstream-llama-cpp",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "7",
+          "13",
+          "no_matched_case_ids"
         ],
         [
           "animehacker-tq3-0",
           "upstream-llama-cpp",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\"]"
+          "0",
+          "7",
+          "13",
+          "no_matched_case_ids; +4 more (see catalog CSV)"
         ],
         [
           "atomicbot-turboquant",
           "openvino-experimental-fork",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "19",
+          "27",
+          "no_matched_case_ids"
         ],
         [
           "atomicbot-turboquant",
           "openvino-experimental-fork",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "19",
+          "27",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "atomicbot-turboquant",
           "openvino-official-upstream",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "19",
+          "15",
+          "no_matched_case_ids"
         ],
         [
           "atomicbot-turboquant",
           "openvino-official-upstream",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "19",
+          "15",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "atomicbot-turboquant",
           "upstream-llama-cpp",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "19",
+          "13",
+          "no_matched_case_ids"
         ],
         [
           "atomicbot-turboquant",
           "upstream-llama-cpp",
           "quality",
           "descriptive_only",
-          "[\"scoring_version_mismatch\",\"denominator_mismatch\"]"
+          "0",
+          "19",
+          "13",
+          "no_matched_case_ids; +3 more (see catalog CSV)"
         ],
         [
           "openvino-experimental-fork",
           "openvino-official-upstream",
           "generation_tokens_per_second",
           "direct",
-          "[\"all_required_dimensions_match\"]"
+          "15",
+          "12",
+          "0",
+          "all_required_dimensions_match"
         ],
         [
           "openvino-experimental-fork",
           "openvino-official-upstream",
           "quality",
           "direct",
-          "[\"all_required_dimensions_match\"]"
+          "15",
+          "12",
+          "0",
+          "all_required_dimensions_match"
         ],
         [
           "openvino-experimental-fork",
           "upstream-llama-cpp",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "27",
+          "13",
+          "no_matched_case_ids"
         ],
         [
           "openvino-experimental-fork",
           "upstream-llama-cpp",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "27",
+          "13",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ],
         [
           "openvino-official-upstream",
           "upstream-llama-cpp",
           "generation_tokens_per_second",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "0",
+          "15",
+          "13",
+          "no_matched_case_ids"
         ],
         [
           "openvino-official-upstream",
           "upstream-llama-cpp",
           "quality",
           "descriptive_only",
-          "[\"model_mismatch\",\"backend_class_mismatch\",\"prompt_set_mismatch\",\"rubric_mismatch\",\"scoring_version_mismatch\",\"denominator_mismatch\",\"aggregation_mismatch\"]"
+          "0",
+          "15",
+          "13",
+          "no_matched_case_ids; +8 more (see catalog CSV)"
         ]
       ],
       [
@@ -4037,43 +4169,43 @@
           "animehacker-tq3-0",
           "atomicbot-turboquant",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "animehacker-tq3-0",
           "openvino-experimental-fork",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "animehacker-tq3-0",
           "openvino-official-upstream",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "animehacker-tq3-0",
           "upstream-llama-cpp",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "atomicbot-turboquant",
           "openvino-experimental-fork",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "atomicbot-turboquant",
           "openvino-official-upstream",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "atomicbot-turboquant",
           "upstream-llama-cpp",
           "not_comparable",
-          "[\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "openvino-experimental-fork",
@@ -4085,19 +4217,20 @@
           "openvino-experimental-fork",
           "upstream-llama-cpp",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ],
         [
           "openvino-official-upstream",
           "upstream-llama-cpp",
           "not_comparable",
-          "[\"model_mismatch\",\"input_length_mismatch\",\"output_length_mismatch\",\"backend_class_mismatch\",\"repetition_treatment_mismatch\",\"input_length_missing\",\"output_length_missing\"]"
+          "[\"no_matched_case_ids\"]"
         ]
       ],
       [
         [
           "Route",
           "Prompt set",
+          "Prompt suite",
           "Rubric",
           "Scoring version",
           "Denominator set"
@@ -4105,6 +4238,7 @@
         [
           "animehacker-tq3-0",
           "P1, P2, P3, P4, P5, P6",
+          "GTQ-PROMPTS-v1",
           "GTQ-QUALITY-RUBRIC-v1",
           "historical-harsh-content-adjudication",
           "60.0"
@@ -4112,6 +4246,7 @@
         [
           "atomicbot-turboquant",
           "P1, P2, P3, P4, P5, P6",
+          "GTQ-PROMPTS-v1",
           "GTQ-QUALITY-RUBRIC-v1",
           "v1-recomputed-and-evidence-bound; application limited/provisional",
           "60.0"
@@ -4119,6 +4254,7 @@
         [
           "openvino-experimental-fork",
           "Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48",
+          "OPENVINO-SECTOR-EXPERIENCE-QUALITY-v3",
           "objective-quality-weighted-5-3-2-output-health-gate",
           "experimental-openvino-objective-quality/v2",
           "480.0"
@@ -4126,6 +4262,7 @@
         [
           "openvino-official-upstream",
           "Q01, Q02, Q03, Q04, Q05, Q06, Q07, Q08, Q09, Q10, Q11, Q12, Q13, Q14, Q15, Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39, Q40, Q41, Q42, Q43, Q44, Q45, Q46, Q47, Q48",
+          "OPENVINO-SECTOR-EXPERIENCE-QUALITY-v3",
           "objective-quality-weighted-5-3-2-output-health-gate",
           "experimental-openvino-objective-quality/v2",
           "480.0"
@@ -4133,6 +4270,7 @@
         [
           "upstream-llama-cpp",
           "P1, P2, P3, P4, P5, P6",
+          "GTQ-PROMPTS-v1",
           "GTQ-QUALITY-RUBRIC-v1",
           "WB-01-v1.4-conservative-format-caps",
           "40.0, 60.0"
