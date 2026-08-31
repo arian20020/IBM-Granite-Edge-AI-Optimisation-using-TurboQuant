@@ -2,15 +2,15 @@
   "schemaVersion": 2,
   "workerId": "E1",
   "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
-  "evidenceSubjectCommit": "d36bd6807cb95a26098fdbea98b287f56a37007e",
-  "evidenceSubjectTree": "859708fe513059d34f1ab2cb00f080518b698955",
-  "createdAtUtc": "2026-08-31T21:31:27Z",
+  "evidenceSubjectCommit": "fc6790c9920dca0036d5566777ec720164a6723b",
+  "evidenceSubjectTree": "995df9e0fef43434867438eece2f7c5dbbb8c973",
+  "createdAtUtc": "2026-08-31T23:29:15Z",
   "route": ["shared", "gguf", "openvino"],
   "evidenceStatus": "blocked",
   "report": {
     "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
-    "sha256": "8fe519bbd68ec10cf584475e20b2e9d1e5e45c0fbd9ddac03deb91be45edbe24",
-    "bytes": 7106
+    "sha256": "dc55a744759ba08ee6803f1af1d0d5504c84f04c5eb1898c294d6bb454b95875",
+    "bytes": 5530
   },
   "inputs": [
     {"kind":"validated-candidate-base","id":"b5d2cd34c57368efb9b122cddf16c2ffa2d3895e","evidenceGrade":"verified"},
@@ -19,39 +19,26 @@
     {"kind":"issue-evidence-catalog","id":"C0-r4-issue-evidence-index-v2.json","sha256":"13dd8e4e103d82dd8449e4b37e46b538725aea67fdeef18d92dd02760f8d488c","bytes":18924,"evidenceGrade":"verified"}
   ],
   "outputs": [
-    {"kind":"independent-final-review","id":"E1-r4-independent-final-review-v4.json","sha256":"2c4c037dc7e2dbc0598a7f6def2324c634a51d8c8cfcc901138e31395e9538d7","bytes":335,"evidenceGrade":"verified"},
-    {"kind":"external-block-observation","id":"E1-r4-external-block-observation-v2.json","sha256":"f2ae3893700a4aae75f5c5e2a21ea8f1121771876a43b51414ba2e8e957581a6","bytes":466,"evidenceGrade":"verified"}
+    {"kind":"independent-final-review","id":"E1-r4-independent-final-review-v5.json","sha256":"0eb09180d642419909dd2e53e82000bd48d345885bbb30c1037dd0e10abcd6b4","bytes":335,"evidenceGrade":"verified"},
+    {"kind":"external-block-observation","id":"E1-r4-external-block-observation-v3.json","sha256":"8fafb33001d5544ef6533adb1683edda0448f2d071b906e4f4748c57ef58b0cf","bytes":466,"evidenceGrade":"verified"}
   ],
   "commands": [
-    {"id":"E1-FOCUSED-HARNESS","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"E1-FOCUSED-HARNESS-RETRY","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"E1-DETERMINISTIC","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"E1-SCHEMA-V4-PREFLIGHT","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"E1-COMBINED-PREFLIGHT-ATTEMPT","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"OPENVINO-OPTIMIZATION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"OPENVINO-WORKER-CLIENT","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"GGUF-QUANT-CONTRACTS","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"GGUF-QUANT-WORKER","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"Q1-IDENTITY","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"CROSS-FEATURE","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"SECURITY-APP-CONTROL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"OPENVINO-BROAD","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"E1-FOCUSED-HARNESS","exitCode":0,"discovered":36,"executed":36,"passed":36,"failed":0,"skipped":0,"disposition":"passed"},
     {"id":"EXTERNAL-PREREQUISITE-PREFLIGHT","exitCode":1,"discovered":1,"executed":1,"passed":0,"failed":1,"skipped":0,"disposition":"blocked"},
     {"id":"PACKAGE-ACTIVATION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"SECURITY-APP-CONTROL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
     {"id":"NATIVE-EXECUTION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
     {"id":"CANDIDATE-E2E","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"E1-POST-ACCEPTANCE-FINAL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"E1-PRODUCTION-EVIDENCE-INTEGRATION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"}
+    {"id":"E1-POST-ACCEPTANCE-FINAL","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0,"disposition":"passed"}
   ],
   "blockers": [
-    "Exact candidate, asset, H1/M1/Q1 native manifests and predecessor cleanup receipts were absent at the final prerequisite check.",
-    "The shared native lock may be acquired only after exact prerequisites exist; package activation and native/UI/performance execution remained ineligible.",
-    "R3-022 remains blocked and unresolved because package, native and candidate E2E evidence was not executed.",
-    "Windows Application Control blocked the freshly rebuilt final-subject E1 test assembly with 0x800711C7 before test discovery, including on an unchanged-binary retry."
+    "Exact candidate, asset, H1, M1, Q1 and native-executable prerequisites were absent at the final prerequisite check.",
+    "The shared native lock may be acquired only after exact prerequisites exist; package, App Control, native and candidate E2E stages remained ineligible.",
+    "R3-022 remains blocked and unresolved because package, App Control, native and candidate E2E evidence was not executed."
   ],
   "nonClaims": [
-    "No package activation, packaged discovery, native GGUF/OpenVINO, real-model, Chat/export runtime, screenshot, accessibility, visual, or performance pass is claimed.",
-    "The final-subject canonical total is 0/0; historical pre-subject executions, blocked and unexecuted rows are excluded.",
-    "No product, machine-security, tested-base, product-subject, or main-branch change was made."
+    "The rejected return's 0x800711C7 event is historical and is not relabelled as successor-subject evidence; the successor focused command passed 36/36.",
+    "No package activation, native GGUF/OpenVINO, real-model, UI, visual, accessibility, performance or release pass is claimed.",
+    "Blocked and unexecuted rows are not counted as passes; no product, machine-security, tested-base or main-branch change was made."
   ]
 }

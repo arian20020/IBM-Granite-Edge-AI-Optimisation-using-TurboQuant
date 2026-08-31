@@ -3,18 +3,18 @@
   "workerId": "E1",
   "baseCommit": "b5d2cd34c57368efb9b122cddf16c2ffa2d3895e",
   "baseTree": "a3e4d82095caa9688f30d2463fa5971c788fd33f",
-  "implementationSubjectCommit": "d36bd6807cb95a26098fdbea98b287f56a37007e",
-  "implementationSubjectTree": "859708fe513059d34f1ab2cb00f080518b698955",
+  "implementationSubjectCommit": "fc6790c9920dca0036d5566777ec720164a6723b",
+  "implementationSubjectTree": "995df9e0fef43434867438eece2f7c5dbbb8c973",
   "disposition": "BLOCKED BY EXTERNAL ENVIRONMENT",
   "report": {
     "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
-    "sha256": "8fe519bbd68ec10cf584475e20b2e9d1e5e45c0fbd9ddac03deb91be45edbe24",
-    "bytes": 7106
+    "sha256": "dc55a744759ba08ee6803f1af1d0d5504c84f04c5eb1898c294d6bb454b95875",
+    "bytes": 5530
   },
   "evidenceManifest": {
     "path": "docs/audits/2026-08-30/evidence/E1-r4-independent-acceptance-v2.json",
-    "sha256": "8392b5a3957acc7d8ccdfb1fbdbb3da1ef7912321b0621e093c151205cec8a1b",
-    "bytes": 5199
+    "sha256": "b37f937118bb2b7328cf1f152b5e3298eb34783d12b690eacdb084aba15ed30c",
+    "bytes": 3443
   },
   "nativeLockAcquisitions": 0,
   "managedExecuted": 0,
@@ -33,6 +33,6 @@
     "kind": "missingPrerequisite",
     "prerequisite": "candidateManifest",
     "commandId": "EXTERNAL-PREREQUISITE-PREFLIGHT",
-    "observationId": "E1-r4-external-block-observation-v2.json"
+    "observationId": "E1-r4-external-block-observation-v3.json"
   }
 }
