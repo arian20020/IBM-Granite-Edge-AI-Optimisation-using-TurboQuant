@@ -1,6 +1,8 @@
-# C0 R4 final candidate issue ledger
+# C0 R4 replacement E1 candidate issue ledger
 
-Final product candidate: `429298d3328a62d4fcf2f5f3f12821342be4a23c` / `2e92e172679d1558972846694306d28ad56e2cf4`
+Product subject: `429298d3328a62d4fcf2f5f3f12821342be4a23c` / `2e92e172679d1558972846694306d28ad56e2cf4`
+
+Replacement evidence candidate: `b5d2cd34c57368efb9b122cddf16c2ffa2d3895e` / `a3e4d82095caa9688f30d2463fa5971c788fd33f`
 
 ## Deterministic product obligations
 
@@ -32,13 +34,20 @@ Final product candidate: `429298d3328a62d4fcf2f5f3f12821342be4a23c` / `2e92e1726
 
 All rows above are closed on the final product candidate. Independent re-review returned PASS with no remaining Critical or Important finding.
 
+## R3 closure and acceptance phase split
+
+`C0-R4-ISSUE-CLOSURE-V4` records every identifier from `R3-001` through `R3-022` exactly once. `R3-001` through `R3-019` and `R3-021` are closed preflight findings with executable GREEN evidence. `R3-020` and `R3-022` remain explicitly `PENDING_E1_ACCEPTANCE`; requiring them to pass before E1 could attempt package/native acceptance would be circular and would force fabricated evidence.
+
+The closure also records all eight `R4-C0-*` findings exactly once with positive executable evidence. The prior T1 obligation table remains supporting campaign context and is not substituted for the required R3/R4 sets.
+
 ## Environment and campaign blockers
 
 | ID | State | Owner/next action |
 | --- | --- | --- |
 | H1-R4 | ACCEPTED | C0 preserved returned evidence and remediation record |
 | Q1-R4 | ACCEPTED | C0 integrated the return and closed coordinator-owned lifecycle findings |
-| E1-R4 | DISPATCHED | E1 independently validates the exact immutable final candidate |
+| E1-R4-V1 | CHANGES_REQUIRED | first return `dba63fcf` correctly vetoed the incomplete closure; artifacts preserved verbatim |
+| E1-R4-V2 | DISPATCHED | rerun from immutable `integration/ucl-r4-e1-issued-base-v2` under the corrected two-phase contract |
 | NATIVE-AUTH-LOCK | BLOCKED_EXTERNAL | E1 may acquire only the approved shared native lock and exact authorization |
 | NATIVE-GGUF-STAGE | BLOCKED_EXTERNAL | exact pinned stage input is absent; no binary/hash may be invented |
 | NATIVE-OPENVINO-STAGES | BLOCKED_EXTERNAL | exact verified native-stage inputs remain absent |

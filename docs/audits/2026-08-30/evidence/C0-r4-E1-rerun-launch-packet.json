@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "campaign": "E1-R4-EXACT-CANDIDATE-RERUN-V2",
+  "state": "DISPATCHED",
+  "issuedBy": "C0",
+  "issuedAtUtc": "2026-08-31T05:09:49Z",
+  "masterPrompt": {
+    "archive": "UCL-R4-Remaining-Worker-Prompts.zip",
+    "entry": "UCL-R4-Remaining-Worker-Prompts/03-E1-R4-EXACT-CANDIDATE-MASTER-PROMPT.md",
+    "sha256": "3d48774a58d109f72d77d70bec0c01d3f9baf312d81fa22f54113a622dfa9e07",
+    "bytes": 7803
+  },
+  "additionalControllingContext": {
+    "path": "docs/audits/2026-08-30/C0-r4-E1-rerun-contract.md",
+    "sha256": "69f7f6ab80357facd3a9933c2992afe480cb7e1bebef7a4179bddf29c1d66260",
+    "bytes": 4529,
+    "scope": "corrects only the circular issue-closure entry gate; all other master-prompt rules remain in force"
+  },
+  "replacementCandidate": {
+    "ref": "refs/remotes/origin/integration/ucl-r4-e1-issued-base-v2",
+    "commit": "b5d2cd34c57368efb9b122cddf16c2ffa2d3895e",
+    "tree": "a3e4d82095caa9688f30d2463fa5971c788fd33f",
+    "remoteEqualityVerified": true,
+    "productSubjectCommit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+    "productSubjectTree": "2e92e172679d1558972846694306d28ad56e2cf4",
+    "productionCodeChangedSinceProductSubject": false
+  },
+  "candidateControlledEvidence": {
+    "closure": {
+      "path": "docs/audits/2026-08-30/evidence/C0-r4-issue-closure.json",
+      "sha256": "f047c491a3dd5004ccb85bc1860daeb1d0a3339a92025442cd0c010bca48469d",
+      "bytes": 6490,
+      "schemaVersion": 4
+    },
+    "catalog": {
+      "path": "docs/audits/2026-08-30/evidence/C0-r4-issue-evidence-index-v2.json",
+      "evidenceSubjectCommit": "615d9e08b0b58a6c775a290e37a2f45b01f2efb3",
+      "evidenceSubjectTree": "f7be57a9d912fe4a1f6285ba9c606189bca2117b",
+      "sha256": "13dd8e4e103d82dd8449e4b37e46b538725aea67fdeef18d92dd02760f8d488c",
+      "bytes": 18924
+    },
+    "r3": { "total": 22, "closedPreflight": 20, "pendingPostAcceptance": ["R3-020", "R3-022"] },
+    "r4": { "total": 8, "closedPreflight": 8 }
+  },
+  "firstReturn": {
+    "disposition": "CHANGES REQUIRED",
+    "ref": "refs/remotes/origin/test/ucl-e1-native-acceptance-r4",
+    "tip": "dba63fcfcacc7d8ac541e863ff609fa785ee4802",
+    "tree": "273d64f48275eb43079ae4168ee5794546728c01",
+    "testedCandidateCommit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+    "testedCandidateTree": "2e92e172679d1558972846694306d28ad56e2cf4",
+    "finding": "The candidate-controlled closure omitted R3-001 through R3-022 and the original verifier made R3-020/R3-022 circular preflight gates.",
+    "report": { "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance.md", "sha256": "9adcff0d50df4b5332c6673bf9c7840da5c4cfc6b454360038e8d0c6d32b76df", "bytes": 5906 },
+    "manifest": { "path": "docs/audits/2026-08-30/evidence/E1-r4-independent-acceptance.json", "sha256": "dc5b88c79dfab478f815b818d20cec46cc9525ca2a4d042095e44183c2ee0601", "bytes": 3812 },
+    "receipt": { "path": "docs/audits/2026-08-30/handoffs/R4-E1.json", "sha256": "e1777cb3d4aa84916e6e194e0e7a247322338126fa7a75007e8d56a3ad3acaee", "bytes": 1386 }
+  },
+  "rerun": {
+    "branch": "test/ucl-e1-native-acceptance-r4-v2",
+    "startFromBeginning": true,
+    "candidateBoundReceiptsRequiredAtEntry": false,
+    "requiredVerifierCorrection": "test-only two-phase schema-v4 preflight and post-acceptance evaluation",
+    "requiredDispositions": ["APPROVED FOR MAIN INTEGRATION", "CHANGES REQUIRED", "BLOCKED BY EXTERNAL ENVIRONMENT"],
+    "requiredReturn": [
+      "remote/local-equal return ref tip and tree",
+      "exact replacement base ref commit and tree",
+      "full deterministic managed package native cleanup privacy and schema rerun",
+      "post-attempt R3-020 and R3-022 evaluation without fabricated passes",
+      "schema-valid report evidence manifest and receipt with verified hashes and bytes",
+      "verbatim final disposition"
+    ]
+  },
+  "ownership": [
+    "E1 test infrastructure and fail-closed verifier correction",
+    "independent exact-candidate execution evidence cleanup and verdict",
+    "no production fixes"
+  ],
+  "knownExternalBlocks": [
+    "exact native GGUF and OpenVINO stage inputs were absent during the first run",
+    "Windows Application Control blocked unsigned apphosts and packaged startup during the first run",
+    "blocked or unavailable prerequisites must be rechecked and honestly reported, never promoted to passes"
+  ],
+  "invalidationRule": "Any product correction after the v2 freeze invalidates the rerun and requires another immutable base and complete E1 restart."
+}

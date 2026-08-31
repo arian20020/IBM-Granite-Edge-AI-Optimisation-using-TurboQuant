@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 2,
+  "workerId": "E1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "e340457ba4cb932cdb58b54a374176e51ca52a28",
+  "evidenceSubjectTree": "5a9d15530f3083b910610582c0e2a76cfadc18b7",
+  "createdAtUtc": "2026-08-31T04:43:27Z",
+  "route": ["shared", "gguf", "openvino"],
+  "evidenceStatus": "failed",
+  "report": {
+    "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance.md",
+    "sha256": "9adcff0d50df4b5332c6673bf9c7840da5c4cfc6b454360038e8d0c6d32b76df",
+    "bytes": 5906
+  },
+  "inputs": [
+    {
+      "kind": "validated-candidate-base",
+      "id": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "coordinator-dispatch",
+      "id": "c6028db9d785a4edd0e10956af3bf57586d95ac1",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "issue-closure",
+      "id": "C0-r4-issue-closure.json",
+      "sha256": "ad28d3e3434839f33589ffd18ec1e142058c8470f5bf448d7c699260f3aedc3e",
+      "bytes": 2540,
+      "evidenceGrade": "verified"
+    }
+  ],
+  "outputs": [
+    {
+      "kind": "implementation-subject",
+      "id": "e340457ba4cb932cdb58b54a374176e51ca52a28",
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "audit-report",
+      "id": "E1-r4-independent-acceptance.md",
+      "sha256": "9adcff0d50df4b5332c6673bf9c7840da5c4cfc6b454360038e8d0c6d32b76df",
+      "bytes": 5906,
+      "evidenceGrade": "verified"
+    },
+    {
+      "kind": "release-finding",
+      "id": "E1-R4-001",
+      "evidenceGrade": "verified"
+    }
+  ],
+  "commands": [
+    {"id":"E1-DETERMINISTIC","exitCode":0,"discovered":31,"executed":31,"passed":31,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"OPENVINO-OPTIMIZATION","exitCode":0,"discovered":55,"executed":55,"passed":55,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"OPENVINO-WORKER-CLIENT","exitCode":0,"discovered":17,"executed":17,"passed":17,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"GGUF-QUANT-CONTRACTS","exitCode":0,"discovered":7,"executed":7,"passed":7,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"GGUF-QUANT-WORKER-CLIENT","exitCode":0,"discovered":19,"executed":19,"passed":19,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"Q1-IDENTITY","exitCode":0,"discovered":51,"executed":51,"passed":51,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"CROSS-FEATURE","exitCode":0,"discovered":115,"executed":115,"passed":115,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"OPENVINO-BROAD","exitCode":0,"discovered":496,"executed":496,"passed":489,"failed":0,"skipped":7,"disposition":"mixed"},
+    {"id":"SECURITY-AUDIT","exitCode":1,"discovered":12,"executed":12,"passed":11,"failed":1,"skipped":0,"disposition":"blocked"},
+    {"id":"NATIVE-PACKAGE-CAMPAIGN","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"not-applicable"}
+  ],
+  "blockers": [
+    "Candidate-controlled preflight failed because the committed C0 closure contains none of R3-001 through R3-022; package/native execution was therefore ineligible before lock acquisition.",
+    "Windows Application Control blocked the freshly built hostile security fixture with 0x800711C7; policy was not weakened.",
+    "The pinned SDK 10.0.301 is absent; managed verification temporarily used installed SDK 10.0.400 and restored global.json."
+  ],
+  "nonClaims": [
+    "No package, native GGUF/OpenVINO, real-model, Chat/export runtime, screenshot, accessibility, performance, or release acceptance is claimed.",
+    "The broad OpenVINO and security rows are supplementary and excluded from the 295-test non-overlapping passing receipt total.",
+    "No production or machine-security change was made, and main was not modified or pushed."
+  ]
+}

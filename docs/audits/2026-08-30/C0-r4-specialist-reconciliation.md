@@ -1,17 +1,24 @@
-# C0 R4 final-candidate reconciliation and E1 dispatch
+# C0 R4 final-candidate reconciliation and E1 rerun dispatch
 
 ## Disposition
 
-C0 accepted the H1 and Q1 R4 returns, completed the required coordinator-owned production wiring, remediated every Critical or Important lifecycle finding, and froze the exact post-Q1 product candidate for E1. E1 is formally `DISPATCHED`; release acceptance remains pending E1's independent return.
+C0 accepted the H1 and Q1 R4 returns, completed the required coordinator-owned production wiring, remediated every Critical or Important lifecycle finding, and froze the exact post-Q1 product subject. E1's first return was `CHANGES REQUIRED` because the candidate-controlled closure omitted all 22 R3 identifiers. C0 corrected that evidence defect without changing production, froze replacement evidence candidate `b5d2cd34c57368efb9b122cddf16c2ffa2d3895e` / `a3e4d82095caa9688f30d2463fa5971c788fd33f`, and formally redispatched E1 under a non-circular two-phase acceptance contract. Release acceptance remains pending the complete E1 rerun.
 
 - Frozen historical source: `4748fe04f19afdf6b27c4c12502b84db325e7294` / `fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91`
 - Coordinator branch: `integration/ucl-r4-specialist-reconciliation-v1`
-- Immutable E1 issued-base ref: `refs/remotes/origin/integration/ucl-r4-e1-issued-base-v1`
-- Final product candidate: `429298d3328a62d4fcf2f5f3f12821342be4a23c` / `2e92e172679d1558972846694306d28ad56e2cf4`
-- E1 return branch: `test/ucl-e1-native-acceptance-r4`
+- Immutable replacement E1 issued-base ref: `refs/remotes/origin/integration/ucl-r4-e1-issued-base-v2`
+- Replacement evidence candidate: `b5d2cd34c57368efb9b122cddf16c2ffa2d3895e` / `a3e4d82095caa9688f30d2463fa5971c788fd33f`
+- Unchanged product subject: `429298d3328a62d4fcf2f5f3f12821342be4a23c` / `2e92e172679d1558972846694306d28ad56e2cf4`
+- E1 rerun branch: `test/ucl-e1-native-acceptance-r4-v2`
 - E1 prompt: `03-E1-R4-EXACT-CANDIDATE-MASTER-PROMPT.md`, 7803 bytes, SHA-256 `3d48774a58d109f72d77d70bec0c01d3f9baf312d81fa22f54113a622dfa9e07`
 
-The immutable E1 issued-base ref deliberately remains at the product implementation subject. The coordinator branch advances only with this documentation dispatch record, avoiding an impossible self-referential Git commit. E1 must branch from the immutable issued-base ref, not from a later coordinator documentation tip.
+The replacement immutable E1 issued-base contains the committed closure and its prior-commit evidence catalog. The coordinator branch advances afterward only with return-intake and dispatch records. E1 must branch from the immutable v2 issued-base ref, not from the later coordinator documentation tip.
+
+## E1 first-return intake and correction
+
+E1 returned `CHANGES REQUIRED` at `dba63fcfcacc7d8ac541e863ff609fa785ee4802` / `273d64f48275eb43079ae4168ee5794546728c01`. C0 independently verified its remote equality, ancestry, owned-path scope, schema validity, privacy, arithmetic, cleanup, and exact artifact hashes. Its release-blocking finding was reproduced: `R3-001` through `R3-022` each occurred zero times in the original closure.
+
+The original entry gate also required `R3-020` and `R3-022`—the current E1 receipt and package/native acceptance—to be closed before E1 could attempt those same gates, while its verifier rejected the R4 findings required by the master prompt. C0 therefore published `C0-R4-ISSUE-CLOSURE-V4`: 20 preflight-resolvable R3 findings and all eight R4 findings are closed with executable evidence; only `R3-020` and `R3-022` remain pending for E1 post-attempt evaluation. No native or release pass was invented.
 
 ## Accepted specialist provenance
 
@@ -68,6 +75,6 @@ The final non-overlapping affected managed matrix is 466 discovered, 466 execute
 - E1 owns independent tests, evidence, and its verbatim verdict only. E1 may not make product fixes; any product correction invalidates its evidence and requires a new frozen base and complete rerun.
 - `main` was not modified or pushed.
 
-## Formal E1 dispatch
+## Formal E1 rerun dispatch
 
-E1 may begin only from `refs/remotes/origin/integration/ucl-r4-e1-issued-base-v1` after verifying it equals commit `429298d3328a62d4fcf2f5f3f12821342be4a23c` and tree `2e92e172679d1558972846694306d28ad56e2cf4`. The coordinator register and `C0-r4-E1-launch-packet.json` are the committed dispatch record. The allowed final dispositions remain exactly `APPROVED FOR MAIN INTEGRATION`, `CHANGES REQUIRED`, or narrowly `BLOCKED BY EXTERNAL ENVIRONMENT`.
+E1 may begin only from `refs/remotes/origin/integration/ucl-r4-e1-issued-base-v2` after verifying it equals commit `b5d2cd34c57368efb9b122cddf16c2ffa2d3895e` and tree `a3e4d82095caa9688f30d2463fa5971c788fd33f`. The candidate-controlled `C0-r4-E1-rerun-contract.md`, coordinator register, and `C0-r4-E1-rerun-launch-packet.json` are the formal rerun dispatch record. E1 must restart the full matrix, own the test-only verifier correction, and return exactly one allowed master-prompt disposition.
