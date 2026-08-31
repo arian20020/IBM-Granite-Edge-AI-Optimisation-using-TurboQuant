@@ -1,0 +1,129 @@
+{
+  "campaign_id": "fv2-2026-08-30",
+  "checks": {
+    "attempt_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "availability_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "evidence_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "failure_count": {
+      "actual": 30,
+      "expected": 30,
+      "passed": true
+    },
+    "failure_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "measurement_count": {
+      "actual": 45,
+      "expected": 45,
+      "passed": true
+    },
+    "measurement_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "model_artifact_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "nonpassed_observation_exclusion": {
+      "actual": [
+        "granite-3b__int4__f16",
+        "granite-3b__int4__tbq3",
+        "granite-3b__int4__tbq4",
+        "granite-3b__int4__u4",
+        "granite-3b__int4__u8",
+        "granite-3b__int8__f16",
+        "granite-3b__int8__tbq3",
+        "granite-3b__int8__tbq4",
+        "granite-3b__int8__u4",
+        "granite-3b__int8__u8",
+        "granite-8b__int4__f16",
+        "granite-8b__int4__tbq3",
+        "granite-8b__int4__tbq4",
+        "granite-8b__int4__u4",
+        "granite-8b__int4__u8"
+      ],
+      "expected": [
+        "granite-3b__int4__f16",
+        "granite-3b__int4__tbq3",
+        "granite-3b__int4__tbq4",
+        "granite-3b__int4__u4",
+        "granite-3b__int4__u8",
+        "granite-3b__int8__f16",
+        "granite-3b__int8__tbq3",
+        "granite-3b__int8__tbq4",
+        "granite-3b__int8__u4",
+        "granite-3b__int8__u8",
+        "granite-8b__int4__f16",
+        "granite-8b__int4__tbq3",
+        "granite-8b__int4__tbq4",
+        "granite-8b__int4__u4",
+        "granite-8b__int4__u8"
+      ],
+      "passed": true
+    },
+    "output_count": {
+      "actual": 720,
+      "expected": 720,
+      "passed": true
+    },
+    "output_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "prompt_count": {
+      "actual": 48,
+      "expected": 48,
+      "passed": true
+    },
+    "prompt_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "quality_count": {
+      "actual": 2160,
+      "expected": 2160,
+      "passed": true
+    },
+    "quality_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "same_case_typed_references": {
+      "actual": true,
+      "expected": true,
+      "passed": true
+    },
+    "summary_count": {
+      "actual": 45,
+      "expected": 45,
+      "passed": true
+    },
+    "summary_entities": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    }
+  },
+  "route_id": "openvino-official-upstream",
+  "valid": true
+}

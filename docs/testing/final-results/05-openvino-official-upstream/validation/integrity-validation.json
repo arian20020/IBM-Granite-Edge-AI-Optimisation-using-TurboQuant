@@ -1,0 +1,6 @@
+{
+  "indexed_prior_workbook_sha256": "b3e26eae69c3854dec26536c6d141943572292f8a9ea331cb4de1d88c76b32b4",
+  "manifest": "docs/testing/final-results/05-openvino-official-upstream/evidence/manifest-sha256.txt",
+  "status": "valid",
+  "workbook_copy_sha256": "1d5fc2893e0c7f412140b3fa1a26c4a0c18e3c65ecfa356e80549dc4cd10aff7"
+}

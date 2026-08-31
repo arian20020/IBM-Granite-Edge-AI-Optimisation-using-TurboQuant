@@ -1,0 +1,10 @@
+model_id,weight_format_id,status,executed_case_count,artifact_label,sha256,size_bytes,reason
+granite-30b,fp16,blocked,0,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int4,blocked,0,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int8,blocked,0,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-3b,fp16,failed,0,,,,emergency_ram_floor_reached
+granite-3b,int4,available,5,granite-4.1-3b-int4-cw-ov-ea0231a,6da1029abd4a1464a94a571ac6a6a950c262b226c15912915a721e0643f7c708,1832903073,
+granite-3b,int8,available,5,granite-4.1-3b-int8-ov-f858c9e,f92a009e300ee1c01edc8a6cbaf4f591e2998421757ce63c090d75a5687faa06,3406770593,
+granite-8b,fp16,blocked,0,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,int4,available,5,granite-4.1-8b-int4-cw-ov-d84b1d1,789db59c53b45da8b8143b90f11d268597658d6f9eae6cbb049c20343b01fcd4,4400454177,
+granite-8b,int8,blocked,0,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host

@@ -1,0 +1,54 @@
+{
+  "conversion_preflight_by_model_weight": {
+    "granite-30b__fp16": {
+      "available_ram_bytes": 9502789632,
+      "emergency_floor_bytes": 2147483648,
+      "estimated_peak_bytes": 58805266368,
+      "required_available_bytes": 60952750016,
+      "shortfall_bytes": 51449960384,
+      "status": "hardware_preflight_blocked"
+    },
+    "granite-30b__int4": {
+      "available_ram_bytes": 9502789632,
+      "emergency_floor_bytes": 2147483648,
+      "estimated_peak_bytes": 58805266368,
+      "required_available_bytes": 60952750016,
+      "shortfall_bytes": 51449960384,
+      "status": "hardware_preflight_blocked"
+    },
+    "granite-30b__int8": {
+      "available_ram_bytes": 9502789632,
+      "emergency_floor_bytes": 2147483648,
+      "estimated_peak_bytes": 58805266368,
+      "required_available_bytes": 60952750016,
+      "shortfall_bytes": 51449960384,
+      "status": "hardware_preflight_blocked"
+    },
+    "granite-3b__fp16": {
+      "available_ram_bytes": 9219502080,
+      "emergency_floor_bytes": 2147483648,
+      "estimated_peak_bytes": 7879456616,
+      "required_available_bytes": 10026940264,
+      "shortfall_bytes": 807438184,
+      "status": "hardware_preflight_blocked"
+    },
+    "granite-8b__fp16": {
+      "available_ram_bytes": 9503051776,
+      "emergency_floor_bytes": 2147483648,
+      "estimated_peak_bytes": 18656969976,
+      "required_available_bytes": 20804453624,
+      "shortfall_bytes": 11301401848,
+      "status": "hardware_preflight_blocked"
+    },
+    "granite-8b__int8": {
+      "available_ram_bytes": 9503039488,
+      "emergency_floor_bytes": 2147483648,
+      "estimated_peak_bytes": 18656969976,
+      "required_available_bytes": 20804453624,
+      "shortfall_bytes": 11301414136,
+      "status": "hardware_preflight_blocked"
+    }
+  },
+  "emergency_ram_floor_bytes": 2147483648,
+  "status": "source-recorded"
+}

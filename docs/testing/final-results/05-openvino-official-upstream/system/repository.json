@@ -1,0 +1,13 @@
+{
+  "openvino": {
+    "commit": "f5f594dc0c9e5961785f0d17743486d52eac87e7",
+    "url": "https://github.com/openvinotoolkit/openvino.git"
+  },
+  "openvino_genai": {
+    "commit": "6fbc103538d30d42da4b0b5130a4792a20f728ba",
+    "url": "https://github.com/openvinotoolkit/openvino.genai.git"
+  },
+  "source_campaign": "fv2 status joined to fv1 passed evidence",
+  "source_date": "2026-08-30",
+  "turboquant_merge_commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4"
+}
