@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date
 import json
 from pathlib import Path
+import re
 from typing import Iterable, Mapping, Sequence
 
 from .csvio import write_csv, write_json
@@ -151,24 +152,56 @@ def _throughput_signatures(bundle: RouteBundle, metric: str) -> dict[str, dict[s
         measurements_by_case[row.test_case_id][row.measurement_id] = row
     result: dict[str, dict[str, object]] = {}
     for case_id, summaries in sorted(summaries_by_case.items()):
-        selected_measurements = [
-            measurements_by_case[case_id][measurement_id]
-            for summary in summaries
-            for measurement_id in summary.source_measurement_ids
-            if measurement_id in measurements_by_case[case_id]
-        ]
+        input_lengths: dict[str, object] = {}
+        output_lengths: dict[str, object] = {}
+        measurement_lineage: dict[str, dict[str, object]] = {}
+        repetition_treatment: dict[str, dict[str, object]] = {}
+        metric_definition: dict[str, dict[str, object]] = {}
+        for summary_ordinal, summary in enumerate(summaries, start=1):
+            summary_key = f"summary-{summary_ordinal:03d}"
+            source_keys: list[str] = []
+            for source_ordinal, measurement_id in enumerate(summary.source_measurement_ids, start=1):
+                measurement = measurements_by_case[case_id].get(measurement_id)
+                repetition_id = (
+                    str(measurement.repetition_id)
+                    if measurement is not None and measurement.repetition_id
+                    else "missing"
+                )
+                lineage_key = (
+                    f"{summary_key}/source-{source_ordinal:03d}/repetition-{repetition_id}"
+                )
+                source_keys.append(lineage_key)
+                measurement_lineage[lineage_key] = {
+                    "summary_ordinal": summary_ordinal,
+                    "source_ordinal": source_ordinal,
+                    "repetition_id": repetition_id if repetition_id != "missing" else {"status": "missing"},
+                }
+                input_lengths[lineage_key] = (
+                    measurement.input_tokens
+                    if measurement is not None and measurement.input_tokens is not None
+                    else {"status": "missing"}
+                )
+                output_lengths[lineage_key] = (
+                    measurement.output_tokens
+                    if measurement is not None and measurement.output_tokens is not None
+                    else {"status": "missing"}
+                )
+            repetition_treatment[summary_key] = {
+                "aggregation": summary.aggregation.casefold(),
+                "source_measurement_count": len(summary.source_measurement_ids),
+                "source_lineage_keys": source_keys,
+            }
+            metric_definition[summary_key] = {
+                "metric_name": summary.metric_name,
+                "unit": summary.unit.casefold(),
+            }
         signature = _case_identity(bundle, case_id, attempts)
         signature.update({
-            "input_length": _one_or_many(row.input_tokens for row in selected_measurements if row.input_tokens is not None),
-            "output_length": _one_or_many(row.output_tokens for row in selected_measurements if row.output_tokens is not None),
-            "repetition_treatment": _one_or_many({
-                "aggregation": row.aggregation.casefold(),
-                "source_measurement_count": len(row.source_measurement_ids),
-            } for row in summaries),
-            "metric_definition": _one_or_many({
-                "metric_name": row.metric_name,
-                "unit": row.unit.casefold(),
-            } for row in summaries),
+            "input_length": input_lengths or {"status": "missing"},
+            "output_length": output_lengths or {"status": "missing"},
+            "measurement_lineage": measurement_lineage or {"status": "missing"},
+            "repetition_treatment": repetition_treatment or {"status": "missing"},
+            "metric_definition": metric_definition or {"status": "missing"},
         })
         result[case_id] = signature
     return result
@@ -307,6 +340,16 @@ def _quality_profile_value(
 
 def _missing_status(value: object) -> bool:
     return isinstance(value, dict) and value == {"status": "missing"}
+
+
+def _contains_missing(value: object) -> bool:
+    if _missing_status(value):
+        return True
+    if isinstance(value, Mapping):
+        return any(_contains_missing(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_missing(item) for item in value)
+    return False
 
 
 def _scope(left: Mapping[str, object], right: Mapping[str, object]) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
@@ -517,6 +560,7 @@ def classify_comparability(left: RouteBundle, right: RouteBundle, metric: str) -
         ("model_identity", "model_mismatch"),
         ("input_length", "input_length_mismatch"),
         ("output_length", "output_length_mismatch"),
+        ("measurement_lineage", "measurement_lineage_mismatch"),
         ("backend_class", "backend_class_mismatch"),
         ("repetition_treatment", "repetition_treatment_mismatch"),
         ("metric_definition", "metric_definition_mismatch"),
@@ -525,8 +569,9 @@ def classify_comparability(left: RouteBundle, right: RouteBundle, metric: str) -
         for field, mismatch_code in field_codes:
             left_value = left_signatures[case_id][field]
             right_value = right_signatures[case_id][field]
-            code = f"{field}_missing" if _missing_status(left_value) or _missing_status(right_value) else mismatch_code
-            if _missing_status(left_value) or _missing_status(right_value) or left_value != right_value:
+            has_missing = _contains_missing(left_value) or _contains_missing(right_value)
+            code = f"{field}_missing" if has_missing else mismatch_code
+            if has_missing or left_value != right_value:
                 if code not in reasons:
                     reasons.append(code)
                 _add_mismatch(mismatches, case_id=case_id, field=field, left=left_value, right=right_value)
@@ -544,6 +589,8 @@ def classify_comparability(left: RouteBundle, right: RouteBundle, metric: str) -
         "model_identity_missing",
         "input_length_missing",
         "output_length_missing",
+        "measurement_lineage_mismatch",
+        "measurement_lineage_missing",
         "backend_class_missing",
         "repetition_treatment_missing",
         "metric_definition_missing",
@@ -746,18 +793,63 @@ def build_cross_route_validation(
 
     def has_affirmative_ranking_prose(text: str) -> bool:
         normalized = " ".join(text.casefold().split())
-        patterns = (
-            "repository ranking", "route ranking", "quality leaderboard", "performance leaderboard",
-            "ranked repositories", "ranked routes", "best repository:", "best route:",
+        raw_clauses = [
+            clause.strip(" ,:")
+            for clause in re.split(
+                r"(?<=[.!?;])\s+|\s+(?:but|however|yet)\s+|"
+                r",\s*(?:although|while|whereas|despite)\s+",
+                normalized,
+            )
+            if clause.strip(" ,:")
+        ]
+        clauses: list[str] = []
+        for clause in raw_clauses:
+            if re.match(r"^(?:although|while|whereas|despite)\b", clause) and "," in clause:
+                boundary, claim = clause.split(",", 1)
+                clauses.extend((boundary.strip(), claim.strip()))
+            else:
+                clauses.append(clause)
+        claim_patterns = (
+            r"\b(?:repository|route|quality|performance|universal)\s+(?:ranking|leaderboard|standings)\s*:",
+            r"\b(?:best|worst|top|highest|lowest)\s+(?:repository|route|model|configuration|quality|performance|score|throughput)\b",
+            r"\b(?:route|repository|model|configuration)\s+(?:is|was|has|had|achieved)\s+(?:the\s+)?(?:best|worst|top|highest|lowest|first|second|third)\b",
+            r"\b(?:ranks?|ranked)\s+(?:as\s+)?(?:the\s+)?(?:best|worst|top|first|second|third|above|below)\b",
+            r"\b(?:places?|placed)\s+(?:first|second|third|ahead|above|below)\b",
+            r"\b(?:route|repository|model|configuration)\s+(?:is|was)\s+(?:first|second|third)\b",
+            r"\b(?:higher|lower|better|worse)\b(?:\s+\w+){0,4}\s+than\b",
+            r"\b(?:superior|inferior)\b(?:\s+\w+){0,4}\s+to\b",
+            r"\b(?:outperforms?|beats?|leads?)\b",
         )
-        if not any(pattern in normalized for pattern in patterns):
-            return False
-        negative_boundaries = (
-            "no universal ranking", "no repository ranking", "no route ranking",
-            "not ranked", "without a universal ranking", "without universal ranking",
-            "no universal best repository", "no universal best route",
+        denial = re.compile(
+            r"\b(?:does|do|did|can|could|would|should|is|are|was|were)\s+(?:not|never)\s+"
+            r"(?:support|establish|justify|permit|show|demonstrate|rank|describe)\b|"
+            r"\b(?:cannot|can't)\s+(?:support|establish|justify|permit|show|demonstrate|rank|be described)\b|"
+            r"\b(?:ranking|leaderboard|standings)\b.{0,80}\b(?:unsupported|prohibited|forbidden|not supported)\b"
         )
-        return not any(boundary in normalized for boundary in negative_boundaries)
+        local_negation = re.compile(r"\b(?:no|not|never|without)\b(?:\W+\w+){0,4}\W*$")
+        for clause in clauses:
+            if re.match(r"^(?:no|neither|not|without)\b", clause):
+                continue
+            denial_matches = tuple(denial.finditer(clause))
+            for pattern in claim_patterns:
+                for match in re.finditer(pattern, clause):
+                    local_prefix = clause[:match.start()]
+                    if local_negation.search(local_prefix):
+                        continue
+                    governed_by_denial = False
+                    for denial_match in denial_matches:
+                        if denial_match.start() > match.start():
+                            continue
+                        if denial_match.end() >= match.start():
+                            governed_by_denial = True
+                            break
+                        bridge = clause[denial_match.end():match.start()]
+                        if re.search(r"\b(?:that|whether)\b", bridge) or not re.search(r"\band\b", bridge):
+                            governed_by_denial = True
+                            break
+                    if not governed_by_denial:
+                        return True
+        return False
 
     ranking_tables = [table.table_id for table in tables if is_ranking_table(table)]
     ranking_prose = [

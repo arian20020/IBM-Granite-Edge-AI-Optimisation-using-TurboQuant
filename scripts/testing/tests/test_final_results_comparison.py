@@ -218,6 +218,64 @@ def test_keyed_throughput_comparison_rejects_relationship_preserving_set_swap():
     ]
 
 
+def test_throughput_preserves_repetition_keyed_token_relationships():
+    from scripts.testing.final_results.comparison import classify_comparability
+
+    left = _bundle("left")
+    right = _bundle("right")
+    left = dataclasses.replace(
+        left,
+        measurements=tuple(
+            dataclasses.replace(row, input_tokens=value)
+            for row, value in zip(left.measurements, (24, 48, 24), strict=True)
+        ),
+    )
+    right = dataclasses.replace(
+        right,
+        measurements=tuple(
+            dataclasses.replace(row, input_tokens=value)
+            for row, value in zip(right.measurements, (48, 24, 24), strict=True)
+        ),
+    )
+
+    result = classify_comparability(left, right, "generation_tokens_per_second")
+
+    assert result.classification == "normalized_with_caveat"
+    assert "input_length_mismatch" in result.reasons
+    mismatch = next(row for row in result.signature_mismatches if row["field"] == "input_length")
+    assert mismatch["left"] == {
+        "summary-001/source-001/repetition-1": 24,
+        "summary-001/source-002/repetition-2": 48,
+        "summary-001/source-003/repetition-3": 24,
+    }
+    assert mismatch["right"] == {
+        "summary-001/source-001/repetition-1": 48,
+        "summary-001/source-002/repetition-2": 24,
+        "summary-001/source-003/repetition-3": 24,
+    }
+
+
+def test_throughput_rejects_one_missing_required_repetition_token_value():
+    from scripts.testing.final_results.comparison import classify_comparability
+
+    left = _bundle("left")
+    right = _bundle("right")
+    right = dataclasses.replace(
+        right,
+        measurements=tuple(
+            dataclasses.replace(row, input_tokens=None) if row.repetition_id == "2" else row
+            for row in right.measurements
+        ),
+    )
+
+    result = classify_comparability(left, right, "generation_tokens_per_second")
+
+    assert result.classification == "not_comparable"
+    assert "input_length_missing" in result.reasons
+    mismatch = next(row for row in result.signature_mismatches if row["field"] == "input_length")
+    assert mismatch["right"]["summary-001/source-002/repetition-2"] == {"status": "missing"}
+
+
 def test_quality_ranking_requires_identical_method_and_denominator():
     from scripts.testing.final_results.comparison import classify_comparability
 
@@ -540,6 +598,51 @@ def test_cross_route_validation_is_derived_from_report_and_catalog_content():
     assert prose_validation["valid"] is False
     assert prose_validation["universal_ranking_present"] is True
     assert prose_validation["incompatible_quality_ranking_present"] is True
+
+    ranking_phrasings = (
+        "No universal ranking is supported. Repository ranking: 1. left, 2. right by incompatible quality score.",
+        "The left route is the best repository by incompatible quality score; the right route is second.",
+        "Although a universal leaderboard is unsupported, left ranks first and right ranks second on incompatible quality.",
+        "By incompatible quality score, the left route places ahead of the right route.",
+        "Left has higher quality than right.",
+        "Left achieved the highest quality score.",
+        "Left is better than right by incompatible quality score.",
+        "Left is superior to right on incompatible quality.",
+        "No universal ranking is supported, although left is better than right by incompatible quality score.",
+        "The evidence does not support a universal ranking, although left has higher quality than right.",
+        "The evidence does not support deployment, and left is better than right by incompatible quality score.",
+        "The evidence does not support deployment and left has higher quality than right.",
+    )
+    for wording in ranking_phrasings:
+        changed = dataclasses.replace(
+            incompatible_report,
+            sections=incompatible_report.sections + (
+                ReportSection("Unsupported prose variant", (ReportParagraph(wording),)),
+            ),
+        )
+        validation = build_cross_route_validation(changed, incompatible_catalogs, incompatible_bundles)
+        assert validation["valid"] is False, wording
+        assert validation["universal_ranking_present"] is True, wording
+        assert validation["incompatible_quality_ranking_present"] is True, wording
+
+    nonranking_disclaimers = (
+        "The evidence does not support any conclusion that the left route, based on current incompatible quality evidence, is the best repository.",
+        "Neither route can be described, from these incompatible quality scores, as better or superior to the other.",
+        "The evidence does not support ranking and does not establish that left is better than right.",
+        "The evidence does not establish whether left is better than right or right is better than left.",
+        "The evidence does not establish that left is better than right and right is worse than left.",
+    )
+    for wording in nonranking_disclaimers:
+        changed = dataclasses.replace(
+            incompatible_report,
+            sections=incompatible_report.sections + (
+                ReportSection("Permitted disclaimer variant", (ReportParagraph(wording),)),
+            ),
+        )
+        validation = build_cross_route_validation(changed, incompatible_catalogs, incompatible_bundles)
+        assert validation["valid"] is True, wording
+        assert validation["universal_ranking_present"] is False, wording
+        assert validation["incompatible_quality_ranking_present"] is False, wording
 
 
 def test_package_writer_creates_portable_parity_valid_artifacts_and_catalogs(tmp_path):

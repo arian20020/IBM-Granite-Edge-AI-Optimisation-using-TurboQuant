@@ -1,5 +1,5 @@
 {
-  "findings": "No blank, clipped, overlapping, corrupt, truncated, or orphaned content observed across the 20 full-page renders after final report compaction.",
+  "findings": "Final 20 full-page renders are pixel-identical to the manually reviewed clean renders; no blank, clipped, overlapping, corrupt, truncated, or orphaned content.",
   "inspected_pages": [
     1,
     2,
