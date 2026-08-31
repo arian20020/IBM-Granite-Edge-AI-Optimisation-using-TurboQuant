@@ -7,14 +7,6 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function Get-RepositoryRoot {
-    $output = & git rev-parse --show-toplevel 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($output)) {
-        throw 'Run this script from inside the Granite Edge AI repository.'
-    }
-    return $output.Trim()
-}
-
 function Assert-True([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw $Message }
 }
@@ -25,12 +17,18 @@ function Invoke-Git([string] $Root, [string[]] $Arguments) {
     return $output.Trim()
 }
 
+function Get-RepositoryRoot {
+    $root = & git rev-parse --show-toplevel 2>$null | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($root)) { throw 'Run from inside the Granite Edge AI repository.' }
+    return $root.Trim()
+}
+
 function Resolve-BaseCommit([string] $Root, [string] $Requested) {
     foreach ($candidate in @($Requested, "origin/$Requested", "refs/remotes/origin/$Requested", "refs/heads/$Requested")) {
-        $output = & git -C $Root rev-parse --verify --quiet "$candidate^{commit}" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $output) { return ($output | Select-Object -First 1).Trim() }
+        $value = & git -C $Root rev-parse --verify --quiet "$candidate^{commit}" 2>$null | Select-Object -First 1
+        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($value)) { return $value.Trim() }
     }
-    throw "Unable to resolve base ref '$Requested'. Fetch the base branch before verification."
+    throw "Unable to resolve base ref '$Requested'."
 }
 
 function Get-ChangedPaths([string] $Root, [string] $BaseCommit) {
@@ -40,10 +38,10 @@ function Get-ChangedPaths([string] $Root, [string] $BaseCommit) {
     $paths += & git -C $Root diff --name-only
     $paths += & git -C $Root diff --cached --name-only
     $paths += & git -C $Root ls-files --others --exclude-standard
-    return @($paths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Replace('\', '/') } | Sort-Object -Unique)
+    return @($paths | Where-Object { $_ } | ForEach-Object { $_.Replace('\', '/') } | Sort-Object -Unique)
 }
 
-function Read-State([string] $Root) {
+function Get-AuthorizationState([string] $Root) {
     $policy = Get-Content -LiteralPath (Join-Path $Root '.frontend-worker/v2/implementation-lock.yml') -Raw
     $match = [regex]::Match($policy, '(?m)^state_file:\s*(.+?)\s*$')
     Assert-True $match.Success 'implementation-lock.yml does not declare state_file.'
@@ -54,6 +52,12 @@ function Read-State([string] $Root) {
     }
     $record = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
     return [pscustomobject]@{ Open = ($record.implementationAuthorized -eq $true); Path = $path }
+}
+
+function Assert-SameSet([object[]] $Actual, [object[]] $Expected, [string] $Label) {
+    $actualValues = @($Actual | ForEach-Object { [string] $_ } | Sort-Object)
+    $expectedValues = @($Expected | ForEach-Object { [string] $_ } | Sort-Object)
+    Assert-True (($actualValues -join '|') -eq ($expectedValues -join '|')) "$Label mismatch. Actual: $($actualValues -join ', ')"
 }
 
 $root = Get-RepositoryRoot
@@ -92,12 +96,8 @@ try {
         Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "Missing required bootstrap file: $path"
     }
 
-    foreach ($obsolete in @(
-        '.frontend-worker/v2/MASTER_PROMPT.md',
-        '.frontend-worker/v2/authorization.json',
-        '.codex/skills/.gitignore'
-    )) {
-        Assert-True (-not (Test-Path -LiteralPath $obsolete)) "Obsolete duplicate/state file must be removed: $obsolete"
+    foreach ($obsolete in @('.frontend-worker/v2/MASTER_PROMPT.md', '.frontend-worker/v2/authorization.json', '.codex/skills/.gitignore')) {
+        Assert-True (-not (Test-Path -LiteralPath $obsolete)) "Obsolete duplicate/state file remains: $obsolete"
     }
 
     $marketplace = Get-Content '.agents/plugins/marketplace.json' -Raw | ConvertFrom-Json
@@ -109,9 +109,9 @@ try {
     Assert-True ($marketplace.name -eq 'granite-native-frontend') 'Unexpected local marketplace name.'
     $entries = @($marketplace.plugins | Where-Object name -eq 'granite-native-frontend-worker')
     Assert-True ($entries.Count -eq 1) 'Local marketplace must contain exactly one Granite worker.'
-    Assert-True ($entries[0].source.source -eq 'local') 'Granite worker must use a local marketplace source.'
+    Assert-True ($entries[0].source.source -eq 'local') 'Granite worker must use a local source.'
     Assert-True ($entries[0].source.path -eq './plugins/granite-native-frontend-worker') 'Granite worker marketplace path is incorrect.'
-    Assert-True ($entries[0].policy.products -contains 'CODEX') 'Local marketplace entry must be scoped to CODEX.'
+    Assert-True ($entries[0].policy.products -contains 'CODEX') 'Granite worker must be scoped to CODEX.'
 
     Assert-True ($plugin.name -eq 'granite-native-frontend-worker') 'Unexpected plugin name.'
     Assert-True ($plugin.version -eq '2.1.0') 'Unexpected plugin version.'
@@ -122,26 +122,19 @@ try {
 
     Assert-True ($providers.profile -eq 'native-winui') 'Provider lock profile must be native-winui.'
     Assert-True ($tools.profile -eq 'native-winui') 'Tooling lock profile must be native-winui.'
+    Assert-SameSet @($providers.providers | Where-Object required -eq $true | ForEach-Object id) @('microsoft-winui', 'superpowers', 'uncodixfy-winui-v2') 'Required providers'
+    Assert-SameSet @($providers.providers | Where-Object required -eq $false | ForEach-Object id) @('figma', 'product-design', 'stark', 'ui-ux-pro-max') 'Optional providers'
 
-    $requiredProviderIds = @($providers.providers | Where-Object required -eq $true | ForEach-Object id | Sort-Object)
-    $expectedRequired = @('microsoft-winui', 'superpowers', 'uncodixfy-winui-v2')
-    Assert-True (($requiredProviderIds -join '|') -eq ($expectedRequired -join '|')) "Required providers are inconsistent: $($requiredProviderIds -join ', ')"
-
-    $optionalProviderIds = @($providers.providers | Where-Object required -eq $false | ForEach-Object id | Sort-Object)
-    $expectedOptional = @('figma', 'product-design', 'stark', 'ui-ux-pro-max')
-    Assert-True (($optionalProviderIds -join '|') -eq ($expectedOptional -join '|')) "Optional providers are inconsistent: $($optionalProviderIds -join ', ')"
-
-    $unpinned = @($providers.providers | Where-Object {
-        $_.repository -and ([string]::IsNullOrWhiteSpace($_.ref) -or $_.ref -notmatch '^[0-9a-f]{40}$')
-    })
-    Assert-True ($unpinned.Count -eq 0) "Unpinned provider refs: $($unpinned.id -join ', ')"
+    $unpinned = @($providers.providers | Where-Object { $_.repository -and ([string]::IsNullOrWhiteSpace($_.ref) -or $_.ref -notmatch '^[0-9a-f]{40}$') })
+    $unpinnedIds = @($unpinned | ForEach-Object { [string] $_.id })
+    Assert-True ($unpinned.Count -eq 0) "Unpinned provider refs: $($unpinnedIds -join ', ')"
     $writers = @($providers.providers | Where-Object writeAuthority -eq $true)
-    Assert-True ($writers.Count -eq 0) "External providers cannot have production write authority: $($writers.id -join ', ')"
+    $writerIds = @($writers | ForEach-Object { [string] $_.id })
+    Assert-True ($writers.Count -eq 0) "External providers have write authority: $($writerIds -join ', ')"
 
     Assert-True ($template.implementationAuthorized -eq $false) 'Authorization template must be closed.'
-    Assert-True ($template.authorizedSurfaces.Count -eq 0) 'Authorization template must not contain surfaces.'
-
-    $state = Read-State $root
+    Assert-True (@($template.authorizedSurfaces).Count -eq 0) 'Authorization template must not contain surfaces.'
+    $state = Get-AuthorizationState $root
     Assert-True (-not $state.Open) "Bootstrap verification requires closed local authorization state: $($state.Path)"
 
     $requiredPhrase = 'AUTHORIZE GRANITE FRONTEND V2 IMPLEMENTATION'
@@ -165,10 +158,10 @@ try {
     }
 
     foreach ($skill in Get-ChildItem 'plugins/granite-native-frontend-worker/skills' -Filter 'SKILL.md' -Recurse) {
-        $text = Get-Content $skill.FullName -Raw
+        $text = Get-Content -LiteralPath $skill.FullName -Raw
         Assert-True ($text.StartsWith("---`n") -or $text.StartsWith("---`r`n")) "Skill frontmatter is missing: $($skill.FullName)"
         Assert-True ($text -match '(?m)^name:\s*[-a-z0-9]+\s*$') "Skill name is invalid: $($skill.FullName)"
-        Assert-True ($text -match '(?m)^description:\s*Use when\s+.+$') "Skill description must be trigger-only and start with 'Use when': $($skill.FullName)"
+        Assert-True ($text -match '(?m)^description:\s*Use when\s+.+$') "Skill description must be trigger-only: $($skill.FullName)"
     }
 
     foreach ($script in Get-ChildItem 'scripts' -Filter '*.ps1' -Recurse | Where-Object { $_.FullName -match 'GraniteNativeFrontendWorkerV2|GraniteFrontendGuard' }) {
@@ -179,42 +172,33 @@ try {
     }
 
     if ([string]::IsNullOrWhiteSpace($BaseRef)) {
-        $configText = Get-Content '.frontend-worker/v2/config.yml' -Raw
-        $match = [regex]::Match($configText, '(?m)^target_base_branch:\s*(.+?)\s*$')
-        Assert-True $match.Success 'Unable to read target_base_branch from config.yml.'
+        $config = Get-Content '.frontend-worker/v2/config.yml' -Raw
+        $match = [regex]::Match($config, '(?m)^target_base_branch:\s*(.+?)\s*$')
+        Assert-True $match.Success 'Unable to read target_base_branch.'
         $BaseRef = $match.Groups[1].Value.Trim().Trim('"').Trim("'")
     }
     $baseCommit = Resolve-BaseCommit $root $BaseRef
     $changedPaths = Get-ChangedPaths $root $baseCommit
 
     $allowedPatterns = @(
-        '^AGENTS\.md$',
-        '^\.agents/plugins/',
-        '^\.agents/skills/',
-        '^\.codex/agents/',
-        '^\.frontend-worker/',
-        '^plugins/granite-native-frontend-worker/',
-        '^scripts/(Authorize|Initialize|Test)-GraniteNativeFrontendWorkerV2\.ps1$',
-        '^scripts/frontend-worker/',
-        '^tools/GraniteFrontendGuard/',
-        '^docs/frontend-worker/',
+        '^AGENTS\.md$', '^\.agents/plugins/', '^\.agents/skills/', '^\.codex/agents/', '^\.frontend-worker/',
+        '^plugins/granite-native-frontend-worker/', '^scripts/(Authorize|Initialize|Test)-GraniteNativeFrontendWorkerV2\.ps1$',
+        '^scripts/frontend-worker/', '^tools/GraniteFrontendGuard/', '^docs/frontend-worker/',
         '^docs/superpowers/specs/2026-08-31-granite-native-frontend-worker-v2-design\.md$',
         '^docs/superpowers/plans/2026-08-31-granite-native-frontend-worker-v2-bootstrap\.md$',
         '^\.github/workflows/frontend-worker-bootstrap\.yml$'
     )
-    $unexpected = @($changedPaths | Where-Object {
-        $path = $_
-        -not ($allowedPatterns | Where-Object { $path -match $_ })
-    })
+    $unexpected = @($changedPaths | Where-Object { $candidate = $_; -not ($allowedPatterns | Where-Object { $candidate -match $_ }) })
     Assert-True ($unexpected.Count -eq 0) "Files outside the bootstrap allowlist changed:`n - $($unexpected -join "`n - ")"
 
     $forbidden = @($changedPaths | Where-Object {
-        $_ -match '^IBM Granite with TurboQuant \(Intel\)/' -or
-        $_ -match '^(shared|infrastructure|runtime|workers|experiments|models|tests|research|release-evidence)/' -or
-        $_ -match '(^|/)(Package\.appxmanifest|app\.manifest|App\.xaml\.cs)$' -or
-        $_ -match '\.(csproj|sln|slnx|targets)$' -and $_ -notmatch '^tools/GraniteFrontendGuard/GraniteFrontendGuard\.csproj$'
+        $candidate = $_
+        ($candidate -match '^IBM Granite with TurboQuant \(Intel\)/') -or
+        ($candidate -match '^(shared|infrastructure|runtime|workers|experiments|models|tests|research|release-evidence)/') -or
+        ($candidate -match '(^|/)(Package\.appxmanifest|app\.manifest|App\.xaml\.cs)$') -or
+        (($candidate -match '\.(csproj|sln|slnx|targets)$') -and ($candidate -notmatch '^tools/GraniteFrontendGuard/GraniteFrontendGuard\.csproj$'))
     })
-    Assert-True ($forbidden.Count -eq 0) "Production, test, project, evidence, or backend files changed during initialization:`n - $($forbidden -join "`n - ")"
+    Assert-True ($forbidden.Count -eq 0) "Production, test, project, evidence, or backend files changed:`n - $($forbidden -join "`n - ")"
 
     & git diff --check "$baseCommit...HEAD"
     Assert-True ($LASTEXITCODE -eq 0) 'git diff --check failed.'
@@ -232,18 +216,17 @@ try {
     if (-not $StructureOnly) {
         $statusPath = '.frontend-worker/v2/provider-status.json'
         Assert-True (Test-Path -LiteralPath $statusPath -PathType Leaf) 'Provider status is missing. Run the initializer with -Install.'
-        $status = Get-Content $statusPath -Raw | ConvertFrom-Json
+        $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
         Assert-True ($status.schemaVersion -eq 3) 'Provider status schema is stale.'
         Assert-True ($status.mode -eq 'install') 'Provider status must come from an -Install run.'
         Assert-True ($status.implementationState -eq 'closed') 'Provider status does not confirm closed authorization.'
-
         foreach ($id in @('granite-native-frontend-worker', 'microsoft-winui', 'superpowers', 'uncodixfy-winui-v2')) {
             $record = @($status.providers | Where-Object id -eq $id)
             Assert-True ($record.Count -eq 1 -and $record[0].state -eq 'ready') "Required provider is not ready: $id"
         }
         foreach ($toolId in @('powershell-7', 'git', 'codex-cli', 'dotnet-sdk')) {
             $record = @($status.tools | Where-Object id -eq $toolId)
-            Assert-True ($record.Count -eq 1 -and $record[0].state -eq 'ready') "Required initialization tool is not ready: $toolId"
+            Assert-True ($record.Count -eq 1 -and $record[0].state -eq 'ready') "Required tool is not ready: $toolId"
         }
     }
 
