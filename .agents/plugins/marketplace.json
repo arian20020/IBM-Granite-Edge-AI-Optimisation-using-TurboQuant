@@ -1,0 +1,22 @@
+{
+  "name": "granite-native-frontend",
+  "interface": {
+    "displayName": "Granite Native Frontend"
+  },
+  "plugins": [
+    {
+      "name": "granite-native-frontend-worker",
+      "displayName": "Granite Native Frontend Worker",
+      "source": {
+        "source": "local",
+        "path": "./plugins/granite-native-frontend-worker"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools",
+      "description": "A contract-protected WinUI 3/C#/XAML design and implementation workflow. Initialises design providers and blocks production UI edits until explicit authorization."
+    }
+  ]
+}
