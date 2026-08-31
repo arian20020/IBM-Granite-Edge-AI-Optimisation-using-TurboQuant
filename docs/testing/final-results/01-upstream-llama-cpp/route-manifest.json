@@ -1,0 +1,43 @@
+{
+  "attempt_count": 13,
+  "campaign_id": "wb-01-v1.4-2026-07-16",
+  "evidence_count": 651,
+  "failure_count": 7,
+  "hardware": {
+    "cpu": "12th Gen Intel Core i5-12450H; 8 cores; 12 logical processors",
+    "gpu": "Intel UHD Graphics; driver 32.0.101.7076",
+    "gpu_dedicated_memory": "Not collected",
+    "machine_id": "LENOVO-PF4HMD0T",
+    "npu": "Not applicable",
+    "ram_bytes": 16857817088
+  },
+  "measurement_count": 80,
+  "quality_count": 54,
+  "repository": {
+    "best_observed_cpu_test_id": "UL-08",
+    "best_observed_intel_gpu_test_id": "UL-10",
+    "commit": "2d973636e292ee6f75fadcf08d29cb33511f509f",
+    "historical_missing_metric_display": "Not collected",
+    "performance_register_reason": "No UL-01 through UL-13 rows; repetition evidence predates the register",
+    "performance_register_status": "Not collected",
+    "raw_results_reason": "README placeholder only; no raw result observations",
+    "raw_results_status": "Not collected",
+    "recommendation_scope": "UL-08 only as best observed CPU; UL-10 only as best observed Intel GPU; UL-05 only as the recorded fallback.",
+    "recorded_fallback_test_id": "UL-05",
+    "source_date": "2026-07-16",
+    "tag": "b9870",
+    "url": "https://github.com/ggml-org/llama.cpp",
+    "workbook_id": "WB-01",
+    "workbook_revision": "1.4"
+  },
+  "route_id": "upstream-llama-cpp",
+  "software": {
+    "cmake": "4.3.1-msvc1",
+    "compiler": "MSVC via Visual Studio 18 2026",
+    "os": "Windows 11 Home 10.0.26200 build 26200, 64-bit",
+    "performance_register_rows": 0,
+    "sycl": "Intel oneAPI 2026.1 SYCL",
+    "vulkan_sdk": "1.4.350.0"
+  },
+  "summary_count": 65
+}

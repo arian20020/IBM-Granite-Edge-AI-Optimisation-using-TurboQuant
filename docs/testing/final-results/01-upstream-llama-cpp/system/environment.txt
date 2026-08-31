@@ -1,0 +1,2 @@
+Historical controlled environment; see hardware.json and software.json.
+Uncollected fields: Not collected

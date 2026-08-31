@@ -1,0 +1,8 @@
+route_id,campaign_id,test_case_id,attempt_id,failure_id,status,stage,reason,source_status,evidence_ids
+upstream-llama-cpp,wb-01-v1.4-2026-07-16,UL-B05,UL-B05--attempt-001,UL-F01,not_applicable,REPRO,R001 cache validator reported failure although required keys existed.,"Yes, R002/R003",[]
+upstream-llama-cpp,wb-01-v1.4-2026-07-16,UL-B05,UL-B05--attempt-001,UL-F02,not_applicable,DEP,Vulkan repository suite initially passed 51/52.,"Yes, 52/52",[]
+upstream-llama-cpp,wb-01-v1.4-2026-07-16,UL-B06,UL-B06--attempt-001,UL-F03,not_applicable,GPU,"SYCL broad suite passed 49/52; FP64 unsupported, device lost, and two 0xc0000409 crashes.",Project workload resolved; edge tests unresolved,[]
+upstream-llama-cpp,wb-01-v1.4-2026-07-16,UL-05,UL-05--attempt-001,UL-F04,not_applicable,QUAL,Long-context output omitted required literal prefix.,No,"[""EVID-c7b93a7337fba1ef57e3""]"
+upstream-llama-cpp,wb-01-v1.4-2026-07-16,UL-05,UL-05--attempt-001,UL-F05,not_applicable,QUAL,Multi-turn exact value degraded from `amber:4821` to `4821`.,No,"[""EVID-b4a16bd806a44a4651e9""]"
+upstream-llama-cpp,wb-01-v1.4-2026-07-16,UL-10,UL-10--attempt-001,UL-F06,not_applicable,PERF,Full Vulkan offload reduced decode throughput relative to one-layer offload.,"Configuration issue, not test failure","[""EVID-922fe80006d168c5c124""]"
+upstream-llama-cpp,wb-01-v1.4-2026-07-16,All formal runs,All formal runs--attempt-001,UL-F07,not_applicable,MEM,"Initial run omitted peak RAM, KV MB and TTFT because llama-bench does not emit all three.",Yes,"[""upstream-llama-cpp-db711113b8e9""]"

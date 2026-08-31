@@ -1,0 +1,8 @@
+{
+  "cpu": "12th Gen Intel Core i5-12450H; 8 cores; 12 logical processors",
+  "gpu": "Intel UHD Graphics; driver 32.0.101.7076",
+  "gpu_dedicated_memory": "Not collected",
+  "machine_id": "LENOVO-PF4HMD0T",
+  "npu": "Not applicable",
+  "ram_bytes": 16857817088
+}

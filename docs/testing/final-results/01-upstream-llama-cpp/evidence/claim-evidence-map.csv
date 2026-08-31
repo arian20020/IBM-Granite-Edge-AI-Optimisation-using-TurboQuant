@@ -1,0 +1,4 @@
+claim_id,claim,test_case_id,evidence_ids
+UL-CLAIM-CPU,UL-08 only as best observed CPU,UL-08,"[""EVID-398081adc25b883b15a7"", ""EVID-a8f5bcd3955b33cb5a76"", ""EVID-8d0aa3ac45f9b6f001dc"", ""EVID-4fa6112c29b541b2c7ce""]"
+UL-CLAIM-GPU,UL-10 only as best observed Intel GPU,UL-10,"[""EVID-922fe80006d168c5c124"", ""EVID-97bca65896e91b10fbf1"", ""EVID-ca3579ea633d77ba2f8c"", ""EVID-cd445466f7ba4301f982""]"
+UL-CLAIM-FALLBACK,UL-05 only as recorded fallback,UL-05,"[""EVID-971776b67f432946b411"", ""EVID-007d654aa76d80d4b6ab"", ""EVID-8af62d2b05d8e93dcb51"", ""EVID-62af25b8ed4b321850d7""]"

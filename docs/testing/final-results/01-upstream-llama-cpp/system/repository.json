@@ -1,0 +1,17 @@
+{
+  "best_observed_cpu_test_id": "UL-08",
+  "best_observed_intel_gpu_test_id": "UL-10",
+  "commit": "2d973636e292ee6f75fadcf08d29cb33511f509f",
+  "historical_missing_metric_display": "Not collected",
+  "performance_register_reason": "No UL-01 through UL-13 rows; repetition evidence predates the register",
+  "performance_register_status": "Not collected",
+  "raw_results_reason": "README placeholder only; no raw result observations",
+  "raw_results_status": "Not collected",
+  "recommendation_scope": "UL-08 only as best observed CPU; UL-10 only as best observed Intel GPU; UL-05 only as the recorded fallback.",
+  "recorded_fallback_test_id": "UL-05",
+  "source_date": "2026-07-16",
+  "tag": "b9870",
+  "url": "https://github.com/ggml-org/llama.cpp",
+  "workbook_id": "WB-01",
+  "workbook_revision": "1.4"
+}

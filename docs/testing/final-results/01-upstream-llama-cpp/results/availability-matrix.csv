@@ -1,0 +1,14 @@
+test_case_id,model_id,weight_format_id,cache_format_id,backend_id,status
+UL-01,gemma-3-1b-diagnostic,q4_k_m,f16-f16,cpu,passed
+UL-02,granite-4.1-3b,bf16,f16-f16,cpu,passed
+UL-03,granite-4.1-3b,q8_0,f16-f16,cpu,passed
+UL-04,granite-4.1-3b,q4_k_m,f16-f16,cpu,passed
+UL-05,granite-4.1-3b,q4_k_m,q8_0-q8_0,cpu,passed
+UL-06,granite-4.1-8b,q8_0,f16-f16,cpu,passed
+UL-07,granite-4.1-8b,q4_k_m,f16-f16,cpu,passed
+UL-08,granite-4.1-8b,q4_k_m,q8_0-q8_0,cpu,passed
+UL-09,granite-4.1-3b,q4_k_m,q8_0-q8_0,vulkan,passed
+UL-10,granite-4.1-3b,q4_k_m,q8_0-q8_0,vulkan,passed
+UL-11,granite-4.1-8b,q4_k_m,q8_0-q8_0,vulkan,passed
+UL-12,granite-4.1-8b,q4_k_m,q8_0-q8_0,vulkan,passed
+UL-13,granite-4.1-3b,q4_k_m,q8_0-q8_0,sycl,passed

@@ -1,0 +1,22 @@
+{
+  "attempt_count": 13,
+  "intended_ids": [
+    "UL-01",
+    "UL-02",
+    "UL-03",
+    "UL-04",
+    "UL-05",
+    "UL-06",
+    "UL-07",
+    "UL-08",
+    "UL-09",
+    "UL-10",
+    "UL-11",
+    "UL-12",
+    "UL-13"
+  ],
+  "measurement_count": 80,
+  "quality_count": 54,
+  "source_gap": "No UL-01 through UL-13 rows; repetition evidence predates the register",
+  "valid": true
+}

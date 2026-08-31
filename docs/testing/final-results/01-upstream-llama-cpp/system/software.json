@@ -1,0 +1,8 @@
+{
+  "cmake": "4.3.1-msvc1",
+  "compiler": "MSVC via Visual Studio 18 2026",
+  "os": "Windows 11 Home 10.0.26200 build 26200, 64-bit",
+  "performance_register_rows": 0,
+  "sycl": "Intel oneAPI 2026.1 SYCL",
+  "vulkan_sdk": "1.4.350.0"
+}

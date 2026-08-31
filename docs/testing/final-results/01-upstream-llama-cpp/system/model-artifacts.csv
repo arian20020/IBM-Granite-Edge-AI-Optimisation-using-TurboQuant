@@ -1,0 +1,7 @@
+model_id,weight_format_id,status
+gemma-3-1b-diagnostic,q4_k_m,Passed
+granite-4.1-3b,bf16,Passed
+granite-4.1-3b,q4_k_m,Passed
+granite-4.1-3b,q8_0,Passed
+granite-4.1-8b,q4_k_m,Passed
+granite-4.1-8b,q8_0,Passed
