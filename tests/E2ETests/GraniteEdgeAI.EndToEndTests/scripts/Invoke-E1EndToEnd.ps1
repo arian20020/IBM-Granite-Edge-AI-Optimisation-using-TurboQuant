@@ -125,13 +125,38 @@ if ($Stage -eq 'Evidence') {
     Assert-E1ImplementationBoundary -RepositoryRoot $repositoryRoot -ImplementationCommit $ImplementationCommit
     $evidenceDotNet = Get-E1TrustedDotNet
     $evidenceMSBuild = Get-E1TrustedMSBuild
+    $evidenceSdkRoot = Get-E1TrustedMSBuildSdkRoot -MSBuildPath $evidenceMSBuild
     $dotnetItem = Get-Item -LiteralPath $evidenceDotNet -Force -ErrorAction Stop
     if ($dotnetItem.PSIsContainer -or ($dotnetItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
         $dotnetItem.Name -ne 'dotnet.exe') { throw 'The approved x64 dotnet host is invalid.' }
     $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
     $buildStartedUtc = [DateTime]::UtcNow
-    & $dotnetItem.FullName $evidenceMSBuild $project /restore /t:Rebuild /m:1 /p:Configuration=Debug /p:RuntimeIdentifier=win-x64 "/p:SourceRevisionId=$ImplementationCommit" /v:minimal
-    if ($LASTEXITCODE -ne 0) { throw "E1 evidence build failed with exit code $LASTEXITCODE." }
+    $buildEnvironmentNames = @(
+        'MSBuildSDKsPath', 'MSBuildExtensionsPath', 'MSBuildExtensionsPath32', 'MSBuildExtensionsPath64',
+        'MSBuildUserExtensionsPath', 'MSBUILD_EXE_PATH', 'MSBUILDUSESERVER', 'MSBUILDLEGACYEXTENSIONSPATH',
+        'DOTNET_MSBUILD_SDK_RESOLVER_SDKS_DIR', 'DOTNET_MSBUILD_SDK_RESOLVER_SDKS_VER',
+        'DOTNET_MSBUILD_SDK_RESOLVER_CLI_DIR', 'DOTNET_ROOT', 'DOTNET_ROOT_X64', 'DOTNET_ROOT(x86)',
+        'DOTNET_HOST_PATH', 'DOTNET_ADDITIONAL_DEPS', 'DOTNET_SHARED_STORE', 'DOTNET_STARTUP_HOOKS', 'DOTNET_MULTILEVEL_LOOKUP',
+        'DOTNET_CLI_HOME', 'NUGET_PLUGIN_PATHS', 'NUGET_CREDENTIALPROVIDERS_PATH', 'NUGET_PACKAGES',
+        'NUGET_HTTP_CACHE_PATH', 'NUGET_FALLBACK_PACKAGES', 'RestoreSources'
+    )
+    $savedBuildEnvironment = @{}
+    foreach ($name in $buildEnvironmentNames) {
+        $savedBuildEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+        [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+    }
+    try {
+        $env:MSBuildSDKsPath = $evidenceSdkRoot
+        $env:DOTNET_ROOT = [IO.Path]::GetDirectoryName($dotnetItem.FullName)
+        $env:DOTNET_MULTILEVEL_LOOKUP = '0'
+        & $dotnetItem.FullName $evidenceMSBuild $project /restore /t:Rebuild /m:1 /p:Configuration=Debug /p:RuntimeIdentifier=win-x64 "/p:SourceRevisionId=$ImplementationCommit" /v:minimal
+        if ($LASTEXITCODE -ne 0) { throw "E1 evidence build failed with exit code $LASTEXITCODE." }
+    }
+    finally {
+        foreach ($name in $buildEnvironmentNames) {
+            [Environment]::SetEnvironmentVariable($name, $savedBuildEnvironment[$name], 'Process')
+        }
+    }
     $expectedOutputRoot = Join-Path $projectRoot 'bin\Debug'
     $assemblyCandidates = @(Get-ChildItem $expectedOutputRoot -Filter 'GraniteEdgeAI.EndToEndTests.dll' -Recurse -File |
         Where-Object { $_.FullName -match '[\\/]net8\.0-windows10\.0\.19041\.0[\\/]win-x64[\\/]' -and $_.LastWriteTimeUtc -ge $buildStartedUtc.AddSeconds(-2) })

@@ -114,6 +114,24 @@ function Get-E1TrustedMSBuild {
     return $item.FullName
 }
 
+function Get-E1TrustedMSBuildSdkRoot {
+    param([Parameter(Mandatory = $true)] [string] $MSBuildPath)
+    $programFiles = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
+    $dotnetRoot = Join-Path $programFiles 'dotnet'
+    $msbuild = [IO.Path]::GetFullPath($MSBuildPath)
+    if (-not $msbuild.StartsWith(([IO.Path]::GetFullPath($dotnetRoot).TrimEnd('\') + '\sdk\'), [StringComparison]::OrdinalIgnoreCase) -or
+        [IO.Path]::GetFileName($msbuild) -ne 'MSBuild.dll') {
+        throw 'Blocked: MSBuild SDK root is not canonical.'
+    }
+    $sdksPath = Join-Path ([IO.Path]::GetDirectoryName($msbuild)) 'Sdks'
+    $item = Get-Item -LiteralPath $sdksPath -Force -ErrorAction Stop
+    if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Blocked: canonical MSBuild SDK root is invalid.'
+    }
+    Assert-E1NoReparseChain -Path (Join-Path $item.FullName 'boundary.probe') -Boundary $dotnetRoot
+    return $item.FullName
+}
+
 function Assert-E1EvidenceAssembly {
     param(
         [Parameter(Mandatory = $true)] [string] $Path,
@@ -233,4 +251,4 @@ function Assert-E1AuthoritativeTrx {
     }
 }
 
-Export-ModuleMember -Function Get-E1TrustedVSTest, Get-E1TrustedDotNet, Get-E1TrustedMSBuild, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx
+Export-ModuleMember -Function Get-E1TrustedVSTest, Get-E1TrustedDotNet, Get-E1TrustedMSBuild, Get-E1TrustedMSBuildSdkRoot, Assert-E1TrustedVSTestPath, Assert-E1ImplementationBoundary, Assert-E1EvidenceAssembly, New-E1AuthoritativeVSTestArguments, Assert-E1AuthoritativeTrx
