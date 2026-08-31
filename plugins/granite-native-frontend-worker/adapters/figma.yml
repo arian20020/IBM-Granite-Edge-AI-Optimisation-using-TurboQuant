@@ -1,0 +1,21 @@
+provider: figma
+required: false
+stage:
+  - reference-inspection
+  - visual-contract
+authority: approved-visual-source
+pinned_revision: 1e285826e604f66f7208f7ac4dba0fe8341d1f57
+plugin_version: 2.0.20
+rules:
+  - Use only when the user supplies or approves a Figma source.
+  - Inspect frames, variables, components, spacing, typography, states, and annotations before implementation.
+  - Translate the approved design into native WinUI controls and XAML; do not emit HTML, CSS, React, or Tailwind.
+  - Preserve repository components and behaviour contracts even when a frame suggests a different interaction.
+  - Treat missing responsive, accessibility, error, progress, and High Contrast states as design gaps to resolve before implementation.
+  - Figma write operations are outside ordinary implementation scope and require explicit user instruction.
+forbidden:
+  - production-file-edits-by-provider
+  - automatic-canvas-writes
+  - treating-generated-code-as-authoritative
+  - overriding-backend-or-platform-contracts
+fallback: approved_screenshots_and_local_screen_specification
