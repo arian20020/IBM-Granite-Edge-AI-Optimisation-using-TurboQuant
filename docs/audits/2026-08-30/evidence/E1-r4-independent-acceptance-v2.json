@@ -2,15 +2,15 @@
   "schemaVersion": 2,
   "workerId": "E1",
   "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
-  "evidenceSubjectCommit": "7cf892d17f81b87b64b4d634b2e018b9005b7656",
-  "evidenceSubjectTree": "777b9af69c14fc60a14adbe7968f9d5ebd980921",
-  "createdAtUtc": "2026-08-31T18:41:49Z",
+  "evidenceSubjectCommit": "d36bd6807cb95a26098fdbea98b287f56a37007e",
+  "evidenceSubjectTree": "859708fe513059d34f1ab2cb00f080518b698955",
+  "createdAtUtc": "2026-08-31T21:31:27Z",
   "route": ["shared", "gguf", "openvino"],
   "evidenceStatus": "blocked",
   "report": {
     "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
-    "sha256": "40b2f541e9d262e4a72bc46071c5d7cb3d7d333138c807359e50e61391bacc5e",
-    "bytes": 6478
+    "sha256": "8fe519bbd68ec10cf584475e20b2e9d1e5e45c0fbd9ddac03deb91be45edbe24",
+    "bytes": 7106
   },
   "inputs": [
     {"kind":"validated-candidate-base","id":"b5d2cd34c57368efb9b122cddf16c2ffa2d3895e","evidenceGrade":"verified"},
@@ -19,37 +19,39 @@
     {"kind":"issue-evidence-catalog","id":"C0-r4-issue-evidence-index-v2.json","sha256":"13dd8e4e103d82dd8449e4b37e46b538725aea67fdeef18d92dd02760f8d488c","bytes":18924,"evidenceGrade":"verified"}
   ],
   "outputs": [
-    {"kind":"independent-final-review","id":"E1-r4-independent-final-review-v3.json","sha256":"652a6fd739efc0f90f8db757d429d6d349e576258abb9588ac7ec0eac362e7ad","bytes":335,"evidenceGrade":"verified"},
-    {"kind":"external-block-observation","id":"E1-r4-external-block-observation-v2.json","sha256":"02c90a648f45d3dee1e360c0000a86081e47d49937542e56ab80b6dbffe7bd2e","bytes":466,"evidenceGrade":"verified"}
+    {"kind":"independent-final-review","id":"E1-r4-independent-final-review-v4.json","sha256":"2c4c037dc7e2dbc0598a7f6def2324c634a51d8c8cfcc901138e31395e9538d7","bytes":335,"evidenceGrade":"verified"},
+    {"kind":"external-block-observation","id":"E1-r4-external-block-observation-v2.json","sha256":"f2ae3893700a4aae75f5c5e2a21ea8f1121771876a43b51414ba2e8e957581a6","bytes":466,"evidenceGrade":"verified"}
   ],
   "commands": [
-    {"id":"E1-FOCUSED-HARNESS","exitCode":0,"discovered":17,"executed":17,"passed":17,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"E1-DETERMINISTIC","exitCode":0,"discovered":48,"executed":48,"passed":48,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"E1-SCHEMA-V4-PREFLIGHT","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"E1-COMBINED-PREFLIGHT-ATTEMPT","exitCode":1,"discovered":2,"executed":2,"passed":1,"failed":1,"skipped":0,"disposition":"failed"},
-    {"id":"OPENVINO-OPTIMIZATION","exitCode":0,"discovered":55,"executed":55,"passed":55,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"OPENVINO-WORKER-CLIENT","exitCode":0,"discovered":17,"executed":17,"passed":17,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"GGUF-QUANT-CONTRACTS","exitCode":0,"discovered":7,"executed":7,"passed":7,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"GGUF-QUANT-WORKER","exitCode":0,"discovered":19,"executed":19,"passed":19,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"Q1-IDENTITY","exitCode":0,"discovered":51,"executed":51,"passed":51,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"CROSS-FEATURE","exitCode":0,"discovered":115,"executed":115,"passed":115,"failed":0,"skipped":0,"disposition":"passed"},
-    {"id":"SECURITY-APP-CONTROL","exitCode":1,"discovered":12,"executed":12,"passed":11,"failed":1,"skipped":0,"disposition":"blocked"},
-    {"id":"OPENVINO-BROAD","exitCode":0,"discovered":496,"executed":496,"passed":489,"failed":0,"skipped":7,"disposition":"mixed"},
+    {"id":"E1-FOCUSED-HARNESS","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"E1-FOCUSED-HARNESS-RETRY","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"E1-DETERMINISTIC","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"E1-SCHEMA-V4-PREFLIGHT","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"E1-COMBINED-PREFLIGHT-ATTEMPT","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"OPENVINO-OPTIMIZATION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"OPENVINO-WORKER-CLIENT","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"GGUF-QUANT-CONTRACTS","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"GGUF-QUANT-WORKER","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"Q1-IDENTITY","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"CROSS-FEATURE","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"SECURITY-APP-CONTROL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"OPENVINO-BROAD","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
     {"id":"EXTERNAL-PREREQUISITE-PREFLIGHT","exitCode":1,"discovered":1,"executed":1,"passed":0,"failed":1,"skipped":0,"disposition":"blocked"},
     {"id":"PACKAGE-ACTIVATION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
     {"id":"NATIVE-EXECUTION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
     {"id":"CANDIDATE-E2E","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
-    {"id":"E1-POST-ACCEPTANCE-FINAL","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0,"disposition":"passed"}
+    {"id":"E1-POST-ACCEPTANCE-FINAL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"E1-PRODUCTION-EVIDENCE-INTEGRATION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"}
   ],
   "blockers": [
     "Exact candidate, asset, H1/M1/Q1 native manifests and predecessor cleanup receipts were absent at the final prerequisite check.",
     "The shared native lock may be acquired only after exact prerequisites exist; package activation and native/UI/performance execution remained ineligible.",
     "R3-022 remains blocked and unresolved because package, native and candidate E2E evidence was not executed.",
-    "Windows Application Control blocked the hostile unsigned security fixture with 0x800711C7; policy was not weakened."
+    "Windows Application Control blocked the freshly rebuilt final-subject E1 test assembly with 0x800711C7 before test discovery, including on an unchanged-binary retry."
   ],
   "nonClaims": [
     "No package activation, packaged discovery, native GGUF/OpenVINO, real-model, Chat/export runtime, screenshot, accessibility, visual, or performance pass is claimed.",
-    "Focused tests are a deterministic subset; broad, skipped, failed, blocked and unexecuted rows are excluded from the canonical 314-test total.",
+    "The final-subject canonical total is 0/0; historical pre-subject executions, blocked and unexecuted rows are excluded.",
     "No product, machine-security, tested-base, product-subject, or main-branch change was made."
   ]
 }
