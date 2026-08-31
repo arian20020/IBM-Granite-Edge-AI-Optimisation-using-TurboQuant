@@ -70,6 +70,46 @@ public sealed class FixedHardwareToolAcquisitionTests
     }
 
     [TestMethod]
+    public void Acquire_InaccessibleOrReparseLlmFitNeverDegradesToOrdinaryAbsence()
+    {
+        using VerifiedPackagedToolFixture llmFit = VerifiedPackagedToolFixture.CreateLlmFit("success");
+        using VerifiedPackagedToolFixture llamaCpp = VerifiedPackagedToolFixture.CreateLlamaCpp("success");
+        int verifierCalls = 0;
+        FixedHardwareToolAcquisition inaccessible = new(
+            Path.GetDirectoryName(llmFit.PackageRoot)!,
+            llmFit.PackageRoot,
+            Path.GetDirectoryName(llamaCpp.PackageRoot)!,
+            llamaCpp.PackageRoot,
+            CreateProbeManifest(llamaCpp.PackageRoot),
+            (_, _, _) => { verifierCalls++; return TrustedToolVerificationResult.Verified(llmFit.Tool); },
+            _ => throw new UnauthorizedAccessException());
+
+        AssertFailure(
+            inaccessible.Acquire(),
+            HardwareToolAcquisitionDiagnosticCode.ToolIntegrityFailure);
+        Assert.AreEqual(0, verifierCalls);
+
+        FixedHardwareToolAcquisition reparse = new(
+            Path.GetDirectoryName(llmFit.PackageRoot)!,
+            llmFit.PackageRoot,
+            Path.GetDirectoryName(llamaCpp.PackageRoot)!,
+            llamaCpp.PackageRoot,
+            CreateProbeManifest(llamaCpp.PackageRoot),
+            (_, _, _) =>
+            {
+                verifierCalls++;
+                return TrustedToolVerificationResult.Rejected(
+                    TrustedToolVerificationFailure.ReparsePoint);
+            },
+            _ => FileAttributes.Directory | FileAttributes.ReparsePoint);
+
+        AssertFailure(
+            reparse.Acquire(),
+            HardwareToolAcquisitionDiagnosticCode.ToolIntegrityFailure);
+        Assert.AreEqual(1, verifierCalls);
+    }
+
+    [TestMethod]
     public void Acquire_MapsAbsentInvalidOrRejectedProbeAndDisposesPartialLlmCustody()
     {
         using VerifiedPackagedToolFixture llmFit = VerifiedPackagedToolFixture.CreateLlmFit("success");

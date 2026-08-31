@@ -43,6 +43,20 @@ public sealed class HardwareInspectionRunResult
                 "Completed result requires a completed outcome.",
                 nameof(outcome));
         }
+        if (!Enum.IsDefined(snapshot.Usability)
+            || snapshot.Usability == HardwareSnapshotUsability.NotUsable)
+        {
+            throw new ArgumentException(
+                "Completed result requires a usable or display-only snapshot.",
+                nameof(snapshot));
+        }
+        if (snapshot.Usability == HardwareSnapshotUsability.DisplayOnly
+            && outcome != HardwareInspectionOutcome.CompletedWithWarnings)
+        {
+            throw new ArgumentException(
+                "Display-only snapshot requires a warning outcome.",
+                nameof(outcome));
+        }
 
         HardwareInspectionHandoff? handoff = snapshot.Usability == HardwareSnapshotUsability.Usable
             ? HardwareInspectionHandoff.Create(inspectionId, outcome, snapshot)

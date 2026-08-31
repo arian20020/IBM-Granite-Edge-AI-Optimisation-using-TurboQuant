@@ -11,6 +11,7 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
     private readonly string _probeApprovedRoot;
     private readonly string _probePackageRoot;
     private readonly Func<byte[]> _probeManifestReader;
+    private readonly Func<string, FileAttributes> _getAttributes;
     private readonly Func<string, string, TrustedToolPackageManifest, TrustedToolVerificationResult> _verify;
 
     internal FixedHardwareToolAcquisition(
@@ -19,14 +20,16 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
         string probeApprovedRoot,
         string probePackageRoot,
         byte[] probeManifestBytes,
-        Func<string, string, TrustedToolPackageManifest, TrustedToolVerificationResult> verify)
+        Func<string, string, TrustedToolPackageManifest, TrustedToolVerificationResult> verify,
+        Func<string, FileAttributes>? getAttributes = null)
         : this(
             llmFitApprovedRoot,
             llmFitPackageRoot,
             probeApprovedRoot,
             probePackageRoot,
             CreateFixedReader(probeManifestBytes),
-            verify)
+            verify,
+            getAttributes ?? File.GetAttributes)
     {
     }
 
@@ -36,7 +39,8 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
         string probeApprovedRoot,
         string probePackageRoot,
         Func<byte[]> probeManifestReader,
-        Func<string, string, TrustedToolPackageManifest, TrustedToolVerificationResult> verify)
+        Func<string, string, TrustedToolPackageManifest, TrustedToolVerificationResult> verify,
+        Func<string, FileAttributes> getAttributes)
     {
         _llmFitApprovedRoot = CanonicalizeRequiredPath(llmFitApprovedRoot, nameof(llmFitApprovedRoot));
         _llmFitPackageRoot = CanonicalizeRequiredPath(llmFitPackageRoot, nameof(llmFitPackageRoot));
@@ -44,6 +48,7 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
         _probePackageRoot = CanonicalizeRequiredPath(probePackageRoot, nameof(probePackageRoot));
         _probeManifestReader = probeManifestReader ?? throw new ArgumentNullException(nameof(probeManifestReader));
         _verify = verify ?? throw new ArgumentNullException(nameof(verify));
+        _getAttributes = getAttributes ?? throw new ArgumentNullException(nameof(getAttributes));
     }
 
     internal static FixedHardwareToolAcquisition CreateProduction()
@@ -74,7 +79,8 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
             () => TrustedManifestFile.ReadBounded(
                 manifestPath,
                 LlamaCppProbeManifestParser.MaximumManifestBytes),
-            verifier.Verify);
+            verifier.Verify,
+            File.GetAttributes);
     }
 
     public HardwareToolAcquisitionResult Acquire()
@@ -84,7 +90,21 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
         bool ownershipTransferred = false;
         try
         {
-            bool llmFitUnavailable = !Directory.Exists(_llmFitPackageRoot);
+            bool llmFitUnavailable;
+            try
+            {
+                _ = _getAttributes(_llmFitPackageRoot);
+                llmFitUnavailable = false;
+            }
+            catch (Exception error) when (error is FileNotFoundException or DirectoryNotFoundException)
+            {
+                llmFitUnavailable = true;
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                return HardwareToolAcquisitionResult.Failure(
+                    HardwareToolAcquisitionDiagnosticCode.ToolIntegrityFailure);
+            }
             if (!llmFitUnavailable)
             {
                 TrustedToolVerificationResult llmFitVerification = _verify(
