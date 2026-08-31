@@ -195,7 +195,8 @@ internal static class R3IssueEvidenceVerifier
         string externalBlock = JsonContract.RequiredString(root, "externalBlock");
         bool hasExternalBlock = !string.Equals(externalBlock, "none", StringComparison.Ordinal);
         bool closesR3_020 = nativeExecuted > 0 || hasExternalBlock;
-        bool closesR3_022 = packageAttempted && packagePassed
+        bool closesR3_022 = !hasExternalBlock
+            && packageAttempted && packagePassed
             && appControlChecked && appControlPassed
             && lockAcquisitions > 0
             && nativeExecuted > 0 && nativeFailed == 0 && nativeSkipped == 0

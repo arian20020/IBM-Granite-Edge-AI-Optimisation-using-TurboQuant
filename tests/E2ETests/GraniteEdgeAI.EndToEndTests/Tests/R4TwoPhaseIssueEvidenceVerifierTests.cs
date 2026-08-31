@@ -79,6 +79,20 @@ public sealed class R4TwoPhaseIssueEvidenceVerifierTests
     }
 
     [TestMethod]
+    public void External_block_never_closes_R3_022_even_when_other_execution_evidence_passes()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string receipt = WritePostReceipt(directory, approvedEvidence: true, overrides: new()
+        {
+            ["disposition"] = "BLOCKED BY EXTERNAL ENVIRONMENT",
+            ["externalBlock"] = "external visual environment unavailable"
+        });
+        R4PostAcceptanceEvidence result = VerifyPostFixture(receipt, directory.Path);
+        Assert.IsTrue(result.ClosesR3_020);
+        Assert.IsFalse(result.ClosesR3_022);
+    }
+
+    [TestMethod]
     public void Zero_package_attempts_cannot_close_R3_022()
     {
         using TestDirectory directory = TestDirectory.Create();
