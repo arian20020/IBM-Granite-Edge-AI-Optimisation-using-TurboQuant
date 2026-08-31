@@ -151,6 +151,89 @@ def _wait_for_word_process_ids(expected: set[int], timeout_seconds: float = 15) 
     return observed
 
 
+def _read_test_process_identity(process_id: int) -> dict[str, object]:
+    reader = r'''
+$ErrorActionPreference = "Stop"
+$process = Get-Process -Id ([int]$env:FINAL_RESULTS_TEST_PID) -ErrorAction Stop
+try {
+    @{
+        pid = $process.Id
+        process_start_time_utc_ticks = $process.StartTime.ToUniversalTime().Ticks
+        executable_path = $process.Path
+    } | ConvertTo-Json -Compress
+}
+finally {
+    $process.Dispose()
+}
+'''
+    encoded = base64.b64encode(reader.encode("utf-16-le")).decode("ascii")
+    environment = os.environ.copy()
+    environment["FINAL_RESULTS_TEST_PID"] = str(process_id)
+    result = subprocess.run(
+        [
+            _powershell(),
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-EncodedCommand",
+            encoded,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=environment,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    return json.loads(result.stdout)
+
+
+def _causal_process_identity_is_gone(identity: dict[str, object]) -> bool:
+    validator = r'''
+$ErrorActionPreference = "Stop"
+$identity = $env:FINAL_RESULTS_TEST_IDENTITY | ConvertFrom-Json
+$process = $null
+try {
+    try {
+        $process = [Diagnostics.Process]::GetProcessById([int]$identity.pid)
+    }
+    catch [ArgumentException] {
+        exit 0
+    }
+    $matches = (
+        $process.StartTime.ToUniversalTime().Ticks -eq [int64]$identity.process_start_time_utc_ticks -and
+        [StringComparer]::OrdinalIgnoreCase.Equals(
+            [IO.Path]::GetFullPath($process.MainModule.FileName),
+            [IO.Path]::GetFullPath([string]$identity.executable_path)
+        )
+    )
+    if ($matches) { exit 1 }
+    exit 0
+}
+finally {
+    if ($null -ne $process) { $process.Dispose() }
+}
+'''
+    encoded = base64.b64encode(validator.encode("utf-16-le")).decode("ascii")
+    environment = os.environ.copy()
+    environment["FINAL_RESULTS_TEST_IDENTITY"] = json.dumps(identity, separators=(",", ":"))
+    result = subprocess.run(
+        [
+            _powershell(),
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-EncodedCommand",
+            encoded,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    return result.returncode == 0
+
+
 def _terminate_causally_identified_test_word(identity: dict[str, object]) -> None:
     validator = r'''
 $ErrorActionPreference = "Stop"
@@ -168,10 +251,11 @@ public static class TestWordCleanupIdentity {
 $identity = $env:FINAL_RESULTS_TEST_IDENTITY | ConvertFrom-Json
 $pidValue = [int]$identity.pid
 $hwnd = [int64]$identity.hwnd
-[uint32]$mappedPid = 0
-if (-not [TestWordCleanupIdentity]::IsWindow([IntPtr]$hwnd)) { exit 2 }
-[void][TestWordCleanupIdentity]::GetWindowThreadProcessId([IntPtr]$hwnd, [ref]$mappedPid)
-if ([int]$mappedPid -ne $pidValue) { exit 3 }
+if ([TestWordCleanupIdentity]::IsWindow([IntPtr]$hwnd)) {
+    [uint32]$mappedPid = 0
+    [void][TestWordCleanupIdentity]::GetWindowThreadProcessId([IntPtr]$hwnd, [ref]$mappedPid)
+    if ([int]$mappedPid -ne $pidValue) { exit 3 }
+}
 $process = Get-Process -Id $pidValue -ErrorAction Stop
 try {
     $matches = (
@@ -184,10 +268,26 @@ try {
     )
     if (-not $matches) { exit 4 }
     $process.Kill()
-    [void]$process.WaitForExit(5000)
+    if (-not $process.WaitForExit(5000)) { exit 5 }
 }
 finally {
     $process.Dispose()
+}
+$candidate = $null
+try {
+    try { $candidate = [Diagnostics.Process]::GetProcessById($pidValue) }
+    catch [ArgumentException] { exit 0 }
+    $stillMatches = (
+        $candidate.StartTime.ToUniversalTime().Ticks -eq [int64]$identity.process_start_time_utc_ticks -and
+        [StringComparer]::OrdinalIgnoreCase.Equals(
+            [IO.Path]::GetFullPath($candidate.MainModule.FileName),
+            [IO.Path]::GetFullPath([string]$identity.executable_path)
+        )
+    )
+    if ($stillMatches) { exit 6 }
+}
+finally {
+    if ($null -ne $candidate) { $candidate.Dispose() }
 }
 '''
     encoded = base64.b64encode(validator.encode("utf-16-le")).decode("ascii")
@@ -202,10 +302,12 @@ finally {
             "-EncodedCommand",
             encoded,
         ],
-        check=False,
+        check=True,
         env=environment,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
+    if not _causal_process_identity_is_gone(identity):
+        raise AssertionError("causally identified test Word process did not exit")
 
 
 def _terminate_causally_identified_test_process(identity: dict[str, object]) -> None:
@@ -229,6 +331,22 @@ try {
 finally {
     $process.Dispose()
 }
+$candidate = $null
+try {
+    try { $candidate = [Diagnostics.Process]::GetProcessById($pidValue) }
+    catch [ArgumentException] { exit 0 }
+    $stillMatches = (
+        $candidate.StartTime.ToUniversalTime().Ticks -eq [int64]$identity.process_start_time_utc_ticks -and
+        [StringComparer]::OrdinalIgnoreCase.Equals(
+            [IO.Path]::GetFullPath($candidate.MainModule.FileName),
+            [IO.Path]::GetFullPath([string]$identity.executable_path)
+        )
+    )
+    if ($stillMatches) { exit 6 }
+}
+finally {
+    if ($null -ne $candidate) { $candidate.Dispose() }
+}
 '''
     encoded = base64.b64encode(validator.encode("utf-16-le")).decode("ascii")
     environment = os.environ.copy()
@@ -242,10 +360,12 @@ finally {
             "-EncodedCommand",
             encoded,
         ],
-        check=False,
+        check=True,
         env=environment,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
+    if not _causal_process_identity_is_gone(identity):
+        raise AssertionError("causally identified test worker process did not exit")
 
 
 @contextmanager
@@ -387,6 +507,19 @@ def test_process_exists_reports_the_current_process():
     assert _process_exists(os.getpid()) is True
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows process identity is required")
+def test_test_teardown_helpers_reject_a_mismatched_causal_identity():
+    identity = _read_test_process_identity(os.getpid())
+    identity["process_start_time_utc_ticks"] = (
+        int(identity["process_start_time_utc_ticks"]) + 1
+    )
+
+    with pytest.raises(subprocess.CalledProcessError):
+        _terminate_causally_identified_test_process(identity)
+    with pytest.raises(subprocess.CalledProcessError):
+        _terminate_causally_identified_test_word({**identity, "hwnd": 0})
+
+
 def test_pdf_export_rejects_a_missing_source_without_starting_word(tmp_path):
     result = _invoke_export(tmp_path / "missing.docx", tmp_path / "report.pdf", 5)
 
@@ -477,8 +610,6 @@ def test_precausal_timeout_preserves_worker_for_cooperative_cleanup_and_preexist
 
     with _pre_existing_hidden_word_session(tmp_path) as (baseline, pre_existing):
         expected = baseline | {int(pre_existing["pid"])}
-        activation = None
-        worker_pid = None
         try:
             result = _invoke_export(
                 docx,
@@ -501,6 +632,9 @@ def test_precausal_timeout_preserves_worker_for_cooperative_cleanup_and_preexist
             activation = json.loads(activation_path.read_text(encoding="utf-8"))
             assert int(activation["pid"]) != int(pre_existing["pid"])
             worker_pid = int(worker_pid_path.read_text(encoding="ascii"))
+            worker_identity_path = operation_directory / "worker-identity.json"
+            worker_identity = json.loads(worker_identity_path.read_text(encoding="utf-8"))
+            assert int(worker_identity["pid"]) == worker_pid
             cleanup = json.loads(
                 (operation_directory / "parent-termination.json").read_text(encoding="utf-8")
             )
@@ -510,19 +644,64 @@ def test_precausal_timeout_preserves_worker_for_cooperative_cleanup_and_preexist
             assert int(pre_existing["pid"]) in _word_process_ids()
             assert _process_exists(worker_pid) is True
             assert _wait_for_process_exit(worker_pid, timeout_seconds=30)
+            worker_cleanup = json.loads(
+                (operation_directory / "worker-cleanup.json").read_text(encoding="utf-8")
+            )
+            assert worker_cleanup["source"] == "worker"
+            assert worker_cleanup["word_exited"] is True
+            assert worker_cleanup["cleanup_succeeded"] is True
+            assert _causal_process_identity_is_gone(activation)
+            assert _causal_process_identity_is_gone(worker_identity)
             assert _wait_for_word_process_ids(expected) == expected
         finally:
-            if activation is not None and _process_exists(int(activation["pid"])):
-                _terminate_causally_identified_test_word(activation)
             worker_identity_path = operation_directory / "worker-identity.json"
-            if (
-                worker_pid is not None
-                and _process_exists(worker_pid)
-                and worker_identity_path.is_file()
+            teardown_errors: list[Exception] = []
+            activation_identity = None
+            worker_identity = None
+
+            for receipt_path, assign in (
+                (activation_path, "activation"),
+                (worker_identity_path, "worker"),
             ):
-                _terminate_causally_identified_test_process(
-                    json.loads(worker_identity_path.read_text(encoding="utf-8"))
-                )
+                if not receipt_path.is_file():
+                    continue
+                try:
+                    identity = json.loads(receipt_path.read_text(encoding="utf-8"))
+                    if assign == "activation":
+                        activation_identity = identity
+                    else:
+                        worker_identity = identity
+                except Exception as error:
+                    teardown_errors.append(error)
+
+            if activation_identity is not None:
+                try:
+                    if not _causal_process_identity_is_gone(activation_identity):
+                        _terminate_causally_identified_test_word(activation_identity)
+                    assert _causal_process_identity_is_gone(activation_identity)
+                except Exception as error:
+                    teardown_errors.append(error)
+
+            if worker_identity is not None:
+                try:
+                    if not _causal_process_identity_is_gone(worker_identity):
+                        if activation_identity is None:
+                            raise AssertionError(
+                                "refusing to terminate the test worker without its causal Word identity"
+                            )
+                        if not _causal_process_identity_is_gone(activation_identity):
+                            raise AssertionError(
+                                "refusing to terminate the test worker before its causal Word exits"
+                            )
+                        _terminate_causally_identified_test_process(worker_identity)
+                    assert _causal_process_identity_is_gone(worker_identity)
+                except Exception as error:
+                    teardown_errors.append(error)
+
+            if teardown_errors:
+                raise AssertionError(
+                    "causal pre-receipt test teardown did not verify every available identity"
+                ) from teardown_errors[0]
 
 
 @pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
