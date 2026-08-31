@@ -130,7 +130,10 @@ if ($Stage -eq 'Evidence') {
     if ($dotnetItem.PSIsContainer -or ($dotnetItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
         $dotnetItem.Name -ne 'dotnet.exe') { throw 'The approved x64 dotnet host is invalid.' }
     $project = Join-Path $projectRoot 'GraniteEdgeAI.EndToEndTests.csproj'
-    $buildRoot = Join-Path $repositoryRoot "TestResults\Audit-20260830\E1-Build\$([Guid]::NewGuid().ToString('N'))"
+    # Keep generated obj/bin trees beneath the SDK-excluded project bin subtree.
+    # A repository-level TestResults root is not excluded by the default Compile
+    # globs and would cause generated assembly attributes to be compiled twice.
+    $buildRoot = Join-Path (Split-Path -Parent $project) "bin\E1-Evidence\$([Guid]::NewGuid().ToString('N'))"
     $buildOutputRoot = Join-Path $buildRoot 'bin'
     $buildIntermediateRoot = Join-Path $buildRoot 'obj'
     [void](New-E1SafeDirectoryChain -Path $buildOutputRoot -RepositoryRoot $repositoryRoot)
