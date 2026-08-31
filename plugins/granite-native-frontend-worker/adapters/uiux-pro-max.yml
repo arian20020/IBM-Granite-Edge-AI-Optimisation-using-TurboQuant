@@ -1,0 +1,21 @@
+provider: ui-ux-pro-max
+required: false
+stage:
+  - targeted-design-research
+authority: supplementary-read-only-adviser
+pinned_revision: f23267105ad1f4ccd94af45d382584ad45b586f7
+cli:
+  package: ui-ux-pro-max-cli
+  version: 2.5.0
+  project_install_command: uipro init --ai codex
+usage:
+  - Query only a narrow unresolved question such as WinUI form validation, typography, density, icon use, or responsive layout.
+  - Always specify the winui stack.
+  - Convert returned guidance into a cited design decision; do not paste a generated cross-platform design system wholesale.
+forbidden:
+  - production-file-edits
+  - defaulting-to-HTML-or-Tailwind
+  - downloading-fonts-or-assets-without-approval
+  - overriding-Microsoft-WinUI-guidance
+  - becoming-the-primary-visual-source
+fallback: continue_without_provider_and_record_reduced_advisory_evidence
