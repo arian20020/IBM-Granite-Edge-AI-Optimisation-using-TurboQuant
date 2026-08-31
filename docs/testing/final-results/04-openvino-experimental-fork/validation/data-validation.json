@@ -5,6 +5,11 @@
       "expected": [],
       "passed": true
     },
+    "attempt_entity_set_equality": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
     "attempt_identifier_bindings": {
       "actual": [],
       "expected": [],
@@ -16,6 +21,16 @@
       "passed": true
     },
     "attempt_source_evidence_references": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "availability_entity_set_equality": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
+    "evidence_entity_set_equality": {
       "actual": [],
       "expected": [],
       "passed": true
@@ -49,6 +64,11 @@
       "expected": 54,
       "passed": true
     },
+    "failure_entity_set_equality": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
     "failure_identifier_bindings": {
       "actual": [],
       "expected": [],
@@ -69,6 +89,11 @@
       "expected": 81,
       "passed": true
     },
+    "measurement_entity_set_equality": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
     "measurement_identifier_bindings": {
       "actual": [],
       "expected": [],
@@ -84,9 +109,19 @@
       "expected": [],
       "passed": true
     },
+    "model_artifact_entity_set_equality": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
     "output_count": {
       "actual": 1296,
       "expected": 1296,
+      "passed": true
+    },
+    "output_entity_set_equality": {
+      "actual": [],
+      "expected": [],
       "passed": true
     },
     "output_identifier_bindings": {
@@ -114,6 +149,11 @@
       "expected": 48,
       "passed": true
     },
+    "prompt_entity_set_equality": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
     "prompt_identifier_bindings": {
       "actual": [],
       "expected": [],
@@ -139,6 +179,11 @@
       "expected": 3888,
       "passed": true
     },
+    "quality_entity_set_equality": {
+      "actual": [],
+      "expected": [],
+      "passed": true
+    },
     "quality_identifier_bindings": {
       "actual": [],
       "expected": [],
@@ -162,6 +207,11 @@
     "summary_count": {
       "actual": 81,
       "expected": 81,
+      "passed": true
+    },
+    "summary_entity_set_equality": {
+      "actual": [],
+      "expected": [],
       "passed": true
     },
     "summary_identifier_bindings": {

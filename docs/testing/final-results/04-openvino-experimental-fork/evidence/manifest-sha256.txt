@@ -18,5 +18,5 @@ db8eaa2633b1efff0a4e8ba5107ae5df6d64473616a49e8f338696436db80ff2  docs/testing/f
 f38b938abe87a1c53e13e7a9c7645cdb5e4ec402c7cb97b97dff8eb9a570dd65  docs/testing/final-results/04-openvino-experimental-fork/system/repository.json
 902ac514f214bd7a67cbbdc286c350b89c220dd6eec2c069937458405c183ec0  docs/testing/final-results/04-openvino-experimental-fork/system/software.json
 68141858aaff6422ed8e6036f0b4ac8caf653f3f27ece905161efd7d15c9d00f  docs/testing/final-results/04-openvino-experimental-fork/validation/coverage-validation.json
-c4afc5283b16d3e08f41d0cbae3851a38d527fa5cbf24223f508ddb9f779df1a  docs/testing/final-results/04-openvino-experimental-fork/validation/data-validation.json
+3c7f2751279af05a823435f3de92b13f2622b74741bbac17b9c5d0b4a455e0a9  docs/testing/final-results/04-openvino-experimental-fork/validation/data-validation.json
 bb7a5b9c95614c7d621307e31b4a1866297e57ea6cc41116e2042dc864e772dc  docs/testing/final-results/04-openvino-experimental-fork/validation/integrity-validation.json

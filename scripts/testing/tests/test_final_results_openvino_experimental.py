@@ -331,41 +331,51 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     assert set(data_validation["checks"]) == {
         "attempt_identifier_uniqueness",
         "attempt_identifier_bindings",
+        "attempt_entity_set_equality",
         "attempt_source_evidence_references",
         "artifact_unavailable_semantics",
         "evidence_identifier_bindings",
+        "evidence_entity_set_equality",
         "evidence_identifier_uniqueness",
         "evidence_references",
         "exactly_three_distinct_criteria_per_prompt",
         "failure_count",
+        "failure_entity_set_equality",
         "failure_identifier_bindings",
         "failure_identifier_uniqueness",
         "failure_references",
         "measurement_count",
+        "measurement_entity_set_equality",
         "measurement_identifier_bindings",
         "measurement_identifier_uniqueness",
         "measurement_references",
         "output_count",
+        "output_entity_set_equality",
         "output_identifier_bindings",
         "output_identifier_uniqueness",
         "output_references",
         "output_source_bindings",
         "prompt_count",
+        "prompt_entity_set_equality",
         "prompt_identifier_bindings",
         "prompt_identifier_uniqueness",
         "prompt_references",
         "prompt_source_bindings",
         "quality_criterion_count",
+        "quality_entity_set_equality",
         "quality_identifier_bindings",
         "quality_identifier_uniqueness",
         "quality_prompt_bindings",
         "quality_references",
         "summary_count",
+        "summary_entity_set_equality",
         "summary_identifier_bindings",
         "summary_identifier_uniqueness",
         "summary_lineage_and_values",
         "summary_references",
         "unavailable_exclusions",
+        "availability_entity_set_equality",
+        "model_artifact_entity_set_equality",
     }
     assert all(check["passed"] is True for check in data_validation["checks"].values())
     reproduction = (ROUTE / "reproduction/README.md").read_text(encoding="utf-8")
@@ -598,6 +608,164 @@ def test_validation_receipts_reject_noncanonical_output_identity():
     )
 
     assert data["checks"]["output_identifier_bindings"]["passed"] is False
+
+
+def test_validation_receipts_reject_synchronized_same_case_measurement_identity_rotation():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    measurements = list(bundle.measurements)
+    case_id = measurements[0].test_case_id
+    indexes = [
+        index
+        for index, measurement in enumerate(measurements)
+        if measurement.test_case_id == case_id
+    ]
+    identities = [
+        (
+            measurements[index].measurement_id,
+            measurements[index].run_id,
+            measurements[index].repetition_id,
+        )
+        for index in indexes
+    ]
+    for position, index in enumerate(indexes):
+        measurement_id, run_id, repetition_id = identities[(position + 1) % 3]
+        measurements[index] = replace(
+            measurements[index],
+            measurement_id=measurement_id,
+            run_id=run_id,
+            repetition_id=repetition_id,
+        )
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, measurements=tuple(measurements))
+    )
+
+    assert data["checks"]["measurement_identifier_uniqueness"]["passed"] is True
+    assert data["checks"]["measurement_identifier_bindings"]["passed"] is True
+    assert data["checks"]["measurement_entity_set_equality"]["passed"] is False
+
+
+def test_validation_receipts_reject_direct_measurement_value_mutation():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    measurements = list(bundle.measurements)
+    measurements[0] = replace(
+        measurements[0], latency_ms=float(measurements[0].latency_ms) + 1.0
+    )
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, measurements=tuple(measurements))
+    )
+
+    assert data["checks"]["measurement_entity_set_equality"]["passed"] is False
+
+
+def test_validation_receipts_reject_synchronized_quality_criterion_identity_swap():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    quality = list(bundle.quality)
+    first = quality[0]
+    second_index = next(
+        index
+        for index, item in enumerate(quality[1:], start=1)
+        if item.test_case_id == first.test_case_id
+        and item.prompt_id == first.prompt_id
+        and item.maximum_score != first.maximum_score
+    )
+    second = quality[second_index]
+    quality[0] = replace(
+        first,
+        quality_id=second.quality_id,
+        criterion_id=second.criterion_id,
+    )
+    quality[second_index] = replace(
+        second,
+        quality_id=first.quality_id,
+        criterion_id=first.criterion_id,
+    )
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, quality=tuple(quality))
+    )
+
+    assert data["checks"]["quality_identifier_uniqueness"]["passed"] is True
+    assert data["checks"]["quality_identifier_bindings"]["passed"] is True
+    assert data["checks"]["quality_entity_set_equality"]["passed"] is False
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("reason", "mutated reason"),
+        ("failure_kind", "mutated_stage"),
+        ("status", Status.FAILED),
+    ),
+)
+def test_validation_receipts_reject_attempt_full_entity_mutation(field, replacement):
+    bundle = build_experimental_bundle(REPO_ROOT)
+    attempts = list(bundle.attempts)
+    index = next(index for index, item in enumerate(attempts) if not item.executed)
+    attempts[index] = replace(attempts[index], **{field: replacement})
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, attempts=tuple(attempts))
+    )
+
+    assert data["checks"]["attempt_entity_set_equality"]["passed"] is False
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("reason", "mutated failure reason"),
+        ("stage", "mutated_failure_stage"),
+        ("status", Status.FAILED),
+    ),
+)
+def test_validation_receipts_reject_failure_full_entity_mutation(field, replacement):
+    bundle = build_experimental_bundle(REPO_ROOT)
+    failures = list(bundle.failures)
+    failures[0] = replace(failures[0], **{field: replacement})
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, failures=tuple(failures))
+    )
+
+    assert data["checks"]["failure_entity_set_equality"]["passed"] is False
+
+
+@pytest.mark.parametrize("mutation", ("payload", "inputs"))
+def test_validation_receipts_reject_evidence_full_entity_mutation(mutation):
+    bundle = build_experimental_bundle(REPO_ROOT)
+    evidence = list(bundle.evidence)
+    if mutation == "payload":
+        evidence[0] = replace(evidence[0], size_bytes=evidence[0].size_bytes + 1)
+    else:
+        evidence[0] = replace(
+            evidence[0], input_evidence_ids=(evidence[1].evidence_id,)
+        )
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT, replace(bundle, evidence=tuple(evidence))
+    )
+
+    assert data["checks"]["evidence_entity_set_equality"]["passed"] is False
+
+
+def test_validation_receipts_compare_published_availability_and_model_artifacts():
+    bundle = build_experimental_bundle(REPO_ROOT)
+    availability = _rows(ROUTE / "results/availability-matrix.csv")
+    artifacts = _rows(ROUTE / "system/model-artifacts.csv")
+    availability[0]["reason"] = "fabricated availability reason"
+    artifacts[0]["reason"] = "fabricated artifact reason"
+
+    _, data = build_experimental_validation_receipts(
+        REPO_ROOT,
+        bundle,
+        availability_rows=availability,
+        model_artifact_rows=artifacts,
+    )
+
+    assert data["checks"]["availability_entity_set_equality"]["passed"] is False
+    assert data["checks"]["model_artifact_entity_set_equality"]["passed"] is False
 
 
 @pytest.mark.parametrize(

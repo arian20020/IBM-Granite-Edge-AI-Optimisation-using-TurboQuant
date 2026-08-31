@@ -977,6 +977,21 @@ def _model_artifact_rows(repo_root: Path) -> list[dict[str, object]]:
     return rows
 
 
+def _availability_rows(bundle: RouteBundle) -> list[dict[str, object]]:
+    return [
+        {
+            "test_case_id": item.test_case_id,
+            "model_id": item.model_id,
+            "weight_format_id": item.weight_format_id,
+            "cache_format_id": item.cache_format_id,
+            "status": item.status.value,
+            "executed": item.executed,
+            "reason": item.reason,
+        }
+        for item in bundle.attempts
+    ]
+
+
 def _receipt_check(actual: object, expected: object) -> dict[str, object]:
     return {"actual": actual, "expected": expected, "passed": actual == expected}
 
@@ -998,6 +1013,97 @@ def _published_prompt_entity(row: Mapping[str, object]) -> dict[str, str]:
             "sha256",
         )
     }
+
+
+def _published_output_entity(row: Mapping[str, object]) -> dict[str, object]:
+    return {
+        "output_id": str(row.get("output_id", "")),
+        "test_case_id": str(row.get("test_case_id", "")),
+        "prompt_id": str(row.get("prompt_id", "")),
+        "domain": str(row.get("domain", "")),
+        "prompt_length": str(row.get("prompt_length", "")),
+        "status": str(row.get("status", "")),
+        "valid_output": _published_bool(row.get("valid_output", "")),
+        "critical_failure": _published_bool(row.get("critical_failure", "")),
+        "prompt_score": float(row.get("prompt_score", "")),
+        "output_sha256": str(row.get("output_sha256", "")),
+        "source_evidence_id": str(row.get("source_evidence_id", "")),
+    }
+
+
+def _published_availability_entity(row: Mapping[str, object]) -> dict[str, object]:
+    return {
+        "test_case_id": str(row.get("test_case_id", "")),
+        "model_id": str(row.get("model_id", "")),
+        "weight_format_id": str(row.get("weight_format_id", "")),
+        "cache_format_id": str(row.get("cache_format_id", "")),
+        "status": str(row.get("status", "")),
+        "executed": _published_bool(row.get("executed", "")),
+        "reason": str(row.get("reason", "")),
+    }
+
+
+def _published_model_artifact_entity(
+    row: Mapping[str, object],
+) -> dict[str, object]:
+    size_value = row.get("size_bytes")
+    return {
+        "model_id": str(row.get("model_id", "")),
+        "weight_format_id": str(row.get("weight_format_id", "")),
+        "status": str(row.get("status", "")),
+        "executed_case_count": int(row.get("executed_case_count", 0)),
+        "artifact_label": str(row.get("artifact_label", "")),
+        "sha256": str(row.get("sha256", "")),
+        "size_bytes": None if size_value in (None, "") else int(size_value),
+        "reason": str(row.get("reason", "")),
+    }
+
+
+def _entity_set_diagnostics(
+    actual_rows: Sequence[Mapping[str, object]],
+    expected_rows: Sequence[Mapping[str, object]],
+    key_fields: tuple[str, ...],
+) -> list[str]:
+    def key(row: Mapping[str, object]) -> tuple[object, ...]:
+        return tuple(row.get(field) for field in key_fields)
+
+    actual_counts = Counter(key(row) for row in actual_rows)
+    expected_counts = Counter(key(row) for row in expected_rows)
+    diagnostics: list[str] = []
+    for entity_key, count in sorted(actual_counts.items(), key=lambda item: repr(item[0])):
+        if count != 1:
+            diagnostics.append(f"actual duplicate {entity_key!r} count={count}")
+    for entity_key, count in sorted(expected_counts.items(), key=lambda item: repr(item[0])):
+        if count != 1:
+            diagnostics.append(f"expected duplicate {entity_key!r} count={count}")
+    for entity_key in sorted(
+        set(expected_counts) - set(actual_counts), key=repr
+    ):
+        diagnostics.append(f"missing {entity_key!r}")
+    for entity_key in sorted(
+        set(actual_counts) - set(expected_counts), key=repr
+    ):
+        diagnostics.append(f"unexpected {entity_key!r}")
+
+    actual_by_key = {
+        key(row): row for row in actual_rows if actual_counts[key(row)] == 1
+    }
+    expected_by_key = {
+        key(row): row for row in expected_rows if expected_counts[key(row)] == 1
+    }
+    for entity_key in sorted(set(actual_by_key) & set(expected_by_key), key=repr):
+        actual = actual_by_key[entity_key]
+        expected = expected_by_key[entity_key]
+        differing_fields = sorted(
+            field
+            for field in set(actual) | set(expected)
+            if actual.get(field) != expected.get(field)
+        )
+        if differing_fields:
+            diagnostics.append(
+                f"mismatch {entity_key!r} fields={','.join(differing_fields)}"
+            )
+    return diagnostics
 
 
 def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
@@ -1024,7 +1130,7 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
             "size_bytes": source_path.stat().st_size,
             "source_label": source_label,
             "derived": False,
-            "input_evidence_ids": (),
+            "input_evidence_ids": [],
         }
         return evidence_id
 
@@ -1065,22 +1171,58 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
     summary_entities: dict[str, dict[str, object]] = {}
     prompt_entities: dict[str, dict[str, object]] = {}
     output_entities: dict[tuple[str, str], dict[str, object]] = {}
+    quality_entities: dict[tuple[str, str, str], dict[str, object]] = {}
+    availability_entities: list[dict[str, object]] = []
     raw_payloads: dict[str, Mapping[str, object]] = {}
     raw_evidence_by_case: dict[str, str] = {}
 
     for row in detailed:
         case_id = row["case_id"]
         executed = _bool(row["executed"])
+        status = Status.from_source(row["status"])
+        attempt_evidence_ids = [
+            source_evidence_ids["detailed"],
+            source_evidence_ids["rows"],
+        ]
         attempt_entities[case_id] = {
+            "route_id": _EXPERIMENTAL_ROUTE_ID,
+            "campaign_id": _EXPERIMENTAL_CAMPAIGN_ID,
+            "test_case_id": case_id,
             "attempt_id": _attempt_id(case_id),
+            "status": status.value,
+            "executed": executed,
+            "reason": row["failure_reason"],
             "model_id": row["model"],
             "weight_format_id": row["weight_precision"],
             "cache_format_id": row["cache_codec"],
+            "backend_id": None,
+            "source_status": row["status"],
+            "failure_kind": row["failure_stage"] or None,
+            "evidence_ids": attempt_evidence_ids,
         }
+        availability_entities.append(
+            {
+                "test_case_id": case_id,
+                "model_id": row["model"],
+                "weight_format_id": row["weight_precision"],
+                "cache_format_id": row["cache_codec"],
+                "status": status.value,
+                "executed": executed,
+                "reason": row["failure_reason"],
+            }
+        )
         if not executed:
             failure_entities[case_id] = {
-                "failure_id": _failure_id(case_id),
+                "route_id": _EXPERIMENTAL_ROUTE_ID,
+                "campaign_id": _EXPERIMENTAL_CAMPAIGN_ID,
+                "test_case_id": case_id,
                 "attempt_id": _attempt_id(case_id),
+                "failure_id": _failure_id(case_id),
+                "status": status.value,
+                "stage": row["failure_stage"],
+                "reason": row["failure_reason"],
+                "source_status": row["status"],
+                "evidence_ids": list(attempt_evidence_ids),
             }
             continue
         raw_relative = _portable_source_path(row["raw_result_path"])
@@ -1088,6 +1230,8 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
             raw_relative, "raw-case-result", f"fv6 raw result {case_id}"
         )
         raw_evidence_by_case[case_id] = raw_evidence_id
+        attempt_evidence_ids.append(raw_evidence_id)
+        attempt_entities[case_id]["evidence_ids"] = attempt_evidence_ids
         raw_payload = _read_json(repo_root / Path(raw_relative))
         if not isinstance(raw_payload, dict):
             raise ValueError(f"{case_id}: frozen raw result is not an object")
@@ -1101,14 +1245,28 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
                 case_id, repetition
             )
             result = raw_run["result"]
+            stdout_result = json.loads(str(raw_run["stdout"]))
+            if stdout_result != result:
+                raise ValueError(
+                    f"{case_id}: frozen repetition {repetition} stdout/result conflict"
+                )
+            result = stdout_result
             peak = _working_set_bytes(raw_run.get("peak_working_set_mb"))
             measurement_entities[measurement_id] = {
+                "route_id": _EXPERIMENTAL_ROUTE_ID,
+                "campaign_id": _EXPERIMENTAL_CAMPAIGN_ID,
                 "test_case_id": case_id,
                 "attempt_id": _attempt_id(case_id),
                 "measurement_id": measurement_id,
                 "run_id": run_id,
                 "repetition_id": repetition_id,
                 "source_evidence_id": raw_evidence_id,
+                "latency_ms": float(result["ttft_ms"]),
+                "prompt_tokens_per_second": None,
+                "generation_tokens_per_second": float(result["decode_tps"]),
+                "peak_working_set_bytes": peak,
+                "input_tokens": _optional_int(result.get("input_tokens")),
+                "output_tokens": _optional_int(result.get("generated_tokens")),
             }
             expected_measurement_ids.append(measurement_id)
             decode_values.append(float(result["decode_tps"]))
@@ -1127,13 +1285,15 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
             summary_id = _summary_id(case_id, metric_name)
             _, unit, aggregation = _SUMMARY_CONTRACTS[metric_name]
             summary_entities[summary_id] = {
+                "route_id": _EXPERIMENTAL_ROUTE_ID,
+                "campaign_id": _EXPERIMENTAL_CAMPAIGN_ID,
                 "test_case_id": case_id,
                 "summary_id": summary_id,
                 "metric_name": metric_name,
                 "value": value,
                 "unit": unit,
                 "aggregation": aggregation,
-                "source_measurement_ids": tuple(expected_measurement_ids),
+                "source_measurement_ids": list(expected_measurement_ids),
             }
 
     for case_id, raw_payload in raw_payloads.items():
@@ -1176,17 +1336,71 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
                 "output_sha256": hashlib.sha256(answer.encode("utf-8")).hexdigest(),
                 "source_evidence_id": raw_evidence_id,
             }
+            for criterion in quality["criteria"]:
+                category = str(criterion["category"])
+                criterion_id = str(criterion["id"])
+                criterion_identity = f"{category}:{criterion_id}"
+                quality_entities[(case_id, prompt_id, criterion_identity)] = {
+                    "route_id": _EXPERIMENTAL_ROUTE_ID,
+                    "campaign_id": _EXPERIMENTAL_CAMPAIGN_ID,
+                    "test_case_id": case_id,
+                    "quality_id": _quality_id(
+                        case_id, prompt_id, category, criterion_id
+                    ),
+                    "prompt_id": prompt_id,
+                    "criterion_id": criterion_identity,
+                    "score": float(criterion["points_awarded"]),
+                    "maximum_score": float(criterion["weight"]),
+                    "prompt_suite_id": prompt_suite_id,
+                    "rubric_id": "objective-quality-weighted-5-3-2-output-health-gate",
+                    "scoring_version": str(quality["schema"]),
+                    "source_evidence_id": raw_evidence_id,
+                }
 
-    quality_entities: dict[tuple[str, str, str], str] = {}
-    for row in quality_rows:
-        criterion_identity = f"{row['category']}:{row['criterion_id']}"
-        quality_entities[(row["case_id"], row["prompt_id"], criterion_identity)] = (
-            _quality_id(
-                row["case_id"],
-                row["prompt_id"],
-                row["category"],
-                row["criterion_id"],
-            )
+    quality_projection = {
+        (row["case_id"], row["prompt_id"], f"{row['category']}:{row['criterion_id']}"):
+        (
+            float(row["points_awarded"]),
+            float(row["weight"]),
+            row["prompt_set_id"],
+        )
+        for row in quality_rows
+    }
+    expected_projection = {
+        key: (
+            entity["score"],
+            entity["maximum_score"],
+            entity["prompt_suite_id"],
+        )
+        for key, entity in quality_entities.items()
+    }
+    if quality_projection != expected_projection:
+        raise ValueError("frozen raw quality entities differ from quality details")
+
+    grouped_artifacts: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
+    for row in detailed:
+        grouped_artifacts[(row["model"], row["weight_precision"])].append(row)
+    model_artifact_entities: list[dict[str, object]] = []
+    for (model_id, weight_id), source_rows in sorted(grouped_artifacts.items()):
+        executed_rows = [row for row in source_rows if _bool(row["executed"])]
+        model_names = {
+            PureWindowsPath(row["model_path"]).name
+            for row in executed_rows
+            if row["model_path"]
+        }
+        hashes = {row["model_sha256"] for row in executed_rows}
+        sizes = {int(row["model_size_bytes"]) for row in executed_rows}
+        model_artifact_entities.append(
+            {
+                "model_id": model_id,
+                "weight_format_id": weight_id,
+                "status": "available" if executed_rows else "artifact_unavailable",
+                "executed_case_count": len(executed_rows),
+                "artifact_label": next(iter(model_names), ""),
+                "sha256": next(iter(hashes), ""),
+                "size_bytes": next(iter(sizes), None),
+                "reason": "" if executed_rows else source_rows[0]["failure_reason"],
+            }
         )
 
     return {
@@ -1213,9 +1427,11 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
             for row in detailed
         },
         "attempt_entities": attempt_entities,
+        "availability_entities": availability_entities,
         "evidence_entities": evidence_entities,
         "failure_entities": failure_entities,
         "measurement_entities": measurement_entities,
+        "model_artifact_entities": model_artifact_entities,
         "output_entities": output_entities,
         "prompt_entities": prompt_entities,
         "quality_entities": quality_entities,
@@ -1235,6 +1451,8 @@ def _experimental_validation_receipts(
     bundle: RouteBundle,
     prompt_rows: Sequence[Mapping[str, object]],
     output_rows: Sequence[Mapping[str, object]],
+    availability_rows: Sequence[Mapping[str, object]],
+    model_artifact_rows: Sequence[Mapping[str, object]],
     expectations: Mapping[str, object],
 ) -> tuple[dict[str, object], dict[str, object]]:
     attempt_counts = Counter(item.attempt_id for item in bundle.attempts)
@@ -1279,9 +1497,11 @@ def _experimental_validation_receipts(
     expected_artifacts = list(expectations["executed_model_weight_artifacts"])
     expected_semantics = expectations["attempt_semantics"]
     expected_attempt_entities = expectations["attempt_entities"]
+    expected_availability_entities = expectations["availability_entities"]
     expected_evidence_entities = expectations["evidence_entities"]
     expected_failure_entities = expectations["failure_entities"]
     expected_measurement_entities = expectations["measurement_entities"]
+    expected_model_artifact_entities = expectations["model_artifact_entities"]
     expected_output_entities = expectations["output_entities"]
     expected_prompt_entities = expectations["prompt_entities"]
     expected_quality_entities = expectations["quality_entities"]
@@ -1294,6 +1514,57 @@ def _experimental_validation_receipts(
         for row in prompt_rows
         if prompt_row_id_counts[str(row.get("prompt_id", ""))] == 1
     }
+
+    attempt_entity_errors = _entity_set_diagnostics(
+        [item.to_row() for item in bundle.attempts],
+        list(expected_attempt_entities.values()),
+        ("attempt_id",),
+    )
+    measurement_entity_errors = _entity_set_diagnostics(
+        [item.to_row() for item in bundle.measurements],
+        list(expected_measurement_entities.values()),
+        ("measurement_id",),
+    )
+    summary_entity_errors = _entity_set_diagnostics(
+        [item.to_row() for item in bundle.summaries],
+        list(expected_summary_entities.values()),
+        ("summary_id",),
+    )
+    quality_entity_errors = _entity_set_diagnostics(
+        [item.to_row() for item in bundle.quality],
+        list(expected_quality_entities.values()),
+        ("quality_id",),
+    )
+    failure_entity_errors = _entity_set_diagnostics(
+        [item.to_row() for item in bundle.failures],
+        list(expected_failure_entities.values()),
+        ("failure_id",),
+    )
+    evidence_entity_errors = _entity_set_diagnostics(
+        [item.to_row() for item in bundle.evidence],
+        list(expected_evidence_entities.values()),
+        ("evidence_id",),
+    )
+    prompt_entity_errors = _entity_set_diagnostics(
+        [_published_prompt_entity(row) for row in prompt_rows],
+        list(expected_prompt_entities.values()),
+        ("prompt_suite_id", "prompt_id"),
+    )
+    output_entity_errors = _entity_set_diagnostics(
+        [_published_output_entity(row) for row in output_rows],
+        list(expected_output_entities.values()),
+        ("output_id",),
+    )
+    availability_entity_errors = _entity_set_diagnostics(
+        [_published_availability_entity(row) for row in availability_rows],
+        list(expected_availability_entities),
+        ("test_case_id",),
+    )
+    model_artifact_entity_errors = _entity_set_diagnostics(
+        [_published_model_artifact_entity(row) for row in model_artifact_rows],
+        list(expected_model_artifact_entities),
+        ("model_id", "weight_format_id"),
+    )
 
     prompts_per_case = Counter(
         (item.test_case_id, item.prompt_id) for item in bundle.quality
@@ -1417,7 +1688,7 @@ def _experimental_validation_receipts(
             or item.value != expected["value"]
             or item.unit != expected["unit"]
             or item.aggregation != expected["aggregation"]
-            or item.source_measurement_ids != expected["source_measurement_ids"]
+            or list(item.source_measurement_ids) != expected["source_measurement_ids"]
         ):
             summary_lineage_errors.append(item.summary_id)
 
@@ -1426,10 +1697,10 @@ def _experimental_validation_receipts(
     for item in bundle.quality:
         expected_prompt = expected_prompt_entities.get(item.prompt_id)
         published_prompt = published_prompts_by_id.get(str(item.prompt_id))
-        expected_quality_id = expected_quality_entities.get(
+        expected_quality = expected_quality_entities.get(
             (item.test_case_id, item.prompt_id, item.criterion_id)
         )
-        if expected_quality_id is None or item.quality_id != expected_quality_id:
+        if expected_quality is None or item.quality_id != expected_quality["quality_id"]:
             quality_identifier_errors.append(item.quality_id)
         expected_output = expected_output_entities.get(
             (item.test_case_id, item.prompt_id)
@@ -1481,7 +1752,7 @@ def _experimental_validation_receipts(
             or item.size_bytes != expected["size_bytes"]
             or item.source_label != expected["source_label"]
             or item.derived != expected["derived"]
-            or item.input_evidence_ids != expected["input_evidence_ids"]
+            or list(item.input_evidence_ids) != expected["input_evidence_ids"]
         ):
             evidence_identifier_errors.append(relative_path)
 
@@ -1690,6 +1961,10 @@ def _experimental_validation_receipts(
         "summaries": [],
     }
     data_checks = {
+        "availability_entity_set_equality": _receipt_check(
+            availability_entity_errors, []
+        ),
+        "attempt_entity_set_equality": _receipt_check(attempt_entity_errors, []),
         "attempt_identifier_uniqueness": _receipt_check(
             len({item.attempt_id for item in bundle.attempts}), len(bundle.attempts)
         ),
@@ -1705,6 +1980,7 @@ def _experimental_validation_receipts(
         "evidence_identifier_uniqueness": _receipt_check(
             len(evidence_counts), len(bundle.evidence)
         ),
+        "evidence_entity_set_equality": _receipt_check(evidence_entity_errors, []),
         "evidence_identifier_bindings": _receipt_check(
             sorted(evidence_identifier_errors), []
         ),
@@ -1713,6 +1989,7 @@ def _experimental_validation_receipts(
             distinct_criteria_actual, [3]
         ),
         "failure_count": _receipt_check(len(bundle.failures), 54),
+        "failure_entity_set_equality": _receipt_check(failure_entity_errors, []),
         "failure_identifier_uniqueness": _receipt_check(
             len(failure_counts), len(bundle.failures)
         ),
@@ -1721,6 +1998,9 @@ def _experimental_validation_receipts(
         ),
         "failure_references": _receipt_check(sorted(failure_reference_errors), []),
         "measurement_count": _receipt_check(len(bundle.measurements), 81),
+        "measurement_entity_set_equality": _receipt_check(
+            measurement_entity_errors, []
+        ),
         "measurement_identifier_uniqueness": _receipt_check(
             len(measurement_counts), len(bundle.measurements)
         ),
@@ -1731,6 +2011,7 @@ def _experimental_validation_receipts(
             sorted(measurement_reference_errors), []
         ),
         "output_count": _receipt_check(len(output_rows), 1296),
+        "output_entity_set_equality": _receipt_check(output_entity_errors, []),
         "output_identifier_uniqueness": _receipt_check(
             len(output_counts), len(output_rows)
         ),
@@ -1742,6 +2023,7 @@ def _experimental_validation_receipts(
             sorted(output_source_binding_errors), []
         ),
         "prompt_count": _receipt_check(len(prompt_rows), 48),
+        "prompt_entity_set_equality": _receipt_check(prompt_entity_errors, []),
         "prompt_identifier_uniqueness": _receipt_check(
             len(prompt_counts), len(prompt_rows)
         ),
@@ -1753,6 +2035,7 @@ def _experimental_validation_receipts(
             sorted(prompt_source_binding_errors), []
         ),
         "quality_criterion_count": _receipt_check(len(bundle.quality), 3888),
+        "quality_entity_set_equality": _receipt_check(quality_entity_errors, []),
         "quality_identifier_uniqueness": _receipt_check(
             len(quality_counts), len(bundle.quality)
         ),
@@ -1764,6 +2047,7 @@ def _experimental_validation_receipts(
         ),
         "quality_references": _receipt_check(sorted(quality_reference_errors), []),
         "summary_count": _receipt_check(len(bundle.summaries), 81),
+        "summary_entity_set_equality": _receipt_check(summary_entity_errors, []),
         "summary_identifier_uniqueness": _receipt_check(
             len(summary_counts), len(bundle.summaries)
         ),
@@ -1776,6 +2060,9 @@ def _experimental_validation_receipts(
         "summary_references": _receipt_check(sorted(summary_reference_errors), []),
         "unavailable_exclusions": _receipt_check(
             unavailable_exclusions, empty_exclusions
+        ),
+        "model_artifact_entity_set_equality": _receipt_check(
+            model_artifact_entity_errors, []
         ),
     }
     data = {
@@ -1796,6 +2083,8 @@ def build_experimental_validation_receipts(
     *,
     prompt_rows: Sequence[Mapping[str, object]] | None = None,
     output_rows: Sequence[Mapping[str, object]] | None = None,
+    availability_rows: Sequence[Mapping[str, object]] | None = None,
+    model_artifact_rows: Sequence[Mapping[str, object]] | None = None,
 ) -> tuple[dict[str, object], dict[str, object]]:
     """Recompute named fv6 coverage and referential-integrity checks."""
     root = Path(repo_root).resolve(strict=True)
@@ -1805,9 +2094,18 @@ def build_experimental_validation_receipts(
             prompt_rows = generated_prompts
         if output_rows is None:
             output_rows = generated_outputs
+    if availability_rows is None:
+        availability_rows = _availability_rows(bundle)
+    if model_artifact_rows is None:
+        model_artifact_rows = _model_artifact_rows(root)
     expectations = _frozen_validation_expectations(root)
     return _experimental_validation_receipts(
-        bundle, prompt_rows, output_rows, expectations
+        bundle,
+        prompt_rows,
+        output_rows,
+        availability_rows,
+        model_artifact_rows,
+        expectations,
     )
 
 
@@ -1863,18 +2161,7 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         _csv_rows(bundle.summaries),
         _SUMMARY_FIELDS,
     )
-    availability_rows = [
-        {
-            "test_case_id": item.test_case_id,
-            "model_id": item.model_id,
-            "weight_format_id": item.weight_format_id,
-            "cache_format_id": item.cache_format_id,
-            "status": item.status.value,
-            "executed": item.executed,
-            "reason": item.reason,
-        }
-        for item in bundle.attempts
-    ]
+    availability_rows = _availability_rows(bundle)
     write_csv(
         route / "results/availability-matrix.csv",
         availability_rows,
@@ -2034,6 +2321,8 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         bundle,
         prompt_rows=prompt_rows,
         output_rows=output_rows,
+        availability_rows=availability_rows,
+        model_artifact_rows=model_artifacts,
     )
     write_json(route / "validation/coverage-validation.json", coverage_validation)
     write_json(route / "validation/data-validation.json", data_validation)

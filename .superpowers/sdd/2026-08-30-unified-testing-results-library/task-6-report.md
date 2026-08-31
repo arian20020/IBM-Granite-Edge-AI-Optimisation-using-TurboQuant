@@ -320,3 +320,68 @@ The fixed-mtime idempotence test can make Git's stat cache report the regenerate
 ### Task 8 integration boundary
 
 The route manifest remains an exact receipt for the 22 Task 6 files. Task 8 must deliberately regenerate and validate it after finalizing any added report/workbook artifact set; those later artifacts must not be silently omitted from this provenance boundary.
+
+## Fix round 4/5
+
+### Reviewer findings addressed
+
+- Added one source-derived full-entity-set equality check for every canonical type published by Task 6: attempts, measurements, summaries, quality, failures, evidence, prompt rows, output rows, availability rows, and model-artifact rows.
+- Full comparisons use canonical serialization semantics: controlled status strings, booleans, nullable scalars, integer token/memory counts, floating-point measurements, and list-valued evidence/lineage fields. Every published route/campaign/status/execution/reason/stage/source-status/failure-kind/metric/rubric/schema/path/hash/role/input field is included for its record type.
+- The comparison helper checks key multiplicity before keyed equality, so duplicate entities cannot be silently collapsed by dictionary construction. Receipt diagnostics report compact duplicate, missing, unexpected, or mismatched-field messages without embedding thousands of full rows.
+- Expected attempt and failure rows are reconstructed from frozen detailed results and source-evidence identities, including exact status, execution flag, failure reason/stage, source status, and ordered evidence IDs.
+- Expected measurement rows parse each frozen repetition stdout, require exact stdout/result equality, and bind all latency, throughput, peak-memory, and token values to the canonical case/repetition identity and raw evidence.
+- Expected quality rows originate from each frozen raw criterion entity and are independently reconciled with the quality-detail CSV projection. The published record binds criterion identity, awarded/maximum score, suite, rubric, scoring schema, and same-case raw evidence. Source-only criterion flags, expected/observed payloads, and reasons remain enforced by the pre-normalization raw-to-quality-detail reconciliation; they are not falsely claimed as fields in the shared `QualityRecord` schema.
+- Expected evidence rows reproduce every published provenance field, including collision-aware stable ID, role, relative path, digest, size, label, derived flag, and input IDs. Prompt and output full rows retain the exact file/output hashes and all published metadata.
+- Availability and model-artifact rows are now explicit validation inputs. The writer passes the exact rows it publishes; direct receipt callers receive deterministic rows generated from the bundle/source when omitted.
+
+### RED evidence
+
+The expanded focused suite reported before implementation:
+
+```text
+13 failed, 60 passed in 58.40s
+```
+
+The failures independently demonstrated acceptance of a synchronized three-repetition identity rotation, a direct measurement value mutation, a synchronized same-prompt criterion/quality-ID swap with differing maximum score, attempt and failure reason/stage/status mutations, evidence size/input mutations, and fabricated availability/model-artifact reasons. The end-to-end receipt assertion also proved all ten named checks were absent.
+
+### GREEN evidence
+
+The new full-entity and mutation subset passed:
+
+```text
+21 passed, 52 deselected in 24.15s
+```
+
+After deliberate receipt/manifest regeneration, the complete focused suite passed:
+
+```text
+73 passed in 64.46s
+```
+
+After the source-expectation self-review refinements, the targeted subset and complete focused suite passed again:
+
+```text
+21 passed, 52 deselected in 23.51s
+73 passed in 60.38s
+```
+
+The relevant final-results/file-generation regression suite passed before the source-only expectation refactor:
+
+```text
+142 passed in 70.41s
+```
+
+### Receipt and provenance audit
+
+```text
+coverage receipt checks 10/10 passed; valid true
+data receipt checks 47/47 passed; valid true
+full entity-set checks 10/10 passed
+manifest entries 22; validation errors []
+```
+
+The shared quality schema intentionally contains only the canonical fields listed in `QualityRecord`; Task 6 does not expand that cross-route schema. Detailed criterion flags/reasons are still verified against raw evidence before canonical records are built, while the receipt's full-entity comparison covers every field actually published in `quality/scores.csv`.
+
+### Task 8 integration boundary
+
+The checksum manifest remains exact for the 22 current route files. Task 8 must deliberately regenerate and validate it after its final report/workbook file set is known.
