@@ -86,11 +86,15 @@ if ($candidateClosureBlob -ne $workingClosureBlob) { throw 'R3 closure manifest 
 $candidateManifestPath = (Resolve-Path -LiteralPath $CandidateManifest).Path
 $candidateRecord = Get-Content -Raw -LiteralPath $candidateManifestPath | ConvertFrom-Json
 Assert-ExactJsonProperties $candidateRecord @('schemaVersion', 'sourceCommit', 'sourceTree', 'packageFamilyName', 'applicationId', 'executablePath', 'executableSha256', 'executableBytes') @() 'candidate manifest'
+$candidateExecutablePath = [string]$candidateRecord.executablePath
+$candidateExecutableFullyQualified = [IO.Path]::IsPathRooted($candidateExecutablePath) -and
+    $candidateExecutablePath -notmatch '^[\\/](?![\\/])' -and
+    $candidateExecutablePath -notmatch '^[A-Za-z]:(?![\\/])'
 if ($candidateRecord.schemaVersion -ne 1 -or
     $candidateRecord.sourceCommit -ne $CandidateCommit -or $candidateRecord.sourceTree -ne $CandidateTree -or
     [string]$candidateRecord.packageFamilyName -notmatch '^[A-Za-z0-9._-]{3,255}$' -or
     [string]$candidateRecord.applicationId -notmatch '^[A-Za-z0-9._-]{1,255}$' -or
-    -not [IO.Path]::IsPathFullyQualified([string]$candidateRecord.executablePath) -or
+    -not $candidateExecutableFullyQualified -or
     [string]$candidateRecord.executableSha256 -notmatch '^[0-9a-f]{64}$' -or
     [long]$candidateRecord.executableBytes -le 0) {
     throw 'The candidate manifest schema or immutable identity is invalid.'
