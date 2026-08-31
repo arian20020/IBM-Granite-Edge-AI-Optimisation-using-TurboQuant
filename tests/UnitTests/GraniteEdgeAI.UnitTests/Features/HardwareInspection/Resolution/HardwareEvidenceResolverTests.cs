@@ -267,6 +267,21 @@ public sealed class HardwareEvidenceResolverTests
 
     [TestMethod]
     [TestCategory("Unit")]
+    public void Resolve_InvalidOptionalEvidenceCannotCreateActionableSnapshot()
+    {
+        HardwareEvidenceResolutionResult result = Resolver().Resolve(
+            Guid.NewGuid(),
+            Evidence(llmFit: InvalidLlmFit(
+                [LlmFitDiagnosticCode.JsonInvalid])));
+
+        Assert.IsTrue(result.IsResolved);
+        Assert.AreEqual(
+            HardwareSnapshotUsability.DisplayOnly,
+            result.Snapshot!.Usability);
+    }
+
+    [TestMethod]
+    [TestCategory("Unit")]
     public void Resolve_RejectsEmptySnapshotIdentity()
     {
         Assert.Throws<ArgumentException>(() =>

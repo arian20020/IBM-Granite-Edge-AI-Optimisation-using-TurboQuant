@@ -40,6 +40,14 @@ internal sealed class HardwareToolLease : IDisposable
             throw new ArgumentOutOfRangeException(nameof(llmFitDiagnostic));
         }
 
+        if (llmFitDiagnostic is not null
+            and not HardwareToolAcquisitionDiagnosticCode.ToolNotAvailable)
+        {
+            throw new ArgumentException(
+                "Only verified optional-tool absence can omit LLM Fit custody.",
+                nameof(llmFitDiagnostic));
+        }
+
         if (llmFit is not null && ReferenceEquals(llmFit, llamaCpp))
         {
             throw new ArgumentException("Tool custody objects must be distinct.", nameof(llamaCpp));

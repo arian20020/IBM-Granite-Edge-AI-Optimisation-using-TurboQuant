@@ -147,9 +147,9 @@ internal sealed class HardwareEvidenceResolver : IHardwareEvidenceResolver
             memory.OperatingSystem!,
             runtime.Value!,
             manifest,
-            evidence.LlmFit.State == LlmFitEvidenceState.Unavailable
-                ? HardwareSnapshotUsability.DisplayOnly
-                : HardwareSnapshotUsability.Usable);
+            evidence.LlmFit.State == LlmFitEvidenceState.Available
+                ? HardwareSnapshotUsability.Usable
+                : HardwareSnapshotUsability.DisplayOnly);
         return HardwareEvidenceResolutionResult.Success(snapshot, manifest, diagnostics);
     }
 

@@ -94,16 +94,22 @@ internal sealed class HardwareEvidenceCollectionCoordinator : IHardwareEvidenceC
             tasks.Add(neuralProcessor);
 
             progress.Report(HardwareInspectionRunStage.CheckingLocalInferenceRuntimes);
-            llmFit = tools.LlmFit is { } verifiedLlmFit
-                ? RunExternalAsync(
+            llmFit = tools.LlmFit switch
+            {
+                { } verifiedLlmFit => RunExternalAsync(
                     externalLane,
                     captureToken => _capture.CaptureLlmFitAsync(verifiedLlmFit, captureToken),
-                    lifetime.Token)
-                : Task.FromResult(LlmFitHardwareEvidence.Unavailable(
-                    LlmFitCommandContract.ToolId,
-                    LlmFitCommandContract.Version,
-                    _timeProvider.GetUtcNow().ToUniversalTime(),
-                    LlmFitDiagnosticCode.ToolNotAvailable));
+                    lifetime.Token),
+                null when tools.LlmFitDiagnostic
+                    == HardwareToolAcquisitionDiagnosticCode.ToolNotAvailable =>
+                    Task.FromResult(LlmFitHardwareEvidence.Unavailable(
+                        LlmFitCommandContract.ToolId,
+                        LlmFitCommandContract.Version,
+                        _timeProvider.GetUtcNow().ToUniversalTime(),
+                        LlmFitDiagnosticCode.ToolNotAvailable)),
+                _ => throw new InvalidOperationException(
+                    "Missing LLM Fit custody was not classified as verified absence."),
+            };
             llamaCpp = RunExternalAsync(
                 externalLane,
                 captureToken => _capture.CaptureLlamaCppAsync(tools.LlamaCpp, captureToken),

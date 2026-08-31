@@ -70,6 +70,30 @@ public sealed class HardwareOrchestrationContractTests
     }
 
     [TestMethod]
+    public void ToolLease_AllowsOnlyVerifiedAbsenceToOmitOptionalLlmFitCustody()
+    {
+        using VerifiedTrustedTool llamaCpp = Tool("llama", new CountingDisposable());
+
+        using HardwareToolLease degraded = new(
+            llmFit: null,
+            llamaCpp: llamaCpp,
+            llmFitDiagnostic: HardwareToolAcquisitionDiagnosticCode.ToolNotAvailable);
+
+        Assert.IsNull(degraded.LlmFit);
+        Assert.AreEqual(
+            HardwareToolAcquisitionDiagnosticCode.ToolNotAvailable,
+            degraded.LlmFitDiagnostic);
+        Assert.Throws<ArgumentException>(() => new HardwareToolLease(
+            llmFit: null,
+            llamaCpp: llamaCpp,
+            llmFitDiagnostic: HardwareToolAcquisitionDiagnosticCode.ToolIntegrityFailure));
+        Assert.Throws<ArgumentException>(() => new HardwareToolLease(
+            llmFit: null,
+            llamaCpp: llamaCpp,
+            llmFitDiagnostic: HardwareToolAcquisitionDiagnosticCode.PackagedProbeUnavailable));
+    }
+
+    [TestMethod]
     public void CollectionResult_ExposesEitherEvidenceOrClosedFailure()
     {
         HardwareEvidenceCollectionResult success =
