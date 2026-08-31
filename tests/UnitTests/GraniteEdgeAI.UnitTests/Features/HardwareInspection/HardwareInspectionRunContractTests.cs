@@ -121,6 +121,30 @@ public sealed class HardwareInspectionRunContractTests
         Assert.AreSame(snapshot, result.Snapshot);
         Assert.AreEqual(HardwareSnapshotUsability.DisplayOnly, result.Snapshot!.Usability);
         Assert.IsNull(result.Handoff);
+
+        Assert.Throws<ArgumentException>(() => HardwareInspectionRunResult.CreateCompleted(
+            runId,
+            HardwareInspectionOutcome.Completed,
+            snapshot));
+
+        HardwareSnapshot undefined = new(
+            usable.SnapshotId,
+            usable.CapturedAtUtc,
+            usable.SchemaVersion,
+            usable.PolicyVersion,
+            usable.Processor,
+            usable.Memory,
+            usable.GraphicsAdapters,
+            usable.NeuralProcessor,
+            usable.Storage,
+            usable.OperatingSystem,
+            usable.LocalRuntime,
+            usable.Evidence,
+            (HardwareSnapshotUsability)99);
+        Assert.Throws<ArgumentException>(() => HardwareInspectionRunResult.CreateCompleted(
+            runId,
+            HardwareInspectionOutcome.CompletedWithWarnings,
+            undefined));
     }
 
     [TestMethod]

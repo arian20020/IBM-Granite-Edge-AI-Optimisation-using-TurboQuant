@@ -163,6 +163,7 @@ public sealed class HardwareInspectionPresentationContractTests
             block3RouteRegistered: true,
             optionalCapabilityProbeUnavailable: true);
 
+        StringAssert.Contains(state.Body, "Available core hardware facts were collected");
         StringAssert.Contains(state.Body, "optional hardware capability probe was unavailable");
         StringAssert.Contains(state.Body, "Compatibility and model actions remain disabled");
         Assert.AreEqual(1, state.UnresolvedReviewCount);

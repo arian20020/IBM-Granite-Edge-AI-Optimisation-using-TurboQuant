@@ -134,7 +134,7 @@ public sealed class HardwareInspectionPresentationFactory
         if (withWarnings)
         {
             string body = optionalCapabilityProbeUnavailable
-                ? "Core CPU, memory, graphics, and storage facts were collected, but the optional hardware capability probe was unavailable. Compatibility and model actions remain disabled until capability evidence is complete."
+                ? "Available core hardware facts were collected, but the optional hardware capability probe was unavailable. Compatibility and model actions remain disabled until capability evidence is complete."
                 : "The neural processor check could not be confirmed. A small memory-source difference was resolved safely. The hardware report was still created.";
             string announcement = optionalCapabilityProbeUnavailable
                 ? "Hardware inspection completed with verified core facts. Optional capability evidence is unavailable, so compatibility remains unavailable."
