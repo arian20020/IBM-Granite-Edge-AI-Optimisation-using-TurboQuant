@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -33,12 +34,34 @@ def _migration_rows() -> list[dict[str, str]]:
     return rows
 
 
-def _manifest_node_ids(path: Path) -> tuple[str, ...]:
+def _collection_node_ids(text: str) -> tuple[str, ...]:
     return tuple(
         line.strip()
-        for line in path.read_text(encoding="utf-8").splitlines()
+        for line in text.splitlines()
         if "::" in line
     )
+
+
+def _manifest_node_ids(path: Path) -> tuple[str, ...]:
+    return _collection_node_ids(path.read_text(encoding="utf-8"))
+
+
+def _live_collection_node_ids() -> tuple[str, ...]:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            TEST_ROOT.relative_to(ROOT).as_posix(),
+            "--collect-only",
+            "-q",
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return _collection_node_ids(result.stdout)
 
 
 def _normalize_post_move_node_id(
@@ -77,12 +100,14 @@ def test_tracked_tests_have_complete_responsibility_migration_map_and_collection
     assert POST_MOVE_MANIFEST.is_file()
 
     pre_move_node_ids = _manifest_node_ids(PRE_MOVE_MANIFEST)
-    post_move_node_ids = _manifest_node_ids(POST_MOVE_MANIFEST)
-
-    normalized_post_move = tuple(
-        sorted(
-            _normalize_post_move_node_id(node_id, destination_to_source)
-            for node_id in post_move_node_ids
+    for post_move_node_ids in (
+        _manifest_node_ids(POST_MOVE_MANIFEST),
+        _live_collection_node_ids(),
+    ):
+        normalized_post_move = tuple(
+            sorted(
+                _normalize_post_move_node_id(node_id, destination_to_source)
+                for node_id in post_move_node_ids
+            )
         )
-    )
-    assert tuple(sorted(pre_move_node_ids)) == normalized_post_move
+        assert tuple(sorted(pre_move_node_ids)) == normalized_post_move

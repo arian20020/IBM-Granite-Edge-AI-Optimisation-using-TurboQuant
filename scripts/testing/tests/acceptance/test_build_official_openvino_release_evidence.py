@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -33,28 +31,6 @@ def _canonical_sha256(value: object) -> str:
             + "\n"
         ).encode("utf-8")
     ).hexdigest()
-
-
-@contextmanager
-def _configured_python_identity():
-    with tempfile.TemporaryDirectory() as directory:
-        config_path = Path(directory) / "pyvenv.cfg"
-        version = ".".join(str(part) for part in sys.version_info[:3])
-        config_path.write_text(
-            f"version = {version}\n"
-            f"executable = {Path(sys.executable).resolve()}\n",
-            encoding="utf-8",
-            newline="\n",
-        )
-        previous = os.environ.get("OPENVINO_WB04_PYTHON_CONFIG")
-        os.environ["OPENVINO_WB04_PYTHON_CONFIG"] = str(config_path.resolve())
-        try:
-            yield
-        finally:
-            if previous is None:
-                os.environ.pop("OPENVINO_WB04_PYTHON_CONFIG", None)
-            else:
-                os.environ["OPENVINO_WB04_PYTHON_CONFIG"] = previous
 
 
 def _copy_builder_sources(destination: Path) -> Path:
@@ -632,12 +608,11 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
                 ),
             )
 
-            with _configured_python_identity():
-                report = finalize_release(
-                    release_input_path=release_input,
-                    destination=destination,
-                    check_only=True,
-                )
+            report = finalize_release(
+                release_input_path=release_input,
+                destination=destination,
+                check_only=True,
+            )
 
             self.assertEqual(report["runtime_row_count"], 36)
             self.assertEqual(report["measured_row_count"], 3)

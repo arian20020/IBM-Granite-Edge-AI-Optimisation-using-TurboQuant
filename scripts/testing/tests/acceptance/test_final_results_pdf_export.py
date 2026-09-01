@@ -472,14 +472,7 @@ finally {
         if not receipt.is_file():
             stdout, stderr = process.communicate(timeout=5)
             raise AssertionError(f"hidden Word helper did not start: {stdout}{stderr}")
-        while True:
-            try:
-                identity = json.loads(receipt.read_text(encoding="utf-8-sig"))
-                break
-            except PermissionError:
-                if process.poll() is not None or time.monotonic() >= deadline:
-                    raise
-                time.sleep(0.1)
+        identity = json.loads(receipt.read_text(encoding="utf-8-sig"))
         assert int(identity["pid"]) in _word_process_ids()
         yield baseline, identity
     finally:

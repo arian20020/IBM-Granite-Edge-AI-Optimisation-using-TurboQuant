@@ -66,3 +66,33 @@ Task 7 verification ran against the exact working tree containing those preserve
 - Seven integration cases could not be safely exercised to their intended success paths while free RAM remained below 4 GiB. Their safety-block behavior and receipts were captured, and every other integration case passed in the explicit resource-safe run.
 - The four unstaged Task 6 moved-tool path repairs above remain outside this Task 7 commit and must not be discarded.
 - Git emitted informational LF-to-CRLF normalization warnings for edited text files on Windows; staged whitespace validation passed.
+
+## Round 1 review fix
+
+Date: 2026-09-01
+Review base HEAD: `6542059f` (`fix: close remaining testing tool path migrations`)
+
+### Review corrections
+
+- Restored `acceptance/test_build_official_openvino_release_evidence.py` to its exact pre-Task-7 behavior by removing the test-side `OPENVINO_WB04_PYTHON_CONFIG` context manager and calling `finalize_release` directly. The moved-file comparison against the pre-Task-7 source now shows only `REPO_ROOT` changing from `parents[3]` to `parents[4]`.
+- Restored `acceptance/test_final_results_pdf_export.py` to its exact pre-Task-7 behavior by removing the added `PermissionError` retry loop. Its moved-file comparison now shows only the two required repository-root depth changes.
+- Extended `unit/test_test_path_migration.py` so it runs a safe live `pytest --collect-only -q` subprocess against `TEST_ROOT`, parses current node IDs, normalizes destinations through the migration map, and compares the live set directly with the frozen pre-move set. The checked-in post-move manifest comparison remains as a second evidence check.
+
+### TDD RED/GREEN record
+
+- RED mutation: temporarily added `test_live_collection_red_probe` to the validator module and ran only the migration guard with `-k tracked_tests`. The outer run failed as intended: the live collection contained the injected 1,839th node while the frozen set contained 1,838 (`1 failed, 1 deselected in 1.84s`).
+- Removed only the temporary probe.
+- GREEN: `python -m pytest scripts/testing/tests/unit/test_test_path_migration.py -q` -> `1 passed in 1.47s`.
+- The live guard also passed as part of the final full unit suite.
+
+### Round 1 focused and suite verification
+
+- The restored release-evidence test first reproduced its original environment contract failure because the default `.venv-official-openvino-turboquant-py313/pyvenv.cfg` is absent from the worktree.
+- With the existing configured identity supplied at command scope via `C:\Users\Student\.virtualenvs\granite-testing-results-cleanup-20260901\pyvenv.cfg`, `ReleaseEvidenceBuildTests::test_generated_release_passes_strict_finalizer_check_only` -> `1 passed in 0.77s`. No test-side environment mutation was restored.
+- Unit: `348 passed, 14 skipped in 31.24s`.
+- Resource-safe integration: `1,155 passed, 1 skipped, 7 deselected in 748.81s`.
+- First safe acceptance run: `299 passed, 1 failed in 208.67s`; the unrelated workbook-portability byte-hash test crossed an XLSX archive timestamp boundary.
+- Immediate focused workbook retry: `1 passed in 0.31s`.
+- Final safe acceptance rerun with the configured identity supplied externally and the entire PDF-export module ignored: `300 passed, 5 warnings in 200.97s`.
+- No PDF-export test, Word enumeration, Word process inspection, or benchmark was run during round 1.
+- The earlier four unstaged Task 6 source-path repairs are now committed in `6542059f`; round-one suites ran with no unstaged production-source corrections.
