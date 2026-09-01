@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from scripts.testing.official_openvino.scalar_semantic_rejections import (
+from scripts.testing.campaigns.openvino.scalar_semantic_rejections import (
     generate_scalar_semantic_rejection_evidence,
     validate_scalar_semantic_rejection_evidence,
     write_scalar_semantic_rejection_evidence,

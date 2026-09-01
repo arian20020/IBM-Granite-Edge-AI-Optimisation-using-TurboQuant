@@ -15,8 +15,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.artifact_inventory import sha256_file
-from scripts.testing.official_openvino.matrix import (
+from scripts.testing.campaigns.openvino.artifact_inventory import sha256_file
+from scripts.testing.campaigns.openvino.matrix import (
     COMPARISON_CONTEXTS,
     COMPARISON_RUN_ORDER,
     FORMAL_METRICS,

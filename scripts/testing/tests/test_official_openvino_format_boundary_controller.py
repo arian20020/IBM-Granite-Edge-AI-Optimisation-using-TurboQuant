@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts.testing.official_openvino.adaptive_quality import (
+from scripts.testing.campaigns.openvino.adaptive_quality import (
     AdaptiveQualityCampaignInput,
     capture_isolated_quality_campaign,
 )
@@ -105,7 +105,7 @@ def _adaptive_input(tmp_path: Path) -> AdaptiveQualityCampaignInput:
 
 
 def test_runtime_reconciliation_reopens_and_hashes_all_canonical_evidence(tmp_path):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         reconcile_runtime_evidence,
     )
 
@@ -151,7 +151,7 @@ def test_runtime_reconciliation_reopens_and_hashes_all_canonical_evidence(tmp_pa
 def test_runtime_reconciliation_rejects_drift_and_incomplete_metrics(
     tmp_path, mutation,
 ):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         reconcile_runtime_evidence,
     )
 
@@ -190,7 +190,7 @@ def test_quality_reconciliation_reopens_six_prompt_receipts_and_hashes(tmp_path)
         _prompt_controls,
         deterministic_gate,
     )
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         reconcile_quality_evidence,
     )
 
@@ -274,7 +274,7 @@ def test_quality_reconciliation_reopens_six_prompt_receipts_and_hashes(tmp_path)
 def test_quality_reconciliation_rejects_gaps_hash_or_cleanup_drift(
     tmp_path, mutation,
 ):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         reconcile_quality_evidence,
     )
 
@@ -308,7 +308,7 @@ def test_quality_reconciliation_rejects_gaps_hash_or_cleanup_drift(
 
 
 def test_campaign_configuration_safety_values_are_not_caller_configurable(tmp_path):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         BoundaryCampaignConfig,
     )
 
@@ -341,7 +341,7 @@ def test_campaign_configuration_safety_values_are_not_caller_configurable(tmp_pa
 
 
 def test_failure_fingerprint_binds_the_runtime_build_identity(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino import format_boundary
+    from scripts.testing.campaigns.openvino import format_boundary
 
     manifest_path = tmp_path / "artifact-manifest.json"
     _write_json(
@@ -396,7 +396,7 @@ def _binding(path: Path) -> dict[str, str]:
 
 
 def _controller_projection(tmp_path: Path):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         BoundaryEvidenceProjection,
         ExecutableBoundaryInput,
         ProjectionFile,
@@ -466,7 +466,7 @@ def _controller_projection(tmp_path: Path):
 
 
 def _controller_config(tmp_path: Path):
-    from scripts.testing.official_openvino.format_boundary import BoundaryCampaignConfig
+    from scripts.testing.campaigns.openvino.format_boundary import BoundaryCampaignConfig
 
     for path in (
         tmp_path / "build",
@@ -503,7 +503,7 @@ def _controller_config(tmp_path: Path):
 
 
 def _install_controller_boundaries(monkeypatch, tmp_path):
-    from scripts.testing.official_openvino import format_boundary
+    from scripts.testing.campaigns.openvino import format_boundary
 
     projection = _controller_projection(tmp_path)
     monkeypatch.setattr(
@@ -657,7 +657,7 @@ def _sequence_failure(tmp_path: Path, case_id: str, code: str, *, safe: bool = T
 def test_terminal_f16_prerequisite_stops_cpu_but_gpu_control_still_runs(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -696,7 +696,7 @@ def test_terminal_f16_prerequisite_stops_cpu_but_gpu_control_still_runs(
 def test_campaign_uses_one_named_job_for_every_measurement_launch(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino import format_boundary
+    from scripts.testing.campaigns.openvino import format_boundary
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -746,7 +746,7 @@ def test_campaign_uses_one_named_job_for_every_measurement_launch(
 def test_retry_requires_safe_cleanup_and_compares_canonical_failures(
     tmp_path, monkeypatch, codes, expected,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -785,7 +785,7 @@ def test_retry_requires_safe_cleanup_and_compares_canonical_failures(
 def test_resume_recomputes_terminal_classification_from_bound_raw_records(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -832,7 +832,7 @@ def test_resume_recomputes_terminal_classification_from_bound_raw_records(
 def test_unsafe_cleanup_gets_no_retry_sets_global_halt_and_skips_gpu(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -859,7 +859,7 @@ def test_unsafe_cleanup_gets_no_retry_sets_global_halt_and_skips_gpu(
 def test_hard_emergency_ram_breach_has_one_attempt_and_no_launch(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -874,7 +874,7 @@ def test_hard_emergency_ram_breach_has_one_attempt_and_no_launch(
     assert calls == []
     assert state["cpu_lane"]["attempt_count"] == 1
     assert state["cpu_lane"]["terminal_status"] == "emergency-ram-floor"
-    from scripts.testing.official_openvino.format_boundary import load_boundary_status
+    from scripts.testing.campaigns.openvino.format_boundary import load_boundary_status
 
     assert load_boundary_status(replace(config, resume=True))["cpu_lane"][
         "terminal_status"
@@ -884,7 +884,7 @@ def test_hard_emergency_ram_breach_has_one_attempt_and_no_launch(
 def test_governed_runtime_emergency_ram_record_is_hard_and_never_retried(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -924,7 +924,7 @@ def test_governed_runtime_emergency_ram_record_is_hard_and_never_retried(
 def test_cleanup_safe_quality_failure_retries_in_a_fresh_attempt_root(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino import format_boundary
+    from scripts.testing.campaigns.openvino import format_boundary
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1000,7 +1000,7 @@ def test_cleanup_safe_quality_failure_retries_in_a_fresh_attempt_root(
 def test_accepted_receipt_binds_reduced_quality_timeout_and_absolute_deadline(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino import format_boundary
+    from scripts.testing.campaigns.openvino import format_boundary
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1046,7 +1046,7 @@ def test_accepted_receipt_binds_reduced_quality_timeout_and_absolute_deadline(
 def test_after_runtime_deadline_uses_validated_sequence_cleanup_proof(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino import format_boundary
+    from scripts.testing.campaigns.openvino import format_boundary
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1091,7 +1091,7 @@ def test_after_runtime_deadline_uses_validated_sequence_cleanup_proof(
 def test_deadline_passes_remaining_budgets_and_rejects_late_quality(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1130,7 +1130,7 @@ def test_deadline_passes_remaining_budgets_and_rejects_late_quality(
     assert terminal["stage_timeouts"] == {"measurement": 180.0, "quality": 70.0}
     assert terminal["cleanup_proof"]["source"] == "validated-quality-receipts"
     assert len(terminal["cleanup_proof"]["prompt_guards"]) == 6
-    from scripts.testing.official_openvino.format_boundary import load_boundary_status
+    from scripts.testing.campaigns.openvino.format_boundary import load_boundary_status
 
     assert load_boundary_status(replace(config, resume=True))["cpu_lane"][
         "terminal_status"
@@ -1140,7 +1140,7 @@ def test_deadline_passes_remaining_budgets_and_rejects_late_quality(
 def test_resume_rehashes_accepted_evidence_and_never_reruns_rows(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1178,7 +1178,7 @@ def test_resume_rehashes_accepted_evidence_and_never_reruns_rows(
 
 
 def test_resume_rejects_terminal_prerequisite_tampering(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     projection = _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1205,7 +1205,7 @@ def test_resume_rejects_terminal_prerequisite_tampering(tmp_path, monkeypatch):
 
 
 def test_resume_admits_the_projection_bound_cache_tree(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1229,7 +1229,7 @@ def test_resume_admits_the_projection_bound_cache_tree(tmp_path, monkeypatch):
 
 
 def test_resume_rejects_state_claim_without_its_durable_receipt(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1261,7 +1261,7 @@ def test_resume_rejects_state_claim_without_its_durable_receipt(tmp_path, monkey
 def test_resume_rejects_mutable_lane_state_drift(
     tmp_path, monkeypatch, field, value,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1288,7 +1288,7 @@ def test_resume_rejects_mutable_lane_state_drift(
 def test_resume_rejects_malformed_terminal_and_skipped_receipts(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_campaign
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)
@@ -1332,7 +1332,7 @@ def test_resume_rejects_malformed_terminal_and_skipped_receipts(
 
 
 def test_durable_row_output_is_one_canonical_line_per_case(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         durable_row_lines,
         run_boundary_campaign,
     )
@@ -1404,7 +1404,7 @@ def _passing_python_probe(config):
 def test_no_model_preflight_persists_ram_devices_imports_and_zero_owned_pids(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         prepare_boundary_projection,
         run_boundary_preflight,
     )
@@ -1448,7 +1448,7 @@ def test_no_model_preflight_persists_ram_devices_imports_and_zero_owned_pids(
 def test_persisted_preflight_revalidates_python_and_openvino_identity(
     tmp_path, monkeypatch, mutation,
 ):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         prepare_boundary_projection,
         run_boundary_preflight,
     )
@@ -1483,7 +1483,7 @@ def test_persisted_preflight_revalidates_python_and_openvino_identity(
 def test_no_model_preflight_rejects_unsafe_or_mismatched_host(
     tmp_path, monkeypatch, failure,
 ):
-    from scripts.testing.official_openvino.format_boundary import run_boundary_preflight
+    from scripts.testing.campaigns.openvino.format_boundary import run_boundary_preflight
 
     _install_controller_boundaries(monkeypatch, tmp_path)
     config = _controller_config(tmp_path)

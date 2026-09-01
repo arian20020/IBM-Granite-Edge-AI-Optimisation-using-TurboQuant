@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-import scripts.testing.official_openvino.campaign_spec as campaign_spec_module
-from scripts.testing.official_openvino.campaign_spec import (
+import scripts.testing.campaigns.openvino.campaign_spec as campaign_spec_module
+from scripts.testing.campaigns.openvino.campaign_spec import (
     generate_formal_u8_granite3b_specs,
 )
 from scripts.testing.measure_official_openvino import (

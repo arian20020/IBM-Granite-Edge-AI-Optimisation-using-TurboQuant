@@ -24,14 +24,14 @@ from scripts.testing.measure_official_openvino import (
     build_worker_environment,
     measurement_sample,
 )
-from scripts.testing.official_openvino.metrics import summarize_samples
-from scripts.testing.official_openvino.quality_worker import (
+from scripts.testing.campaigns.openvino.metrics import summarize_samples
+from scripts.testing.campaigns.openvino.quality_worker import (
     GENERATION_SETTINGS,
     RESULT_SCHEMA,
     SPEC_SCHEMA,
     _canonical_json,
 )
-from scripts.testing.official_openvino.guarded_build import (
+from scripts.testing.campaigns.openvino.guarded_build import (
     GUARD_SCHEMA,
     GuardLimits,
     _effective_environment,
@@ -624,7 +624,7 @@ def run_governed_quality_worker(
     command = [
         str(accepted.python_executable),
         "-m",
-        "scripts.testing.official_openvino.quality_worker",
+        "scripts.testing.campaigns.openvino.quality_worker",
         "--spec",
         str(spec_path),
         "--result",
@@ -791,7 +791,7 @@ def _load_governed_quality_worker(
     command = [
         str(accepted.python_executable),
         "-m",
-        "scripts.testing.official_openvino.quality_worker",
+        "scripts.testing.campaigns.openvino.quality_worker",
         "--spec",
         str(spec_path),
         "--result",

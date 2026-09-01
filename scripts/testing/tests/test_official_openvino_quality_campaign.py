@@ -168,7 +168,7 @@ def _sha256_json(value):
 
 
 def _quality_api():
-    from scripts.testing.official_openvino.quality_campaign import (
+    from scripts.testing.campaigns.openvino.quality_campaign import (
         QualityCampaignInput,
         build_quality_worker_spec,
         load_accepted_quality_campaign,
@@ -181,7 +181,7 @@ def _quality_api():
 
 
 def _governed_quality_api():
-    from scripts.testing.official_openvino.quality_campaign import (
+    from scripts.testing.campaigns.openvino.quality_campaign import (
         GovernedQualityWorkerResult,
         run_governed_quality_worker,
     )
@@ -276,7 +276,7 @@ def _governed_guard(
     post_artifact=None,
 ):
     def fake_guard(**kwargs):
-        from scripts.testing.official_openvino.guarded_build import (
+        from scripts.testing.campaigns.openvino.guarded_build import (
             _effective_environment,
             _environment_sha256,
             _inject_bound_input_authority,
@@ -433,7 +433,7 @@ def _capture_worker_result(
 
 
 def _capture_api():
-    from scripts.testing.official_openvino.quality_campaign import (
+    from scripts.testing.campaigns.openvino.quality_campaign import (
         capture_governed_quality_campaign,
     )
 
@@ -446,7 +446,7 @@ def _install_capture_runner(
     failed_turn_id=None,
     failed_turn_ids=(),
 ):
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     real_runner = module.run_governed_quality_worker
     launches = []
@@ -492,7 +492,7 @@ def _resign_capture_summary(value):
 
 
 def _forbid_capture_runner(monkeypatch):
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     launches = []
 
@@ -832,7 +832,7 @@ def test_worker_spec_reloads_retained_campaign_not_forged_dataclass_fields(
     if construction == "replace":
         forged = replace(campaign, identity=forged_identity)
     else:
-        from scripts.testing.official_openvino.quality_campaign import (
+        from scripts.testing.campaigns.openvino.quality_campaign import (
             AcceptedQualityCampaign,
         )
 
@@ -919,7 +919,7 @@ def test_governed_worker_binds_the_exact_campaign_command_environment_and_guard(
     assert calls[0]["command"][:3] == [
         str(source.python_executable.resolve()),
         "-m",
-        "scripts.testing.official_openvino.quality_worker",
+        "scripts.testing.campaigns.openvino.quality_worker",
     ]
     assert calls[0]["cwd"] == source.repo_root.resolve()
     assert calls[0]["environment"] == load(source).worker_environment
@@ -1321,7 +1321,7 @@ def test_governed_capture_launches_once_and_publishes_six_hash_bound_records(
     reason="Windows path and handle metadata use different ctime semantics",
 )
 def test_snapshot_accepts_unchanged_hardlink_published_file_on_windows(tmp_path):
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     temporary = tmp_path / ".evidence.json.tmp"
     published = tmp_path / "evidence.json"
@@ -1463,7 +1463,7 @@ def test_governed_capture_clean_resume_validates_without_launch_or_rewrite(
         if path.is_file()
     }
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     launches = []
 
@@ -1491,7 +1491,7 @@ def test_governed_capture_revalidates_launch_artifacts_before_publication(
     source = _accepted_input(tmp_path)
     _install_capture_runner(monkeypatch)
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     synthetic_runner = module.run_governed_quality_worker
 
@@ -1536,7 +1536,7 @@ def test_governed_capture_rejects_tampered_artifact_before_launch(
     target = source.output_root / relative_path
     target.write_bytes(target.read_bytes() + b" ")
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     launches = []
     monkeypatch.setattr(
@@ -1561,7 +1561,7 @@ def test_governed_capture_rejects_missing_artifact_before_launch(
     _capture_api()(source, resume=False)
     (source.output_root / relative_path).unlink()
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     launches = []
     monkeypatch.setattr(
@@ -1604,7 +1604,7 @@ def test_governed_capture_rejects_changed_identity_before_launch(
         changed.write_bytes(source.rubric_path.read_bytes() + b" ")
         source = replace(source, rubric_path=changed)
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     launches = []
     monkeypatch.setattr(
@@ -1626,7 +1626,7 @@ def test_governed_capture_nonresume_rejects_preexisting_output_before_launch(
     source.output_root.mkdir(parents=True)
     (source.output_root / "pre-existing").write_bytes(b"evidence")
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     launches = []
     monkeypatch.setattr(
@@ -1649,7 +1649,7 @@ def test_governed_capture_resume_rejects_unexpected_state_before_launch(
     _capture_api()(source, resume=False)
     (source.output_root / "unexpected.json").write_bytes(b"{}")
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     launches = []
     monkeypatch.setattr(
@@ -1864,7 +1864,7 @@ def test_governed_capture_resume_rejects_same_byte_replacement_during_validation
     _install_capture_runner(monkeypatch)
     _capture_api()(source, resume=False)
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     original_validator = module._validate_capture_record
     receipt = source.output_root / "governed-execution.json"
@@ -1899,7 +1899,7 @@ def test_governed_capture_fresh_rejects_same_byte_replacement_during_validation(
     source = _accepted_input(tmp_path)
     _install_capture_runner(monkeypatch)
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     original_validator = module._validate_capture_record
     receipt = source.output_root / "governed-execution.json"
@@ -1932,7 +1932,7 @@ def test_governed_capture_fresh_rejects_replaced_outer_root_identity(
     source = _accepted_input(tmp_path)
     _install_capture_runner(monkeypatch)
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     original_receipt = module._governed_execution_receipt
     moved_root = source.output_root.with_name("moved-quality-output")
@@ -1970,7 +1970,7 @@ def test_governed_capture_concurrent_fresh_publication_has_one_owner(
     source = _accepted_input(tmp_path)
     _install_capture_runner(monkeypatch)
 
-    import scripts.testing.official_openvino.quality_campaign as module
+    import scripts.testing.campaigns.openvino.quality_campaign as module
 
     synthetic_runner = module.run_governed_quality_worker
     runner_barrier = threading.Barrier(2)
@@ -2154,7 +2154,7 @@ def test_quality_cli_governed_mode_dispatches_only_to_capture(
     tmp_path,
     monkeypatch,
 ):
-    import scripts.testing.official_openvino.quality_campaign as campaign
+    import scripts.testing.campaigns.openvino.quality_campaign as campaign
     import scripts.testing.run_official_openvino_quality as quality_cli
 
     captured = []

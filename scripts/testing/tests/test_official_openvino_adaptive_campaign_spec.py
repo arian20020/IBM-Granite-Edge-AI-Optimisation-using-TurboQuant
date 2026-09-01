@@ -11,10 +11,10 @@ import pytest
 from scripts.testing.build_official_openvino_adaptive_matrix import (
     build_adaptive_comparison_matrix,
 )
-from scripts.testing.official_openvino.adaptive_campaign import (
+from scripts.testing.campaigns.openvino.adaptive_campaign import (
     _load_matrix_and_specs,
 )
-from scripts.testing.official_openvino.adaptive_campaign_spec import (
+from scripts.testing.campaigns.openvino.adaptive_campaign_spec import (
     generate_adaptive_format_comparison_specs,
 )
 

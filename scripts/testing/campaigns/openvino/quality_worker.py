@@ -550,7 +550,7 @@ def _validate_expected_prompt_bindings(
     ):
         raise ValueError("quality prompt worker runtime identity is invalid")
 
-    source_root = Path(__file__).resolve().parents[3]
+    source_root = Path(__file__).resolve().parents[4]
     fixed_repository_bindings = {
         "prompt_set": (
             source_root
@@ -671,7 +671,7 @@ def _validate_expected_prompt_bindings(
     expected_prefix = [
         str(python_path),
         "-m",
-        "scripts.testing.official_openvino.quality_worker",
+        "scripts.testing.campaigns.openvino.quality_worker",
         "--spec",
     ]
     if (

@@ -134,7 +134,7 @@ def test_single_measurement_binds_worker_command_and_returns_guard_record(tmp_pa
     assert observed["command"] == [
         str(Path(sys.executable).resolve()),
         "-m",
-        "scripts.testing.official_openvino.measurement_worker",
+        "scripts.testing.campaigns.openvino.measurement_worker",
         "--spec",
         str(spec.resolve()),
     ]

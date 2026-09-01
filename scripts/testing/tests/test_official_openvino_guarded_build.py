@@ -68,13 +68,13 @@ WRAPPER_DYNAMIC_COMMAND_VARIABLES = {
 
 def _guarded_build():
     return importlib.import_module(
-        "scripts.testing.official_openvino.guarded_build"
+        "scripts.testing.campaigns.openvino.guarded_build"
     )
 
 
 def _owned_guard():
     return importlib.import_module(
-        "scripts.testing.official_openvino.owned_process_guard"
+        "scripts.testing.campaigns.openvino.owned_process_guard"
     )
 
 
@@ -285,7 +285,7 @@ def _write_controller_hook(directory: Path) -> None:
                 "    main = sys.modules.get('__main__')",
                 "    spec = getattr(main, '__spec__', None)",
                 "    return getattr(spec, 'name', None) == (",
-                "        'scripts.testing.official_openvino.guarded_build'",
+                "        'scripts.testing.campaigns.openvino.guarded_build'",
                 "    )",
                 "",
                 "def _rewrite_record_and_bind_hash(value, mode):",
@@ -552,9 +552,9 @@ def _copy_guard_controller_package(
     publication_hook: bool = False,
     controller_hook: Path | None = None,
 ) -> None:
-    source = ROOT / "scripts" / "testing" / "official_openvino"
+    source = ROOT / "scripts" / "testing" / "campaigns" / "openvino"
     destination = (
-        destination_root / "scripts" / "testing" / "official_openvino"
+        destination_root / "scripts" / "testing" / "campaigns" / "openvino"
     )
     shutil.copytree(
         source,
@@ -1248,7 +1248,7 @@ def test_cli_requires_literal_separator_and_preserves_argv(tmp_path):
     command = [
         sys.executable,
         "-m",
-        "scripts.testing.official_openvino.guarded_build",
+        "scripts.testing.campaigns.openvino.guarded_build",
         "--cwd",
         str(ROOT),
         "--log",
@@ -1300,7 +1300,7 @@ def test_cli_rejects_command_without_literal_separator(tmp_path):
         [
             sys.executable,
             "-m",
-            "scripts.testing.official_openvino.guarded_build",
+            "scripts.testing.campaigns.openvino.guarded_build",
             "--cwd",
             str(ROOT),
             "--log",
@@ -1979,7 +1979,8 @@ def test_wrapper_resolves_controller_only_from_wrapper_repo_root(tmp_path):
         attacker_root
         / "scripts"
         / "testing"
-        / "official_openvino"
+        / "campaigns"
+        / "openvino"
         / "guarded_build.py"
     )
     attacker_module.parent.mkdir(parents=True)
@@ -2031,7 +2032,8 @@ def test_wrapper_ignores_poisoned_repo_bytecode_cache(
         trusted_root
         / "scripts"
         / "testing"
-        / "official_openvino"
+        / "campaigns"
+        / "openvino"
         / f"{module_name}.py"
     )
     marker = tmp_path / f"{module_name}-poisoned-bytecode-executed"
@@ -2067,7 +2069,7 @@ def test_wrapper_ignores_poisoned_repo_bytecode_cache(
             "-S",
             "-B",
             "-m",
-            "scripts.testing.official_openvino.guarded_build",
+            "scripts.testing.campaigns.openvino.guarded_build",
         ],
         cwd=trusted_root,
         text=True,
@@ -2495,7 +2497,12 @@ def test_powershell_wrapper_persists_exact_verification_stdout(tmp_path):
 
 def test_guard_primitives_have_one_owner_and_legacy_modules_reexport():
     guard_path = (
-        ROOT / "scripts" / "testing" / "official_openvino" / "owned_process_guard.py"
+        ROOT
+        / "scripts"
+        / "testing"
+        / "campaigns"
+        / "openvino"
+        / "owned_process_guard.py"
     )
     capability_path = (
         ROOT / "scripts" / "testing" / "run_openvino_reference_capability.py"
@@ -2519,13 +2526,15 @@ def test_guard_primitives_have_one_owner_and_legacy_modules_reexport():
     sys.path.insert(0, str(SCRIPT_DIR))
     try:
         owned = importlib.import_module(
-            "scripts.testing.official_openvino.owned_process_guard"
+            "scripts.testing.campaigns.openvino.owned_process_guard"
         )
         guard = importlib.import_module(
-            "scripts.testing.official_openvino.guarded_build"
+            "scripts.testing.campaigns.openvino.guarded_build"
         )
         capability = importlib.import_module("run_openvino_reference_capability")
-        measurement = importlib.import_module("measure_llama_run")
+        measurement = importlib.import_module(
+            "scripts.testing.campaigns.llama_cpp.measure_run"
+        )
     finally:
         sys.path.remove(str(SCRIPT_DIR))
     assert guard.owned_process_guard is owned
@@ -2550,5 +2559,5 @@ def test_guard_primitives_have_one_owner_and_legacy_modules_reexport():
         and Path(module.__file__).resolve() == guard_path.resolve()
     ]
     assert owners == [
-        "scripts.testing.official_openvino.owned_process_guard"
+        "scripts.testing.campaigns.openvino.owned_process_guard"
     ]

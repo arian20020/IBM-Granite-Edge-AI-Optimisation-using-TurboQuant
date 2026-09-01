@@ -11,12 +11,12 @@ import uuid
 from pathlib import Path
 from unittest import mock
 
-from scripts.testing.official_openvino import runtime_measurement, runtime_process
-from scripts.testing.official_openvino.owned_process_guard import (
+from scripts.testing.campaigns.openvino import runtime_measurement, runtime_process
+from scripts.testing.campaigns.openvino.owned_process_guard import (
     CREATE_SUSPENDED,
     KillOnCloseJob,
 )
-from scripts.testing.official_openvino.runtime_measurement import (
+from scripts.testing.campaigns.openvino.runtime_measurement import (
     RESULT_MARKER,
     build_runtime_property_spec,
     execute_attempt_sequence,
@@ -24,11 +24,11 @@ from scripts.testing.official_openvino.runtime_measurement import (
     parse_gpu_samples,
     parse_worker_output,
 )
-from scripts.testing.official_openvino.runtime_process import (
+from scripts.testing.campaigns.openvino.runtime_process import (
     measurement_sample,
     run_governed_process,
 )
-from scripts.testing.official_openvino.measurement_worker import (
+from scripts.testing.campaigns.openvino.measurement_worker import (
     extract_performance_metrics,
     generate_decoded_result,
     materialize_openvino_properties,
@@ -1019,7 +1019,7 @@ Invoke-Expression $helper.Extent.Text
             sampler = root / "sampler.ps1"
             sampler.write_text("", encoding="utf-8")
             with mock.patch(
-                "scripts.testing.official_openvino.runtime_process.available_ram_bytes",
+                "scripts.testing.campaigns.openvino.runtime_process.available_ram_bytes",
                 side_effect=[launch_floor - 1, None],
             ):
                 record = run_governed_process(
@@ -1044,7 +1044,7 @@ Invoke-Expression $helper.Extent.Text
             sampler = root / "sampler.ps1"
             sampler.write_text("", encoding="utf-8")
             with mock.patch(
-                "scripts.testing.official_openvino.runtime_process.available_ram_bytes",
+                "scripts.testing.campaigns.openvino.runtime_process.available_ram_bytes",
                 side_effect=[4095 * mib, 4095 * mib],
             ):
                 record = run_governed_process(
@@ -1105,7 +1105,7 @@ Invoke-Expression $helper.Extent.Text
             sampler = root / "sampler.ps1"
             sampler.write_text("", encoding="utf-8")
             with mock.patch(
-                "scripts.testing.official_openvino.runtime_process.available_ram_bytes",
+                "scripts.testing.campaigns.openvino.runtime_process.available_ram_bytes",
                 side_effect=[launch_floor - 1, emergency_floor - 1],
             ):
                 record = run_governed_process(
@@ -1152,22 +1152,22 @@ Invoke-Expression $helper.Extent.Text
             sampler.write_text("", encoding="utf-8")
             with (
                 mock.patch(
-                    "scripts.testing.official_openvino.runtime_process."
+                    "scripts.testing.campaigns.openvino.runtime_process."
                     "available_ram_bytes",
                     side_effect=[launch_floor - 1, emergency_floor],
                 ),
                 mock.patch(
-                    "scripts.testing.official_openvino.runtime_process."
+                    "scripts.testing.campaigns.openvino.runtime_process."
                     "parse_cpu_samples",
                     return_value=utilization_summary([10.0, 12.0]),
                 ),
                 mock.patch(
-                    "scripts.testing.official_openvino.runtime_process."
+                    "scripts.testing.campaigns.openvino.runtime_process."
                     "parse_gpu_samples",
                     return_value=gpu_evidence,
                 ),
                 mock.patch(
-                    "scripts.testing.official_openvino.runtime_process."
+                    "scripts.testing.campaigns.openvino.runtime_process."
                     "parse_worker_output",
                     return_value=parsed_worker,
                 ),

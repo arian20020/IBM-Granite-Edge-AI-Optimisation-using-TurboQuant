@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.testing.official_openvino.expected_rejections import (  # noqa: E402
+from scripts.testing.campaigns.openvino.expected_rejections import (  # noqa: E402
     generate_expected_rejection_evidence,
     validate_expected_rejection_evidence,
     write_expected_rejection_evidence,

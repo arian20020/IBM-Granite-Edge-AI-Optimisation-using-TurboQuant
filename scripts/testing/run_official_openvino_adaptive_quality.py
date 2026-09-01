@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.adaptive_campaign import (
+from scripts.testing.campaigns.openvino.adaptive_campaign import (
     CANDIDATE_ORDER,
     CONTEXTS,
     MAX_GUARDED_ATTEMPTS,
@@ -26,14 +26,14 @@ from scripts.testing.official_openvino.adaptive_campaign import (
     build_ladder,
     save_state_atomically,
 )
-from scripts.testing.official_openvino import adaptive_quality
-from scripts.testing.official_openvino.adaptive_quality import (
+from scripts.testing.campaigns.openvino import adaptive_quality
+from scripts.testing.campaigns.openvino.adaptive_quality import (
     capture_isolated_quality_campaign,
     quality_campaign_input_from_recovery,
 )
-from scripts.testing.official_openvino.guarded_build import run_guarded_command
-from scripts.testing.official_openvino.quality_campaign import _strict_object
-from scripts.testing.official_openvino.quality_campaign import (
+from scripts.testing.campaigns.openvino.guarded_build import run_guarded_command
+from scripts.testing.campaigns.openvino.quality_campaign import _strict_object
+from scripts.testing.campaigns.openvino.quality_campaign import (
     load_accepted_quality_campaign,
 )
 
@@ -403,7 +403,7 @@ def _require_preserved_low_memory_cleanup_proof(
     command = [
         str(accepted.python_executable),
         "-m",
-        "scripts.testing.official_openvino.quality_worker",
+        "scripts.testing.campaigns.openvino.quality_worker",
         "--spec",
         str((primary_root / "worker-spec.json").resolve()),
         "--result",

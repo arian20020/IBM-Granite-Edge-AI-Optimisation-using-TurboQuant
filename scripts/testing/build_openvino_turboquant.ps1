@@ -225,7 +225,7 @@ function Invoke-GuardedBuildCommand {
   )
   $guardArguments = @(
     '-m',
-    'scripts.testing.official_openvino.guarded_build',
+    'scripts.testing.campaigns.openvino.guarded_build',
     '--cwd',
     $repoRoot,
     '--log',

@@ -24,7 +24,7 @@ if (-not $EvidencePath) {
     $EvidencePath = Join-Path (Split-Path -Parent $DestinationPath) "openvino.genai-turboquant.identity.json"
 }
 
-& $PythonCommand -m scripts.testing.official_openvino.patch_identity `
+& $PythonCommand -m scripts.testing.campaigns.openvino.patch_identity `
     --upstream $UpstreamPath `
     --destination $DestinationPath `
     --expected-commit $ExpectedCommit `

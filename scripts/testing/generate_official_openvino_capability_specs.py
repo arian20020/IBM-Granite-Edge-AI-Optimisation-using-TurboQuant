@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.workload import build_context_workload
+from scripts.testing.campaigns.openvino.workload import build_context_workload
 
 
 EXPECTED_IDS = tuple(f"OV-TQS-{number:02d}" for number in range(1, 5))

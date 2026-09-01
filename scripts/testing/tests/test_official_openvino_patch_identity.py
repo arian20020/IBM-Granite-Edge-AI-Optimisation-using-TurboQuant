@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.testing.official_openvino import patch_identity
-from scripts.testing.official_openvino.patch_identity import (
+from scripts.testing.campaigns.openvino import patch_identity
+from scripts.testing.campaigns.openvino.patch_identity import (
     prepare_patch_workspace,
     validate_patch_identity,
 )
@@ -835,7 +835,7 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         legacy_capture = capture.read_text(encoding="utf-8").lower()
-        self.assertIn("-m scripts.testing.official_openvino.patch_identity", legacy_capture)
+        self.assertIn("-m scripts.testing.campaigns.openvino.patch_identity", legacy_capture)
         self.assertNotIn("--family", legacy_capture)
 
         environment["FAKE_EXIT"] = "7"

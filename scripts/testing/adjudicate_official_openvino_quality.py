@@ -31,13 +31,13 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.quality import (  # noqa: E402
+from scripts.testing.campaigns.openvino.quality import (  # noqa: E402
     score_response as aggregate_prompt_scores,
 )
-from scripts.testing.official_openvino.quality_worker import (  # noqa: E402
+from scripts.testing.campaigns.openvino.quality_worker import (  # noqa: E402
     _validate_spec as validate_quality_worker_spec,
 )
-from scripts.testing.official_openvino.quality_contracts import (  # noqa: E402
+from scripts.testing.campaigns.openvino.quality_contracts import (  # noqa: E402
     load_quality_contract,
     require_quality_contract_identity,
 )
@@ -892,7 +892,7 @@ def _validate_guard_record(
         or command[1:4]
         != [
             "-m",
-            "scripts.testing.official_openvino.quality_worker",
+            "scripts.testing.campaigns.openvino.quality_worker",
             "--spec",
         ]
         or command[5] != "--result"

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.testing.official_openvino.adaptive_metrics import (
+from scripts.testing.campaigns.openvino.adaptive_metrics import (
     build_adaptive_runtime_sample,
     summarize_adaptive_runtime_samples,
 )

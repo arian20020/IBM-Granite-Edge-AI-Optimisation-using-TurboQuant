@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 WINDOWS_GITDIR_MAX_LENGTH = 220 if os.name == "nt" else None
 WINDOWS_PATH_LIMIT = 260 if os.name == "nt" else None
 

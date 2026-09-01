@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.testing.official_openvino.matrix import (
+from scripts.testing.campaigns.openvino.matrix import (
     RUNTIME_ALGORITHMS,
     SEMANTIC_SCALAR_REJECTION_IDS,
     execution_contract,

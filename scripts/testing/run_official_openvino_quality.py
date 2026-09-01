@@ -37,10 +37,10 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.quality import (
+from scripts.testing.campaigns.openvino.quality import (
     validate_response_record as validate_scoring_response_record,
 )
-from scripts.testing.official_openvino.quality_contracts import (
+from scripts.testing.campaigns.openvino.quality_contracts import (
     load_quality_contract,
 )
 
@@ -2441,7 +2441,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     if args.campaign_root is not None:
-        from scripts.testing.official_openvino.quality_campaign import (
+        from scripts.testing.campaigns.openvino.quality_campaign import (
             QualityCampaignInput,
             capture_governed_quality_campaign,
         )

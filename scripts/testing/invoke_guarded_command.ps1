@@ -362,7 +362,7 @@ $controllerRepositoryRoot = [IO.Path]::GetFullPath(
 )
 $controllerModulePath = (
   & $joinPath $controllerRepositoryRoot `
-    'scripts\testing\official_openvino\guarded_build.py'
+    'scripts\testing\campaigns\openvino\guarded_build.py'
 )
 if (-not [IO.File]::Exists($controllerModulePath)) {
   throw (
@@ -562,7 +562,7 @@ $controllerIsolationFlags = @(
   '-m'
 )
 $guardArguments = @($controllerIsolationFlags) + @(
-  'scripts.testing.official_openvino.guarded_build',
+  'scripts.testing.campaigns.openvino.guarded_build',
   '--cwd',
   $resolvedWorkingDirectory,
   '--log',

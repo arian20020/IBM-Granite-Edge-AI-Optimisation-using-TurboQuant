@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.testing.official_openvino.diagnostics import (
+from scripts.testing.campaigns.openvino.diagnostics import (
     classify_diagnostic,
     reconcile_diagnostics,
 )

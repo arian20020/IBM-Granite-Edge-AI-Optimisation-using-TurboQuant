@@ -3,7 +3,7 @@ import json
 import re
 import unittest
 
-from scripts.testing.official_openvino.quality import (
+from scripts.testing.campaigns.openvino.quality import (
     evaluate_deterministic_gate,
     score_adjudication,
     score_response,

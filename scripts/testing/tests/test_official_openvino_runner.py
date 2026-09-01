@@ -1,7 +1,7 @@
 import unittest
 
-from scripts.testing.official_openvino.matrix import FORMAL_METRICS
-from scripts.testing.official_openvino.runner import (
+from scripts.testing.campaigns.openvino.matrix import FORMAL_METRICS
+from scripts.testing.campaigns.openvino.runner import (
     EXPECTED_REJECTION_METRIC_VALUE,
     expected_rejection_runtime_record,
     terminal_runtime_record,

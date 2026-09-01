@@ -12,7 +12,7 @@ from scripts.testing import audit_official_openvino_docx as audit_wrapper
 from scripts.testing.finalize_official_openvino_comparison_workbook import (
     COMPARISON_SECTION_TITLES,
 )
-from scripts.testing.official_openvino.docx_audit import (
+from scripts.testing.campaigns.openvino.docx_audit import (
     audit_comparison_docx,
     audit_docx,
     comparison_audit_profile,

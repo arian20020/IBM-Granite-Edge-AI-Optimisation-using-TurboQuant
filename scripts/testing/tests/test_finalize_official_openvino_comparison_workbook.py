@@ -17,7 +17,7 @@ from scripts.testing.finalize_official_openvino_comparison_workbook import (
     render_v19_workbook,
     validate_comparison_workbook_text,
 )
-from scripts.testing.official_openvino.comparison_reconcile import (
+from scripts.testing.campaigns.openvino.comparison_reconcile import (
     BoundaryOutcome,
     ComparisonKey,
     ComparisonQualityOutcome,

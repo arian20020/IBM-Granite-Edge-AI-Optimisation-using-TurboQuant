@@ -21,8 +21,8 @@ import numpy as np
 import openvino as ov
 import openvino_genai
 
-from scripts.testing.official_openvino.diagnostics import reconcile_diagnostics
-from scripts.testing.official_openvino.source_audit import audit_codec_boundary
+from scripts.testing.campaigns.openvino.diagnostics import reconcile_diagnostics
+from scripts.testing.campaigns.openvino.source_audit import audit_codec_boundary
 
 
 DIAGNOSTIC_IDS = (

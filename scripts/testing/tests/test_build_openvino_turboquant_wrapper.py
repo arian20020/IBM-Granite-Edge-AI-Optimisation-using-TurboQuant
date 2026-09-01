@@ -51,7 +51,7 @@ def test_wrapper_has_identity_bound_guarded_build_contract():
         assert target in script
 
     assert "scripts.testing.verify_openvino_turboquant_build" in script
-    assert "scripts.testing.official_openvino.guarded_build" in script
+    assert "scripts.testing.campaigns.openvino.guarded_build" in script
     assert "CMakeCache.txt" in script
     assert "identity_sha256" in script
     assert "patch_commit" in script

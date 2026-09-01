@@ -28,7 +28,7 @@ from scripts.testing.finalize_official_openvino_comparison_workbook import (
     render_v19_workbook,
     validate_comparison_workbook_text,
 )
-from scripts.testing.official_openvino.comparison_reconcile import (
+from scripts.testing.campaigns.openvino.comparison_reconcile import (
     ComparisonKey,
     ComparisonQualityOutcome,
     ComparisonRelease,
@@ -38,7 +38,7 @@ from scripts.testing.official_openvino.comparison_reconcile import (
     validate_closed_campaign,
     validate_complete_release,
 )
-from scripts.testing.official_openvino.matrix import (
+from scripts.testing.campaigns.openvino.matrix import (
     COMPARISON_CONTEXTS as MATRIX_COMPARISON_CONTEXTS,
     COMPARISON_IDS as MATRIX_COMPARISON_IDS,
     COMPARISON_RUN_ORDER,
@@ -1604,13 +1604,13 @@ def _generate_real_docx(
 def _audit_real_docx(
     docx_path: Path, manifest_path: Path, markdown_path: Path, profile: Any
 ) -> Mapping[str, Any]:
-    from scripts.testing.official_openvino.docx_audit import audit_comparison_docx
+    from scripts.testing.campaigns.openvino.docx_audit import audit_comparison_docx
 
     return audit_comparison_docx(docx_path, manifest_path, markdown_path, profile)
 
 
 def _comparison_profile(matrix_sha256: str) -> Any:
-    from scripts.testing.official_openvino.docx_audit import comparison_audit_profile
+    from scripts.testing.campaigns.openvino.docx_audit import comparison_audit_profile
 
     return comparison_audit_profile(matrix_sha256)
 

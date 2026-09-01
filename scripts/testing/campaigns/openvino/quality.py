@@ -10,7 +10,7 @@ import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
-from scripts.testing.official_openvino.quality_contracts import (
+from scripts.testing.campaigns.openvino.quality_contracts import (
     require_quality_contract_identity,
 )
 

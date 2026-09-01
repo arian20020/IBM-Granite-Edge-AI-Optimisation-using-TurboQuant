@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.adaptive_campaign import (
+from scripts.testing.campaigns.openvino.adaptive_campaign import (
     AdaptiveCampaignConfig,
     CONTEXTS,
     START_RESERVE_MIB,
@@ -25,10 +25,10 @@ from scripts.testing.official_openvino.adaptive_campaign import (
     run_adaptive_campaign,
     validate_adaptive_campaign_snapshot,
 )
-from scripts.testing.official_openvino.owned_process_guard import (
+from scripts.testing.campaigns.openvino.owned_process_guard import (
     available_ram_bytes,
 )
-from scripts.testing.official_openvino.comparison_reconcile import (
+from scripts.testing.campaigns.openvino.comparison_reconcile import (
     build_comparison_release_input,
     load_comparison_release_input,
 )
@@ -64,7 +64,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def _quality_callback() -> Callable[..., Mapping[str, Any]]:
     try:
-        from scripts.testing.official_openvino.adaptive_quality import (
+        from scripts.testing.campaigns.openvino.adaptive_quality import (
             capture_isolated_quality_campaign,
         )
     except ImportError as error:  # Task 5 is deliberately a later dependency.

@@ -286,7 +286,7 @@ def test_duplicate_measurement_identity_key_is_rejected_before_generation(
 
 
 def test_missing_p5_fixture_fails_closed_before_generation(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino.quality_contracts import (
+    from scripts.testing.campaigns.openvino.quality_contracts import (
         QUALITY_CONTRACTS,
     )
 

@@ -10,9 +10,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.matrix import execution_contract, load_matrix
-from scripts.testing.official_openvino.quality import terminal_quality_record
-from scripts.testing.official_openvino.runner import terminal_runtime_record, validate_runtime_records
+from scripts.testing.campaigns.openvino.matrix import execution_contract, load_matrix
+from scripts.testing.campaigns.openvino.quality import terminal_quality_record
+from scripts.testing.campaigns.openvino.runner import terminal_runtime_record, validate_runtime_records
 
 
 def write(path: Path, payload: object) -> None:

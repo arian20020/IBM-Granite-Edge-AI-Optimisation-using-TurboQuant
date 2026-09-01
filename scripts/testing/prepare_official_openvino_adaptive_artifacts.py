@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.testing.official_openvino.artifact_inventory import prepare_adaptive_artifacts
+from scripts.testing.campaigns.openvino.artifact_inventory import prepare_adaptive_artifacts
 
 
 def build_parser() -> argparse.ArgumentParser:

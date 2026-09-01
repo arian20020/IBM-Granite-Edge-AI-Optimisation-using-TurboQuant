@@ -30,7 +30,7 @@ if (-not $EvidencePath) {
 
 Push-Location $repoRoot
 try {
-    & $PythonCommand -m scripts.testing.official_openvino.patch_identity `
+    & $PythonCommand -m scripts.testing.campaigns.openvino.patch_identity `
         --family openvino-cpu-observer `
         --upstream $UpstreamPath `
         --destination $DestinationPath `

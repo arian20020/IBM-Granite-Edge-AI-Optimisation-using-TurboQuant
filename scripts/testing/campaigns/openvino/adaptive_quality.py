@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from scripts.testing.official_openvino.guarded_build import (
+from scripts.testing.campaigns.openvino.guarded_build import (
     GUARD_SCHEMA,
     GuardLimits,
     _effective_environment,
@@ -21,11 +21,11 @@ from scripts.testing.official_openvino.guarded_build import (
     _inject_bound_input_authority,
     run_guarded_command,
 )
-from scripts.testing.official_openvino.owned_process_guard import (
+from scripts.testing.campaigns.openvino.owned_process_guard import (
     KillOnCloseJob,
     available_ram_bytes,
 )
-from scripts.testing.official_openvino.quality_campaign import (
+from scripts.testing.campaigns.openvino.quality_campaign import (
     AcceptedQualityCampaign,
     QualityCampaignInput,
     _accepted_campaign_fingerprint,
@@ -35,7 +35,7 @@ from scripts.testing.official_openvino.quality_campaign import (
     _strict_object,
     load_accepted_quality_campaign,
 )
-from scripts.testing.official_openvino.quality_worker import (
+from scripts.testing.campaigns.openvino.quality_worker import (
     GENERATION_SETTINGS,
     PROMPT_RESULT_SCHEMA,
     PROMPT_SPEC_SCHEMA,
@@ -193,7 +193,7 @@ def _build_prompt_spec(
     command = [
         str(accepted.python_executable),
         "-m",
-        "scripts.testing.official_openvino.quality_worker",
+        "scripts.testing.campaigns.openvino.quality_worker",
         "--spec",
         str(spec_path),
         "--result",
@@ -757,7 +757,7 @@ def _load_prompt_execution(
     command = [
         str(campaign.python_executable),
         "-m",
-        "scripts.testing.official_openvino.quality_worker",
+        "scripts.testing.campaigns.openvino.quality_worker",
         "--spec",
         str((root / "worker-spec.json").resolve()),
         "--result",
@@ -877,7 +877,7 @@ def _run_governed_quality_prompt(
     command = [
         str(accepted.python_executable),
         "-m",
-        "scripts.testing.official_openvino.quality_worker",
+        "scripts.testing.campaigns.openvino.quality_worker",
         "--spec",
         str(spec_path),
         "--result",
@@ -1496,14 +1496,14 @@ def quality_campaign_input_from_recovery(
     ):
         raise ValueError("quality recovery artifact or build identity drift")
     expected_prompt_set = (
-        Path(__file__).resolve().parents[3]
+        Path(__file__).resolve().parents[4]
         / "experiments"
         / "granite_turboquant_intel"
         / "prompts"
         / "fixed-feasibility-prompt-set-v1.json"
     ).resolve()
     expected_rubric = (
-        Path(__file__).resolve().parents[3]
+        Path(__file__).resolve().parents[4]
         / "experiments"
         / "granite_turboquant_intel"
         / "rubrics"

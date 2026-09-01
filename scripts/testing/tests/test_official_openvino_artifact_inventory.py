@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-import scripts.testing.official_openvino.artifact_inventory as artifact_inventory
-from scripts.testing.official_openvino.artifact_inventory import (
+import scripts.testing.campaigns.openvino.artifact_inventory as artifact_inventory
+from scripts.testing.campaigns.openvino.artifact_inventory import (
     ArtifactBinding,
     prepare_adaptive_artifacts,
     run_guarded_fp16_preparation,

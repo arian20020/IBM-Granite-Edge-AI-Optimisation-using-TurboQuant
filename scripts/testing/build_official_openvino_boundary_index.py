@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.adaptive_campaign import (
+from scripts.testing.campaigns.openvino.adaptive_campaign import (
     build_boundary_index,
 )
 

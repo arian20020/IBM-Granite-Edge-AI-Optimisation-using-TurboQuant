@@ -12,7 +12,7 @@ import pytest
 from scripts.testing.build_official_openvino_adaptive_matrix import (
     build_adaptive_comparison_matrix,
 )
-from scripts.testing.official_openvino.matrix import (
+from scripts.testing.campaigns.openvino.matrix import (
     COMPARISON_CONTEXTS,
     COMPARISON_IDS,
     COMPARISON_RUN_ORDER,

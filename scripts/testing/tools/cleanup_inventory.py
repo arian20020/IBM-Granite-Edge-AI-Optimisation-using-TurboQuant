@@ -229,6 +229,12 @@ def _classification(
                 "scripts/testing/reporting/",
                 1,
             )
+        elif path.startswith("scripts/testing/official_openvino/"):
+            destination = path.replace(
+                "scripts/testing/official_openvino/",
+                "scripts/testing/campaigns/openvino/",
+                1,
+            )
         elif path.startswith("scripts/testing/atomicbot/"):
             destination = path.replace(
                 "scripts/testing/atomicbot/",

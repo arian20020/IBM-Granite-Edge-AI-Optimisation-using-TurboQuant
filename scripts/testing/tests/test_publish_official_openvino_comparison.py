@@ -25,13 +25,13 @@ from scripts.testing.publish_official_openvino_comparison import (
     rewrite_csv_slice_atomically,
     validate_published_bundle,
 )
-from scripts.testing.official_openvino.comparison_reconcile import (
+from scripts.testing.campaigns.openvino.comparison_reconcile import (
     BoundaryOutcome,
     ComparisonKey,
     validate_closed_campaign,
     validate_complete_release,
 )
-from scripts.testing.official_openvino.matrix import COMPARISON_RUN_ORDER
+from scripts.testing.campaigns.openvino.matrix import COMPARISON_RUN_ORDER
 from scripts.testing.tests.test_finalize_official_openvino_comparison_workbook import (
     complete_release as _task8_complete_release,
     incomplete_release as _task8_incomplete_release,

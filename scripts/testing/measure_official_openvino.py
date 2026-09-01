@@ -19,27 +19,27 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.conversion import (
+from scripts.testing.campaigns.openvino.conversion import (
     validate_artifact_manifest,
 )
-from scripts.testing.official_openvino.metrics import summarize_samples
-from scripts.testing.official_openvino.owned_process_guard import KillOnCloseJob
-from scripts.testing.official_openvino.adaptive_metrics import (
+from scripts.testing.campaigns.openvino.metrics import summarize_samples
+from scripts.testing.campaigns.openvino.owned_process_guard import KillOnCloseJob
+from scripts.testing.campaigns.openvino.adaptive_metrics import (
     build_adaptive_runtime_sample,
     summarize_adaptive_runtime_samples,
 )
-from scripts.testing.official_openvino.matrix import (
+from scripts.testing.campaigns.openvino.matrix import (
     load_matrix,
     load_matrix_metadata,
 )
-from scripts.testing.official_openvino.runtime_measurement import (
+from scripts.testing.campaigns.openvino.runtime_measurement import (
     atomic_write_json,
 )
-from scripts.testing.official_openvino.runtime_process import (
+from scripts.testing.campaigns.openvino.runtime_process import (
     measurement_sample,
     run_governed_process,
 )
-from scripts.testing.official_openvino.workload import build_context_workload
+from scripts.testing.campaigns.openvino.workload import build_context_workload
 
 
 MIB = 1024**2
@@ -866,7 +866,7 @@ def run_single_measurement(
     command = [
         str(python),
         "-m",
-        "scripts.testing.official_openvino.measurement_worker",
+        "scripts.testing.campaigns.openvino.measurement_worker",
         "--spec",
         str(spec),
     ]

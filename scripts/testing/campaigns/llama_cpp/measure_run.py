@@ -16,8 +16,8 @@ REPO_ROOT = SCRIPT_DIR.parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.testing.official_openvino import owned_process_guard  # noqa: E402
-from scripts.testing.official_openvino.owned_process_guard import (  # noqa: E402
+from scripts.testing.campaigns.openvino import owned_process_guard  # noqa: E402
+from scripts.testing.campaigns.openvino.owned_process_guard import (  # noqa: E402
     available_ram_bytes,
     process_memory_bytes,
     process_tree_memory_bytes,

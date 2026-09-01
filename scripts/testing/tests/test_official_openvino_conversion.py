@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.testing.official_openvino.conversion import (
+from scripts.testing.campaigns.openvino.conversion import (
     ConversionSpec,
     validate_artifact_manifest,
     validate_conversion,
@@ -258,7 +258,7 @@ class OfficialOpenVINOArtifactTests(unittest.TestCase):
         command = [
             "python.exe",
             "-m",
-            "scripts.testing.official_openvino.measurement_worker",
+            "scripts.testing.campaigns.openvino.measurement_worker",
             "--spec",
             str(spec_path.resolve()),
         ]

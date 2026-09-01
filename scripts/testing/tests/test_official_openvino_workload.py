@@ -2,7 +2,7 @@ import hashlib
 
 import pytest
 
-from scripts.testing.official_openvino.workload import build_context_workload
+from scripts.testing.campaigns.openvino.workload import build_context_workload
 
 
 @pytest.mark.parametrize("context", [256, 512, 1024, 2048, 4096, 8192])

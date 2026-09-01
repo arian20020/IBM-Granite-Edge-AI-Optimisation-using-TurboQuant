@@ -16,7 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 import psutil
 from huggingface_hub import model_info
 
-from scripts.testing.official_openvino.conversion import ConversionSpec, validate_conversion
+from scripts.testing.campaigns.openvino.conversion import ConversionSpec, validate_conversion
 
 
 MODELS = {

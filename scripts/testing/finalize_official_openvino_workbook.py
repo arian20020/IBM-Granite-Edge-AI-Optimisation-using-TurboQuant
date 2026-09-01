@@ -5,7 +5,7 @@ multiple campaign roots and never chooses a duplicate measurement implicitly.
 Measured values are recomputed from the three hash-bound source attempts;
 terminal and expected-rejection rows use non-numeric outcome literals.
 
-This file deliberately lives outside ``scripts/testing/official_openvino``.
+This file deliberately lives outside ``scripts/testing/campaigns/openvino``.
 That package is part of the frozen runtime campaign identity and must not be
 changed merely to render the workbook.
 """
@@ -30,14 +30,14 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.reconcile import validate_workbook_text
-from scripts.testing.official_openvino.metrics import summarize_samples
-from scripts.testing.official_openvino.expected_rejections import (
+from scripts.testing.campaigns.openvino.reconcile import validate_workbook_text
+from scripts.testing.campaigns.openvino.metrics import summarize_samples
+from scripts.testing.campaigns.openvino.expected_rejections import (
     validate_expected_rejection_evidence,
 )
-from scripts.testing.official_openvino.matrix import load_matrix
-from scripts.testing.official_openvino.runtime_process import measurement_sample
-from scripts.testing.official_openvino.scalar_semantic_rejections import (
+from scripts.testing.campaigns.openvino.matrix import load_matrix
+from scripts.testing.campaigns.openvino.runtime_process import measurement_sample
+from scripts.testing.campaigns.openvino.scalar_semantic_rejections import (
     validate_scalar_semantic_rejection_evidence,
 )
 from scripts.testing.measure_official_openvino import (

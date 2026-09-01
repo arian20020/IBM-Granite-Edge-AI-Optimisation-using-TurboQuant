@@ -31,23 +31,23 @@ from scripts.testing.adjudicate_official_openvino_quality import (
     deterministic_gate,
     load_rubric,
 )
-from scripts.testing.official_openvino.quality_contracts import (
+from scripts.testing.campaigns.openvino.quality_contracts import (
     load_quality_contract,
     require_quality_contract_identity,
 )
-from scripts.testing.official_openvino.adaptive_quality import (
+from scripts.testing.campaigns.openvino.adaptive_quality import (
     CAPTURE_SCHEMA,
     _validate_root_entries,
     _validate_summary_history,
 )
-from scripts.testing.official_openvino.quality_campaign import (
+from scripts.testing.campaigns.openvino.quality_campaign import (
     QualityCampaignInput,
     _canonical_identity_bytes,
     _strict_object,
     _validated_lexical_output_root,
     load_accepted_quality_campaign,
 )
-from scripts.testing.official_openvino.quality_worker import (
+from scripts.testing.campaigns.openvino.quality_worker import (
     PROMPT_RESULT_SCHEMA,
     PROMPT_SPEC_SCHEMA,
     _canonical_json as _task5_canonical_json,

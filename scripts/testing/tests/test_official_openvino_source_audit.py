@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.testing.official_openvino.source_audit import (
+from scripts.testing.campaigns.openvino.source_audit import (
     CodecBoundary,
     audit_codec_boundary,
     classify_activation,

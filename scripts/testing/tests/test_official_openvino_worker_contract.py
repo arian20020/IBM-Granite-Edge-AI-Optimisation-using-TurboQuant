@@ -1,6 +1,6 @@
 import pytest
 
-from scripts.testing.official_openvino.measurement_worker import (
+from scripts.testing.campaigns.openvino.measurement_worker import (
     validate_input_token_count,
 )
 

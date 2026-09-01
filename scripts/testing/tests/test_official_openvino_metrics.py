@@ -2,7 +2,7 @@ import copy
 import statistics
 import unittest
 
-from scripts.testing.official_openvino.metrics import MIB, summarize_samples
+from scripts.testing.campaigns.openvino.metrics import MIB, summarize_samples
 
 
 def utilization(values):

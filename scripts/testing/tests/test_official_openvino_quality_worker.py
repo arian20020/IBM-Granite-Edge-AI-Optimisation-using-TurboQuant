@@ -98,7 +98,7 @@ class _FakeGenAI:
 
 
 def _worker():
-    from scripts.testing.official_openvino.quality_worker import (
+    from scripts.testing.campaigns.openvino.quality_worker import (
         execute_quality_worker,
     )
 
@@ -106,10 +106,10 @@ def _worker():
 
 
 def _prompt_worker_cli_fixture(tmp_path):
-    from scripts.testing.official_openvino.adaptive_quality import (
+    from scripts.testing.campaigns.openvino.adaptive_quality import (
         build_quality_prompt_worker_spec,
     )
-    from scripts.testing.official_openvino.quality_campaign import (
+    from scripts.testing.campaigns.openvino.quality_campaign import (
         load_accepted_quality_campaign,
     )
     from scripts.testing.tests.test_official_openvino_quality_campaign import (
@@ -152,13 +152,13 @@ def test_prompt_worker_rejects_copied_bound_file_before_openvino_import(
     tmp_path,
     monkeypatch,
 ):
-    from scripts.testing.official_openvino.adaptive_quality import (
+    from scripts.testing.campaigns.openvino.adaptive_quality import (
         build_quality_prompt_worker_spec,
     )
-    from scripts.testing.official_openvino.quality_campaign import (
+    from scripts.testing.campaigns.openvino.quality_campaign import (
         load_accepted_quality_campaign,
     )
-    from scripts.testing.official_openvino.quality_worker import (
+    from scripts.testing.campaigns.openvino.quality_worker import (
         execute_quality_prompt_worker,
     )
     from scripts.testing.tests.test_official_openvino_quality_campaign import (
@@ -206,7 +206,7 @@ def test_prompt_worker_cli_rejects_bound_command_substitution_before_import(
     substitution,
     expected_error,
 ):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
     actual_spec_path = spec_path
@@ -251,7 +251,7 @@ def test_prompt_worker_cli_rejects_bound_command_substitution_before_import(
 
 
 def test_prompt_worker_cli_accepts_exact_bound_command(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
     _set_prompt_worker_authority(monkeypatch, spec_path)
@@ -276,7 +276,7 @@ def test_prompt_worker_cli_rejects_missing_or_wrong_guard_authority_before_impor
     monkeypatch,
     authority_failure,
 ):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
     _set_prompt_worker_authority(monkeypatch, spec_path)
@@ -326,7 +326,7 @@ def test_prompt_worker_cli_rejects_resigned_copied_spec_before_import(
     tmp_path,
     monkeypatch,
 ):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     spec_path, _result_path = _prompt_worker_cli_fixture(tmp_path)
     copied_spec_path = tmp_path / "copied" / "P1" / "worker-spec.json"
@@ -385,7 +385,7 @@ def test_prompt_worker_cli_rejects_resigned_bound_command_before_import(
     mutation,
     expected_error,
 ):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
@@ -431,7 +431,7 @@ def test_prompt_worker_publishes_to_canonical_derived_result_path(
     tmp_path,
     monkeypatch,
 ):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     spec_path, result_path = _prompt_worker_cli_fixture(tmp_path)
     _set_prompt_worker_authority(monkeypatch, spec_path)
@@ -465,7 +465,7 @@ def test_prompt_worker_rejects_result_alias_instead_of_deriving_through_it(
     tmp_path,
     monkeypatch,
 ):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     spec_path = tmp_path / "P1" / "worker-spec.json"
     spec_path.parent.mkdir(parents=True)
@@ -495,7 +495,7 @@ def test_guarded_worker_rejects_schema_downgrade_with_wrong_authority_before_imp
     tmp_path,
     monkeypatch,
 ):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     spec_path = tmp_path / "governed" / "worker-spec.json"
     result_path = spec_path.with_name("worker-result.json")
@@ -527,7 +527,7 @@ def test_guarded_worker_rejects_schema_downgrade_with_wrong_authority_before_imp
 
 
 def test_historical_worker_accepts_complete_guard_authority(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     spec_path = tmp_path / "governed" / "worker-spec.json"
     result_path = spec_path.with_name("worker-result.json")
@@ -566,13 +566,13 @@ def test_historical_worker_accepts_complete_guard_authority(tmp_path, monkeypatc
 def test_prompt_worker_rejects_same_bound_bytes_at_any_other_path(
     tmp_path, binding
 ):
-    from scripts.testing.official_openvino.adaptive_quality import (
+    from scripts.testing.campaigns.openvino.adaptive_quality import (
         build_quality_prompt_worker_spec,
     )
-    from scripts.testing.official_openvino.quality_campaign import (
+    from scripts.testing.campaigns.openvino.quality_campaign import (
         load_accepted_quality_campaign,
     )
-    from scripts.testing.official_openvino.quality_worker import (
+    from scripts.testing.campaigns.openvino.quality_worker import (
         _validate_prompt_worker_spec,
     )
     from scripts.testing.tests.test_official_openvino_quality_campaign import (
@@ -666,7 +666,7 @@ def test_non_frozen_generation_settings_reject_before_pipeline_creation(monkeypa
 def test_generation_settings_constant_cannot_be_mutated_or_weaken_validation(
     monkeypatch,
 ):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     assert isinstance(quality_worker.GENERATION_SETTINGS, MappingProxyType)
     with pytest.raises(TypeError):
@@ -938,7 +938,7 @@ def test_worker_uses_detached_nested_settings_mapping(monkeypatch):
 def test_cli_atomically_publishes_canonical_worker_result(tmp_path, monkeypatch):
     fake = _FakeGenAI()
     monkeypatch.setitem(sys.modules, "openvino_genai", fake.module)
-    from scripts.testing.official_openvino.quality_worker import main
+    from scripts.testing.campaigns.openvino.quality_worker import main
 
     spec_path = tmp_path / "spec.json"
     result_path = tmp_path / "nested" / "result.json"
@@ -965,7 +965,7 @@ def test_atomic_result_publication_keeps_existing_result_on_replace_failure(
     tmp_path,
     monkeypatch,
 ):
-    from scripts.testing.official_openvino import quality_worker
+    from scripts.testing.campaigns.openvino import quality_worker
 
     result_path = tmp_path / "result.json"
     result_path.write_bytes(b"previous-result")

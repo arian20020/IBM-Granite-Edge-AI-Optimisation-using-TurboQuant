@@ -176,7 +176,7 @@ def _accepted_input_variant(
     test_id: str,
     context_tokens: int,
 ):
-    from scripts.testing.official_openvino.quality_campaign import (
+    from scripts.testing.campaigns.openvino.quality_campaign import (
         QualityCampaignInput,
     )
 
@@ -290,7 +290,7 @@ def _configuration_capture(
     test_id: str,
     context_tokens: int,
 ) -> Path:
-    from scripts.testing.official_openvino import adaptive_quality
+    from scripts.testing.campaigns.openvino import adaptive_quality
 
     source = _accepted_input_variant(
         tmp_path,
@@ -313,7 +313,7 @@ def _capture_summary(
     failed_prompt=None,
     runner=None,
 ) -> Path:
-    from scripts.testing.official_openvino import adaptive_quality
+    from scripts.testing.campaigns.openvino import adaptive_quality
 
     source = _accepted_input(tmp_path)
     _install_standard_sampler(source)
@@ -327,7 +327,7 @@ def _capture_summary(
 
 
 def _recovered_p4_summary(tmp_path: Path, monkeypatch) -> tuple[Path, object]:
-    from scripts.testing.official_openvino import adaptive_quality
+    from scripts.testing.campaigns.openvino import adaptive_quality
 
     source = _accepted_input(tmp_path)
     _install_standard_sampler(source)
@@ -346,7 +346,7 @@ def _recovered_p4_summary(tmp_path: Path, monkeypatch) -> tuple[Path, object]:
 
 
 def _three_summary_history(tmp_path: Path, monkeypatch) -> tuple[Path, object]:
-    from scripts.testing.official_openvino import adaptive_quality
+    from scripts.testing.campaigns.openvino import adaptive_quality
 
     source = _accepted_input(tmp_path)
     _install_standard_sampler(source)
@@ -373,7 +373,7 @@ def _recovered_terminal_p1_summary(
     tmp_path: Path,
     monkeypatch,
 ) -> tuple[Path, object]:
-    from scripts.testing.official_openvino import adaptive_quality
+    from scripts.testing.campaigns.openvino import adaptive_quality
 
     source = _accepted_input(tmp_path)
     _install_standard_sampler(source)
@@ -1057,7 +1057,7 @@ def test_worker_spec_embedded_alias_rejects_before_task5_resolver(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    from scripts.testing.official_openvino import adaptive_quality
+    from scripts.testing.campaigns.openvino import adaptive_quality
 
     source = _accepted_input(tmp_path / "capture")
     _install_standard_sampler(source)

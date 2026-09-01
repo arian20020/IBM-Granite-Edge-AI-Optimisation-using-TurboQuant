@@ -26,7 +26,14 @@ EXPECTED_PROBE_IDS = frozenset(
     {"OV-B11-QJL", "OV-B11-POLAR"} | PROPERTY_EXPECTED_REJECTION_IDS
 )
 _CONTROLLER_PATH = Path(__file__).resolve()
-_REPO_ROOT = _CONTROLLER_PATH.parents[3]
+_REPO_ROOT = _CONTROLLER_PATH.parents[4]
+_HISTORICAL_CONTROLLER_PATH = "scripts/testing/official_openvino/expected_rejections.py"
+_HISTORICAL_CONTROLLER_SHA256 = frozenset(
+    {
+        "de957a2d9624f9cd4ca1bd07c4beebb4eb1d8c7cf3029178ee4ba65ebef8696e",
+        "4d2652bb2d9283bf45658e99904e45dc6f31f5412411497eee29e46331d5cf05",
+    }
+)
 _TOP_LEVEL_KEYS = frozenset(
     {
         "schema",
@@ -314,7 +321,17 @@ def validate_expected_rejection_evidence(
         raise ValueError("expected-rejection aggregate hash mismatch")
 
     expected = generate_expected_rejection_evidence(Path(matrix_path))
-    if aggregate != expected:
+    accepted_payloads = [expected]
+    for historical_sha256 in sorted(_HISTORICAL_CONTROLLER_SHA256):
+        historical = dict(expected)
+        historical["controller_path"] = _HISTORICAL_CONTROLLER_PATH
+        historical["controller_sha256"] = historical_sha256
+        historical.pop("aggregate_sha256")
+        historical["aggregate_sha256"] = _sha256_bytes(
+            _canonical_bytes(historical)
+        )
+        accepted_payloads.append(historical)
+    if aggregate not in accepted_payloads:
         raise ValueError(
             "expected-rejection evidence does not match the frozen matrix "
             "and current controller"

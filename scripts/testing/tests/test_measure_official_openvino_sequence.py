@@ -16,7 +16,7 @@ from scripts.testing.measure_official_openvino import (
     build_campaign_identity,
     run_measurement_sequence,
 )
-from scripts.testing.official_openvino.matrix import (
+from scripts.testing.campaigns.openvino.matrix import (
     FROZEN_BUILD_IDENTITY,
     FROZEN_SOURCE_IDENTITY,
 )
@@ -1101,7 +1101,7 @@ def test_sequence_deadline_expiry_before_role_persists_failure_without_launch(
         path = Path(item["path"])
         assert item["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
 
-    from scripts.testing.official_openvino.format_boundary import _cleanup_proof
+    from scripts.testing.campaigns.openvino.format_boundary import _cleanup_proof
 
     first_source = Path(cleanup["completed_roles"][0]["path"])
     first_source.write_bytes(first_source.read_bytes() + b" ")

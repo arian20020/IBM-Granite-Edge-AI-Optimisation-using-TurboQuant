@@ -7,13 +7,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.testing.official_openvino.expected_rejections import (
+from scripts.testing.campaigns.openvino.expected_rejections import (
     PROPERTY_EXPECTED_REJECTION_IDS,
     generate_expected_rejection_evidence,
     validate_expected_rejection_evidence,
     write_expected_rejection_evidence,
 )
-from scripts.testing.official_openvino.matrix import (
+from scripts.testing.campaigns.openvino.matrix import (
     EXPECTED_REJECTION_IDS,
     SEMANTIC_SCALAR_REJECTION_IDS,
 )

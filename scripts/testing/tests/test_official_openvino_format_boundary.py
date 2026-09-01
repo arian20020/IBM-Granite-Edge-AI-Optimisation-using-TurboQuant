@@ -37,8 +37,8 @@ def _controlled_build_root(tmp_path):
 
 
 def _stub_committed_model_hashes(monkeypatch, calls=None):
-    from scripts.testing.official_openvino import format_boundary
-    from scripts.testing.official_openvino.artifact_inventory import sha256_file
+    from scripts.testing.campaigns.openvino import format_boundary
+    from scripts.testing.campaigns.openvino.artifact_inventory import sha256_file
 
     expected = {}
     unavailable = []
@@ -79,7 +79,7 @@ def _stub_committed_model_hashes(monkeypatch, calls=None):
 
 @pytest.fixture
 def projected_inputs(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         project_boundary_evidence_inputs,
     )
 
@@ -95,7 +95,7 @@ def projected_inputs(tmp_path, monkeypatch):
 
 
 def test_projection_rejects_non_executable_build_before_emitting_inputs(tmp_path):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         project_boundary_evidence_inputs,
     )
 
@@ -120,7 +120,7 @@ def test_projection_rejects_non_executable_build_before_emitting_inputs(tmp_path
 def test_projection_rejects_campaign_build_overlap_before_emitting_inputs(
     tmp_path, monkeypatch, relationship,
 ):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         project_boundary_evidence_inputs,
     )
 
@@ -148,8 +148,8 @@ def test_projection_rejects_campaign_build_overlap_before_emitting_inputs(
 def test_projection_binds_executable_build_and_detects_same_size_drift(
     tmp_path, monkeypatch,
 ):
-    from scripts.testing.official_openvino.artifact_inventory import sha256_file
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.artifact_inventory import sha256_file
+    from scripts.testing.campaigns.openvino.format_boundary import (
         project_boundary_evidence_inputs,
     )
 
@@ -185,7 +185,7 @@ def test_projection_binds_executable_build_and_detects_same_size_drift(
 
 
 def test_model_binding_hashes_bytes_and_rejects_same_size_tampering(tmp_path):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         _model_file_bindings,
     )
 
@@ -213,7 +213,7 @@ def test_model_binding_hashes_bytes_and_rejects_same_size_tampering(tmp_path):
 
 
 def test_projection_hashes_each_shared_model_file_once(tmp_path, monkeypatch):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         project_boundary_evidence_inputs,
     )
 
@@ -231,7 +231,7 @@ def test_projection_hashes_each_shared_model_file_once(tmp_path, monkeypatch):
 
 
 def test_manifest_rejects_null_artifact_for_executable_format(tmp_path):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         load_boundary_manifest,
     )
 
@@ -246,7 +246,7 @@ def test_manifest_rejects_null_artifact_for_executable_format(tmp_path):
 def test_projection_matrix_loads_in_boundary_order_with_independent_gpu_control(
     projected_inputs,
 ):
-    from scripts.testing.official_openvino.matrix import load_matrix
+    from scripts.testing.campaigns.openvino.matrix import load_matrix
 
     cases = load_matrix(projected_inputs.comparison_matrix.path)
     assert [case.test_id for case in cases] == [
@@ -293,7 +293,7 @@ def test_executable_specs_pass_real_sequence_projection_and_matrix_reconciliatio
         _sequence_spec,
         validate_worker_spec_against_matrix_case,
     )
-    from scripts.testing.official_openvino.workload import build_context_workload
+    from scripts.testing.campaigns.openvino.workload import build_context_workload
 
     assert len(projected_inputs.runtime_specs) == 7
     for item in projected_inputs.runtime_specs:
@@ -369,7 +369,7 @@ def test_f16_null_artifacts_become_terminal_prerequisites_without_specs(
 def test_projection_is_byte_stable_and_rejects_tampering(
     tmp_path, monkeypatch, tamper_target,
 ):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         project_boundary_evidence_inputs,
     )
 
@@ -423,7 +423,7 @@ def test_projection_creates_executable_paths_without_historical_spec_tree(
 
 
 def test_manifest_has_exact_low_to_high_cpu_order_and_separate_gpu_lane(tmp_path):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         load_boundary_manifest,
     )
 
@@ -441,7 +441,7 @@ def test_manifest_has_exact_low_to_high_cpu_order_and_separate_gpu_lane(tmp_path
 
 
 def test_worker_spec_activates_tbq3_without_visible_test_codes(tmp_path):
-    from scripts.testing.official_openvino.format_boundary import (
+    from scripts.testing.campaigns.openvino.format_boundary import (
         build_boundary_worker_spec,
         load_boundary_manifest,
     )
@@ -458,7 +458,7 @@ def test_worker_spec_activates_tbq3_without_visible_test_codes(tmp_path):
 
 
 def test_quality_contract_allow_lists_frozen_v1_and_compact_v2():
-    from scripts.testing.official_openvino.quality_contracts import (
+    from scripts.testing.campaigns.openvino.quality_contracts import (
         load_quality_contract,
     )
 
@@ -484,8 +484,8 @@ def test_v2_is_accepted_by_quality_and_both_adjudicator_prompt_controls():
         _prompt_controls as adaptive_prompt_controls,
     )
     from scripts.testing.adjudicate_official_openvino_quality import _prompt_controls
-    from scripts.testing.official_openvino.quality import validate_response_record
-    from scripts.testing.official_openvino.quality_contracts import (
+    from scripts.testing.campaigns.openvino.quality import validate_response_record
+    from scripts.testing.campaigns.openvino.quality_contracts import (
         load_quality_contract,
     )
 
@@ -559,7 +559,7 @@ def test_compact_prompt_rejects_513_tokens_before_generation():
 
 
 def test_registry_binds_prompt_set_id_to_its_exact_registered_hash():
-    from scripts.testing.official_openvino.quality_contracts import (
+    from scripts.testing.campaigns.openvino.quality_contracts import (
         require_quality_contract_identity,
     )
 
@@ -577,7 +577,7 @@ def test_registry_binds_prompt_set_id_to_its_exact_registered_hash():
 def _temporary_v2_contract_with_p5_count(tmp_path, monkeypatch, token_count):
     from dataclasses import replace
 
-    from scripts.testing.official_openvino.quality_contracts import (
+    from scripts.testing.campaigns.openvino.quality_contracts import (
         QUALITY_CONTRACTS,
     )
 
@@ -645,7 +645,7 @@ def test_v1_prompt_contract_keeps_its_prior_shape_without_tokenizer_loading():
 def test_both_adjudicators_bind_v2_scoring_input_identity_to_registry_hash():
     from scripts.testing import adjudicate_official_openvino_adaptive_quality as adaptive
     from scripts.testing import adjudicate_official_openvino_quality as standard
-    from scripts.testing.official_openvino.quality_contracts import (
+    from scripts.testing.campaigns.openvino.quality_contracts import (
         load_quality_contract,
     )
 

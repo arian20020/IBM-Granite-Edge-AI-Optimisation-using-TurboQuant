@@ -15,12 +15,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.docx_audit import (
+from scripts.testing.campaigns.openvino.docx_audit import (
     audit_comparison_docx,
     audit_docx,
     comparison_audit_profile,
 )
-from scripts.testing.official_openvino.matrix import load_matrix
+from scripts.testing.campaigns.openvino.matrix import load_matrix
 
 
 DEFAULT_DOCX = ROOT / "docs/testing/workbooks/generated/04_Official_OpenVINO_Controlled_Retest_Workbook_v1.docx"

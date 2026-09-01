@@ -18,8 +18,8 @@ from pathlib import Path
 from collections.abc import Mapping
 from typing import Literal, Sequence
 
-from scripts.testing.official_openvino import owned_process_guard
-from scripts.testing.official_openvino.owned_process_guard import (
+from scripts.testing.campaigns.openvino import owned_process_guard
+from scripts.testing.campaigns.openvino.owned_process_guard import (
     CREATE_SUSPENDED,
     KillOnCloseJob,
     _append_error,

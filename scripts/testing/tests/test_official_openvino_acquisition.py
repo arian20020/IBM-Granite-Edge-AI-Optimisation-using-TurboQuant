@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.testing.official_openvino.acquisition import (
+from scripts.testing.campaigns.openvino.acquisition import (
     audit_checkout,
     audit_environment,
     redact_environment,

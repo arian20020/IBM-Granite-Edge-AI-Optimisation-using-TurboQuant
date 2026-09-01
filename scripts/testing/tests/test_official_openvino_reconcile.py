@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from scripts.testing.official_openvino.reconcile import validate_workbook_text
+from scripts.testing.campaigns.openvino.reconcile import validate_workbook_text
 
 ROOT = Path(__file__).resolve().parents[3]
 WORKBOOK = ROOT / "docs/testing/workbooks/text-templates/04_Official_OpenVINO_Controlled_Retest_Workbook_v1.md"

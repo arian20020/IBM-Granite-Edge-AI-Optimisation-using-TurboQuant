@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.official_openvino.adaptive_campaign_spec import (
+from scripts.testing.campaigns.openvino.adaptive_campaign_spec import (
     generate_adaptive_format_comparison_specs,
 )
 

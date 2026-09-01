@@ -108,8 +108,8 @@ def _case(test_id="OV-TQ-13", contexts=(512,), **changes):
 
 
 def _write_measurement(root, case, context, *, base=0.0):
-    from scripts.testing.official_openvino.metrics import summarize_samples
-    from scripts.testing.official_openvino.runtime_process import (
+    from scripts.testing.campaigns.openvino.metrics import summarize_samples
+    from scripts.testing.campaigns.openvino.runtime_process import (
         measurement_sample,
     )
 
@@ -539,7 +539,7 @@ def _write_governed_host_resource_terminal(root, case, context, attempt_count=3)
             "command": [
                 sys.executable,
                 "-m",
-                "scripts.testing.official_openvino.measurement_worker",
+                "scripts.testing.campaigns.openvino.measurement_worker",
                 "--spec",
                 str(attempt_root / "spec.json"),
             ],
@@ -717,7 +717,7 @@ def _write_direct_quality_resource_terminal(root, runtime):
             "command": [
                 sys.executable,
                 "-m",
-                "scripts.testing.official_openvino.quality_worker",
+                "scripts.testing.campaigns.openvino.quality_worker",
                 "--spec",
                 str(spec_path),
             ],
@@ -1004,7 +1004,7 @@ def _write_device_resource_terminal(root, case):
             "command": [
                 sys.executable,
                 "-m",
-                "scripts.testing.official_openvino.measurement_worker",
+                "scripts.testing.campaigns.openvino.measurement_worker",
                 "--spec",
                 str(spec_path),
             ],
@@ -1833,7 +1833,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     [
                         sys.executable,
                         "-m",
-                        "scripts.testing.official_openvino.measurement_worker",
+                        "scripts.testing.campaigns.openvino.measurement_worker",
                         "--spec",
                         str(path.parents[3] / "unbound-spec.json"),
                     ],
@@ -2399,7 +2399,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             EXPECTED_REJECTION_LITERAL,
             validate_expected_rejection_record,
         )
-        from scripts.testing.official_openvino.expected_rejections import (
+        from scripts.testing.campaigns.openvino.expected_rejections import (
             generate_expected_rejection_evidence,
         )
 

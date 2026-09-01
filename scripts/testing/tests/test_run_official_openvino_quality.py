@@ -158,7 +158,7 @@ class OfficialOpenVINOQualityRunnerTests(unittest.TestCase):
             require_runtime_summary("OV-TQ-03", None)
 
     def test_frozen_prompt_sources_reject_same_id_substitution(self):
-        from scripts.testing.official_openvino.quality_contracts import (
+        from scripts.testing.campaigns.openvino.quality_contracts import (
             QUALITY_CONTRACTS,
         )
 

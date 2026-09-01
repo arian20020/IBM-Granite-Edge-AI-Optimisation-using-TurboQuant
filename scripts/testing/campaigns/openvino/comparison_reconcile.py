@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from scripts.testing.official_openvino.adaptive_campaign import (
+from scripts.testing.campaigns.openvino.adaptive_campaign import (
     AdaptiveCampaignConfig,
     CANDIDATE_ORDER,
     CONTEXTS,
@@ -29,18 +29,18 @@ from scripts.testing.official_openvino.adaptive_campaign import (
     _validate_state_receipts,
     _validate_state,
 )
-from scripts.testing.official_openvino.adaptive_metrics import (
+from scripts.testing.campaigns.openvino.adaptive_metrics import (
     build_adaptive_runtime_sample,
     summarize_adaptive_runtime_samples,
 )
-from scripts.testing.official_openvino.adaptive_quality import (
+from scripts.testing.campaigns.openvino.adaptive_quality import (
     _input_evidence_paths as quality_capture_evidence_paths,
     _validate_summary as validate_quality_capture_summary,
     _validate_summary_transition as validate_quality_capture_transition,
     quality_campaign_input_from_recovery,
 )
-from scripts.testing.official_openvino.matrix import load_adaptive_comparison_matrix
-from scripts.testing.official_openvino.quality_campaign import (
+from scripts.testing.campaigns.openvino.matrix import load_adaptive_comparison_matrix
+from scripts.testing.campaigns.openvino.quality_campaign import (
     AcceptedQualityCampaign,
     _canonical_identity_bytes,
     _load_frozen_rubric,
@@ -60,8 +60,8 @@ from scripts.testing.measure_official_openvino import (
     validate_runtime_record_against_matrix_case,
     validate_worker_spec_against_matrix_case,
 )
-from scripts.testing.official_openvino.metrics import summarize_samples
-from scripts.testing.official_openvino.runtime_process import measurement_sample
+from scripts.testing.campaigns.openvino.metrics import summarize_samples
+from scripts.testing.campaigns.openvino.runtime_process import measurement_sample
 from scripts.testing.adjudicate_official_openvino_adaptive_quality import (
     adjudicate_adaptive_quality,
 )

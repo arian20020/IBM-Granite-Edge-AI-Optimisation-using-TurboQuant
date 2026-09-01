@@ -14,21 +14,21 @@ from typing import Any, Callable, Mapping
 
 import pytest
 
-from scripts.testing.official_openvino.adaptive_metrics import IDENTITY_HASH_FIELDS
-from scripts.testing.official_openvino.adaptive_campaign import CANDIDATE_ORDER, CONTEXTS
-from scripts.testing.official_openvino.adaptive_campaign_spec import (
+from scripts.testing.campaigns.openvino.adaptive_metrics import IDENTITY_HASH_FIELDS
+from scripts.testing.campaigns.openvino.adaptive_campaign import CANDIDATE_ORDER, CONTEXTS
+from scripts.testing.campaigns.openvino.adaptive_campaign_spec import (
     generate_adaptive_format_comparison_specs,
 )
-from scripts.testing.official_openvino import adaptive_quality
-from scripts.testing.official_openvino.adaptive_quality import (
+from scripts.testing.campaigns.openvino import adaptive_quality
+from scripts.testing.campaigns.openvino.adaptive_quality import (
     capture_isolated_quality_campaign,
 )
-from scripts.testing.official_openvino.matrix import load_adaptive_comparison_matrix
+from scripts.testing.campaigns.openvino.matrix import load_adaptive_comparison_matrix
 from scripts.testing.tests.test_measure_official_openvino_sequence import _record
 from scripts.testing.tests.test_official_openvino_adaptive_campaign import _build_matrix
 from scripts.testing.measure_official_openvino import run_measurement_sequence
-from scripts.testing.official_openvino.metrics import summarize_samples
-from scripts.testing.official_openvino.runtime_process import measurement_sample
+from scripts.testing.campaigns.openvino.metrics import summarize_samples
+from scripts.testing.campaigns.openvino.runtime_process import measurement_sample
 from scripts.testing.adjudicate_official_openvino_adaptive_quality import (
     adjudicate_adaptive_quality,
     build_adaptive_blind_bundle,
@@ -41,7 +41,7 @@ from scripts.testing.tests.test_adjudicate_official_openvino_adaptive_quality im
 )
 from scripts.testing.tests.test_official_openvino_adaptive_quality import MIB
 
-from scripts.testing.official_openvino.comparison_reconcile import (
+from scripts.testing.campaigns.openvino.comparison_reconcile import (
     ComparisonKey,
     ComparisonQualityOutcome,
     ComparisonRelease,
@@ -913,7 +913,7 @@ def boundary_release_input(tmp_path: Path) -> dict[str, Any]:
 
 
 def test_boundary_separates_runtime_and_fully_comparable_contexts(tmp_path: Path) -> None:
-    from scripts.testing.official_openvino.comparison_reconcile import derive_boundaries
+    from scripts.testing.campaigns.openvino.comparison_reconcile import derive_boundaries
 
     runtime = {}
     quality = {}
@@ -965,7 +965,7 @@ def valid_terminal_input(tmp_path: Path) -> dict[str, Any]:
         }
     }
     _write_json(state, state_value)
-    from scripts.testing.official_openvino.comparison_reconcile import build_comparison_release_input
+    from scripts.testing.campaigns.openvino.comparison_reconcile import build_comparison_release_input
     output = tmp_path / "terminal-release-input.json"
     result = build_comparison_release_input(matrix, state, output)
     result["__base_path"] = str(tmp_path)
@@ -1116,7 +1116,7 @@ def _write_controller_state(
                     "capture_summary_path": str(_path(release_input, step["quality_capture"])),
                     "quality_adjudication_path": str(_path(release_input, step["quality_adjudication"])),
                 }
-    import scripts.testing.official_openvino.adaptive_campaign as controller
+    import scripts.testing.campaigns.openvino.adaptive_campaign as controller
 
     bindings_root = tmp_path / "bindings"
     build_root = bindings_root / "build"
@@ -1704,7 +1704,7 @@ def test_state_builder_rejects_terminal_without_controller_receipt(tmp_path: Pat
             }
         },
     )
-    from scripts.testing.official_openvino.comparison_reconcile import (
+    from scripts.testing.campaigns.openvino.comparison_reconcile import (
         build_comparison_release_input,
     )
 
@@ -1759,7 +1759,7 @@ def test_state_projects_a_governed_quality_terminal_without_scores(tmp_path: Pat
         "controller_receipt_sha256": _sha256(receipt),
     }
     _write_json(state, state_value)
-    from scripts.testing.official_openvino.comparison_reconcile import (
+    from scripts.testing.campaigns.openvino.comparison_reconcile import (
         build_comparison_release_input,
     )
 
@@ -1804,7 +1804,7 @@ def test_builder_preserves_explicit_external_boundary_authority(tmp_path: Path) 
     state_value["bindings"]["reference_boundary_index_path"] = str(boundary)
     state_value["bindings"]["reference_boundary_index_sha256"] = _sha256(boundary)
     _write_json(state, state_value)
-    from scripts.testing.official_openvino.comparison_reconcile import (
+    from scripts.testing.campaigns.openvino.comparison_reconcile import (
         build_comparison_release_input,
     )
 
@@ -2155,7 +2155,7 @@ def test_state_projection_requires_an_explicit_task_six_bundle(tmp_path: Path) -
         } | {"judge_score_sheets": [{"path": str(path), "sha256": _sha256(path)} for path in sheets]},
     }
     _write_json(state_path, state)
-    from scripts.testing.official_openvino.comparison_reconcile import build_comparison_release_input
+    from scripts.testing.campaigns.openvino.comparison_reconcile import build_comparison_release_input
 
     built = build_comparison_release_input(
         _path(release_input, release_input["matrix"]), state_path, tmp_path / "bundle-release.json"
@@ -2187,7 +2187,7 @@ def test_release_rejects_self_hashed_unknown_top_level_field(tmp_path: Path) -> 
 
 
 def test_boundaries_exclude_inconclusive_terminals(tmp_path: Path) -> None:
-    from scripts.testing.official_openvino.comparison_reconcile import derive_boundaries
+    from scripts.testing.campaigns.openvino.comparison_reconcile import derive_boundaries
 
     matrix_input = valid_release_input(tmp_path)
     matrix = [

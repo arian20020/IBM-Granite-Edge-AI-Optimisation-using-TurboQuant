@@ -45,7 +45,7 @@ TASK_THREE_RECEIPT_SCHEMA = "official-openvino-wb04-sequence-receipt/v1"
 TASK_THREE_SPEC_SCHEMA = "official-openvino-wb04-worker-spec/v1"
 TASK_THREE_RUN_SCHEMA = "official-openvino-wb04-governed-run/v1"
 MIB = 1024**2
-_ROOT = Path(__file__).resolve().parents[3]
+_ROOT = Path(__file__).resolve().parents[4]
 QUALITY_PROMPT_SET = (
     _ROOT
     / "experiments"
@@ -622,7 +622,9 @@ def _native_task_three_failure_evidence(
         return None
 
     repository = _ROOT.resolve()
-    runtime_sources = repository / "scripts" / "testing" / "official_openvino"
+    runtime_sources = (
+        repository / "scripts" / "testing" / "campaigns" / "openvino"
+    )
     controller_source = repository / "scripts" / "testing" / "measure_official_openvino.py"
     if (
         not isinstance(runtime_identity, Mapping)

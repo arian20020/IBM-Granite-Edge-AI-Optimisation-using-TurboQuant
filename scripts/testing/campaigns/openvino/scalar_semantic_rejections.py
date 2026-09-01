@@ -21,7 +21,13 @@ _WORKER_SCHEMA = "official-openvino-wb04-worker/v1"
 _SPEC_SCHEMA = "official-openvino-wb04-worker-spec/v1"
 _ATTEMPT_SCHEMA = "official-openvino-wb04-governed-run/v1"
 _CONTROLLER_PATH = Path(__file__).resolve()
-_REPO_ROOT = _CONTROLLER_PATH.parents[3]
+_REPO_ROOT = _CONTROLLER_PATH.parents[4]
+_HISTORICAL_CONTROLLER_PATH = (
+    "scripts/testing/official_openvino/scalar_semantic_rejections.py"
+)
+_HISTORICAL_CONTROLLER_SHA256 = (
+    "474284d7e31ff54813c661654ecfa1d999ae731f6ecf018a27856b4abbd167bd"
+)
 _PYTHON_CONFIG_PATH = (
     _REPO_ROOT / ".venv-official-openvino-turboquant-py313" / "pyvenv.cfg"
 )
@@ -547,12 +553,12 @@ def _validate_attempt(
         raise ValueError(
             "attempt command executable is not the configured governed Python executable"
         )
-    expected_prefix = [
-        str(executable),
-        "-m",
+    expected_prefix = [str(executable), "-m"]
+    allowed_worker_modules = {
+        "scripts.testing.campaigns.openvino.measurement_worker",
+        # Frozen pre-migration receipts retain this exact historical identity.
         "scripts.testing.official_openvino.measurement_worker",
-        "--spec",
-    ]
+    }
     command_spec = Path(command[4])
     command_spec_matches = False
     if command_spec.is_absolute():
@@ -566,7 +572,9 @@ def _validate_attempt(
             except ValueError:
                 command_spec_matches = False
     if (
-        command[:4] != expected_prefix
+        command[:2] != expected_prefix
+        or command[2] not in allowed_worker_modules
+        or command[3] != "--spec"
         or not command_spec_matches
     ):
         raise ValueError(
@@ -997,7 +1005,17 @@ def validate_scalar_semantic_rejection_evidence(payload: Mapping[str, Any], matr
         raise ValueError(
             "scalar semantic rejection evidence is not canonical JSON data"
         ) from error
-    if supplied_bytes != _canonical_bytes(expected):
+    historical_expected = dict(expected)
+    historical_expected["controller_path"] = _HISTORICAL_CONTROLLER_PATH
+    historical_expected["controller_sha256"] = _HISTORICAL_CONTROLLER_SHA256
+    historical_expected.pop("aggregate_sha256")
+    historical_expected["aggregate_sha256"] = _sha256_bytes(
+        _canonical_bytes(historical_expected)
+    )
+    if supplied_bytes not in {
+        _canonical_bytes(expected),
+        _canonical_bytes(historical_expected),
+    }:
         raise ValueError("scalar semantic rejection evidence does not match current controlled inputs")
     return {"accepted": True, "schema": SCHEMA, "probe_count": 4, "matrix_sha256": aggregate["matrix_sha256"], "controller_sha256": aggregate["controller_sha256"], "aggregate_sha256": aggregate["aggregate_sha256"]}
 

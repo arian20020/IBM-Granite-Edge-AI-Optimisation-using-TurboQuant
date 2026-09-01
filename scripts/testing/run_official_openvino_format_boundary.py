@@ -13,10 +13,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.testing.measure_official_openvino import run_measurement_sequence
-from scripts.testing.official_openvino.adaptive_quality import (
+from scripts.testing.campaigns.openvino.adaptive_quality import (
     capture_isolated_quality_campaign,
 )
-from scripts.testing.official_openvino.format_boundary import (
+from scripts.testing.campaigns.openvino.format_boundary import (
     BoundaryCampaignConfig,
     boundary_campaign_exit_code,
     durable_row_lines,
@@ -24,7 +24,7 @@ from scripts.testing.official_openvino.format_boundary import (
     run_boundary_preflight,
     run_boundary_campaign,
 )
-from scripts.testing.official_openvino.owned_process_guard import available_ram_bytes
+from scripts.testing.campaigns.openvino.owned_process_guard import available_ram_bytes
 
 
 def _repository_defaults() -> dict[str, Path]:

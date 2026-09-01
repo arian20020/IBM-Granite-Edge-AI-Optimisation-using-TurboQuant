@@ -218,7 +218,7 @@ def run_guarded_fp16_preparation(
     command = [
         sys.executable,
         "-m",
-        "scripts.testing.official_openvino.artifact_inventory",
+        "scripts.testing.campaigns.openvino.artifact_inventory",
         "--fp16-preparation-worker",
     ]
     if before is None or before < reserve:
@@ -254,7 +254,7 @@ def run_guarded_fp16_preparation(
             stdin=subprocess.DEVNULL,
             stdout=stdout_handle,
             stderr=stderr_handle,
-            cwd=Path(__file__).resolve().parents[3],
+            cwd=Path(__file__).resolve().parents[4],
             env=environment,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED,
         )

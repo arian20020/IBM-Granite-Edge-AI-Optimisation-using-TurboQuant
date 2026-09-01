@@ -17,22 +17,22 @@ from scripts.testing.adjudicate_official_openvino_quality import (
     _prompt_controls,
     deterministic_gate,
 )
-from scripts.testing.official_openvino.adaptive_campaign_spec import (
+from scripts.testing.campaigns.openvino.adaptive_campaign_spec import (
     _build_root,
     _directory_sha256,
     _paths_overlap,
 )
-from scripts.testing.official_openvino.artifact_inventory import sha256_file
-from scripts.testing.official_openvino.adaptive_metrics import (
+from scripts.testing.campaigns.openvino.artifact_inventory import sha256_file
+from scripts.testing.campaigns.openvino.adaptive_metrics import (
     build_adaptive_runtime_sample,
     summarize_adaptive_runtime_samples,
 )
-from scripts.testing.official_openvino.adaptive_quality import (
+from scripts.testing.campaigns.openvino.adaptive_quality import (
     AdaptiveQualityCampaignInput,
     _input_evidence_paths,
     _validate_summary as _validate_quality_summary,
 )
-from scripts.testing.official_openvino.quality_campaign import (
+from scripts.testing.campaigns.openvino.quality_campaign import (
     load_accepted_quality_campaign,
 )
 from scripts.testing.measure_official_openvino import (
@@ -40,26 +40,26 @@ from scripts.testing.measure_official_openvino import (
     _persisted_record,
     build_worker_environment,
 )
-from scripts.testing.official_openvino.owned_process_guard import (
+from scripts.testing.campaigns.openvino.owned_process_guard import (
     CREATE_SUSPENDED,
     KillOnCloseJob,
     _resume_suspended_process,
     available_ram_bytes,
 )
-from scripts.testing.official_openvino.runtime_measurement import (
+from scripts.testing.campaigns.openvino.runtime_measurement import (
     build_runtime_property_spec,
 )
-from scripts.testing.official_openvino.quality_contracts import (
+from scripts.testing.campaigns.openvino.quality_contracts import (
     load_quality_contract,
 )
 from scripts.testing.run_official_openvino_quality import (
     _load_frozen_rubric,
     load_prompt_contract,
 )
-from scripts.testing.official_openvino.workload import build_context_workload
+from scripts.testing.campaigns.openvino.workload import build_context_workload
 
 
-_ROOT = Path(__file__).resolve().parents[3]
+_ROOT = Path(__file__).resolve().parents[4]
 _CPU_ORDER = (
     ("u4", "TBQ3"), ("u4", "TBQ4"), ("u4", "STANDARD"),
     ("u8", "TBQ3"), ("u8", "TBQ4"), ("u8", "STANDARD"),
@@ -2761,7 +2761,7 @@ def project_boundary_evidence_inputs(
 ) -> BoundaryEvidenceProjection:
     """Project immutable matrix/spec/prerequisite inputs without model execution."""
 
-    from scripts.testing.official_openvino.matrix import (
+    from scripts.testing.campaigns.openvino.matrix import (
         load_matrix,
         load_matrix_metadata,
     )

@@ -17,9 +17,9 @@ import pytest
 
 from scripts.testing import build_official_openvino_boundary_index as boundary_cli
 from scripts.testing import run_official_openvino_adaptive_comparison as campaign_cli
-from scripts.testing.official_openvino import adaptive_campaign as adaptive_controller
-from scripts.testing.official_openvino import runtime_measurement
-from scripts.testing.official_openvino import runtime_process
+from scripts.testing.campaigns.openvino import adaptive_campaign as adaptive_controller
+from scripts.testing.campaigns.openvino import runtime_measurement
+from scripts.testing.campaigns.openvino import runtime_process
 from scripts.testing.build_official_openvino_adaptive_matrix import (
     build_adaptive_comparison_matrix,
 )
@@ -29,10 +29,10 @@ from scripts.testing.measure_official_openvino import (
     MeasurementSequenceFailure,
     _sequence_spec,
 )
-from scripts.testing.official_openvino.adaptive_campaign_spec import (
+from scripts.testing.campaigns.openvino.adaptive_campaign_spec import (
     generate_adaptive_format_comparison_specs,
 )
-from scripts.testing.official_openvino.adaptive_campaign import (
+from scripts.testing.campaigns.openvino.adaptive_campaign import (
     AdaptiveCampaignConfig,
     CANDIDATE_ORDER,
     CONTEXTS,
@@ -45,8 +45,8 @@ from scripts.testing.official_openvino.adaptive_campaign import (
     preflight_adaptive_campaign,
     run_adaptive_campaign,
 )
-from scripts.testing.official_openvino.conversion import validate_artifact_manifest
-from scripts.testing.official_openvino.owned_process_guard import (
+from scripts.testing.campaigns.openvino.conversion import validate_artifact_manifest
+from scripts.testing.campaigns.openvino.owned_process_guard import (
     CREATE_SUSPENDED,
     KillOnCloseJob,
 )
@@ -668,7 +668,9 @@ def _write_native_task_three_failure(
     package = config.build_root / "openvino_genai"
     python_module = package / "py_openvino_genai.pyd"
     runtime_dll = package / "openvino_genai.dll"
-    runtime_sources = ROOT / "scripts" / "testing" / "official_openvino"
+    runtime_sources = (
+        ROOT / "scripts" / "testing" / "campaigns" / "openvino"
+    )
     controller_source = ROOT / "scripts" / "testing" / "measure_official_openvino.py"
     openvino_package = config.python_site_packages / "openvino"
     identity = {
@@ -1459,7 +1461,7 @@ def test_publication_callback_fits_legacy_windows_max_path(
 def test_publication_callback_preserves_reloadable_real_task7_history(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from scripts.testing.official_openvino.comparison_reconcile import (
+    from scripts.testing.campaigns.openvino.comparison_reconcile import (
         load_comparison_release_input,
         reconcile_comparison_release,
     )
