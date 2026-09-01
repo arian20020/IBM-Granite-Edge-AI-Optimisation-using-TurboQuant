@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
+using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
 
@@ -12,6 +13,57 @@ namespace GraniteEdgeAI.OpenVino.WorkerProcess.Tests;
 [DoNotParallelize]
 public sealed class ConversionEndToEndTests
 {
+    [TestMethod]
+    [TestCategory("ManualRealModel")]
+    [Timeout(600_000)]
+    public async Task ConfiguredReadyPackageInspectsLoadsAndGenerates()
+    {
+        string package = RequireStage("GRANITE_OPENVINO_READY_MODEL");
+        string officialStage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
+        OpenVinoRouteService route = CreateRoute(officialStage);
+        OpenVinoRouteInspectionResult inspection = await route.InspectAsync(
+            package,
+            CancellationToken.None);
+        Assert.IsTrue(
+            inspection.Outcome is OpenVinoRouteInspectionOutcome.Ready or
+                OpenVinoRouteInspectionOutcome.ReadyWithWarnings,
+            inspection.Failure?.SupportCode);
+        Assert.IsNotNull(inspection.HandoffLease);
+
+        try
+        {
+            await using OpenVinoRouteSession session = await route.StartSessionAsync(
+                inspection.HandoffLease,
+                static _ => { },
+                CancellationToken.None);
+            PromptTurnResult turn = await session.GenerateAsync(
+                "Hello",
+                requestedNewTokens: 2,
+                CancellationToken.None);
+            Assert.AreEqual(
+                PromptTurnStatus.Completed,
+                turn.Status,
+                turn.Failure?.SupportCode);
+            Assert.IsGreaterThanOrEqualTo(1L, turn.GeneratedTokenCount);
+            Assert.IsLessThanOrEqualTo(2L, turn.GeneratedTokenCount);
+            Assert.IsTrue(
+                turn.Text.Any(char.IsLetterOrDigit),
+                $"Native output was empty or punctuation-only: {turn.Text}");
+            await session.CloseAsync(CancellationToken.None);
+        }
+        catch (OpenVinoRouteWorkerFailureException failure)
+        {
+            Assert.Fail(
+                $"support={failure.SupportCode.ToProtocolValue()}; " +
+                $"diagnostic={failure.Message}");
+        }
+        finally
+        {
+            inspection.HandoffLease?.Dispose();
+            inspection.ConversionOffer?.Dispose();
+        }
+    }
+
     [TestMethod]
     [TestCategory("StableRouteAcceptance")]
     [Timeout(30_000)]

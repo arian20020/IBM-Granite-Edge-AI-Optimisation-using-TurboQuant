@@ -38,6 +38,15 @@ int main() {
         if (fits_context(63, 2, 128, 64)) {
             throw std::runtime_error("C1 context overflow was accepted");
         }
+        package_evidence packaged_template{};
+        packaged_template.has_chat_template = true;
+        if (requires_route_chat_template_fallback(packaged_template)) {
+            throw std::runtime_error("packaged chat template would be overwritten");
+        }
+        package_evidence template_free_fixture{};
+        if (!requires_route_chat_template_fallback(template_free_fixture)) {
+            throw std::runtime_error("template-free fixture lost its fallback");
+        }
         session_state state;
         state.accept_prompt();
         state.begin_generation();

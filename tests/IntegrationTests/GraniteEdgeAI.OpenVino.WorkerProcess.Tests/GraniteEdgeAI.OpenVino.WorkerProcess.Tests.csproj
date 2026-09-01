@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.OpenVino.WorkerClient\GraniteEdgeAI.OpenVino.WorkerClient.csproj" />
+    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.HardwareInspection.Foundation\GraniteEdgeAI.HardwareInspection.Foundation.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
     <ProjectReference Include="..\..\..\tests\ProcessFixtures\GraniteEdgeAI.OpenVino.ProtocolTestWorker\GraniteEdgeAI.OpenVino.ProtocolTestWorker.csproj" />
@@ -41,6 +42,12 @@
              Link="Production\Storage\StagedSourceSnapshot.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\*.cs"
              Link="Production\Route\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionContractValidation.cs"
+             Link="Production\ModelInspection\Contracts\ModelInspectionContractValidation.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionEnums.cs"
+             Link="Production\ModelInspection\Contracts\ModelInspectionEnums.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionProgress.cs"
+             Link="Production\ModelInspection\Contracts\ModelInspectionProgress.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\Prompting\*.cs"
              Link="Production\Prompting\%(Filename)%(Extension)" />
   </ItemGroup>

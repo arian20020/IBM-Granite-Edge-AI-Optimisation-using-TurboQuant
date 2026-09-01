@@ -49,19 +49,30 @@ public sealed class RuntimeOptimizationContractTests
     }
 
     [TestMethod]
-    public void QualityRubricUsesBoundedTokenAccountingIndependentlyOfDecodedText()
+    public void QualityRubricRejectsEmptyAndPunctuationOnlyNativeOutput()
     {
         PromptTurnResult structurallyValid = new(
             PromptTurnStatus.Completed,
-            string.Empty,
+            "Granite",
             PromptTokenCount: 3,
             GeneratedTokenCount: 8,
             Failure: null);
         Assert.IsTrue(OpenVinoSmokeQualityRubric.Passes(structurallyValid, 8));
+        Assert.IsTrue(OpenVinoSmokeQualityRubric.Passes(
+            structurallyValid with { GeneratedTokenCount = 1 }, 8),
+            "A completed generation may legitimately stop early at EOS.");
         Assert.IsFalse(OpenVinoSmokeQualityRubric.Passes(
-            structurallyValid with { GeneratedTokenCount = 7 }, 8));
+            structurallyValid with { GeneratedTokenCount = 0 }, 8));
+        Assert.IsFalse(OpenVinoSmokeQualityRubric.Passes(
+            structurallyValid with { GeneratedTokenCount = 9 }, 8));
+        Assert.IsFalse(OpenVinoSmokeQualityRubric.Passes(
+            structurallyValid with { Status = PromptTurnStatus.Stopped }, 8));
         Assert.IsFalse(OpenVinoSmokeQualityRubric.Passes(
             structurallyValid with { Text = "\uFFFD" }, 8));
+        Assert.IsFalse(OpenVinoSmokeQualityRubric.Passes(
+            structurallyValid with { Text = ", , , ," }, 8));
+        Assert.IsFalse(OpenVinoSmokeQualityRubric.Passes(
+            structurallyValid with { Text = string.Empty }, 8));
     }
 
     private static OpenVinoBuildEvidence BuildEvidence() => new(

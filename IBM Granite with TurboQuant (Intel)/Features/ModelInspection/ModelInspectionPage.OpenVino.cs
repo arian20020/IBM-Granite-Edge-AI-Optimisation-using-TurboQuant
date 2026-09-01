@@ -183,6 +183,7 @@ public sealed partial class ModelInspectionPage
 
     private void ApplyOpenVinoInspectingPresentation(string displayName)
     {
+        ApplyFooterStatus(InspectionFooterStatus.InProgress);
         InspectionProgressRows progressRows = new();
         progressRows.Reset(new ModelInspectionRenderKey(
             _openVinoLifetime,
@@ -289,6 +290,7 @@ public sealed partial class ModelInspectionPage
     private void ApplyOpenVinoReadyPresentation(
         OpenVinoRouteInspectionResult result)
     {
+        ApplyFooterStatus(InspectionFooterStatus.Complete);
         bool warnings = result.Outcome ==
             OpenVinoRouteInspectionOutcome.ReadyWithWarnings;
         InspectionOutcomeCardControl.Presentation = new InspectionOutcomePresentation
@@ -444,13 +446,18 @@ public sealed partial class ModelInspectionPage
         return true;
     }
 
-    internal bool TryCreateOpenVinoOptimizationService(
-        out OpenVinoOptimizationService? service,
+    internal bool TryGetOpenVinoBuildEvidence(
         out OpenVinoBuildEvidence? buildEvidence)
     {
-        service = null;
         buildEvidence = _openVinoRouteService?.ExpectedBuildEvidence;
-        if (_openVinoRouteService is null || buildEvidence is null)
+        return _openVinoRouteService is not null && buildEvidence is not null;
+    }
+
+    internal bool TryCreateOpenVinoOptimizationService(
+        out OpenVinoOptimizationService? service)
+    {
+        service = null;
+        if (_openVinoRouteService is null)
         {
             return false;
         }
@@ -463,7 +470,6 @@ public sealed partial class ModelInspectionPage
         catch
         {
             service = null;
-            buildEvidence = null;
             return false;
         }
     }
@@ -606,6 +612,11 @@ public sealed partial class ModelInspectionPage
             ApplyOpenVinoCancelledPresentation();
             return;
         }
+
+        ApplyFooterStatus(
+            disposition.Kind == OpenVinoInspectionPresentationKind.OperationalFailure
+                ? InspectionFooterStatus.Interrupted
+                : InspectionFooterStatus.NotComplete);
 
         (InspectionOutcomePresentationKind kind, InspectionContentCardMode mode) =
             disposition.Kind switch
@@ -817,6 +828,7 @@ public sealed partial class ModelInspectionPage
 
     private void ApplyOpenVinoConvertingPresentation()
     {
+        ApplyFooterStatus(InspectionFooterStatus.InProgress);
         InspectionOutcomeCardControl.Presentation = InspectionOutcomePresentation.Hidden;
         InspectionContentCardControl.Presentation = new InspectionContentCardPresentation
         {
@@ -872,6 +884,9 @@ public sealed partial class ModelInspectionPage
     private void ApplyOpenVinoConversionFailure(OpenVinoSupportCode supportCode)
     {
         bool cancelled = supportCode == OpenVinoSupportCode.OperationCancelled;
+        ApplyFooterStatus(cancelled
+            ? InspectionFooterStatus.NotComplete
+            : InspectionFooterStatus.Interrupted);
         bool hardware = supportCode is OpenVinoSupportCode.RuntimeLoadFailed or
             OpenVinoSupportCode.RuntimeDeviceUnavailable or
             OpenVinoSupportCode.RuntimeDeviceMismatch;
@@ -951,6 +966,7 @@ public sealed partial class ModelInspectionPage
 
     private void ApplyOpenVinoCancelledPresentation()
     {
+        ApplyFooterStatus(InspectionFooterStatus.NotComplete);
         InspectionOutcomeCardControl.Presentation = new InspectionOutcomePresentation
         {
             Kind = InspectionOutcomePresentationKind.Cancelled,
@@ -1011,6 +1027,7 @@ public sealed partial class ModelInspectionPage
         string message,
         string recovery)
     {
+        ApplyFooterStatus(InspectionFooterStatus.Interrupted);
         InspectionOutcomeCardControl.Presentation = new InspectionOutcomePresentation
         {
             Kind = InspectionOutcomePresentationKind.OperationalFailure,

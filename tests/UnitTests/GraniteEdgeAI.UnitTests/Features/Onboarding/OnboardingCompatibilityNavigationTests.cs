@@ -11,6 +11,8 @@ using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.HardwareInspection.Foundation.Windows;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
+using GraniteEdgeAI.OpenVino.Contracts;
+using GraniteEdgeAI.OpenVino.WorkerClient;
 using GraniteEdgeAI.UnitTests.Features.HardwareInspection;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml.Controls;
@@ -18,6 +20,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
 namespace GraniteEdgeAI.UnitTests.Features.Onboarding;
+
+using InspectionOutcome = GraniteEdgeAI.Features.ModelInspection.Contracts.ModelInspectionOutcome;
 
 [TestClass]
 public sealed class OnboardingCompatibilityNavigationTests
@@ -193,6 +197,119 @@ public sealed class OnboardingCompatibilityNavigationTests
             compatibilityPage.ViewModel.StartAsync);
     }
 
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task OpenVinoChatActivation_RestoresInspectionPageBeforeTouchingItsPromptControls()
+    {
+        var shell = new OnboardingShellPage();
+        var inspectionPage = new ModelInspectionPage();
+        var compatibilityPage = new CompatibilityPage
+        {
+            StartAutomatically = false
+        };
+        var frame = (Frame)shell.FindName("StageFrame");
+        frame.Content = compatibilityPage;
+        SetPrivateField(
+            shell,
+            "_modelInspectionPageForHardwareReturn",
+            inspectionPage);
+        SetPrivateField(shell, "_attachedCompatibilityPage", compatibilityPage);
+        bool activatedWithConnectedPage = false;
+
+        bool activated = await shell.ActivateOpenVinoCurrentModelChatAsync(
+            inspectionPage,
+            _ =>
+            {
+                activatedWithConnectedPage = ReferenceEquals(
+                    frame.Content,
+                    inspectionPage);
+                return Task.FromResult(true);
+            },
+            CancellationToken.None);
+
+        Assert.IsTrue(activated);
+        Assert.IsTrue(activatedWithConnectedPage,
+            "OpenVINO activation must not mutate a page after it has been removed from the Frame.");
+        Assert.AreSame(inspectionPage, frame.Content);
+        Assert.AreEqual(OnboardingStage.ReadyToChat, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task OpenVinoChatActivationFailure_RestoresCompatibilityWithoutAdvancing()
+    {
+        var shell = new OnboardingShellPage();
+        var inspectionPage = new ModelInspectionPage();
+        var compatibilityPage = new CompatibilityPage
+        {
+            StartAutomatically = false
+        };
+        var frame = (Frame)shell.FindName("StageFrame");
+        frame.Content = compatibilityPage;
+        SetPrivateField(
+            shell,
+            "_modelInspectionPageForHardwareReturn",
+            inspectionPage);
+        SetPrivateField(shell, "_attachedCompatibilityPage", compatibilityPage);
+
+        bool activated = await shell.ActivateOpenVinoCurrentModelChatAsync(
+            inspectionPage,
+            _ => Task.FromResult(false),
+            CancellationToken.None);
+
+        Assert.IsFalse(activated);
+        Assert.AreSame(compatibilityPage, frame.Content);
+        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task OpenVinoChatActivationException_RestoresCompatibilityWithoutCrashing()
+    {
+        var shell = new OnboardingShellPage();
+        var inspectionPage = new ModelInspectionPage();
+        var compatibilityPage = new CompatibilityPage
+        {
+            StartAutomatically = false
+        };
+        var frame = (Frame)shell.FindName("StageFrame");
+        frame.Content = compatibilityPage;
+        SetPrivateField(
+            shell,
+            "_modelInspectionPageForHardwareReturn",
+            inspectionPage);
+        SetPrivateField(shell, "_attachedCompatibilityPage", compatibilityPage);
+
+        bool activated = await shell.ActivateOpenVinoCurrentModelChatAsync(
+            inspectionPage,
+            _ => Task.FromException<bool>(new InvalidOperationException("fixture")),
+            CancellationToken.None);
+
+        Assert.IsFalse(activated);
+        Assert.AreSame(compatibilityPage, frame.Content);
+        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OpenVinoBuildEvidenceDoesNotDependOnOptionalConverter()
+    {
+        OpenVinoBuildEvidence expected = new(
+            "2026.3.0-22451-8a17657b995-releases/2026/3",
+            "2026.3.0.0-3277-bd8d6542e3c",
+            "2026.3.0.0-703-183c6f25cda",
+            new string('1', 64));
+        var page = new ModelInspectionPage();
+        SetPrivateField(
+            page,
+            "_openVinoRouteService",
+            new OpenVinoRouteService(new NeverCalledOpenVinoWorkerClient(), expected));
+
+        Assert.IsTrue(page.TryGetOpenVinoBuildEvidence(
+            out OpenVinoBuildEvidence? actual));
+        Assert.AreSame(expected, actual);
+    }
+
     [TestMethod]
     public async Task WindowsFreshResourceSource_UsesCurrentProvidersAndInjectedClock()
     {
@@ -247,7 +364,7 @@ public sealed class OnboardingCompatibilityNavigationTests
             ModelInspectionHandoff.CurrentSchemaVersion,
             OpenVinoHandoffId,
             ModelRunId,
-            ModelInspectionOutcome.Ready,
+            InspectionOutcome.Ready,
             evidence.ModelSha256,
             evidence.ModelLengthBytes);
         var page = new ModelInspectionPage();
@@ -266,6 +383,19 @@ public sealed class OnboardingCompatibilityNavigationTests
         object value)
     {
         System.Reflection.FieldInfo? field = typeof(ModelInspectionPage).GetField(
+            fieldName,
+            System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.NonPublic);
+        Assert.IsNotNull(field);
+        field.SetValue(page, value);
+    }
+
+    private static void SetPrivateField(
+        OnboardingShellPage page,
+        string fieldName,
+        object value)
+    {
+        System.Reflection.FieldInfo? field = typeof(OnboardingShellPage).GetField(
             fieldName,
             System.Reflection.BindingFlags.Instance |
             System.Reflection.BindingFlags.NonPublic);
@@ -333,7 +463,7 @@ public sealed class OnboardingCompatibilityNavigationTests
 
     private static ModelInspectionExecutionResult Terminal() =>
         ModelInspectionExecutionResult.Completed(
-            PresentationTestData.CreateResult(ModelInspectionOutcome.Ready));
+            PresentationTestData.CreateResult(InspectionOutcome.Ready));
 
     private static ModelInspectionHandoff ModelHandoff(ModelInspectionExecutionResult terminal)
     {
@@ -427,5 +557,18 @@ public sealed class OnboardingCompatibilityNavigationTests
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed class NeverCalledOpenVinoWorkerClient : IOpenVinoWorkerClient
+    {
+        public Task<IOpenVinoEvent> InspectAsync(
+            StartInspectionCommand command,
+            CancellationToken cancellationToken) =>
+            throw new AssertFailedException("The worker must not be invoked.");
+
+        public Task<OpenVinoConversation> StartSessionAsync(
+            StartSessionCommand command,
+            CancellationToken cancellationToken) =>
+            throw new AssertFailedException("The worker must not be invoked.");
     }
 }

@@ -21,6 +21,9 @@ bool fits_context(
     std::size_t model_limit,
     std::size_t c1_limit) noexcept;
 
+bool requires_route_chat_template_fallback(
+    const package_evidence& evidence) noexcept;
+
 class session_state final {
 public:
     void accept_prompt();

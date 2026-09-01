@@ -53,6 +53,11 @@ bool fits_context(
     return prompt_tokens <= limit && requested_tokens <= limit - prompt_tokens;
 }
 
+bool requires_route_chat_template_fallback(
+    const package_evidence& evidence) noexcept {
+    return !evidence.has_chat_template;
+}
+
 void session_state::accept_prompt() {
     require_state(state_ == value::ready);
     state_ = value::prompt;
@@ -118,8 +123,10 @@ std::unique_ptr<ov::genai::LLMPipeline> official_session::create_pipeline() {
         verify_integrity(false);
         auto pipeline = std::make_unique<ov::genai::LLMPipeline>(
             package_.root(), device_, pipeline_properties(kv_cache_precision_));
-        pipeline->get_tokenizer().set_chat_template(
-            std::string(route_chat_template));
+        if (requires_route_chat_template_fallback(package_.evidence())) {
+            pipeline->get_tokenizer().set_chat_template(
+                std::string(route_chat_template));
+        }
         verify_integrity(true);
         return pipeline;
     } catch (...) {
@@ -168,7 +175,9 @@ turn_result official_session::generate(
     try {
         verify_integrity(false);
         ov::genai::Tokenizer tokenizer = pipeline_->get_tokenizer();
-        tokenizer.set_chat_template(std::string(route_chat_template));
+        if (requires_route_chat_template_fallback(package_.evidence())) {
+            tokenizer.set_chat_template(std::string(route_chat_template));
+        }
         const std::string rendered = tokenizer.apply_chat_template(history_, true);
         const ov::genai::TokenizedInputs encoded = tokenizer.encode(
             rendered, ov::AnyMap{{"add_special_tokens", false}});

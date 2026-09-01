@@ -214,7 +214,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 status,
                 completed,
                 totalStageCount: 5,
-                fraction,
+                stageFraction: null,
                 message));
         }
 
@@ -223,7 +223,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             ModelInspectionStageStatus.Active,
             completed: 0,
             fraction: 0d,
-            "Checking the OpenVINO package and its integrity.");
+            GetPackageVerificationMessage(0d));
         OpenVinoRouteStateMachine stateMachine = new();
         Guid operationId = stateMachine.Snapshot.Identity.OperationId;
         if (!stateMachine.TryBeginInspection(operationId))
@@ -242,7 +242,7 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                     ModelInspectionStageStatus.Active,
                     completed: 0,
                     fraction,
-                    "Checking the OpenVINO package and its integrity.")));
+                    GetPackageVerificationMessage(fraction))));
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
@@ -521,6 +521,26 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             lease,
             Failure: null,
             OpenVinoRouteCapability.Candidates[0]);
+    }
+
+    internal static string GetPackageVerificationMessage(double fraction)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(fraction, 0d);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(fraction, 1d);
+
+        return fraction switch
+        {
+            < 0.25d =>
+                "Reading and verifying the large model file securely. " +
+                "This can take up to a minute.",
+            < 0.5d =>
+                "Continuing the secure read of the large model file.",
+            < 0.75d =>
+                "Confirming the large model file did not change during inspection.",
+            < 0.95d =>
+                "Continuing the model-file consistency check.",
+            _ => "Finishing secure model-file verification."
+        };
     }
 
     public async Task<OpenVinoRouteSession> StartSessionAsync(

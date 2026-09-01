@@ -64,6 +64,39 @@ public sealed class GgufCompatibilityInputProjectorTests
     }
 
     [TestMethod]
+    public void FreshAvailabilityAboveEarlierHardwareFactsIsConservativelyBound()
+    {
+        ModelInspectionExecutionResult terminal = Terminal();
+        Assert.IsTrue(GgufCompatibilityInputProjector.TryPrepare(
+            ModelHandoff(terminal),
+            terminal,
+            HardwareRunId,
+            HardwareHandoff(),
+            out PreparedGgufCompatibilityInput? prepared));
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        CompatibilityFreshResourcesInput fresh = CompatibilityFreshResourcesInput.Create(
+            CurrentlyAvailableMemory.FromBytes(
+                prepared!.Hardware.InstalledSystemMemoryBytes + 1),
+            prepared.Hardware.InstalledDedicatedDeviceMemoryBytes + 1,
+            prepared.Hardware.FreeStorageBytes + 1,
+            now);
+
+        Assert.IsTrue(prepared.TryBindFresh(
+            fresh,
+            out CompatibilityProductionInput? input));
+        Assert.IsNotNull(input);
+        Assert.AreEqual(
+            prepared.Hardware.InstalledSystemMemoryBytes,
+            input.FreshResources.AvailableSystemMemoryBytes);
+        Assert.AreEqual(
+            prepared.Hardware.InstalledDedicatedDeviceMemoryBytes,
+            input.FreshResources.AvailableDedicatedDeviceMemoryBytes);
+        Assert.AreEqual(
+            prepared.Hardware.FreeStorageBytes,
+            input.FreshResources.AvailableStorageBytes);
+    }
+
+    [TestMethod]
     public void MissingOptionalModelFacts_RemainAbsent()
     {
         ModelInspectionEvidence evidence = PresentationTestData.CreateEvidence(layerCount: null);

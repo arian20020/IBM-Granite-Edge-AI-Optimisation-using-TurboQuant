@@ -128,6 +128,70 @@ public sealed class OpenVinoPromptSurfaceTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    public void OpenVinoPresentationLifecyclePublishesTruthfulFooterStatus()
+    {
+        ModelInspectionPage page = new();
+        MethodInfo inspecting = RequirePrivateMethod(
+            "ApplyOpenVinoInspectingPresentation");
+        MethodInfo ready = RequirePrivateMethod(
+            "ApplyOpenVinoReadyPresentation");
+        MethodInfo cancelled = RequirePrivateMethod(
+            "ApplyOpenVinoCancelledPresentation");
+        MethodInfo failed = RequirePrivateMethod(
+            "ApplyOpenVinoInspectionFailurePresentation");
+        List<InspectionFooterStatus> observed = [];
+        page.FooterStatusChanged += (_, eventArguments) =>
+            observed.Add(eventArguments.Status);
+
+        ready.Invoke(page, new object[]
+        {
+            new OpenVinoRouteInspectionResult(
+                OpenVinoRouteInspectionOutcome.Ready,
+                HandoffLease: null,
+                Failure: null,
+                Configuration: null)
+        });
+        Assert.AreEqual(
+            InspectionFooterStatus.Complete,
+            page.CurrentFooterStatus,
+            "A completed OpenVINO inspection must not leave the onboarding footer in progress.");
+
+        inspecting.Invoke(page, new object[] { "granite-openvino" });
+        Assert.AreEqual(
+            InspectionFooterStatus.InProgress,
+            page.CurrentFooterStatus,
+            "A fresh OpenVINO attempt must restore the active footer state.");
+
+        cancelled.Invoke(page, null);
+        Assert.AreEqual(
+            InspectionFooterStatus.NotComplete,
+            page.CurrentFooterStatus);
+
+        inspecting.Invoke(page, new object[] { "granite-openvino" });
+        failed.Invoke(page, new object[]
+        {
+            "runtime_load_failed",
+            "The verified OpenVINO worker is unavailable.",
+            "Repair or reinstall the app, then retry."
+        });
+        Assert.AreEqual(
+            InspectionFooterStatus.Interrupted,
+            page.CurrentFooterStatus);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                InspectionFooterStatus.Complete,
+                InspectionFooterStatus.InProgress,
+                InspectionFooterStatus.NotComplete,
+                InspectionFooterStatus.InProgress,
+                InspectionFooterStatus.Interrupted
+            },
+            observed,
+            "Every semantic OpenVINO lifecycle transition must reach the shared shell footer exactly once.");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
     public async Task RetiredOpenVinoInspectionCannotPublishTerminalResult()
     {
         ModelInspectionPage page = new();

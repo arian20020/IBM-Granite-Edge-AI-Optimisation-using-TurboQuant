@@ -180,9 +180,18 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
         /// </summary>
         private void RaiseLiveRegionChanged()
         {
-            AutomationPeer peer =
+            AutomationPeer? peer =
                 FrameworkElementAutomationPeer.FromElement(this) ??
                 FrameworkElementAutomationPeer.CreatePeerForElement(this);
+
+            // A retained shell can advance while this control is temporarily
+            // disconnected from the visual tree. WinUI is then allowed to
+            // return no automation peer; accessibility notification is
+            // best-effort and must never terminate the onboarding journey.
+            if (peer is null)
+            {
+                return;
+            }
 
             peer.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
             LiveRegionChangeNotificationCount++;

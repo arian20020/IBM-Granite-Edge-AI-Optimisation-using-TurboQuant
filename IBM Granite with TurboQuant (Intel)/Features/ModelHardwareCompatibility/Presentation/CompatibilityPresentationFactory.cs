@@ -230,12 +230,7 @@ internal static class CompatibilityPresentationFactory
 
         string outcomeDetail = model.State ==
             CompatibilityScreenState.NoEstimatedSafeConfiguration
-                ? "The lightest verified setup needs about "
-                    + CompatibilityBudget.Describe(setup.RequiredBytes)
-                    + ", but only "
-                    + CompatibilityBudget.Describe(setup.SafeBudgetBytes)
-                    + " is available within the safety limit right now. Close unused "
-                    + "applications and browser tabs, then check again."
+                ? NoFitMemoryDetail(model, setup)
                 : presentation.OutcomeDetail;
 
         return presentation with
@@ -249,6 +244,29 @@ internal static class CompatibilityPresentationFactory
             ChecksCardTitle = "What we checked",
             CheckRows = CompatibilitySetupNarrative.CheckRows(setup)
         };
+    }
+
+    private static string NoFitMemoryDetail(
+        CompatibilityScreenModel model,
+        CompatibilitySetupView currentSetup)
+    {
+        string current = CompatibilityBudget.Describe(currentSetup.RequiredBytes);
+        string safe = CompatibilityBudget.Describe(currentSetup.SafeBudgetBytes);
+        if (model.SmallestOptimizedRequiredBytes is { } optimized)
+        {
+            return "The current package needs about " + current
+                + ". The smallest evaluated optimised setup needs about "
+                + CompatibilityBudget.Describe(optimized)
+                + ", but only " + safe
+                + " is available within the safety limit right now. Optimisation is "
+                + "available when enough memory is free; close unused applications "
+                + "and browser tabs, then check again.";
+        }
+
+        return "The current package needs about " + current
+            + ", and no verified setup fits within the current " + safe
+            + " safety limit. Close unused applications and browser tabs, then "
+            + "check again.";
     }
 
     private static CompatibilityPresentation OptimizationRequired(

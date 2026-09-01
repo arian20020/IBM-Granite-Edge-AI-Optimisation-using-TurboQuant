@@ -179,6 +179,10 @@ public sealed class OpenVinoStaticPackageInspector
             }
 
             long contextLength = RequiredPositiveInt64(configRoot, "max_position_embeddings");
+            int layerCount = checked((int)RequiredPositiveInt64(configRoot, "num_hidden_layers"));
+            int embeddingSize = checked((int)RequiredPositiveInt64(configRoot, "hidden_size"));
+            int attentionHeadCount = checked((int)RequiredPositiveInt64(configRoot, "num_attention_heads"));
+            int keyValueHeadCount = checked((int)RequiredPositiveInt64(configRoot, "num_key_value_heads"));
             string precision = GetConfiguredDataType(configRoot);
             if (contextLength > OpenVinoPackagePolicy.MaximumContextLength ||
                 precision is not ("float32" or "float16" or "bfloat16"))
@@ -202,19 +206,25 @@ public sealed class OpenVinoStaticPackageInspector
                 return OpenVinoStaticPackageInspectionResult.Rejected(OpenVinoSupportCode.TokenizerUnsupported);
             }
 
-            string irPrecision = precision switch
-            {
-                "float32" => "FP32",
-                "float16" => "FP16",
-                "bfloat16" => "BF16",
-                _ => throw new InvalidDataException("Configured precision is unsupported.")
-            };
-            if (!ValidateXml(snapshot, "openvino_model.xml", "openvino_model.bin", ["Parameter", "Select", "Result"],
-                    [new ExpectedPort("logits", irPrecision, vocabularySize)]) ||
+        string irPrecision = precision switch
+        {
+            "float32" => "FP32",
+            "float16" => "FP16",
+            "bfloat16" => "BF16",
+            _ => throw new InvalidDataException("Configured precision is unsupported.")
+        };
+        string? stableLogitsPrecision = precision is "float16" or "bfloat16"
+            ? "FP32"
+            : null;
+        if (!ValidateXml(snapshot, "openvino_model.xml", "openvino_model.bin", ["Parameter", "Select", "Result"],
+                [new ExpectedPort("logits", irPrecision, vocabularySize, stableLogitsPrecision)],
+                out string? weightPrecision) ||
                 !ValidateXml(snapshot, "openvino_tokenizer.xml", "openvino_tokenizer.bin", ["Parameter", "StringTensorUnpack", "Result"],
-                    [new ExpectedPort("input_ids", "I64", null), new ExpectedPort("attention_mask", "I64", null)]) ||
+                    [new ExpectedPort("input_ids", "I64", null), new ExpectedPort("attention_mask", "I64", null)],
+                    out _) ||
                 !ValidateXml(snapshot, "openvino_detokenizer.xml", "openvino_detokenizer.bin", ["Parameter", "VocabDecoder", "Result"],
-                    [new ExpectedPort("string_output", "STRING", null)]))
+                    [new ExpectedPort("string_output", "STRING", null)],
+                    out _))
             {
                 return OpenVinoStaticPackageInspectionResult.Rejected(OpenVinoSupportCode.PackageInconsistentResource);
             }
@@ -241,7 +251,12 @@ public sealed class OpenVinoStaticPackageInspector
                 precision,
                 tokenizerClass,
                 snapshot.Entries.Count,
-                hasChatTemplate));
+                hasChatTemplate,
+                layerCount,
+                embeddingSize,
+                attentionHeadCount,
+                keyValueHeadCount,
+                weightPrecision));
         }
         catch (Exception exception) when (exception is JsonException or DecoderFallbackException or XmlException or FormatException or OverflowException or InvalidDataException)
         {
@@ -1059,8 +1074,10 @@ public sealed class OpenVinoStaticPackageInspector
         string xmlName,
         string binName,
         IReadOnlyCollection<string> requiredLayerTypes,
-        IReadOnlyCollection<ExpectedPort> requiredPorts)
+        IReadOnlyCollection<ExpectedPort> requiredPorts,
+        out string? weightPrecision)
     {
+        weightPrecision = null;
         OpenVinoPackageSnapshotEntry xml = GetRequired(snapshot, xmlName);
         OpenVinoPackageSnapshotEntry binary = GetRequired(snapshot, binName);
         if (xml.Length <= 0 || xml.Length > OpenVinoPackagePolicy.MaximumXmlBytes || binary.Length <= 0)
@@ -1083,6 +1100,7 @@ public sealed class OpenVinoStaticPackageInspector
         List<ObservedPort> observedPorts = [];
         List<GraphEdge> graphEdges = [];
         Dictionary<string, ResultLayer> resultLayers = new(StringComparer.Ordinal);
+        Dictionary<string, long> weightConstantBytes = new(StringComparer.Ordinal);
         bool validRoot = false;
         bool insideConstant = false;
         bool insideLayerInput = false;
@@ -1157,6 +1175,14 @@ public sealed class OpenVinoStaticPackageInspector
                         offset < 0 || size < 0 || offset > binary.Length || size > binary.Length - offset)
                     {
                         return false;
+                    }
+
+                    string? elementType = reader.GetAttribute("element_type");
+                    if (size > 0 && elementType is
+                        "f16" or "f32" or "bf16" or "u8" or "i8" or "u4" or "i4")
+                    {
+                        weightConstantBytes.TryGetValue(elementType, out long existing);
+                        weightConstantBytes[elementType] = checked(existing + size);
                     }
                 }
 
@@ -1287,11 +1313,38 @@ public sealed class OpenVinoStaticPackageInspector
             }
         }
 
+        weightPrecision = DominantWeightConstantPrecision(weightConstantBytes);
         xml.Stream.Position = 0;
         return validRoot &&
             requiredLayerTypes.All(observedTypes.Contains) &&
             ResultDestinationsAreValid(graphEdges, resultLayers) &&
             requiredPorts.All(expected => IsUniqueResultConnectedOutput(expected, observedPorts, graphEdges, resultLayers));
+    }
+
+    private static string? DominantWeightConstantPrecision(
+        IReadOnlyDictionary<string, long> weightConstantBytes)
+    {
+        if (weightConstantBytes.Count == 0)
+        {
+            return null;
+        }
+
+        KeyValuePair<string, long> dominant = weightConstantBytes.MaxBy(entry => entry.Value);
+        decimal total = weightConstantBytes.Values.Sum(value => (decimal)value);
+        if (total <= 0 || dominant.Value / total < 0.95m)
+        {
+            return null;
+        }
+
+        return dominant.Key switch
+        {
+            "f16" => "float16",
+            "f32" => "float32",
+            "bf16" => "bfloat16",
+            "u8" or "i8" => "int8",
+            "u4" or "i4" => "int4",
+            _ => null
+        };
     }
 
     private static bool ResultDestinationsAreValid(
@@ -1319,24 +1372,6 @@ public sealed class OpenVinoStaticPackageInspector
         IReadOnlyCollection<GraphEdge> graphEdges,
         IReadOnlyDictionary<string, ResultLayer> resultLayers)
     {
-        ObservedPort[] candidates = observedPorts.Where(observed =>
-            string.Equals(observed.Name, expected.Name, StringComparison.Ordinal) &&
-            string.Equals(observed.Precision, expected.Precision, StringComparison.Ordinal) &&
-            (expected.FinalDimension is null || observed.FinalDimension == expected.FinalDimension)).ToArray();
-        if (candidates.Length != 1)
-        {
-            return false;
-        }
-
-        ObservedPort candidate = candidates[0];
-        if (!candidate.IsOutput ||
-            string.IsNullOrWhiteSpace(candidate.LayerId) ||
-            string.IsNullOrWhiteSpace(candidate.PortId) ||
-            string.Equals(candidate.LayerType, "Result", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
         ResultLayer[] correspondingResults = resultLayers.Values
             .Where(result => result.OutputNames.Contains(expected.Name))
             .ToArray();
@@ -1350,9 +1385,25 @@ public sealed class OpenVinoStaticPackageInspector
         GraphEdge[] destinationEdges = graphEdges.Where(edge =>
             string.Equals(edge.ToLayer, result.LayerId, StringComparison.Ordinal) &&
             string.Equals(edge.ToPort, inputPort, StringComparison.Ordinal)).ToArray();
-        return destinationEdges.Length == 1 &&
-            string.Equals(destinationEdges[0].FromLayer, candidate.LayerId, StringComparison.Ordinal) &&
-            string.Equals(destinationEdges[0].FromPort, candidate.PortId, StringComparison.Ordinal);
+        if (destinationEdges.Length != 1)
+        {
+            return false;
+        }
+
+        GraphEdge destination = destinationEdges[0];
+        ObservedPort[] connectedCandidates = observedPorts.Where(observed =>
+            string.Equals(observed.Name, expected.Name, StringComparison.Ordinal) &&
+            (string.Equals(observed.Precision, expected.Precision, StringComparison.Ordinal) ||
+             expected.AlternatePrecision is not null &&
+             string.Equals(observed.Precision, expected.AlternatePrecision, StringComparison.Ordinal)) &&
+            (expected.FinalDimension is null || observed.FinalDimension == expected.FinalDimension) &&
+            observed.IsOutput &&
+            !string.IsNullOrWhiteSpace(observed.LayerId) &&
+            !string.IsNullOrWhiteSpace(observed.PortId) &&
+            !string.Equals(observed.LayerType, "Result", StringComparison.Ordinal) &&
+            string.Equals(destination.FromLayer, observed.LayerId, StringComparison.Ordinal) &&
+            string.Equals(destination.FromPort, observed.PortId, StringComparison.Ordinal)).ToArray();
+        return connectedCandidates.Length == 1;
     }
 
     private static HashSet<string> SplitNames(string? names) =>
@@ -1361,7 +1412,11 @@ public sealed class OpenVinoStaticPackageInspector
             : names.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
                 .ToHashSet(StringComparer.Ordinal);
 
-    private sealed record ExpectedPort(string Name, string Precision, long? FinalDimension);
+    private sealed record ExpectedPort(
+        string Name,
+        string Precision,
+        long? FinalDimension,
+        string? AlternatePrecision = null);
 
     private sealed record ObservedPort(
         string Name,

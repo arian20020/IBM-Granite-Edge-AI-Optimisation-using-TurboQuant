@@ -8,6 +8,7 @@ internal enum ApplicationFaultCode
     CompatibilityEvaluationUnexpected,
     OptimizationOperationUnexpected,
     ShutdownUnexpected,
+    OpenVinoChatOperationUnexpected,
     GgufChatOperationUnexpected,
     GgufChatRetirementUnexpected,
     GgufChatInitializationCleanupUnexpected,

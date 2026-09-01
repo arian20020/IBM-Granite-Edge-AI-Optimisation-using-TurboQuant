@@ -124,7 +124,7 @@ try {
 
     Invoke-ExactScript (Join-Path $PSScriptRoot 'Test-OpenVinoDependencyLocks.ps1') `
         @('-ClosureDirectory',$converterClosure,'-Scope','Converter') 'dependency_lock_valid'
-    & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+    & pwsh -NoLogo -NoProfile -NonInteractive `
         -File (Join-Path $PSScriptRoot 'Build-OpenVinoConverterWorker.ps1') `
         -ClosureDirectory $converterClosure -BuildDirectory $converterBuild `
         -StageDirectory $converterStage

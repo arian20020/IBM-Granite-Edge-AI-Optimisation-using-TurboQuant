@@ -262,7 +262,8 @@ public sealed record CompatibilityScreenModel
         bool continueEnabled,
         CompatibilitySetupView? setup,
         CompatibilityOptimizationView? optimization,
-        bool isActionAuthoritative)
+        bool isActionAuthoritative,
+        ulong? smallestOptimizedRequiredBytes = null)
     {
         CurrentSetup = setup;
         Setup = state == CompatibilityScreenState.OptimisationRequired ? null : setup;
@@ -276,6 +277,7 @@ public sealed record CompatibilityScreenModel
         ContinueEnabled = continueEnabled && isActionAuthoritative;
         Optimization = optimization;
         RecommendedSetup = optimization?.RecommendedMode;
+        SmallestOptimizedRequiredBytes = smallestOptimizedRequiredBytes;
     }
 
     public CompatibilityScreenState State { get; }
@@ -334,6 +336,15 @@ public sealed record CompatibilityScreenModel
     public CompatibilityOptimizationView? Optimization { get; }
 
     /// <summary>
+    /// The smallest established system/shared-memory requirement among optimized
+    /// candidates rejected only because the current safe budget was too low.
+    /// This includes the same calibration margin used by fit assessment so it
+    /// can be compared directly with the displayed safe budget. It is
+    /// informational and never grants execution authority.
+    /// </summary>
+    public ulong? SmallestOptimizedRequiredBytes { get; }
+
+    /// <summary>
     /// Builds a screen model directly, for Debug fixtures and tests that need to
     /// render a state without an engine run behind it.
     ///
@@ -351,7 +362,8 @@ public sealed record CompatibilityScreenModel
         bool useCurrentModelAvailable,
         bool continueEnabled,
         CompatibilitySetupView? setup = null,
-        CompatibilityOptimizationView? optimization = null)
+        CompatibilityOptimizationView? optimization = null,
+        ulong? smallestOptimizedRequiredBytes = null)
     {
         ArgumentNullException.ThrowIfNull(findings);
         ArgumentNullException.ThrowIfNull(modes);
@@ -376,7 +388,8 @@ public sealed record CompatibilityScreenModel
             continueEnabled,
             setup,
             optimization,
-            isActionAuthoritative: false);
+            isActionAuthoritative: false,
+            smallestOptimizedRequiredBytes);
     }
 
     internal static CompatibilityScreenModel From(CompatibilityRunResult result)
@@ -452,7 +465,8 @@ public sealed record CompatibilityScreenModel
             actionable,
             decision.Setup,
             decision.Optimization,
-            isActionAuthoritative: true);
+            isActionAuthoritative: true,
+            decision.SmallestOptimizedRequiredBytes);
     }
 
     /// <summary>
@@ -557,7 +571,8 @@ public sealed record CompatibilityScreenModel
     private sealed record ProjectionDecision(
         CompatibilityScreenState State,
         CompatibilityOptimizationView? Optimization,
-        CompatibilitySetupView? Setup);
+        CompatibilitySetupView? Setup,
+        ulong? SmallestOptimizedRequiredBytes = null);
 
     private static ProjectionDecision DecideOptimizationState(
         CompatibilityAssessment assessment,
@@ -661,10 +676,28 @@ public sealed record CompatibilityScreenModel
                     baselineSetup);
         }
 
+        ulong? smallestOptimizedRequiredBytes = input.Generated.Exclusions
+            .Where(exclusion =>
+                exclusion.Reason == OptimizationExclusionReason.ExceedsSafeMemoryBudget
+                && exclusion.CanonicalDescriptor != input.Baseline.OptimizationDescriptor
+                && exclusion.EstimatedRequiredBytes.HasValue)
+            .Select(exclusion => RequiredWithCalibrationMargin(
+                exclusion.EstimatedRequiredBytes!.Value))
+            .Cast<ulong?>()
+            .Min();
+
         return new ProjectionDecision(
             CompatibilityScreenState.NoEstimatedSafeConfiguration,
             null,
-            baselineSetup);
+            baselineSetup,
+            smallestOptimizedRequiredBytes);
+    }
+
+    private static ulong RequiredWithCalibrationMargin(ulong predictedPeakBytes)
+    {
+        ByteCount peak = ByteCount.FromBytes(predictedPeakBytes);
+        SafetyPolicy safety = SafetyPolicy.ProportionalV2();
+        return peak.Add(safety.CalibrationMarginFor(peak)).Bytes;
     }
 
     private static bool ValidGeneratedAuthority(

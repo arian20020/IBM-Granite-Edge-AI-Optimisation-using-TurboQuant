@@ -6,6 +6,7 @@ namespace GraniteEdgeAI.OpenVino.WorkerClient;
 public sealed record OpenVinoWorkerClientOptions(
     OpenVinoWorkerInstallation Installation,
     TimeSpan StartupTimeout,
+    TimeSpan SessionLoadTimeout,
     TimeSpan TurnTimeout,
     TimeSpan IdleTimeout,
     TimeSpan SessionTimeout,
@@ -20,6 +21,7 @@ public sealed record OpenVinoWorkerClientOptions(
         OpenVinoWorkerClientOptions options = new(
             installation,
             TimeSpan.FromSeconds(5),
+            TimeSpan.FromMinutes(2),
             TimeSpan.FromMinutes(10),
             TimeSpan.FromMinutes(5),
             TimeSpan.FromMinutes(60),
@@ -36,12 +38,17 @@ public sealed record OpenVinoWorkerClientOptions(
         ArgumentNullException.ThrowIfNull(Installation);
         Installation.Validate();
         RequirePositive(StartupTimeout, nameof(StartupTimeout));
+        RequirePositive(SessionLoadTimeout, nameof(SessionLoadTimeout));
         RequirePositive(TurnTimeout, nameof(TurnTimeout));
         RequirePositive(IdleTimeout, nameof(IdleTimeout));
         RequirePositive(SessionTimeout, nameof(SessionTimeout));
         RequirePositive(CancellationGrace, nameof(CancellationGrace));
         RequirePositive(CleanupTimeout, nameof(CleanupTimeout));
         RequireAtMost(StartupTimeout, TimeSpan.FromSeconds(5), nameof(StartupTimeout));
+        RequireAtMost(
+            SessionLoadTimeout,
+            TimeSpan.FromMinutes(2),
+            nameof(SessionLoadTimeout));
         RequireAtMost(TurnTimeout, TimeSpan.FromMinutes(10), nameof(TurnTimeout));
         RequireAtMost(IdleTimeout, TimeSpan.FromMinutes(5), nameof(IdleTimeout));
         RequireAtMost(SessionTimeout, TimeSpan.FromMinutes(60), nameof(SessionTimeout));

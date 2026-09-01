@@ -79,14 +79,23 @@ try {
         $expected.Add([string]$entry.path, $entry)
     }
     if ($expected.Count -eq 0) { throw 'converter-inventory-empty' }
-    $actual = @(Get-ChildItem -LiteralPath $root -File -Recurse -Force |
-        Where-Object FullName -cne $manifestPath)
+    $enumerationRoot = if ($root.StartsWith('\\', [StringComparison]::Ordinal)) {
+        '\\?\UNC\' + $root.Substring(2)
+    } else {
+        '\\?\' + $root
+    }
+    $actual = @(Get-ChildItem -LiteralPath $enumerationRoot -File -Recurse -Force |
+        Where-Object {
+            $_.FullName.Substring($enumerationRoot.Length + 1).Replace('\', '/') -cne
+                'converter-manifest.json'
+        })
     if ($actual.Count -ne $expected.Count) { throw 'converter-inventory-mismatch' }
     foreach ($file in $actual) {
         if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw 'converter-reparse-rejected'
         }
-        $relative = $file.FullName.Substring($root.Length + 1).Replace('\', '/')
+        $relative = $file.FullName.Substring(
+            $enumerationRoot.Length + 1).Replace('\', '/')
         $entry = $null
         if (-not $expected.TryGetValue($relative, [ref]$entry) -or
             $file.Length -ne [long]$entry.length -or

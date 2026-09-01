@@ -167,6 +167,38 @@ public sealed class FixedHardwareToolAcquisitionTests
                 parameter.ParameterType == typeof(byte[]))));
     }
 
+    [TestMethod]
+    public void ResolveApprovedApplicationRoot_PrefersInstalledPackageAndKeepsDevelopmentFallback()
+    {
+        using TemporaryDirectory packageRoot = new();
+        using TemporaryDirectory developmentRoot = new();
+
+        Assert.AreEqual(
+            Path.GetFullPath(packageRoot.Path),
+            FixedHardwareToolAcquisition.ResolveApprovedApplicationRoot(
+                packageIdentityAvailable: true,
+                packageRoot.Path,
+                developmentRoot.Path));
+        Assert.AreEqual(
+            Path.GetFullPath(developmentRoot.Path),
+            FixedHardwareToolAcquisition.ResolveApprovedApplicationRoot(
+                packageIdentityAvailable: false,
+                installedPackageRoot: null,
+                developmentRoot.Path));
+    }
+
+    [TestMethod]
+    public void ResolveApprovedApplicationRoot_FailsClosedWhenPackageIdentityHasNoInstalledRoot()
+    {
+        using TemporaryDirectory developmentRoot = new();
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            FixedHardwareToolAcquisition.ResolveApprovedApplicationRoot(
+                packageIdentityAvailable: true,
+                installedPackageRoot: null,
+                developmentRoot.Path));
+    }
+
     private static FixedHardwareToolAcquisition Create(
         VerifiedPackagedToolFixture llmFit,
         VerifiedPackagedToolFixture llamaCpp,
@@ -207,5 +239,20 @@ public sealed class FixedHardwareToolAcquisitionTests
         Assert.IsFalse(result.IsSuccess);
         Assert.IsNull(result.Lease);
         Assert.AreEqual(diagnostic, result.Diagnostic);
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        internal TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"granite-hardware-root-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(Path);
+        }
+
+        internal string Path { get; }
+
+        public void Dispose() => Directory.Delete(Path, recursive: true);
     }
 }

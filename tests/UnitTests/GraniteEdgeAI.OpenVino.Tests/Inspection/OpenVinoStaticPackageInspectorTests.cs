@@ -34,7 +34,12 @@ public sealed class OpenVinoStaticPackageInspectorTests
         Assert.AreEqual("text-generation-with-past", result.Evidence.Task);
         Assert.AreEqual(64L, result.Evidence.ContextLength);
         Assert.AreEqual("float32", result.Evidence.Precision);
+        Assert.AreEqual("float32", result.Evidence.WeightPrecision);
         Assert.AreEqual("PreTrainedTokenizerFast", result.Evidence.TokenizerClass);
+        Assert.AreEqual(1, result.Evidence.LayerCount);
+        Assert.AreEqual(4, result.Evidence.EmbeddingSize);
+        Assert.AreEqual(1, result.Evidence.AttentionHeadCount);
+        Assert.AreEqual(1, result.Evidence.KeyValueHeadCount);
         Assert.AreEqual(9, result.Evidence.ResourceCount);
         Assert.IsFalse(result.Evidence.HasChatTemplate);
         AssertPathFree(package, result);
@@ -852,6 +857,52 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
+    [DataRow("float16")]
+    [DataRow("bfloat16")]
+    public void ReducedPrecisionGranitePackageAcceptsStableFp32Logits(string configuredPrecision)
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.SetJson("config.json", "torch_dtype", JsonValue.Create(configuredPrecision));
+
+        OpenVinoStaticPackageInspectionResult result = Inspect(package);
+
+        Assert.AreEqual(
+            OpenVinoStaticInspectionStatus.NativeValidationRequired,
+            result.Status,
+            "A reduced-precision Granite export may retain its public logits output in FP32.");
+        Assert.IsNull(result.SupportCode);
+        Assert.IsNotNull(result.Evidence);
+    }
+
+    [TestMethod]
+    public void Fp32BoundaryWithFp16StoredWeightsReportsWeightPrecisionSeparately()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.SetFloatingConstantPrecision("f16");
+
+        OpenVinoStaticPackageInspectionResult result = Inspect(package);
+
+        Assert.AreEqual(OpenVinoStaticInspectionStatus.NativeValidationRequired, result.Status);
+        Assert.IsNotNull(result.Evidence);
+        Assert.AreEqual("float32", result.Evidence.Precision);
+        Assert.AreEqual("float16", result.Evidence.WeightPrecision);
+    }
+
+    [TestMethod]
+    public void QuantizedU4ConstantsReportInt4WeightPrecision()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.SetFloatingConstantPrecision("u4");
+
+        OpenVinoStaticPackageInspectionResult result = Inspect(package);
+
+        Assert.AreEqual(OpenVinoStaticInspectionStatus.NativeValidationRequired, result.Status);
+        Assert.IsNotNull(result.Evidence);
+        Assert.AreEqual("float32", result.Evidence.Precision);
+        Assert.AreEqual("int4", result.Evidence.WeightPrecision);
+    }
+
+    [TestMethod]
     [DataRow("hidden_size", 0L)]
     [DataRow("hidden_size", 1_048_577L)]
     [DataRow("intermediate_size", 0L)]
@@ -917,6 +968,26 @@ public sealed class OpenVinoStaticPackageInspectorTests
         package.AddDisconnectedDecoyGraphOutput(resource, portName, precision, finalDimension);
 
         AssertRejected(package, OpenVinoSupportCode.PackageInconsistentResource);
+    }
+
+    [TestMethod]
+    public void IntermediateTensorMayShareTheNameOfTheUniqueResultConnectedOutput()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.AddIntermediateDuplicateNamedPort(
+            "openvino_model.xml",
+            "logits",
+            "FP32",
+            "8");
+
+        OpenVinoStaticPackageInspectionResult result = Inspect(package);
+
+        Assert.AreEqual(
+            OpenVinoStaticInspectionStatus.NativeValidationRequired,
+            result.Status,
+            "An intermediate tensor name must not hide the unique output wired to the declared Result node.");
+        Assert.IsNull(result.SupportCode);
+        Assert.IsNotNull(result.Evidence);
     }
 
     [TestMethod]
@@ -1168,6 +1239,59 @@ public sealed class OpenVinoStaticPackageInspectorTests
                 {
                     dimension.Value = finalDimension;
                 }
+            }
+
+            System.IO.File.WriteAllText(path, document.ToString(SaveOptions.DisableFormatting), new UTF8Encoding(false));
+        }
+
+        public void SetFloatingConstantPrecision(string elementType)
+        {
+            string path = File("openvino_model.xml");
+            XDocument document = XDocument.Load(path, LoadOptions.PreserveWhitespace);
+            XElement[] floatingConstants = document.Descendants("layer")
+                .Where(layer => (string?)layer.Attribute("type") == "Const")
+                .Select(layer => layer.Element("data"))
+                .Where(data => data is not null
+                    && (string?)data.Attribute("element_type") == "f32")
+                .Cast<XElement>()
+                .ToArray();
+            Assert.IsGreaterThan(0, floatingConstants.Length);
+            foreach (XElement data in floatingConstants)
+            {
+                data.SetAttributeValue("element_type", elementType);
+            }
+            System.IO.File.WriteAllText(
+                path,
+                document.ToString(SaveOptions.DisableFormatting),
+                new UTF8Encoding(false));
+        }
+
+        public void AddIntermediateDuplicateNamedPort(
+            string relativeName,
+            string portName,
+            string precision,
+            string finalDimension)
+        {
+            string path = File(relativeName);
+            XDocument document = XDocument.Load(path, LoadOptions.PreserveWhitespace);
+            XElement intermediate = document.Descendants("layer")
+                .First(element =>
+                    (string?)element.Attribute("type") != "Result" &&
+                    element.Element("output")?.Element("port") is not null &&
+                    !element.Descendants("port").Any(port =>
+                        ((string?)port.Attribute("names"))?.Split(',').Contains(portName, StringComparer.Ordinal) == true))
+                .Element("output")!
+                .Element("port")!;
+            intermediate.SetAttributeValue("names", portName);
+            intermediate.SetAttributeValue("precision", precision);
+            XElement? dimension = intermediate.Elements("dim").LastOrDefault();
+            if (dimension is null)
+            {
+                intermediate.Add(new XElement("dim", finalDimension));
+            }
+            else
+            {
+                dimension.Value = finalDimension;
             }
 
             System.IO.File.WriteAllText(path, document.ToString(SaveOptions.DisableFormatting), new UTF8Encoding(false));

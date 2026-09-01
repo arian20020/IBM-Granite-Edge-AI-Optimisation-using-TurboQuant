@@ -15,6 +15,26 @@ namespace GraniteEdgeAI.OpenVino.Tests;
 public sealed class OpenVinoRouteServiceTests
 {
     [TestMethod]
+    public void SecurePackageVerificationUsesFactualPhaseCopyWithoutPercentages()
+    {
+        string[] messages =
+        [
+            OpenVinoRouteService.GetPackageVerificationMessage(0d),
+            OpenVinoRouteService.GetPackageVerificationMessage(0.25d),
+            OpenVinoRouteService.GetPackageVerificationMessage(0.5d),
+            OpenVinoRouteService.GetPackageVerificationMessage(0.75d),
+            OpenVinoRouteService.GetPackageVerificationMessage(0.95d)
+        ];
+
+        CollectionAssert.AllItemsAreUnique(messages);
+        Assert.IsTrue(messages[0].Contains("large model file", StringComparison.Ordinal));
+        Assert.IsTrue(messages[0].Contains("take up to a minute", StringComparison.Ordinal));
+        Assert.IsTrue(messages[2].Contains("did not change", StringComparison.Ordinal));
+        Assert.IsTrue(messages[^1].Contains("Finishing", StringComparison.Ordinal));
+        Assert.IsFalse(messages.Any(static message => message.Contains('%')));
+    }
+
+    [TestMethod]
     public async Task OpenVinoInspectionPublishesTheSharedFiveStageProgressLifecycle()
     {
         using TemporaryPackage package = TemporaryPackage.CopyFixture();
@@ -33,10 +53,9 @@ public sealed class OpenVinoRouteServiceTests
         Assert.AreEqual(ModelInspectionStage.CheckModelPackage, observed[0].Stage);
         Assert.AreEqual(ModelInspectionStageStatus.Active, observed[0].StageStatus);
         Assert.AreEqual(0, observed[0].CompletedStageCount);
-        Assert.IsTrue(observed.Any(static update =>
-            update.Stage == ModelInspectionStage.CheckModelPackage &&
-            update.StageStatus == ModelInspectionStageStatus.Active &&
-            update.StageFraction is > 0d and < 1d));
+        Assert.IsTrue(
+            observed.All(static update => update.StageFraction is null),
+            "OpenVINO must use the same fractionless stage presentation as the GGUF route.");
         Assert.IsTrue(observed.Any(static update =>
             update.Stage == ModelInspectionStage.ValidateTokenizerAndChatSetup &&
             update.StageStatus == ModelInspectionStageStatus.Completed));

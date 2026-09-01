@@ -15,6 +15,7 @@ struct package_evidence final {
     std::string package_digest;
     std::string model_digest;
     std::uintmax_t model_length{};
+    bool has_chat_template{};
 };
 
 enum class native_load_stage {

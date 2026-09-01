@@ -130,10 +130,14 @@ internal sealed class SealedOpenVinoOptimizationPipeline : IOpenVinoOptimization
 internal static class OpenVinoSmokeQualityRubric
 {
     internal static bool Passes(PromptTurnResult turn, long requestedTokens) =>
+        requestedTokens > 0 &&
+        turn.Status == PromptTurnStatus.Completed &&
         turn.Failure is null &&
         turn.PromptTokenCount > 0 &&
-        turn.GeneratedTokenCount == requestedTokens &&
+        turn.GeneratedTokenCount > 0 &&
+        turn.GeneratedTokenCount <= requestedTokens &&
         !turn.Text.Contains('\uFFFD') &&
+        turn.Text.Any(char.IsLetterOrDigit) &&
         turn.Text.All(static character => character is '\r' or '\n' or '\t' ||
             !char.IsControl(character));
 }

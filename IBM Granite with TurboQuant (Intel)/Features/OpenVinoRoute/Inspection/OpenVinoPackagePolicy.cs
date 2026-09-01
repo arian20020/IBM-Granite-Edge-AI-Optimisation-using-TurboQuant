@@ -95,7 +95,12 @@ public sealed record OpenVinoStaticPackageEvidence(
     string Precision,
     string TokenizerClass,
     int ResourceCount,
-    bool HasChatTemplate);
+    bool HasChatTemplate,
+    int? LayerCount = null,
+    int? EmbeddingSize = null,
+    int? AttentionHeadCount = null,
+    int? KeyValueHeadCount = null,
+    string? WeightPrecision = null);
 
 public sealed record OpenVinoStaticPackageInspectionResult(
     OpenVinoStaticInspectionStatus Status,

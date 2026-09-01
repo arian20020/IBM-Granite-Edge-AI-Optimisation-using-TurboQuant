@@ -238,6 +238,9 @@ internal sealed class GgufOptimizationProductionAuthority
         DateTimeOffset evaluatedAtUtc,
         CancellationToken cancellationToken)
     {
+        fresh = CompatibilityFreshResourceNormalizer.ConstrainTo(
+            _hardware,
+            fresh);
         CompatibilityOptimizationProductionInput optimization =
             CompatibilityOptimizationProductionInput.Create(
                 _snapshot,

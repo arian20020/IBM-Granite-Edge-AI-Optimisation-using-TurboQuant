@@ -77,7 +77,13 @@ internal sealed class OptimizationJourneyCoordinator : IAsyncDisposable
             started = State;
         }
         StateChanged?.Invoke(this, started);
-        return ExecuteAsync(generation, token);
+        // Source revalidation includes hashing multi-gigabyte model payloads.
+        // Some production adapters complete their Task synchronously, so
+        // invoking the pipeline directly here would perform that work on the
+        // WinUI caller and make the running screen appear frozen. The state
+        // transition remains synchronous; only the expensive attempt is
+        // dispatched away from the UI thread.
+        return Task.Run(() => ExecuteAsync(generation, token));
     }
 
     internal Task CancelAsync()

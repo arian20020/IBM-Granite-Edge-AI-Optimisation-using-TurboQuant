@@ -35,7 +35,7 @@ internal static class FixtureProgram
 
         if (scenario == "split-startup-timeout")
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(1800)).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(1000)).ConfigureAwait(false);
         }
 
         await using Stream input = Console.OpenStandardInput();
@@ -149,7 +149,7 @@ internal static class FixtureProgram
 
         if (scenario == "split-startup-timeout")
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(1800)).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(4800)).ConfigureAwait(false);
         }
 
         await WriteAsync(

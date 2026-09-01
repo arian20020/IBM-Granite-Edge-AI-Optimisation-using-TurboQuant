@@ -76,6 +76,13 @@ try {
         $wheelPath = Join-Path $closureRoot ([string]$wheel.filename)
         [IO.Compression.ZipFile]::ExtractToDirectory($wheelPath, $packages)
     }
+    $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
+    $licenceResult = & $pwsh -NoLogo -NoProfile -NonInteractive `
+        -File (Join-Path $PSScriptRoot 'Convert-OpenVinoConverterLicencePaths.ps1') `
+        -StageDirectory $stageRoot
+    if ($LASTEXITCODE -ne 0 -or [string]$licenceResult -cne 'converter_licence_paths_normalized') {
+        Stop-Build
+    }
     $converterSource = Join-Path $repositoryRoot 'workers\OpenVinoConverter.Worker\converter'
     $converterStage = Join-Path $stageRoot 'converter'
     New-Item -ItemType Directory -Path $converterStage | Out-Null

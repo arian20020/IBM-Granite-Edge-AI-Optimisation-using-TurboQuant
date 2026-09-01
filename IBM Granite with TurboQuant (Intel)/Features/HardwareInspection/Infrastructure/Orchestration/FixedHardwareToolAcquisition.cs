@@ -1,11 +1,23 @@
 using GraniteEdgeAI.HardwareInspection.Foundation.TrustedTools;
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
+using Windows.ApplicationModel;
 
 namespace GraniteEdgeAI.Features.HardwareInspection.Orchestration;
 
 internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
 {
+    private const int ErrorSuccess = 0;
+    private const int ErrorInsufficientBuffer = 122;
+    private const int AppModelErrorNoPackage = 15_700;
+    private const string InstalledRootUnavailableMessage =
+        "The installed Hardware Inspection root is unavailable.";
+    private const string UnpackagedRootUnavailableMessage =
+        "The unpackaged Hardware Inspection root is unavailable.";
+    private const string PackageIdentityUnavailableMessage =
+        "The Hardware Inspection package identity could not be determined.";
     private readonly string _llmFitApprovedRoot;
     private readonly string _llmFitPackageRoot;
     private readonly string _probeApprovedRoot;
@@ -64,7 +76,7 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
             commonApplicationData,
             "GraniteEdgeAI",
             "HardwareInspection"));
-        string packageBase = Path.GetFullPath(AppContext.BaseDirectory);
+        string packageBase = ResolveApprovedApplicationRoot();
         string hardwareRoot = Path.GetFullPath(Path.Combine(packageBase, "HardwareInspection"));
         string probeRoot = Path.GetFullPath(Path.Combine(hardwareRoot, "LlamaCppProbe"));
         string manifestPath = Path.GetFullPath(Path.Combine(
@@ -82,6 +94,92 @@ internal sealed class FixedHardwareToolAcquisition : IHardwareToolAcquisition
             verifier.Verify,
             File.GetAttributes);
     }
+
+    internal static string ResolveApprovedApplicationRoot()
+    {
+        if (!HasPackageIdentity())
+        {
+            return ResolveApprovedApplicationRoot(
+                packageIdentityAvailable: false,
+                installedPackageRoot: null,
+                AppContext.BaseDirectory);
+        }
+
+        return ResolveApprovedApplicationRoot(
+            packageIdentityAvailable: true,
+            Package.Current.InstalledLocation.Path,
+            AppContext.BaseDirectory);
+    }
+
+    internal static string ResolveApprovedApplicationRoot(
+        bool packageIdentityAvailable,
+        string? installedPackageRoot,
+        string applicationBaseDirectory)
+    {
+        return packageIdentityAvailable
+            ? RequireExistingAbsoluteRoot(
+                installedPackageRoot,
+                InstalledRootUnavailableMessage)
+            : RequireExistingAbsoluteRoot(
+                applicationBaseDirectory,
+                UnpackagedRootUnavailableMessage);
+    }
+
+    private static string RequireExistingAbsoluteRoot(
+        string? candidate,
+        string failureMessage)
+    {
+        if (string.IsNullOrWhiteSpace(candidate) ||
+            candidate.Contains('\0') ||
+            !Path.IsPathFullyQualified(candidate))
+        {
+            throw new InvalidOperationException(failureMessage);
+        }
+
+        string canonicalRoot;
+        try
+        {
+            canonicalRoot = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(candidate));
+        }
+        catch (Exception error) when (
+            error is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            throw new InvalidOperationException(failureMessage);
+        }
+
+        if (!Directory.Exists(canonicalRoot))
+        {
+            throw new InvalidOperationException(failureMessage);
+        }
+
+        return canonicalRoot;
+    }
+
+    private static bool HasPackageIdentity()
+    {
+        uint packageFullNameLength = 0;
+        int result = GetCurrentPackageFullName(
+            ref packageFullNameLength,
+            packageFullName: null);
+        return result switch
+        {
+            ErrorSuccess or ErrorInsufficientBuffer => true,
+            AppModelErrorNoPackage => false,
+            _ => throw new InvalidOperationException(
+                PackageIdentityUnavailableMessage),
+        };
+    }
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport(
+        "kernel32.dll",
+        EntryPoint = "GetCurrentPackageFullName",
+        CharSet = CharSet.Unicode,
+        ExactSpelling = true)]
+    private static extern int GetCurrentPackageFullName(
+        ref uint packageFullNameLength,
+        StringBuilder? packageFullName);
 
     public HardwareToolAcquisitionResult Acquire()
     {

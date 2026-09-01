@@ -143,6 +143,136 @@ public sealed class CompatibilityProductionInputTests
         Assert.AreEqual(RuntimeRouteId.OpenVinoGenAi, result.CurrentSetup.Route);
     }
 
+    [TestMethod]
+    public void LargeOpenVinoModel_CanRefreshFromNoFitToActionableOptimisation()
+    {
+        DateTimeOffset now = new(2026, 9, 1, 7, 30, 0, TimeSpan.Zero);
+        CompatibilityProductionInput constrained = LargeOpenVinoInput(
+            availableSystemMemoryBytes: 3_600_000_000UL,
+            now);
+        CompatibilityEvaluation noFit = CompatibilityEngine.EvaluateProduction(
+            constrained, new FixedTimeProvider(now));
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NoEstimatedSafeConfiguration,
+            noFit.Screen.State);
+
+        CompatibilityProductionInput recovered = LargeOpenVinoInput(
+            availableSystemMemoryBytes: 4_300_000_000UL,
+            now);
+        CompatibilityEvaluation actionable = CompatibilityEngine.EvaluateProduction(
+            recovered, new FixedTimeProvider(now));
+        OptimizationIssuanceAuthority issuance =
+            CompatibilityEngine.CreateOptimizationIssuanceAuthority(recovered, now);
+
+        Assert.AreEqual(
+            CompatibilityScreenState.OptimisationRequired,
+            actionable.Screen.State);
+        Assert.IsNotNull(actionable.Screen.Optimization);
+        Assert.IsNotNull(actionable.PlanningSession);
+        Assert.IsNotNull(issuance);
+    }
+
+    private static CompatibilityProductionInput LargeOpenVinoInput(
+        ulong availableSystemMemoryBytes,
+        DateTimeOffset observedAtUtc)
+    {
+        Guid modelRun = Guid.Parse("22222222-2222-4222-8222-222222222222");
+        Guid handoff = Guid.Parse("33333333-3333-4333-8333-333333333333");
+        Guid hardwareRun = Guid.Parse("44444444-4444-4444-8444-444444444444");
+        const string digest =
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+        OpenVinoAdmittedConfiguration[] admissions =
+        [
+            OpenVinoAdmission("ov-original", OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.RouteDefault),
+            OpenVinoAdmission("ov-fp16", OpenVinoWeightFormat.Fp16,
+                OpenVinoKvCacheFormat.RouteDefault),
+            OpenVinoAdmission("ov-int8", OpenVinoWeightFormat.Int8,
+                OpenVinoKvCacheFormat.RouteDefault),
+            OpenVinoAdmission("ov-int8-u8", OpenVinoWeightFormat.Int8,
+                OpenVinoKvCacheFormat.U8),
+            OpenVinoAdmission("ov-int4-u8", OpenVinoWeightFormat.Int4,
+                OpenVinoKvCacheFormat.U8),
+        ];
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "openvino-cpu-test", digest,
+                OpenVinoCapabilityPayload.Create(
+                    "2026.3.0",
+                    admissions,
+                    [.. admissions.Select(value =>
+                        OpenVinoExecutionAuthority.Create(
+                            value.EvidenceId,
+                            value.EvidenceId,
+                            OpenVinoWeightPrecision.Fp16,
+                            OpenVinoBuildIdentity.Create(
+                                "2026.3.0", "2026.3.0", "2026.3.0", digest),
+                            new Dictionary<string, string>(StringComparer.Ordinal)
+                            {
+                                ["openvino"] = "2026.3.0"
+                            },
+                            compiledCacheIsDisposable: true))]));
+        OpenVinoCompatibilityModelInput model =
+            OpenVinoCompatibilityModelInput.Create(
+                6_805_673_303UL, 40, 4_096, 32, 8, 131_072);
+        CompatibilityCurrentModelInput current =
+            CompatibilityCurrentModelInput.ForOpenVino(
+                model,
+                OpenVinoRouteConfiguration.Create(
+                    OpenVinoWeightFormat.Original,
+                    OpenVinoKvCacheFormat.RouteDefault,
+                    DeviceRouteId.Cpu,
+                    OpenVinoPerformanceHint.Latency,
+                    OpenVinoCompiledCachePolicy.Disabled,
+                    1),
+                OpenVinoWeightPrecision.Fp16);
+        CompatibilityHardwareInput hardware = OpenVinoHardware(
+            DeviceRouteId.Cpu, CompatibilityBackend.OpenVinoCpu);
+        OptimizationJourneyBinding binding = OptimizationJourneyBinding.Create(
+            modelRun.ToString("N"), handoff.ToString("N"), digest,
+            model.PackageLengthBytes, hardwareRun.ToString("N"), digest);
+        CompatibilityOptimizationProductionInput optimization =
+            CompatibilityOptimizationProductionInput.Create(
+                snapshot,
+                OptimizationWorkload.Create(
+                    "local-chat", 512, OptimizationAssessment.Poor,
+                    new[] { 512, 2048, 4096, 32768 }
+                        .Select(ContextTokenCount.FromTokens).ToArray()),
+                binding,
+                new HashSet<string>(StringComparer.Ordinal));
+
+        return CompatibilityProductionInput.Create(
+            modelRun,
+            hardwareRun,
+            current,
+            JourneyAuthority(handoff, digest, current, hardware),
+            hardware,
+            CompatibilityFreshResourcesInput.Create(
+                CurrentlyAvailableMemory.FromBytes(availableSystemMemoryBytes),
+                availableDedicatedDeviceMemoryBytes: null,
+                availableStorageBytes: 64 * GiB,
+                observedAtUtc),
+            optimization);
+    }
+
+    private static OpenVinoAdmittedConfiguration OpenVinoAdmission(
+        string evidenceId,
+        OpenVinoWeightFormat weights,
+        OpenVinoKvCacheFormat cache) => OpenVinoAdmittedConfiguration.Create(
+            evidenceId,
+            DeviceRouteId.Cpu,
+            weights,
+            cache,
+            OpenVinoPerformanceHint.Latency,
+            OpenVinoCompiledCachePolicy.Disabled,
+            1,
+            512,
+            32768,
+            SupportLevel.DeclaredSupported,
+            requiresEvidence: false);
+
     private static OpenVinoExecutionAuthority OpenVinoAuthority(
         string evidenceId,
         string digest,

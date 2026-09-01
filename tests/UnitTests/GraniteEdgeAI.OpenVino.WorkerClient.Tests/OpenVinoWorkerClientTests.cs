@@ -133,6 +133,7 @@ public sealed class OpenVinoWorkerClientTests
             OpenVinoWorkerClientOptions.CreateDefault(installation);
 
         Assert.AreEqual(TimeSpan.FromSeconds(5), options.StartupTimeout);
+        Assert.AreEqual(TimeSpan.FromMinutes(2), options.SessionLoadTimeout);
         Assert.AreEqual(TimeSpan.FromMinutes(10), options.TurnTimeout);
         Assert.AreEqual(TimeSpan.FromMinutes(5), options.IdleTimeout);
         Assert.AreEqual(TimeSpan.FromMinutes(60), options.SessionTimeout);
@@ -188,6 +189,15 @@ public sealed class OpenVinoWorkerClientTests
             };
 
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(relaxed.Validate);
+
+        OpenVinoWorkerClientOptions excessiveSessionLoad =
+            OpenVinoWorkerClientOptions.CreateDefault(installation) with
+            {
+                SessionLoadTimeout = TimeSpan.FromMinutes(2) + TimeSpan.FromTicks(1)
+            };
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+            excessiveSessionLoad.Validate);
     }
 
     [TestMethod]

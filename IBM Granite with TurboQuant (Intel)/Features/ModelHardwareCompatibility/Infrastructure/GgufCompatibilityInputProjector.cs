@@ -210,12 +210,16 @@ internal sealed class PreparedGgufCompatibilityInput
         ArgumentNullException.ThrowIfNull(freshResources);
         try
         {
+            CompatibilityFreshResourcesInput bounded =
+                CompatibilityFreshResourceNormalizer.ConstrainTo(
+                    _hardware,
+                    freshResources);
             input = CompatibilityProductionInput.Create(
                 _modelInspectionRunId,
                 _productHardwareRunId,
                 _model,
                 _hardware,
-                freshResources);
+                bounded);
             return true;
         }
         catch (ArgumentException)

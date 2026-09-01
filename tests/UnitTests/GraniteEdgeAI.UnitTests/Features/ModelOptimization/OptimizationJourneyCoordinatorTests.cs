@@ -4,6 +4,7 @@ using GraniteEdgeAI.Features.ModelOptimization.Storage;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Diagnostics;
 
 namespace GraniteEdgeAI.UnitTests.Features.ModelOptimization;
 
@@ -65,14 +66,43 @@ public sealed class OptimizationJourneyCoordinatorTests
         Assert.AreEqual(OptimizationJourneyKind.Confirmation, coordinator.State.Kind);
     }
 
+    [TestMethod]
+    public async Task ConfirmDoesNotRunSlowSourceValidationOnTheUiCaller()
+    {
+        OptimizationJourneyEntryContext entry =
+            OptimizationSelectionHandoffTests.RequiredJourneyEntry();
+        var executor = new ControllableExecutor(entry.OptimizationHandoff.Plan);
+        await using var coordinator = Coordinator(
+            entry,
+            executor,
+            revalidator: new SlowCurrentRevalidator());
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        Task attempt = coordinator.ConfirmAsync();
+        stopwatch.Stop();
+
+        Assert.IsTrue(
+            stopwatch.Elapsed < TimeSpan.FromMilliseconds(200),
+            $"Confirm blocked its caller for {stopwatch.Elapsed.TotalMilliseconds:F0} ms.");
+        Assert.AreEqual(OptimizationJourneyKind.Running, coordinator.State.Kind);
+
+        await Task.Delay(600);
+        executor.CompleteSuccess();
+        await attempt.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.AreEqual(
+            OptimizationJourneyKind.SucceededRuntimeProfile,
+            coordinator.State.Kind);
+    }
+
     private static OptimizationJourneyCoordinator Coordinator(
         OptimizationJourneyEntryContext entry,
         ControllableExecutor executor,
-        long initialGeneration = 0) =>
+        long initialGeneration = 0,
+        IOptimizationRevalidator? revalidator = null) =>
         new(
             entry,
             new OptimizationExecutorRouter([executor]),
-            new CurrentRevalidator(),
+            revalidator ?? new CurrentRevalidator(),
             new ContextFactory(entry.OptimizationHandoff.Plan),
             initialGeneration: initialGeneration);
 
@@ -82,6 +112,17 @@ public sealed class OptimizationJourneyCoordinatorTests
             OptimizationExecutionPlan plan,
             CancellationToken cancellationToken) =>
             Task.FromResult(OptimizationRevalidationResult.Current);
+    }
+
+    private sealed class SlowCurrentRevalidator : IOptimizationRevalidator
+    {
+        public Task<OptimizationRevalidationResult> RevalidateAsync(
+            OptimizationExecutionPlan plan,
+            CancellationToken cancellationToken)
+        {
+            Thread.Sleep(500);
+            return Task.FromResult(OptimizationRevalidationResult.Current);
+        }
     }
 
     private sealed class ContextFactory(OptimizationExecutionPlan plan)

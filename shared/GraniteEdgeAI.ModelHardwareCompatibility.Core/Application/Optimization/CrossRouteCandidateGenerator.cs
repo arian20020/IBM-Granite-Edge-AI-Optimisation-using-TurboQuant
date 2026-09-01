@@ -17,7 +17,16 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization
 
 /// <summary>One candidate that was considered and refused, and why.</summary>
 public sealed record OptimizationExclusion(
-    string EvidenceId, string CanonicalDescriptor, OptimizationExclusionReason Reason);
+    string EvidenceId, string CanonicalDescriptor, OptimizationExclusionReason Reason)
+{
+    /// <summary>
+    /// Established system/shared-memory peak for a candidate rejected only
+    /// because it exceeded the current safe budget. Other exclusion kinds do
+    /// not carry a number: presenting one there would turn missing evidence
+    /// into an estimate.
+    /// </summary>
+    public ulong? EstimatedRequiredBytes { get; init; }
+}
 
 /// <summary>
 /// Exact, path-free machine and observation authority consumed while generating
@@ -910,7 +919,10 @@ internal static class CrossRouteCandidateGenerator
         if (peak > safeBudget)
         {
             exclusions.Add(new OptimizationExclusion(
-                evidenceId, descriptor, OptimizationExclusionReason.ExceedsSafeMemoryBudget));
+                evidenceId, descriptor, OptimizationExclusionReason.ExceedsSafeMemoryBudget)
+            {
+                EstimatedRequiredBytes = peak.Bytes
+            });
 
             return;
         }

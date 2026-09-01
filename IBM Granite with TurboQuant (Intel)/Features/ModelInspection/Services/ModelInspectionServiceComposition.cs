@@ -129,13 +129,6 @@ internal static class ModelInspectionServiceComposition
 #if MODEL_INSPECTION_X64
     private static (string Root, string Digest) ResolveApprovedConverter()
     {
-        string converterRoot = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "OpenVino", "Converter", "Worker"));
-        string manifestPath = Path.Combine(converterRoot, "converter-manifest.json");
-        string packagedDigest = Convert.ToHexString(
-            SHA256.HashData(TrustedManifestFile.ReadBounded(
-                manifestPath,
-                1024 * 1024))).ToLowerInvariant();
         string expectedDigest = typeof(ModelInspectionServiceComposition)
             .Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
@@ -145,12 +138,9 @@ internal static class ModelInspectionServiceComposition
                 StringComparison.Ordinal))?.Value ??
             throw new InvalidOperationException(
                 "The app does not contain an approved OpenVINO converter manifest identity.");
-        if (!string.Equals(packagedDigest, expectedDigest, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException(
-                "The packaged converter does not match the app-approved identity.");
-        }
-        return (converterRoot, expectedDigest);
+        return ApprovedOpenVinoConverterResolver.Resolve(
+            AppContext.BaseDirectory,
+            expectedDigest);
     }
 #endif
 

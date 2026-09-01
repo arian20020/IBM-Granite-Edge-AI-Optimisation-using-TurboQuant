@@ -278,7 +278,7 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or [string]$lock -cne 'dependency_lock_valid') {
             throw 'Converter dependency verification failed.'
           }
-          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+          & pwsh -NoLogo -NoProfile -NonInteractive `
             -File scripts/openvino/Build-OpenVinoConverterWorker.ps1 `
             -ClosureDirectory $env:OPENVINO_CONVERTER_CLOSURE `
             -BuildDirectory $env:OPENVINO_CONVERTER_BUILD `

@@ -146,7 +146,9 @@ public sealed class CompatibilityScreenProjectionTests
         CandidatePreparation preparation,
         CompatibilityFitState fit,
         bool isBaseline,
-        RouteConfiguration configuration)
+        RouteConfiguration configuration,
+        ulong safeBudgetBytes = 3 * Gibibyte,
+        ulong requiredBytes = 2 * Gibibyte)
     {
         CompatibilityCandidate candidate = CompatibilityCandidate.Create(
             configuration,
@@ -173,8 +175,8 @@ public sealed class CompatibilityScreenProjectionTests
                 fit is CompatibilityFitState.Safe or CompatibilityFitState.Narrow
                     ? FitLimitingReason.None
                     : FitLimitingReason.InsufficientSystemMemory,
-                ByteCount.FromBytes(3 * Gibibyte),
-                ByteCount.FromBytes(2 * Gibibyte),
+                ByteCount.FromBytes(safeBudgetBytes),
+                ByteCount.FromBytes(requiredBytes),
                 fit is CompatibilityFitState.Safe or CompatibilityFitState.Narrow
                     ? ByteCount.FromBytes(Gibibyte)
                     : ByteCount.Zero,
@@ -1380,6 +1382,101 @@ public sealed class CompatibilityScreenProjectionTests
         Assert.AreEqual(CompatibilityScreenState.NotEstablished, model.State);
         Assert.IsNull(model.Setup);
         Assert.IsFalse(model.ContinueEnabled);
+    }
+
+    [TestMethod]
+    public void NoFitOpenVinoProjection_ReportsSmallestEvaluatedOptimizedRequirement()
+    {
+        OpenVinoRouteConfiguration baselineConfiguration =
+            OpenVinoRouteConfiguration.Create(
+                OpenVinoWeightFormat.Original,
+                OpenVinoKvCacheFormat.RouteDefault,
+                DeviceRouteId.Cpu,
+                OpenVinoPerformanceHint.Latency,
+                OpenVinoCompiledCachePolicy.Disabled,
+                1);
+        CompatibilityRunResult result = CompletedWith(
+            EvaluatedForConfiguration(
+                CandidatePreparation.RuntimeProfileOnly,
+                CompatibilityFitState.DoesNotFit,
+                isBaseline: true,
+                baselineConfiguration,
+                safeBudgetBytes: 1,
+                requiredBytes: 8 * Gibibyte));
+        OptimizationCapabilitySnapshot snapshot = OpenVinoSnapshot();
+        OptimizationWorkload workload = Workload();
+        OptimizationJourneyBinding binding = Binding();
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            snapshot,
+            ModelFacts(),
+            workload,
+            binding,
+            ByteCount.FromBytes(1),
+            ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string>(),
+            HardwareAuthority());
+
+        CompatibilityScreenModel model = ProjectWith(
+            result,
+            generated,
+            snapshot,
+            workload,
+            binding,
+            safeBudgetBytes: 1);
+
+        Assert.AreEqual(
+            CompatibilityScreenState.NoEstimatedSafeConfiguration,
+            model.State);
+        Assert.IsNotNull(model.SmallestOptimizedRequiredBytes);
+        Assert.IsTrue(model.SmallestOptimizedRequiredBytes > 0);
+        Assert.IsTrue(
+            model.SmallestOptimizedRequiredBytes > model.Setup!.SafeBudgetBytes,
+            "The optimized requirement must include the fit-assessment margin so it "
+            + "can be compared directly with the displayed safe budget.");
+        Assert.IsTrue(
+            model.SmallestOptimizedRequiredBytes < model.Setup.RequiredBytes,
+            "The no-fit screen must not call the larger raw import the lightest setup.");
+    }
+
+    [TestMethod]
+    public void RealGraniteOpenVinoInt4Candidate_FitsWithinAReportedTwoPointNineGibBudget()
+    {
+        InspectedModelFacts facts = InspectedModelFacts.Create(
+            ByteCount.FromBytes(6_805_673_303),
+            layerCount: 40,
+            embeddingSize: 4_096,
+            attentionHeadCount: 32,
+            keyValueHeadCount: 8,
+            declaredContextLimit: 131_072,
+            fileType: null,
+            quantisationVersion: null);
+        OptimizationWorkload workload = OptimizationWorkload.Create(
+            "local-chat",
+            512,
+            OptimizationAssessment.Poor,
+            [ContextTokenCount.FromTokens(512),
+             ContextTokenCount.FromTokens(2_048),
+             ContextTokenCount.FromTokens(4_096),
+             ContextTokenCount.FromTokens(32_768)]);
+
+        CrossRouteGenerationResult generated = CrossRouteCandidateGenerator.Generate(
+            OpenVinoSnapshot(),
+            facts,
+            workload,
+            Binding(),
+            ByteCount.FromBytes(2_900UL * 1024 * 1024),
+            ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(),
+            new HashSet<string>(),
+            HardwareAuthority());
+
+        Assert.IsTrue(
+            generated.Candidates.Count > 0,
+            "The admitted INT4/U8 OpenVINO candidate should be offered at the "
+            + "same 2.9 GiB safe budget displayed by the application.");
+        Assert.IsTrue(generated.Candidates.Min(candidate =>
+            candidate.Metrics.PredictedPeakBytes) < 2_900UL * 1024 * 1024);
     }
 
     [TestMethod]

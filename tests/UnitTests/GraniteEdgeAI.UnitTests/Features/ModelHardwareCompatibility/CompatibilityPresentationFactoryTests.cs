@@ -249,6 +249,46 @@ public sealed class CompatibilityPresentationFactoryTests
         Assert.IsFalse(presentation.PrimaryActionEnabled);
     }
 
+    [TestMethod]
+    public void NoFitOpenVinoScreen_DistinguishesRawFromSmallestOptimizedRequirement()
+    {
+        CompatibilitySetupView raw = CompatibilitySetupView.ForPresentation(
+            RuntimeRouteId.OpenVinoGenAi,
+            CompatibilityBackend.OpenVinoCpu,
+            DeviceRouteId.Cpu,
+            WeightQuantisation.F16,
+            contextTokens: 4096,
+            CompatibilityFitState.DoesNotFit,
+            requiredBytes: 8UL * GiB,
+            safeBudgetBytes: 2UL * GiB,
+            headroomBytes: 0,
+            uncertaintyAllowanceBytes: GiB / 2,
+            isExperimental: false,
+            requiresConversion: false,
+            [],
+            openVinoKvCache: OpenVinoKvCacheFormat.RouteDefault);
+        CompatibilityScreenModel screen = CompatibilityScreenModel.ForPresentation(
+            CompatibilityScreenState.NoEstimatedSafeConfiguration,
+            [],
+            [],
+            BaselineExclusionReason.None,
+            useCurrentModelAvailable: false,
+            continueEnabled: false,
+            setup: raw,
+            smallestOptimizedRequiredBytes: 3UL * GiB);
+
+        CompatibilityPresentation presentation =
+            CompatibilityPresentationFactory.From(screen);
+
+        StringAssert.Contains(presentation.OutcomeDetail, "current package needs about 8 GB");
+        StringAssert.Contains(presentation.OutcomeDetail, "smallest evaluated optimised setup");
+        StringAssert.Contains(presentation.OutcomeDetail, "3 GB");
+        StringAssert.Contains(presentation.OutcomeDetail, "2 GB");
+        Assert.IsFalse(
+            presentation.OutcomeDetail.Contains(
+                "lightest verified setup", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static CompatibilityScreenModel OptimizationScreen(
         WeightQuantisation currentWeights = WeightQuantisation.Q4_K_M)
     {

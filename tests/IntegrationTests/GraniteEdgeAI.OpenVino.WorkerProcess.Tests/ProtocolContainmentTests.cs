@@ -660,16 +660,17 @@ public sealed class ProtocolContainmentTests
     }
 
     [TestMethod]
-    public async Task HelloAndSessionStartedShareOneAbsoluteStartupDeadline()
+    public async Task HelloAndSessionLoadUseDistinctBoundedDeadlines()
     {
         await using FixtureRun fixture = CreateFixture("split-startup-timeout");
-        OpenVinoWorkerClient client = CreateClient(fixture.Root, startupMs: 3000);
+        OpenVinoWorkerClient client = CreateClient(
+            fixture.Root,
+            startupMs: 3000,
+            sessionLoadMs: 6000);
 
-        OpenVinoWorkerClientException error =
-            await Assert.ThrowsExactlyAsync<OpenVinoWorkerClientException>(() =>
-                client.StartSessionAsync(StartSession(), CancellationToken.None));
-
-        Assert.AreEqual(OpenVinoSupportCode.RuntimeTimedOut, error.SupportCode);
+        await using OpenVinoConversation conversation = await client.StartSessionAsync(
+            StartSession(), CancellationToken.None);
+        await conversation.CloseAsync(CancellationToken.None);
         await AssertNoFixtureProcessAsync();
     }
 
@@ -699,6 +700,7 @@ public sealed class ProtocolContainmentTests
     private static OpenVinoWorkerClient CreateClient(
         string root,
         int startupMs = 2000,
+        int? sessionLoadMs = null,
         int turnMs = 2000,
         int idleMs = 2000,
         int sessionMs = 5000,
@@ -714,6 +716,7 @@ public sealed class ProtocolContainmentTests
         OpenVinoWorkerClientOptions options = new(
             installation,
             TimeSpan.FromMilliseconds(startupMs),
+            TimeSpan.FromMilliseconds(sessionLoadMs ?? startupMs),
             TimeSpan.FromMilliseconds(turnMs),
             TimeSpan.FromMilliseconds(idleMs),
             TimeSpan.FromMilliseconds(sessionMs),

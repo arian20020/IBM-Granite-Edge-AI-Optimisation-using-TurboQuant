@@ -33,6 +33,7 @@ internal sealed class OpenVinoOptimizationProductionAuthority
     private readonly OptimizationJourneyBinding _binding;
     private readonly OpenVinoComposer _composer;
     private readonly OptimizationExecutionPayload _currentPayload;
+    private readonly bool _optimizationAvailable;
     private OptimizationIssuanceAuthority? _issuance;
 
     private OpenVinoOptimizationProductionAuthority(
@@ -42,7 +43,8 @@ internal sealed class OpenVinoOptimizationProductionAuthority
         OptimizationWorkload workload,
         OptimizationJourneyBinding binding,
         OpenVinoComposer composer,
-        OptimizationExecutionPayload currentPayload)
+        OptimizationExecutionPayload currentPayload,
+        bool optimizationAvailable)
     {
         _prepared = prepared;
         CapabilityEvidence = evidence;
@@ -51,6 +53,7 @@ internal sealed class OpenVinoOptimizationProductionAuthority
         _binding = binding;
         _composer = composer;
         _currentPayload = currentPayload;
+        _optimizationAvailable = optimizationAvailable;
     }
 
     internal OpenVinoOptimizationCapabilityEvidence CapabilityEvidence { get; }
@@ -59,31 +62,35 @@ internal sealed class OpenVinoOptimizationProductionAuthority
     internal static bool TryCreate(
         PreparedOpenVinoCompatibilityInput prepared,
         OpenVinoBuildEvidence builds,
+        bool optimizationAvailable,
         out OpenVinoOptimizationProductionAuthority? authority)
     {
         ArgumentNullException.ThrowIfNull(prepared);
         ArgumentNullException.ThrowIfNull(builds);
         authority = null;
-        if (!string.Equals(prepared.SourcePrecision, "float16", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
         try
         {
             OpenVinoOptimizationToolVersions versions = new(
                 "2026.3.0", "2026.3.0.0", "3.3.0", "2.3.0", "2.1.0", "5.5.4");
-            OpenVinoOptimizationCapabilityAdmission[] admissions =
+            OpenVinoOptimizationCapabilityAdmission[] allAdmissions =
             [
+                Admission("OV-STD-CPU-ORIGINAL-01", RouteWeight.Original,
+                    RouteKv.ReleasedDefault),
                 Admission("OV-STD-CPU-FP16-01", RouteWeight.Fp16,
                     RouteKv.ReleasedDefault),
                 Admission("OV-STD-CPU-AUTO-01", RouteWeight.EightBit,
                     RouteKv.ReleasedDefault),
                 Admission("OV-STD-CPU-INT8-U8-01", RouteWeight.EightBit,
                     RouteKv.U8),
+                Admission("OV-STD-CPU-INT4-DEFAULT-01", RouteWeight.FourBit,
+                    RouteKv.ReleasedDefault),
                 Admission("OV-STD-CPU-INT4-U8-01", RouteWeight.FourBit,
                     RouteKv.U8),
             ];
+            OpenVinoOptimizationCapabilityAdmission[] admissions =
+                [.. allAdmissions.Where(item => IsReachableFrom(
+                    prepared.SourceWeightPrecision,
+                    item.WeightPrecision))];
             var evidence = new OpenVinoOptimizationCapabilityEvidence(
                 builds, versions, admissions);
             OpenVinoCapabilityPayload projected =
@@ -97,7 +104,7 @@ internal sealed class OpenVinoOptimizationProductionAuthority
                 .. projected.Admitted.Select(item => OpenVinoExecutionAuthority.Create(
                     item.EvidenceId,
                     ConfigurationId(item.Weights, item.KvCache),
-                    ContractWeight.Fp16,
+                    prepared.SourceWeightPrecision,
                     buildIdentity,
                     versionMap,
                     compiledCacheIsDisposable: true))
@@ -123,10 +130,12 @@ internal sealed class OpenVinoOptimizationProductionAuthority
                 prepared.Model.PackageLengthBytes,
                 prepared.ProductHardwareRunId.ToString("N"),
                 prepared.HardwareSnapshotSha256);
-            var composer = new OpenVinoComposer(execution);
+            string currentEvidenceId = CurrentEvidenceId(prepared.Configuration.Weights);
+            var composer = new OpenVinoComposer(execution, currentEvidenceId,
+                prepared.SourceWeightPrecision);
             authority = new OpenVinoOptimizationProductionAuthority(
                 prepared, evidence, snapshot, workload, binding, composer,
-                composer.ComposeCurrent());
+                composer.ComposeCurrent(), optimizationAvailable);
             return true;
         }
         catch (Exception error) when (error is ArgumentException or OverflowException)
@@ -142,6 +151,9 @@ internal sealed class OpenVinoOptimizationProductionAuthority
         DateTimeOffset evaluatedAtUtc,
         CancellationToken cancellationToken)
     {
+        fresh = CompatibilityFreshResourceNormalizer.ConstrainTo(
+            _prepared.Hardware,
+            fresh);
         CompatibilityOptimizationProductionInput optimization =
             CompatibilityOptimizationProductionInput.Create(
                 _snapshot, _workload, _binding, optedInEvidence);
@@ -226,8 +238,10 @@ internal sealed class OpenVinoOptimizationProductionAuthority
     {
         lock (_gate)
         {
-            composer = route == OptimizationRoute.OpenVino ? _composer : null;
-            issuanceAuthority = route == OptimizationRoute.OpenVino ? _issuance : null;
+            bool available = _optimizationAvailable
+                && route == OptimizationRoute.OpenVino;
+            composer = available ? _composer : null;
+            issuanceAuthority = available ? _issuance : null;
             return composer is not null && issuanceAuthority is not null;
         }
     }
@@ -241,6 +255,26 @@ internal sealed class OpenVinoOptimizationProductionAuthority
         new OpenVinoRuntimeOptimization(cache, RouteCache.Disabled),
         OpenVinoCapabilityPerformanceHint.Latency, 1, 512, 32768,
         OpenVinoCapabilityMaturity.Released);
+
+    private static bool IsReachableFrom(
+        ContractWeight source,
+        RouteWeight target) => source switch
+        {
+            ContractWeight.Fp16 => true,
+            ContractWeight.EightBit => target is RouteWeight.EightBit or RouteWeight.FourBit,
+            ContractWeight.FourBit => target == RouteWeight.FourBit,
+            _ => false,
+        };
+
+    private static string CurrentEvidenceId(OpenVinoWeightFormat weights) =>
+        weights switch
+        {
+            OpenVinoWeightFormat.Original => "OV-STD-CPU-ORIGINAL-01",
+            OpenVinoWeightFormat.Fp16 => "OV-STD-CPU-FP16-01",
+            OpenVinoWeightFormat.Int8 => "OV-STD-CPU-AUTO-01",
+            OpenVinoWeightFormat.Int4 => "OV-STD-CPU-INT4-DEFAULT-01",
+            _ => throw new ArgumentOutOfRangeException(nameof(weights)),
+        };
 
     private static IReadOnlyDictionary<string, string> VersionMap(
         OpenVinoOptimizationToolVersions value) =>
@@ -258,12 +292,16 @@ internal sealed class OpenVinoOptimizationProductionAuthority
         OpenVinoWeightFormat weights, OpenVinoKvCacheFormat cache) =>
         (weights, cache) switch
         {
+            (OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.RouteDefault) =>
+                "openvino.standard.cpu.original.default.v1",
             (OpenVinoWeightFormat.Fp16, OpenVinoKvCacheFormat.RouteDefault) =>
                 "openvino.standard.cpu.fp16.default.v1",
             (OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.RouteDefault) =>
                 "openvino.standard.cpu.int8.default.v1",
             (OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.U8) =>
                 "openvino.standard.cpu.int8.u8.v1",
+            (OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.RouteDefault) =>
+                "openvino.standard.cpu.int4.default.v1",
             (OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.U8) =>
                 "openvino.standard.cpu.int4.u8.v1",
             _ => throw new ArgumentOutOfRangeException(nameof(weights)),
@@ -293,7 +331,9 @@ internal sealed class OpenVinoOptimizationProductionAuthority
     }
 
     private sealed class OpenVinoComposer(
-        IEnumerable<OpenVinoExecutionAuthority> authorities)
+        IEnumerable<OpenVinoExecutionAuthority> authorities,
+        string currentEvidenceId,
+        ContractWeight currentWeightPrecision)
         : IOptimizationExecutionPayloadComposer
     {
         private readonly IReadOnlyDictionary<string, OpenVinoExecutionAuthority>
@@ -332,8 +372,9 @@ internal sealed class OpenVinoOptimizationProductionAuthority
 
         internal OptimizationExecutionPayload ComposeCurrent()
         {
-            OpenVinoExecutionAuthority exact = _authorities["OV-STD-CPU-FP16-01"];
-            return CreatePayload(exact, ContractWeight.Fp16,
+            OpenVinoExecutionAuthority exact =
+                _authorities[currentEvidenceId];
+            return CreatePayload(exact, currentWeightPrecision,
                 ContractKv.ReleasedDefault, compiledCache: false);
         }
 

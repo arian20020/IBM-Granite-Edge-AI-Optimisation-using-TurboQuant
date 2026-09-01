@@ -192,17 +192,19 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                 .ConfigureAwait(false);
             validator.Accept(hello);
             validator.Accept(command);
+            DateTimeOffset sessionLoadDeadline =
+                DateTimeOffset.UtcNow + _options.SessionLoadTimeout;
             await WriteWithDeadlineAsync(
                     session,
                     OpenVinoProtocolJson.Serialize(command),
-                    startupDeadline,
+                    sessionLoadDeadline,
                     cancellationToken)
                 .ConfigureAwait(false);
 
             IOpenVinoEvent started = await ReadEventWithDeadlineAsync(
                     session,
                     processExit,
-                    RemainingUntil(startupDeadline),
+                    RemainingUntil(sessionLoadDeadline),
                     cancellationToken)
                 .ConfigureAwait(false);
             validator.Accept(started);

@@ -451,7 +451,12 @@ package_lease acquire_package(
             model.length != expected_model_length) {
             fail("package identity mismatch");
         }
-        lease.evidence_ = {digest, model.digest, model.length};
+        const bool has_chat_template = std::any_of(
+            entries.begin(), entries.end(), [](const snapshot_entry& entry) {
+                return entry.relative == "chat_template.jinja" ||
+                    entry.relative == "chat_template.json";
+            });
+        lease.evidence_ = {digest, model.digest, model.length, has_chat_template};
         lease.verify_topology(true);
         return lease;
     } catch (...) {

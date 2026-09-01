@@ -65,6 +65,7 @@ namespace GraniteEdgeAI.Features.Onboarding
         private ChatPage? _attachedChatPage;
         private ChatDemoController? _chatController;
         private bool _ggufChatRouteRegistered;
+        private int _openVinoChatLaunchFaultReported;
         private int _ggufChatLaunchFaultReported;
         private int _optimizationIntentFaultReported;
         private readonly OptimizationChatHandoffGate _optimizationChatHandoff = new();
@@ -903,12 +904,13 @@ namespace GraniteEdgeAI.Features.Onboarding
                     continueDestinationAvailable: true);
             }
             else if (hasOpenVino
-                && modelPage.TryCreateOpenVinoOptimizationService(
-                    out OpenVinoOptimizationService? openVinoService,
+                && modelPage.TryGetOpenVinoBuildEvidence(
                     out GraniteEdgeAI.OpenVino.Contracts.OpenVinoBuildEvidence?
                         openVinoBuilds)
                 && OpenVinoOptimizationProductionAuthority.TryCreate(
                     preparedOpenVino!, openVinoBuilds!,
+                    modelPage.TryCreateOpenVinoOptimizationService(
+                        out OpenVinoOptimizationService? openVinoService),
                     out OpenVinoOptimizationProductionAuthority? openVinoProduction))
             {
                 _activeGgufAuthority = null;
@@ -1604,22 +1606,76 @@ namespace GraniteEdgeAI.Features.Onboarding
             }
             if (eventArguments.Handoff.Route == OptimizationRoute.OpenVino
                 && _modelInspectionPageForHardwareReturn is { } openVinoPage
-                && await openVinoPage.ActivateOpenVinoChatAsync(
+                && await ActivateOpenVinoCurrentModelChatAsync(
+                    openVinoPage,
+                    openVinoPage.ActivateOpenVinoChatAsync,
                     CancellationToken.None))
             {
-                DetachCompatibilityPage();
-                DetachHardwareInspectionPage();
-                StageFrame.Content = openVinoPage;
-                StageFrame.BackStack.Clear();
-                StageFrame.ForwardStack.Clear();
-                AttachModelInspectionPage(openVinoPage);
-                CurrentStage = OnboardingStage.ReadyToChat;
-                StageIndicator.CurrentStage = CurrentStage;
                 return;
             }
             _ = await CurrentModelChatLaunchRegistry.LaunchAsync(
                 eventArguments.Handoff,
                 CancellationToken.None);
+        }
+
+        internal async Task<bool> ActivateOpenVinoCurrentModelChatAsync(
+            ModelInspectionPage openVinoPage,
+            Func<CancellationToken, Task<bool>> activateAsync,
+            CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(openVinoPage);
+            ArgumentNullException.ThrowIfNull(activateAsync);
+            CompatibilityPage? compatibilityPage = _attachedCompatibilityPage;
+            if (compatibilityPage is null
+                || !ReferenceEquals(
+                    openVinoPage,
+                    _modelInspectionPageForHardwareReturn)
+                || !ReferenceEquals(StageFrame.Content, compatibilityPage))
+            {
+                return false;
+            }
+
+            // A WinUI page must be reconnected to the Frame before activation
+            // mutates its prompt controls. Activating the retained, detached
+            // inspection page can dereference stale XAML/COM peers and terminate
+            // the process after the native session has loaded successfully.
+            StageFrame.Content = openVinoPage;
+            StageFrame.BackStack.Clear();
+            StageFrame.ForwardStack.Clear();
+
+            bool activated;
+            try
+            {
+                activated = await activateAsync(cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                if (Interlocked.Exchange(
+                        ref _openVinoChatLaunchFaultReported,
+                        1) == 0)
+                {
+                    BoundedApplicationFaultReporter.Shared.Report(
+                        ApplicationFault.FromException(
+                            ApplicationFaultCode.OpenVinoChatOperationUnexpected,
+                            exception));
+                }
+                activated = false;
+            }
+
+            if (!activated)
+            {
+                StageFrame.Content = compatibilityPage;
+                StageFrame.BackStack.Clear();
+                StageFrame.ForwardStack.Clear();
+                return false;
+            }
+
+            DetachCompatibilityPage();
+            DetachHardwareInspectionPage();
+            AttachModelInspectionPage(openVinoPage);
+            CurrentStage = OnboardingStage.ReadyToChat;
+            StageIndicator.CurrentStage = CurrentStage;
+            return true;
         }
 
         private void HardwareInspectionPage_ActionRequested(

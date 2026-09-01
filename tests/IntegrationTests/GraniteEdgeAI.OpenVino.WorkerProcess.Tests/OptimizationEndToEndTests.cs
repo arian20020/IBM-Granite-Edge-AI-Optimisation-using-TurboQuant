@@ -110,6 +110,60 @@ public sealed class OptimizationEndToEndTests
     }
 
     [TestMethod]
+    [TestCategory("ManualRealModel")]
+    [Timeout(7_200_000)]
+    public async Task SealedWorkerOptimizesTheConfiguredRealPackageToInt4Offline()
+    {
+        string? sourceValue = Environment.GetEnvironmentVariable(
+            "GRANITE_OPENVINO_REAL_MODEL");
+        if (string.IsNullOrWhiteSpace(sourceValue))
+        {
+            Assert.Inconclusive(
+                "GRANITE_OPENVINO_REAL_MODEL is required for the real-package check.");
+        }
+
+        string source = Path.GetFullPath(sourceValue!);
+        string stage = RequireStage();
+        string manifestDigest = Digest(Path.Combine(stage, "converter-manifest.json"));
+        SealedOpenVinoOptimizationPipeline pipeline = new(
+            stage,
+            manifestDigest,
+            new OpenVinoRouteService(new UnusedWorkerClient()));
+        string output = Path.Combine(
+            Path.GetTempPath(),
+            "GraniteEdgeAI-RealInt4-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(output);
+        try
+        {
+            OpenVinoOptimizationCandidate candidate =
+                OpenVinoOptimizationLegacyRegistryV1.GetRequired(
+                    OpenVinoOptimizationObjective.Efficiency);
+            OpenVinoOptimizationCompletion completion = await pipeline.OptimizeAsync(
+                new OpenVinoOptimizationInvocation(
+                    Guid.NewGuid(),
+                    source,
+                    output,
+                    new string('a', 64),
+                    candidate),
+                CancellationToken.None);
+
+            Assert.AreEqual(
+                OpenVinoWeightPrecision.FourBit,
+                completion.ActualWeightPrecision);
+            string sourceWeights = Path.Combine(source, "openvino_model.bin");
+            string optimizedWeights = Path.Combine(output, "openvino_model.bin");
+            Assert.IsTrue(File.Exists(optimizedWeights));
+            Assert.IsTrue(
+                new FileInfo(optimizedWeights).Length < new FileInfo(sourceWeights).Length,
+                "The real INT4 artifact must be smaller than its FP16 source.");
+        }
+        finally
+        {
+            if (Directory.Exists(output)) Directory.Delete(output, recursive: true);
+        }
+    }
+
+    [TestMethod]
     [TestCategory("StableRouteAcceptance")]
     [Timeout(600_000)]
     public async Task SupportedLegacyCandidatesPublishAndEnabledCacheFailsClosed()
@@ -319,6 +373,96 @@ public sealed class OptimizationEndToEndTests
         finally
         {
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    [TestCategory("ManualRealModel")]
+    [Timeout(7_200_000)]
+    public async Task ConfiguredRealPackageCompletesTheInt4ValidationAndSmokeFlow()
+    {
+        string? sourceValue = Environment.GetEnvironmentVariable(
+            "GRANITE_OPENVINO_REAL_MODEL");
+        if (string.IsNullOrWhiteSpace(sourceValue))
+        {
+            Assert.Inconclusive(
+                "GRANITE_OPENVINO_REAL_MODEL is required for the real-package check.");
+        }
+
+        string source = Path.GetFullPath(sourceValue!);
+        string converterStage = RequireStage();
+        string officialStage = RequireOfficialStage();
+        string manifestDigest = Digest(Path.Combine(
+            converterStage, "converter-manifest.json"));
+        OpenVinoBuildEvidence currentBuilds = new(
+            "2026.3.0-22451-8a17657b995-releases/2026/3",
+            "2026.3.0.0-3277-bd8d6542e3c",
+            "2026.3.0.0-703-183c6f25cda",
+            Digest(Path.Combine(officialStage, "worker-manifest.json")));
+        OpenVinoOptimizationCapabilityEvidence currentEvidence =
+            NativeCapabilityEvidence(currentBuilds);
+        OpenVinoCapabilityPayload payload = OpenVinoOptimizationCapabilityProjector.Project(
+            currentEvidence);
+        OpenVinoAdmittedConfiguration admission = payload.Admitted.Single(
+            static item => item.EvidenceId == "OV-STD-CPU-INT4-U8-01");
+        OptimizationCapabilitySnapshot snapshot =
+            OptimizationCapabilitySnapshot.ForOpenVino(
+                "ov-real-int4-e2e-1",
+                DigestCapability(payload),
+                payload);
+        OpenVinoStaticPackageEvidence sourceEvidence =
+            new OpenVinoStaticPackageInspector().Inspect(source).Evidence
+            ?? throw new AssertFailedException("The configured package was not inspectable.");
+        OptimizationExecutionPlan plan = IssuePlan(
+            admission,
+            snapshot,
+            sourceEvidence,
+            currentEvidence);
+        OpenVinoRouteService route = CreateRoute(officialStage);
+        OpenVinoOptimizationService service = new(
+            new SealedOpenVinoOptimizationPipeline(
+                converterStage,
+                manifestDigest,
+                route),
+            _ => true);
+        string destination = Path.Combine(
+            Path.GetTempPath(),
+            "GraniteEdgeAI-RealInt4Flow-" + Guid.NewGuid().ToString("N"));
+        List<OpenVinoOptimizationStage> stages = [];
+        try
+        {
+            OpenVinoOptimizationResult result = await service.OptimizeAsync(
+                new OpenVinoOptimizationRequest(
+                    source,
+                    destination,
+                    plan,
+                    new FixedCurrentStateProvider(new(
+                        snapshot,
+                        currentEvidence,
+                        plan.Binding.ModelInspectionRunId,
+                        plan.Binding.ModelInspectionHandoffId,
+                        plan.Binding.ProductHardwareRunId,
+                        plan.Binding.HardwareSnapshotSha256)),
+                    Confirmed: true),
+                new InlineProgress<OpenVinoOptimizationProgress>(value =>
+                    stages.Add(value.Stage)),
+                CancellationToken.None);
+
+            Assert.AreEqual(
+                OpenVinoOptimizationStatus.Published,
+                result.Status,
+                $"route={result.SupportCode}; execution={result.ExecutionSupportCode}; "
+                + $"stages={string.Join(',', stages)}");
+            Assert.IsTrue(File.Exists(Path.Combine(
+                destination,
+                OpenVinoOptimizationProvenance.FileName)));
+        }
+        finally
+        {
+            if (Directory.Exists(destination))
+            {
+                Directory.Delete(destination, recursive: true);
+            }
         }
     }
 
@@ -1347,6 +1491,18 @@ public sealed class OptimizationEndToEndTests
                     Streams: 1,
                     MinimumContextTokens: 4_096,
                     MaximumContextTokens: 4_096,
+                    OpenVinoCapabilityMaturity.Released),
+                new OpenVinoOptimizationCapabilityAdmission(
+                    "OV-STD-CPU-INT4-U8-01",
+                    Device: "CPU",
+                    OpenVinoWeightPrecision.FourBit,
+                    new OpenVinoRuntimeOptimization(
+                        OpenVinoKvCachePrecision.U8,
+                        RouteCompiledCachePolicy.Disabled),
+                    OpenVinoCapabilityPerformanceHint.Latency,
+                    Streams: 1,
+                    MinimumContextTokens: 4_096,
+                    MaximumContextTokens: 4_096,
                     OpenVinoCapabilityMaturity.Released)
             ]);
 
@@ -1397,17 +1553,23 @@ public sealed class OptimizationEndToEndTests
         OptimizationSelection selection = (OptimizationSelection)
             selectionConstructor.Invoke([candidate, preference, false]);
         OpenVinoOptimizationToolVersions versions = currentEvidence.Versions;
+        bool int4 = admission.Weights == OpenVinoWeightFormat.Int4;
         ContractExecutionPayload executionPayload =
             ContractExecutionPayload.ForOpenVino(
                 ContractOpenVinoExecutionPayload.Create(
-                    "openvino.standard.cpu.int8.u8.v1",
+                    int4
+                        ? "openvino.standard.cpu.int4.u8.v1"
+                        : "openvino.standard.cpu.int8.u8.v1",
                     "CPU",
                     "Standard candidate",
                     admission.EvidenceId,
                     GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
                         .Optimization.Execution.OpenVinoWeightPrecision.Fp16,
-                    GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
-                        .Optimization.Execution.OpenVinoWeightPrecision.EightBit,
+                    int4
+                        ? GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
+                            .Optimization.Execution.OpenVinoWeightPrecision.FourBit
+                        : GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
+                            .Optimization.Execution.OpenVinoWeightPrecision.EightBit,
                     GraniteEdgeAI.ModelHardwareCompatibility.Core.Application
                         .Optimization.Execution.OpenVinoKvCachePrecision.U8,
                     compiledCacheEnabled: false,
