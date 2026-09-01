@@ -371,7 +371,22 @@ def _resolve_path(value: Any, field: str) -> Path:
     try:
         resolved.relative_to(ROOT.resolve())
     except ValueError as exc:
-        raise ValueError(f"{field} must remain inside the repository") from exc
+        parts = resolved.parts
+        lowered = [part.casefold() for part in parts]
+        matches = [
+            index
+            for index in range(len(parts) - 1)
+            if lowered[index : index + 2] == ["experiments", "raw-results"]
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"{field} must remain inside the repository") from exc
+        resolved = (ROOT / Path(*parts[matches[0] :])).resolve()
+        try:
+            resolved.relative_to(ROOT.resolve())
+        except ValueError as rebase_error:
+            raise ValueError(
+                f"{field} must remain inside the repository"
+            ) from rebase_error
     return resolved
 
 
@@ -642,6 +657,7 @@ def _load_source_sample(
         or Path(canonical.get("source", "")).resolve() != path.resolve()
     ):
         raise ValueError(f"{key}/{sample_id} canonical source identity mismatch")
+    canonical["source"] = source["path"]
     metrics = {
         metric: _finite_number(
             canonical.get(metric), f"{key}/{sample_id}.{metric}"
@@ -2710,16 +2726,26 @@ def _validate_direct_quality_resource_blocker(
             command[spec_index], f"{key} quality blocker spec path"
         )
         bound_inputs = guard.get("bound_inputs")
-        expected_bound_input = {
-            "name": "quality_worker_spec",
-            "path": str(spec_path),
-            "sha256": _sha256_file(spec_path),
-        }
+        spec_sha256 = _sha256_file(spec_path)
+        bound_input = (
+            bound_inputs[0]
+            if isinstance(bound_inputs, list) and len(bound_inputs) == 1
+            else None
+        )
+        bound_input_matches = (
+            isinstance(bound_input, dict)
+            and bound_input.get("name") == "quality_worker_spec"
+            and bound_input.get("sha256") == spec_sha256
+            and _resolve_path(
+                bound_input.get("path"),
+                f"{key} quality blocker bound spec path",
+            )
+            == spec_path
+        )
         if (
             spec_path != (guard_path.parent / "worker-spec.json").resolve()
-            or bound_inputs != [expected_bound_input]
-            or (spec_path, expected_bound_input["sha256"])
-            not in spec_sources
+            or not bound_input_matches
+            or (spec_path, spec_sha256) not in spec_sources
             or not _quality_spec_matches_case(
                 _read_json(spec_path),
                 case,

@@ -5,6 +5,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -157,27 +158,41 @@ class OfficialOpenVINOQualityRunnerTests(unittest.TestCase):
             require_runtime_summary("OV-TQ-03", None)
 
     def test_frozen_prompt_sources_reject_same_id_substitution(self):
+        from scripts.testing.official_openvino.quality_contracts import (
+            QUALITY_CONTRACTS,
+        )
+
         prompt_root = self.root / "prompts"
         shutil.copytree(PROMPT_SET.parent, prompt_root)
         copied_prompt_set = prompt_root / PROMPT_SET.name
         copied_rendered = prompt_root / "rendered"
-
-        p1 = copied_rendered / "P1.txt"
-        p1.write_text(
-            p1.read_text(encoding="utf-8") + "\nSubstituted instruction.",
-            encoding="utf-8",
+        controlled = replace(
+            QUALITY_CONTRACTS["GTQ-PROMPTS-v1"],
+            rendered_root=copied_rendered.resolve(),
         )
-        with self.assertRaisesRegex(ValueError, "frozen rendered prompt hash"):
-            load_prompt_contract(copied_prompt_set, copied_rendered)
+        with patch.dict(
+            QUALITY_CONTRACTS,
+            {"GTQ-PROMPTS-v1": controlled},
+        ):
+            p1 = copied_rendered / "P1.txt"
+            p1.write_text(
+                p1.read_text(encoding="utf-8") + "\nSubstituted instruction.",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "frozen rendered prompt hash"):
+                load_prompt_contract(copied_prompt_set, copied_rendered)
 
-        shutil.rmtree(prompt_root)
-        shutil.copytree(PROMPT_SET.parent, prompt_root)
-        copied_prompt_set = prompt_root / PROMPT_SET.name
-        prompt_payload = json.loads(copied_prompt_set.read_text(encoding="utf-8"))
-        prompt_payload["purpose"] = "same ID, substituted prompt set"
-        copied_prompt_set.write_text(json.dumps(prompt_payload), encoding="utf-8")
-        with self.assertRaisesRegex(ValueError, "frozen prompt-set hash"):
-            load_prompt_contract(copied_prompt_set, prompt_root / "rendered")
+            shutil.rmtree(prompt_root)
+            shutil.copytree(PROMPT_SET.parent, prompt_root)
+            copied_prompt_set = prompt_root / PROMPT_SET.name
+            prompt_payload = json.loads(copied_prompt_set.read_text(encoding="utf-8"))
+            prompt_payload["purpose"] = "same ID, substituted prompt set"
+            copied_prompt_set.write_text(json.dumps(prompt_payload), encoding="utf-8")
+            with self.assertRaisesRegex(
+                ValueError,
+                "prompt contract hash|frozen prompt-set hash",
+            ):
+                load_prompt_contract(copied_prompt_set, prompt_root / "rendered")
 
     def test_prompt_contract_parses_the_exact_bytes_that_were_hashed(self):
         altered = json.loads(PROMPT_SET.read_text(encoding="utf-8"))

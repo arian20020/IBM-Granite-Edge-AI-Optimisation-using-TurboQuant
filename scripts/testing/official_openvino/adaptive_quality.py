@@ -693,7 +693,7 @@ def _load_prompt_execution(
     campaign: AcceptedQualityCampaign,
     prompt_id: str,
     prompt_root: Path,
-    timeout_seconds: float,
+    timeout_seconds: float | None,
     *,
     evidence_paths: Mapping[str, Any] | None = None,
 ) -> GovernedQualityPromptResult:
@@ -733,6 +733,27 @@ def _load_prompt_execution(
     )
     evidence_raw = evidence_path.read_bytes()
     evidence = _strict_object(evidence_raw, source=evidence_path)
+    effective_timeout = timeout_seconds
+    if effective_timeout is None:
+        timeout_evidence = evidence
+        if evidence.get("schema") == TERMINAL_GUARD_SCHEMA:
+            preserved_path = root / "guard-evidence.json"
+            if preserved_path != evidence_path:
+                timeout_evidence = _strict_object(
+                    preserved_path.read_bytes(), source=preserved_path
+                )
+            else:
+                effective_timeout = 0.0
+        if effective_timeout is None:
+            persisted_timeout = timeout_evidence.get("maximum_runtime_seconds")
+            if (
+                isinstance(persisted_timeout, bool)
+                or not isinstance(persisted_timeout, (int, float))
+                or not math.isfinite(persisted_timeout)
+                or not 0 < persisted_timeout <= campaign.timeout_seconds
+            ):
+                raise ValueError("quality prompt persisted timeout is invalid")
+            effective_timeout = float(persisted_timeout)
     command = [
         str(campaign.python_executable),
         "-m",
@@ -761,7 +782,7 @@ def _load_prompt_execution(
             command=command,
             campaign=campaign,
             prompt_root=root,
-            timeout_seconds=timeout_seconds,
+            timeout_seconds=effective_timeout,
             spec_sha256=spec_sha256,
             log_sha256=log_sha256,
         )
@@ -773,7 +794,7 @@ def _load_prompt_execution(
         worker_result_sha256=hashlib.sha256(result_raw).hexdigest(),
         guard_evidence_sha256=hashlib.sha256(evidence_raw).hexdigest(),
         cleanup_process_count=cleanup,
-        timeout_seconds=float(timeout_seconds),
+        timeout_seconds=float(effective_timeout),
     )
 
 
@@ -1611,7 +1632,7 @@ def capture_isolated_quality_campaign(
                             accepted,
                             prompt_id,
                             recovery_root,
-                            accepted.timeout_seconds,
+                            None,
                             evidence_paths=evidence_paths,
                         )
                         results[prompt_id] = current
@@ -1635,7 +1656,7 @@ def capture_isolated_quality_campaign(
                 accepted,
                 prompt_id,
                 primary_root,
-                accepted.timeout_seconds,
+                None,
                 evidence_paths=evidence_paths,
             )
             results[prompt_id] = current
@@ -1653,7 +1674,7 @@ def capture_isolated_quality_campaign(
                     accepted,
                     prompt_id,
                     recovery_root,
-                    accepted.timeout_seconds,
+                    None,
                     evidence_paths=evidence_paths,
                 )
                 results[prompt_id] = current

@@ -69,13 +69,16 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
         self.destination = self.root / "derived"
 
         git("init", str(self.control))
+        git("-C", str(self.control), "config", "core.autocrlf", "false")
         for directory in (
             "experiments/patches/openvino-turboquant",
             "experiments/patches/openvino-cpu-state-observer",
         ):
             patch_dir = self.control / directory
             patch_dir.mkdir(parents=True)
-            (patch_dir / "README.md").write_text("controlled patches\n", encoding="utf-8")
+            (patch_dir / "README.md").write_text(
+                "controlled patches\n", encoding="utf-8", newline="\n"
+            )
         git("-C", str(self.control), "add", ".")
         git(
             "-C",
@@ -90,7 +93,10 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
         )
 
         git("init", str(self.upstream))
-        (self.upstream / "value.txt").write_text("base\n", encoding="utf-8")
+        git("-C", str(self.upstream), "config", "core.autocrlf", "false")
+        (self.upstream / "value.txt").write_text(
+            "base\n", encoding="utf-8", newline="\n"
+        )
         git("-C", str(self.upstream), "add", "value.txt")
         git(
             "-C",
@@ -127,12 +133,14 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
     def add_tracked_patch(self, spec=None) -> Path:
         spec = patch_identity.GENAI_TURBOQUANT_SPEC if spec is None else spec
         patch_path = self.control / spec.patch_directory / "0001-value.patch"
-        (self.upstream / "value.txt").write_text("patched\n", encoding="utf-8")
+        (self.upstream / "value.txt").write_text(
+            "patched\n", encoding="utf-8", newline="\n"
+        )
         patch_text = subprocess.check_output(
             ["git", "-c", "core.longpaths=true", "-C", str(self.upstream), "diff"],
             text=True,
         )
-        patch_path.write_text(patch_text, encoding="utf-8")
+        patch_path.write_text(patch_text, encoding="utf-8", newline="\n")
         git("-C", str(self.upstream), "checkout", "--", "value.txt")
         git("-C", str(self.control), "add", patch_path.relative_to(self.control).as_posix())
         git(
@@ -167,6 +175,7 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
                 )
             ),
             encoding="utf-8",
+            newline="\n",
         )
         return patch_path
 
@@ -362,7 +371,10 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
             self.assertFalse(link.exists())
             return
         self.assertTrue(patch_identity._is_link_or_reparse(link))
-        with patch.object(patch_identity, "_clean", return_value=True):
+        with (
+            patch.object(patch_identity, "REPO_ROOT", self.control),
+            patch.object(patch_identity, "_clean", return_value=True),
+        ):
             with self.assertRaisesRegex(ValueError, "symlink|reparse"):
                 patch_identity._controlled_patches(
                     patch_identity.GENAI_TURBOQUANT_SPEC

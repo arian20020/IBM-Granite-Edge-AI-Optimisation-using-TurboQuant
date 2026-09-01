@@ -2,6 +2,7 @@ import copy
 import hashlib
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -158,6 +159,28 @@ def rehash_payload(payload: dict) -> None:
 
 
 class ScalarSemanticRejectionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.python_config_directory = tempfile.TemporaryDirectory()
+        config_path = Path(cls.python_config_directory.name) / "pyvenv.cfg"
+        version = ".".join(str(part) for part in sys.version_info[:3])
+        config_path.write_text(
+            f"version = {version}\n"
+            f"executable = {Path(sys.executable).resolve()}\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        cls.python_config_environment = mock.patch.dict(
+            os.environ,
+            {"OPENVINO_WB04_PYTHON_CONFIG": str(config_path.resolve())},
+        )
+        cls.python_config_environment.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.python_config_environment.stop()
+        cls.python_config_directory.cleanup()
+
     def test_generates_exact_four_probe_set_with_precision_mappings(self):
         payload = generate()
 

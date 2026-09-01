@@ -1,6 +1,7 @@
 import hashlib
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -284,10 +285,22 @@ def test_duplicate_measurement_identity_key_is_rejected_before_generation(
     assert not (tmp_path / "quality").exists()
 
 
-def test_missing_p5_fixture_fails_closed_before_generation(tmp_path):
+def test_missing_p5_fixture_fails_closed_before_generation(tmp_path, monkeypatch):
+    from scripts.testing.official_openvino.quality_contracts import (
+        QUALITY_CONTRACTS,
+    )
+
     copied_prompts = tmp_path / "prompts"
     shutil.copytree(PROMPT_ROOT, copied_prompts)
     (copied_prompts / "fixtures" / "P5-long-context-v1.txt").unlink()
+    monkeypatch.setitem(
+        QUALITY_CONTRACTS,
+        "GTQ-PROMPTS-v1",
+        replace(
+            QUALITY_CONTRACTS["GTQ-PROMPTS-v1"],
+            rendered_root=(copied_prompts / "rendered").resolve(),
+        ),
+    )
     generator = FakeGenerator()
 
     with pytest.raises(ValueError, match="P5|fixture"):

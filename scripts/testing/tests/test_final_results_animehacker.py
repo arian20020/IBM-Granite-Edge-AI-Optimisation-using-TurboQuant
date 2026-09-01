@@ -12,6 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from scripts.testing.final_results import llama_adapter
 from scripts.testing.final_results.csvio import validate_json
 from scripts.testing.final_results.llama_adapter import (
     ANIMEHACKER_EXPECTED_IDS,
@@ -30,6 +31,23 @@ from scripts.testing.final_results.report_model import ReportParagraph, ReportTa
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 ROUTE = REPOSITORY_ROOT / "docs/testing/final-results/03-animehacker-tq3-0"
 RAW = Path("experiments/raw-results/animehacker-tq3-0/2026-07-18")
+
+
+@pytest.fixture
+def isolated_route(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    route = REPOSITORY_ROOT / ".pytest_cache" / "animehacker" / tmp_path.name
+    if route.exists():
+        raise FileExistsError(route)
+    shutil.copytree(ROUTE, route)
+    monkeypatch.setattr(
+        llama_adapter,
+        "ANIMEHACKER_ROUTE_RELATIVE",
+        route.relative_to(REPOSITORY_ROOT),
+    )
+    try:
+        yield route
+    finally:
+        shutil.rmtree(route)
 
 
 def _copy_sources(tmp_path: Path) -> Path:
@@ -358,22 +376,24 @@ def test_reconciliation_status_mutation_is_rejected(tmp_path: Path):
         audit_animehacker_sources(root)
 
 
-def test_generated_route_has_common_structure_parity_integrity_and_portability():
+def test_generated_route_has_common_structure_parity_integrity_and_portability(
+    isolated_route: Path,
+):
     bundle = write_animehacker_route(REPOSITORY_ROOT)
-    markdown = ROUTE / "workbook/source/animehacker-tq3-0-final-report.md"
+    markdown = isolated_route / "workbook/source/animehacker-tq3-0-final-report.md"
     text = markdown.read_text(encoding="utf-8")
 
     assert all(heading in text for heading in SECTION_ORDER)
     assert "seven" in text.lower() and "three" in text.lower()
     assert "historical failure" in text.lower()
     assert "Not collected" in text
-    assert json.loads((ROUTE / "validation/workbook-parity.json").read_text())["matches"] is True
-    assert json.loads((ROUTE / "validation/relationship-validation.json").read_text())["valid"] is True
-    assert json.loads((ROUTE / "validation/coverage-validation.json").read_text())["valid"] is True
+    assert json.loads((isolated_route / "validation/workbook-parity.json").read_text())["matches"] is True
+    assert json.loads((isolated_route / "validation/relationship-validation.json").read_text())["valid"] is True
+    assert json.loads((isolated_route / "validation/coverage-validation.json").read_text())["valid"] is True
     assert len(bundle.attempts) > 10
 
     forbidden = ("C:\\Users\\", "C:/Users/", "\\\\?\\", str(REPOSITORY_ROOT))
-    for path in ROUTE.rglob("*"):
+    for path in isolated_route.rglob("*"):
         if path.is_file() and path.suffix.lower() not in {".docx", ".pdf"}:
             rendered = path.read_text(encoding="utf-8", errors="ignore")
             assert not any(value in rendered for value in forbidden), path
@@ -423,7 +443,7 @@ def test_generated_inventory_manifest_and_reproduction_contract():
     assert len(lines) == len(files) - 1
 
 
-def test_pdf_finalizer_uses_actual_structural_page_count():
+def test_pdf_finalizer_uses_actual_structural_page_count(isolated_route: Path):
     receipt = finalize_animehacker_route(REPOSITORY_ROOT)
     assert receipt["valid"] is True
     assert receipt["checks"]["page_count"] >= 7

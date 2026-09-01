@@ -478,6 +478,55 @@ def test_capture_caps_each_prompt_by_one_absolute_monotonic_deadline(
     assert observed_timeouts == [90.0, 90.0, 80.0, 70.0, 60.0, 50.0]
 
 
+def test_resume_reopens_unsummarized_prompts_with_persisted_reduced_timeouts(
+    tmp_path, monkeypatch,
+):
+    from scripts.testing.official_openvino import adaptive_quality
+
+    source = replace(_accepted_input(tmp_path), timeout_seconds=90.0)
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
+    clock = SimpleNamespace(now=0.0)
+    delegate = RecordingGuardRunner()
+    real_write = adaptive_quality._write_fresh
+
+    def runner(**kwargs):
+        result = delegate(**kwargs)
+        clock.now += 10.0
+        return result
+
+    def interrupt_summary(path, raw):
+        if Path(path).name == "capture-summary.json":
+            raise RuntimeError("synthetic summary interruption")
+        return real_write(path, raw)
+
+    monkeypatch.setattr(adaptive_quality, "_write_fresh", interrupt_summary)
+    with pytest.raises(RuntimeError, match="summary interruption"):
+        adaptive_quality.capture_isolated_quality_campaign(
+            source,
+            resume=False,
+            run_command=runner,
+            monotonic_deadline=100.0,
+            monotonic=lambda: clock.now,
+        )
+    assert [
+        json.loads(
+            (source.output_root / prompt_id / "guard-evidence.json").read_text(
+                encoding="utf-8"
+            )
+        )["maximum_runtime_seconds"]
+        for prompt_id in adaptive_quality.PROMPT_IDS
+    ] == [90.0, 90.0, 80.0, 70.0, 60.0, 50.0]
+
+    monkeypatch.setattr(adaptive_quality, "_write_fresh", real_write)
+    forbidden = RecordingGuardRunner()
+    resumed = adaptive_quality.capture_isolated_quality_campaign(
+        source, resume=True, run_command=forbidden
+    )
+
+    assert forbidden.calls == []
+    assert resumed["status"] == "passed"
+
+
 def test_capture_deadline_expiry_before_prompt_persists_terminal_without_launch(
     tmp_path, monkeypatch,
 ):

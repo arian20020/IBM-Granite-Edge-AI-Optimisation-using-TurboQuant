@@ -210,6 +210,9 @@ def test_quality_reconciliation_reopens_six_prompt_receipts_and_hashes(tmp_path)
     assert evidence["capture_summary"]["sha256"] == hashlib.sha256(
         Path(evidence["capture_summary"]["path"]).read_bytes()
     ).hexdigest()
+    assert evidence["cleanup_proof"]["source"] == "validated-quality-receipts"
+    assert evidence["cleanup_proof"]["safe"] is True
+    assert len(evidence["cleanup_proof"]["prompt_guards"]) == 6
     for receipt in evidence["prompt_receipts"]:
         assert receipt["cleanup_process_count"] == 0
         assert receipt["active_pids_after_cleanup"] == []
@@ -580,6 +583,18 @@ def _install_controller_boundaries(monkeypatch, tmp_path):
                 {"prompt_id": prompt_id, "outcomes": [{"status": "complete"}]}
                 for prompt_id in ("P1", "P2", "P3", "P4", "P5", "P6")
             ],
+            "cleanup_proof": {
+                "safe": True,
+                "source": "validated-quality-receipts",
+                "capture_summary": _binding(summary),
+                "prompt_guards": [
+                    receipt["evidence"]["guard_evidence"] for receipt in receipts
+                ],
+                "cleanup_process_count": 0,
+                "residual_owned_process_count": 0,
+                "emergency_actions": [],
+                "active_pids_after_cleanup": [],
+            },
         }
 
     monkeypatch.setattr(format_boundary, "reconcile_runtime_evidence", runtime)
@@ -678,6 +693,49 @@ def test_terminal_f16_prerequisite_stops_cpu_but_gpu_control_still_runs(
     assert state["gpu_lane"]["accepted_count"] == 1
 
 
+def test_campaign_uses_one_named_job_for_every_measurement_launch(
+    tmp_path, monkeypatch,
+):
+    from scripts.testing.official_openvino import format_boundary
+
+    _install_controller_boundaries(monkeypatch, tmp_path)
+    config = _controller_config(tmp_path)
+    jobs = []
+
+    class CampaignJob:
+        def __init__(self, name):
+            self.name = name
+            self.closed = False
+            jobs.append(self)
+
+        def active_pids(self):
+            return []
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr(format_boundary, "KillOnCloseJob", CampaignJob)
+    observed = []
+
+    def measure(**kwargs):
+        observed.append(kwargs.get("campaign_job"))
+        return {"untrusted": True}
+
+    format_boundary.run_boundary_campaign(
+        config,
+        run_measurement=measure,
+        run_quality=lambda *_args, **_kwargs: {"untrusted": True},
+        available_ram=lambda: 8 * 1024**3,
+    )
+
+    assert len(jobs) == 1
+    assert observed and all(job is jobs[0] for job in observed)
+    assert jobs[0].name == format_boundary._boundary_campaign_job_name(
+        config.campaign_root
+    )
+    assert jobs[0].closed is True
+
+
 @pytest.mark.parametrize(
     ("codes", "expected"),
     [
@@ -722,6 +780,53 @@ def test_retry_requires_safe_cleanup_and_compares_canonical_failures(
         assert terminal["attempts"][0]["fingerprint"] == terminal["attempts"][1]["fingerprint"]
     else:
         assert terminal["attempts"][0]["fingerprint"] != terminal["attempts"][1]["fingerprint"]
+
+
+def test_resume_recomputes_terminal_classification_from_bound_raw_records(
+    tmp_path, monkeypatch,
+):
+    from scripts.testing.official_openvino.format_boundary import run_boundary_campaign
+
+    _install_controller_boundaries(monkeypatch, tmp_path)
+    config = _controller_config(tmp_path)
+
+    def measure(**kwargs):
+        case_id = json.loads(Path(kwargs["spec_path"]).read_text())["controlled_test_id"]
+        if case_id == "gpu-u4-standard-control":
+            return {"untrusted": True}
+        raise _sequence_failure(tmp_path, case_id, "OOM")
+
+    run_boundary_campaign(
+        config,
+        run_measurement=measure,
+        run_quality=lambda *_args, **_kwargs: {"untrusted": True},
+        available_ram=lambda: 8 * 1024**3,
+    )
+    terminal_path = (
+        config.campaign_root / "cpu" / "cpu-u4-tbq3" / "terminal-boundary.json"
+    )
+    terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
+    for attempt in terminal["attempts"]:
+        attempt["reason_code"] = "forged-format-failure"
+        attempt["fingerprint"] = "0" * 64
+        attempt["retryable"] = True
+    terminal["reason_code"] = "forged-format-failure"
+    terminal["fingerprint"] = "0" * 64
+    _write_json(terminal_path, terminal)
+    state_path = config.campaign_root / "campaign-state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["cpu_lane"]["reason_code"] = "forged-format-failure"
+    _write_json(state_path, state)
+
+    with pytest.raises(ValueError, match="raw evidence"):
+        run_boundary_campaign(
+            replace(config, resume=True),
+            run_measurement=lambda **_kwargs: pytest.fail("tampered terminal reran"),
+            run_quality=lambda *_args, **_kwargs: pytest.fail(
+                "tampered terminal quality ran"
+            ),
+            available_ram=lambda: 8 * 1024**3,
+        )
 
 
 def test_unsafe_cleanup_gets_no_retry_sets_global_halt_and_skips_gpu(
@@ -769,6 +874,11 @@ def test_hard_emergency_ram_breach_has_one_attempt_and_no_launch(
     assert calls == []
     assert state["cpu_lane"]["attempt_count"] == 1
     assert state["cpu_lane"]["terminal_status"] == "emergency-ram-floor"
+    from scripts.testing.official_openvino.format_boundary import load_boundary_status
+
+    assert load_boundary_status(replace(config, resume=True))["cpu_lane"][
+        "terminal_status"
+    ] == "emergency-ram-floor"
 
 
 def test_governed_runtime_emergency_ram_record_is_hard_and_never_retried(
@@ -835,6 +945,8 @@ def test_cleanup_safe_quality_failure_retries_in_a_fresh_attempt_root(
             guard_path = input_value.output_root / "P1" / "guard-evidence.json"
             guard = _safe_failure_record("cpu-u4-tbq3", "quality-worker-failed")
             _write_json(guard_path, guard)
+            result_path = input_value.output_root / "P1" / "worker-result.json"
+            _write_json(result_path, {"outcomes": [{"failure_type": "RuntimeError"}]})
             summary = {
                 "schema": "official-openvino-adaptive-quality-capture/v1",
                 "status": "quality-blocked",
@@ -844,9 +956,8 @@ def test_cleanup_safe_quality_failure_retries_in_a_fresh_attempt_root(
                         "status": "failed",
                         "guard_evidence_path": str(guard_path.resolve()),
                         "guard_evidence_sha256": _binding(guard_path)["sha256"],
-                        "worker_result_path": str(
-                            (input_value.output_root / "P1" / "worker-result.json").resolve()
-                        ),
+                        "worker_result_path": str(result_path.resolve()),
+                        "worker_result_sha256": _binding(result_path)["sha256"],
                     }
                 ],
             }
@@ -1017,6 +1128,13 @@ def test_deadline_passes_remaining_budgets_and_rejects_late_quality(
     assert terminal["role"] == "quality"
     assert terminal["deadline_outcome"] == "exceeded-after-quality"
     assert terminal["stage_timeouts"] == {"measurement": 180.0, "quality": 70.0}
+    assert terminal["cleanup_proof"]["source"] == "validated-quality-receipts"
+    assert len(terminal["cleanup_proof"]["prompt_guards"]) == 6
+    from scripts.testing.official_openvino.format_boundary import load_boundary_status
+
+    assert load_boundary_status(replace(config, resume=True))["cpu_lane"][
+        "terminal_status"
+    ] == "row-deadline-exceeded"
 
 
 def test_resume_rehashes_accepted_evidence_and_never_reruns_rows(
@@ -1262,16 +1380,22 @@ def test_cli_contract_has_projection_modes_and_no_manual_spec_or_recovery():
 
 
 def _passing_python_probe(config):
+    openvino_path = (
+        config.python_site_packages / "openvino" / "__init__.py"
+    ).resolve()
+    genai_path = (config.build_root / "openvino_genai" / "__init__.py").resolve()
     return {
         "python_executable": str(config.python_executable.resolve()),
         "python_version": "3.13.7",
         "openvino": {
-            "path": str((config.python_site_packages / "openvino" / "__init__.py").resolve()),
+            "path": str(openvino_path),
             "version": "2026.2.0",
+            "sha256": hashlib.sha256(openvino_path.read_bytes()).hexdigest(),
         },
         "openvino_genai": {
-            "path": str((config.build_root / "openvino_genai" / "__init__.py").resolve()),
+            "path": str(genai_path),
             "version": "2026.2.0",
+            "sha256": hashlib.sha256(genai_path.read_bytes()).hexdigest(),
         },
         "available_devices": ["CPU", "GPU.0"],
     }
@@ -1313,6 +1437,44 @@ def test_no_model_preflight_persists_ram_devices_imports_and_zero_owned_pids(
     assert persisted == receipt
     persisted["input_bindings"]["sampler_script"]["sha256"] = "0" * 64
     _write_json(config.campaign_root / "preflight-receipt.json", persisted)
+    with pytest.raises(ValueError, match="preflight receipt is invalid"):
+        prepare_boundary_projection(config)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("python-version", "openvino-path", "openvino-version", "openvino-hash"),
+)
+def test_persisted_preflight_revalidates_python_and_openvino_identity(
+    tmp_path, monkeypatch, mutation,
+):
+    from scripts.testing.official_openvino.format_boundary import (
+        prepare_boundary_projection,
+        run_boundary_preflight,
+    )
+
+    _install_controller_boundaries(monkeypatch, tmp_path)
+    config = _controller_config(tmp_path)
+    run_boundary_preflight(
+        config,
+        available_ram=lambda: 5 * 1024**3,
+        python_probe=_passing_python_probe,
+        owned_pid_probe=lambda _root: {"query_ok": True, "active_pids": []},
+    )
+    path = config.campaign_root / "preflight-receipt.json"
+    persisted = json.loads(path.read_text(encoding="utf-8"))
+    if mutation == "python-version":
+        persisted["python_probe"]["python_version"] = "3.12.9"
+    elif mutation == "openvino-path":
+        persisted["python_probe"]["openvino"]["path"] = str(
+            (tmp_path / "other-openvino.py").resolve()
+        )
+    elif mutation == "openvino-version":
+        persisted["python_probe"]["openvino"]["version"] = "unknown"
+    else:
+        persisted["python_probe"]["openvino"]["sha256"] = "0" * 64
+    _write_json(path, persisted)
+
     with pytest.raises(ValueError, match="preflight receipt is invalid"):
         prepare_boundary_projection(config)
 

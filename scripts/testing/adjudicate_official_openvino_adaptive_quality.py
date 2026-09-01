@@ -97,6 +97,7 @@ _RECEIPT_FIELDS = {
     "guard_evidence_path",
     "guard_evidence_sha256",
     "cleanup_process_count",
+    "timeout_seconds",
     "process_identity",
 }
 _OUTCOME_FIELDS = {
@@ -684,6 +685,10 @@ def _validate_capture(
             or receipt.get("status") != "passed"
             or type(receipt.get("cleanup_process_count")) is not int
             or receipt["cleanup_process_count"] != 0
+            or isinstance(receipt.get("timeout_seconds"), bool)
+            or not isinstance(receipt.get("timeout_seconds"), (int, float))
+            or not math.isfinite(receipt["timeout_seconds"])
+            or receipt["timeout_seconds"] <= 0
             or not isinstance(receipt.get("process_identity"), str)
             or not receipt["process_identity"]
             or receipt["process_identity"] in process_identities

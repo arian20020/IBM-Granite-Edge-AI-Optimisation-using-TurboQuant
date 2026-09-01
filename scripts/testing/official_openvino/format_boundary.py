@@ -451,6 +451,18 @@ def reconcile_quality_evidence(
         "completed_prompt_ids": list(summary["completed_prompt_ids"]),
         "prompt_receipts": receipts,
         "deterministic_gate_records": gate_records,
+        "cleanup_proof": {
+            "safe": True,
+            "source": "validated-quality-receipts",
+            "capture_summary": _evidence_binding(summary_path),
+            "prompt_guards": [
+                receipt["evidence"]["guard_evidence"] for receipt in receipts
+            ],
+            "cleanup_process_count": 0,
+            "residual_owned_process_count": 0,
+            "emergency_actions": [],
+            "active_pids_after_cleanup": [],
+        },
     }
 
 
@@ -538,7 +550,74 @@ def _not_launched_cleanup_proof() -> dict[str, Any]:
     }
 
 
+def _campaign_job_cleanup_proof(job: KillOnCloseJob) -> dict[str, Any]:
+    try:
+        active = sorted(job.active_pids())
+        query_ok = True
+    except OSError:
+        active = None
+        query_ok = False
+    safe = query_ok and active == []
+    return {
+        "safe": safe,
+        "source": "campaign-job-query",
+        "query_ok": query_ok,
+        "cleanup_process_count": 0 if safe else -1,
+        "residual_owned_process_count": 0 if safe else -1,
+        "emergency_actions": [],
+        "active_pids_after_cleanup": active,
+    }
+
+
 def _cleanup_proof(record: Mapping[str, Any]) -> dict[str, Any]:
+    embedded = record.get("cleanup_proof")
+    if isinstance(embedded, Mapping) and embedded.get("source") in {
+        "validated-completed-role-records",
+        "no-role-launched",
+    }:
+        bindings = embedded.get("completed_roles")
+        source = embedded.get("source")
+        valid_bindings = isinstance(bindings, list)
+        reopened: list[dict[str, Any]] = []
+        if valid_bindings:
+            for binding in bindings:
+                if (
+                    not isinstance(binding, Mapping)
+                    or set(binding) != {"role", "path", "sha256"}
+                    or not isinstance(binding.get("role"), str)
+                    or not isinstance(binding.get("path"), str)
+                ):
+                    valid_bindings = False
+                    break
+                path = Path(binding["path"]).resolve()
+                if _file_sha256(path) != binding.get("sha256"):
+                    valid_bindings = False
+                    break
+                persisted = _read_json_object(path)
+                if (
+                    persisted.get("role") != binding["role"]
+                    or persisted.get("cleanup_process_count") != 0
+                    or persisted.get("residual_owned_process_count") != 0
+                    or persisted.get("emergency_actions", []) != []
+                ):
+                    valid_bindings = False
+                    break
+                reopened.append(dict(binding))
+        source_consistent = (
+            source == "no-role-launched" and reopened == []
+        ) or (
+            source == "validated-completed-role-records" and len(reopened) > 0
+        )
+        safe = valid_bindings and source_consistent
+        return {
+            "safe": safe,
+            "source": source,
+            "completed_roles": reopened,
+            "cleanup_process_count": 0 if safe else -1,
+            "residual_owned_process_count": 0 if safe else -1,
+            "emergency_actions": [],
+            "active_pids_after_cleanup": [] if safe else None,
+        }
     cleanup = record.get("cleanup_process_count")
     residual = record.get("residual_owned_process_count")
     emergency = record.get("emergency_actions")
@@ -601,68 +680,83 @@ def _quality_failure_evidence(
     receipts = summary.get("prompt_receipts")
     if not isinstance(receipts, list):
         return None
-    attempted = [
+    persisted = [
         receipt
         for receipt in receipts
         if isinstance(receipt, Mapping)
-        and receipt.get("status") not in {None, "not-run", "passed"}
+        and receipt.get("status") not in {None, "not-run"}
     ]
-    if not attempted:
+    failed = [receipt for receipt in persisted if receipt.get("status") != "passed"]
+    if not failed:
         return None
-    receipt = attempted[-1]
-    guard_value = receipt.get("guard_evidence_path")
-    guard_sha256 = receipt.get("guard_evidence_sha256")
-    if not isinstance(guard_value, str):
-        return None
-    guard_path = Path(guard_value).resolve()
-    if _file_sha256(guard_path) != guard_sha256:
-        return None
-    guard = _read_json_object(guard_path)
-    cleanup = guard.get("cleanup_process_count")
-    if guard.get("schema") == "official-openvino-adaptive-quality-terminal-guard/v1":
-        active = guard.get("active_pids")
-        safe = cleanup == 0 and active == []
-        proof = {
-            "safe": safe,
-            "cleanup_process_count": cleanup,
-            "residual_owned_process_count": 0 if safe else -1,
-            "emergency_actions": [],
-            "active_pids_after_cleanup": active,
-            "guard_evidence": _evidence_binding(guard_path),
-            "capture_summary": _evidence_binding(summary_path),
-        }
-    else:
-        containing = guard.get("containing_job_assignment")
-        job = guard.get("job_object")
-        active = (
-            containing.get("active_pids_after_cleanup")
-            if isinstance(containing, Mapping)
-            else None
+    receipt = failed[-1]
+    prompt_evidence: list[dict[str, Any]] = []
+    failed_guard_path: Path | None = None
+    failed_guard: dict[str, Any] | None = None
+    all_safe = True
+    for persisted_receipt in persisted:
+        guard_value = persisted_receipt.get("guard_evidence_path")
+        if not isinstance(guard_value, str):
+            return None
+        guard_path = Path(guard_value).resolve()
+        if _file_sha256(guard_path) != persisted_receipt.get("guard_evidence_sha256"):
+            return None
+        guard = _read_json_object(guard_path)
+        cleanup = guard.get("cleanup_process_count")
+        if guard.get("schema") == "official-openvino-adaptive-quality-terminal-guard/v1":
+            active = guard.get("active_pids")
+            safe = cleanup == 0 and active == []
+        else:
+            containing = guard.get("containing_job_assignment")
+            job = guard.get("job_object")
+            active = (
+                containing.get("active_pids_after_cleanup")
+                if isinstance(containing, Mapping)
+                else None
+            )
+            safe = (
+                cleanup == 0
+                and guard.get("emergency_actions") == []
+                and isinstance(containing, Mapping)
+                and containing.get("query_ok_after_cleanup") is True
+                and active == []
+                and isinstance(job, Mapping)
+                and job.get("query_ok") is True
+                and job.get("queried_active_process_count_after_cleanup") == 0
+                and job.get("survivor_pids_after_cleanup") == []
+            )
+        result_value = persisted_receipt.get("worker_result_path")
+        if not isinstance(result_value, str):
+            return None
+        result_path = Path(result_value).resolve()
+        if _file_sha256(result_path) != persisted_receipt.get("worker_result_sha256"):
+            return None
+        prompt_evidence.append(
+            {
+                "prompt_id": persisted_receipt.get("prompt_id"),
+                "guard_evidence": _evidence_binding(guard_path),
+                "worker_result": _evidence_binding(result_path),
+                "safe": safe,
+            }
         )
-        safe = (
-            cleanup == 0
-            and guard.get("emergency_actions") == []
-            and isinstance(containing, Mapping)
-            and containing.get("query_ok_after_cleanup") is True
-            and active == []
-            and isinstance(job, Mapping)
-            and job.get("query_ok") is True
-            and job.get("queried_active_process_count_after_cleanup") == 0
-            and job.get("survivor_pids_after_cleanup") == []
-        )
-        proof = {
-            "safe": safe,
-            "cleanup_process_count": cleanup,
-            "residual_owned_process_count": 0 if safe else -1,
-            "emergency_actions": guard.get("emergency_actions"),
-            "job_object": dict(job) if isinstance(job, Mapping) else None,
-            "containing_job_assignment": (
-                dict(containing) if isinstance(containing, Mapping) else None
-            ),
-            "active_pids_after_cleanup": active,
-            "guard_evidence": _evidence_binding(guard_path),
-            "capture_summary": _evidence_binding(summary_path),
-        }
+        all_safe = all_safe and safe
+        if persisted_receipt is receipt:
+            failed_guard_path = guard_path
+            failed_guard = guard
+    if failed_guard_path is None or failed_guard is None:
+        return None
+    guard_path = failed_guard_path
+    guard = failed_guard
+    proof = {
+        "safe": all_safe,
+        "source": "validated-quality-failure-receipts",
+        "cleanup_process_count": 0 if all_safe else -1,
+        "residual_owned_process_count": 0 if all_safe else -1,
+        "emergency_actions": [],
+        "active_pids_after_cleanup": [] if all_safe else None,
+        "prompt_receipts": prompt_evidence,
+        "capture_summary": _evidence_binding(summary_path),
+    }
     record = dict(guard)
     record["prompt_id"] = receipt.get("prompt_id")
     result_value = receipt.get("worker_result_path")
@@ -980,8 +1074,6 @@ def _validate_persisted_preflight(
         or not isinstance(receipt.get("available_ram_bytes"), int)
         or receipt["available_ram_bytes"] < 4096 * _MIB
         or not isinstance(probe, Mapping)
-        or probe.get("python_executable")
-        != str(Path(config.python_executable).resolve())
         or not isinstance(owned, Mapping)
         or owned.get("query_ok") is not True
         or owned.get("active_pids") != []
@@ -989,6 +1081,12 @@ def _validate_persisted_preflight(
         or not any(device == "CPU" or device.startswith("CPU.") for device in devices)
         or not any(device == "GPU" or device.startswith("GPU.") for device in devices)
     ):
+        raise ValueError("persisted boundary preflight receipt is invalid")
+    try:
+        validated_probe = _validate_python_probe_identity(config, probe)
+    except (TypeError, ValueError) as error:
+        raise ValueError("persisted boundary preflight receipt is invalid") from error
+    if dict(probe) != validated_probe or devices != validated_probe["available_devices"]:
         raise ValueError("persisted boundary preflight receipt is invalid")
     _validate_bound_files(receipt["input_bindings"])
 
@@ -1009,12 +1107,13 @@ def _probe_configured_python(config: BoundaryCampaignConfig) -> dict[str, Any]:
         openvino_libraries=Path(config.openvino_libraries).resolve(),
     )
     script = (
-        "import json,sys,openvino as ov,openvino_genai;"
+        "import hashlib,json,sys,openvino as ov,openvino_genai;"
+        "digest=lambda p:hashlib.sha256(open(p,'rb').read()).hexdigest();"
         "print(json.dumps({"
         "'python_executable':sys.executable,"
         "'python_version':sys.version,"
-        "'openvino':{'path':ov.__file__,'version':getattr(ov,'__version__','unknown')},"
-        "'openvino_genai':{'path':openvino_genai.__file__,'version':getattr(openvino_genai,'__version__','unknown')},"
+        "'openvino':{'path':ov.__file__,'version':getattr(ov,'__version__','unknown'),'sha256':digest(ov.__file__)},"
+        "'openvino_genai':{'path':openvino_genai.__file__,'version':getattr(openvino_genai,'__version__','unknown'),'sha256':digest(openvino_genai.__file__)},"
         "'available_devices':list(ov.Core().available_devices)"
         "},sort_keys=True,separators=(',',':')))"
     )
@@ -1058,6 +1157,67 @@ def _probe_configured_python(config: BoundaryCampaignConfig) -> dict[str, Any]:
         job.close()
 
 
+def _validate_python_probe_identity(
+    config: BoundaryCampaignConfig,
+    probe: Mapping[str, Any],
+) -> dict[str, Any]:
+    if set(probe) != {
+        "python_executable",
+        "python_version",
+        "openvino",
+        "openvino_genai",
+        "available_devices",
+    }:
+        raise ValueError("configured Python probe fields are invalid")
+    executable = str(Path(config.python_executable).resolve())
+    version = probe.get("python_version")
+    if (
+        probe.get("python_executable") != executable
+        or not isinstance(version, str)
+        or not version.startswith("3.13.")
+    ):
+        raise ValueError("configured Python 3.13 identity mismatch")
+    modules: dict[str, dict[str, str]] = {}
+    for module_name, expected_path in (
+        ("openvino", Path(config.python_site_packages).resolve() / "openvino" / "__init__.py"),
+        ("openvino_genai", Path(config.build_root).resolve() / "openvino_genai" / "__init__.py"),
+    ):
+        module = probe.get(module_name)
+        if not isinstance(module, Mapping) or set(module) != {"path", "version", "sha256"}:
+            raise ValueError(f"configured {module_name} import identity is missing")
+        module_path = Path(str(module.get("path"))).resolve()
+        module_version = module.get("version")
+        module_sha256 = module.get("sha256")
+        if (
+            module_path != expected_path.resolve()
+            or not isinstance(module_version, str)
+            or not module_version.strip()
+            or module_version == "unknown"
+            or module_sha256 != _file_sha256(module_path)
+        ):
+            raise ValueError(f"configured {module_name} import identity mismatch")
+        modules[module_name] = {
+            "path": str(module_path),
+            "version": module_version,
+            "sha256": module_sha256,
+        }
+    devices = probe.get("available_devices")
+    if (
+        not isinstance(devices, list)
+        or not all(isinstance(device, str) and device for device in devices)
+        or not any(device == "CPU" or device.startswith("CPU.") for device in devices)
+        or not any(device == "GPU" or device.startswith("GPU.") for device in devices)
+    ):
+        raise ValueError("configured OpenVINO must detect both CPU and GPU")
+    return {
+        "python_executable": executable,
+        "python_version": version,
+        "openvino": modules["openvino"],
+        "openvino_genai": modules["openvino_genai"],
+        "available_devices": list(devices),
+    }
+
+
 def run_boundary_preflight(
     config: BoundaryCampaignConfig,
     *,
@@ -1080,29 +1240,8 @@ def run_boundary_preflight(
     owned = dict(owned_pid_probe(Path(config.campaign_root).resolve()))
     if owned.get("query_ok") is not True or owned.get("active_pids") != []:
         raise RuntimeError("campaign-owned worker PID proof is not empty")
-    probe = dict(python_probe(config))
-    if probe.get("python_executable") != str(Path(config.python_executable).resolve()):
-        raise ValueError("configured Python executable identity mismatch")
-    devices = probe.get("available_devices")
-    if (
-        not isinstance(devices, list)
-        or not all(isinstance(device, str) and device for device in devices)
-        or not any(device == "CPU" or device.startswith("CPU.") for device in devices)
-        or not any(device == "GPU" or device.startswith("GPU.") for device in devices)
-    ):
-        raise ValueError("configured OpenVINO must detect both CPU and GPU")
-    for module_name, expected_root in (
-        ("openvino", Path(config.python_site_packages).resolve() / "openvino"),
-        ("openvino_genai", Path(config.build_root).resolve() / "openvino_genai"),
-    ):
-        module = probe.get(module_name)
-        if not isinstance(module, Mapping):
-            raise ValueError(f"configured {module_name} import identity is missing")
-        module_path = Path(str(module.get("path"))).resolve()
-        if module_path != expected_root / "__init__.py" or not isinstance(
-            module.get("version"), str
-        ) or not module["version"]:
-            raise ValueError(f"configured {module_name} import identity mismatch")
+    probe = _validate_python_probe_identity(config, dict(python_probe(config)))
+    devices = probe["available_devices"]
     receipt = {
         "schema": "official-openvino-format-boundary-preflight/v1",
         "status": "passed",
@@ -1337,6 +1476,8 @@ def _validate_terminal_or_skipped_receipt(path: Path, case: BoundaryCase) -> dic
             raise ValueError("terminal-boundary receipt is invalid")
         if not all(isinstance(attempt, Mapping) for attempt in attempts):
             raise ValueError("terminal-boundary receipt is invalid")
+        for attempt in attempts:
+            _validate_attempt_against_raw(attempt, case)
         prerequisite = receipt.get("status") == "artifact-unavailable"
         expected_numbers = [0] if prerequisite else list(range(1, attempt_count + 1))
         if [attempt.get("attempt_number") for attempt in attempts] != expected_numbers:
@@ -1523,6 +1664,175 @@ def _attempt_record(
     }
 
 
+def _persist_controller_failure_evidence(
+    attempt_root: Path,
+    case: BoundaryCase,
+    failure: RowFailure,
+) -> RowFailure:
+    path = Path(attempt_root).resolve() / "controller-failure.json"
+    record = {
+        "schema": "official-openvino-format-boundary-controller-failure/v1",
+        "case_internal_id": case.internal_id,
+        "role": failure.role,
+        "stage": failure.stage,
+        "reason_code": failure.reason_code,
+        "failure_category": (
+            "time"
+            if failure.reason_code == "row-deadline-exceeded"
+            else "ram-floor"
+            if failure.stage == "admission"
+            else "functional"
+        ),
+        "hard": failure.hard,
+        "retryable": failure.retryable,
+        "cleanup_proof": failure.cleanup_proof,
+        "observed_available_ram_bytes": failure.observed_available_ram_bytes,
+        "deadline_outcome": failure.deadline_outcome,
+    }
+    _atomic_write_json(path, record)
+    return RowFailure(
+        failure.reason_code,
+        role=failure.role,
+        stage=failure.stage,
+        hard=failure.hard,
+        retryable=failure.retryable,
+        receipt=path,
+        raw_record=record,
+        fingerprint=failure.fingerprint,
+        cleanup_proof=failure.cleanup_proof,
+        observed_available_ram_bytes=failure.observed_available_ram_bytes,
+        deadline_outcome=failure.deadline_outcome,
+    )
+
+
+def _recompute_attempt_from_raw(
+    attempt: Mapping[str, Any],
+    case: BoundaryCase,
+) -> RowFailure:
+    raw_value = attempt.get("raw_record_path")
+    if not isinstance(raw_value, str):
+        raise ValueError("terminal attempt has no raw evidence")
+    raw_path = Path(raw_value).resolve()
+    raw_sha256 = attempt.get("raw_record_sha256")
+    if (
+        not raw_path.is_file()
+        or raw_path.is_symlink()
+        or not isinstance(raw_sha256, str)
+        or not re.fullmatch(r"[0-9a-f]{64}", raw_sha256)
+        or _file_sha256(raw_path) != raw_sha256
+    ):
+        raise ValueError("terminal attempt raw evidence hash drift")
+    record = _read_json_object(raw_path)
+    if record.get("schema") == "official-openvino-format-boundary-controller-failure/v1":
+        if record.get("case_internal_id") != case.internal_id:
+            raise ValueError("terminal controller raw evidence case drift")
+        failure = RowFailure(
+            _normalized_code(record.get("reason_code")),
+            role=str(record.get("role")),
+            stage=str(record.get("stage")),
+            hard=record.get("hard") is True,
+            retryable=record.get("retryable") is True,
+            receipt=raw_path,
+            raw_record=record,
+            cleanup_proof=(
+                dict(record["cleanup_proof"])
+                if isinstance(record.get("cleanup_proof"), Mapping)
+                else {"safe": False}
+            ),
+            observed_available_ram_bytes=record.get(
+                "observed_available_ram_bytes"
+            ),
+            deadline_outcome=record.get("deadline_outcome"),
+        )
+        return _normalise_failure(failure, case=case, default_role=failure.role)
+    if (
+        record.get("reason") == "artifact-unavailable"
+        and record.get("role") == "terminal-prerequisite"
+    ):
+        return RowFailure(
+            "artifact-unavailable",
+            role="terminal-prerequisite",
+            stage="preflight",
+            hard=True,
+            retryable=False,
+            receipt=raw_path,
+            raw_record=record,
+            fingerprint=_failure_fingerprint(
+                case,
+                stage="preflight",
+                category="terminal-prerequisite",
+                reason_code="artifact-unavailable",
+            ),
+            cleanup_proof=_not_launched_cleanup_proof(),
+        )
+    if record.get("schema") in {
+        "official-openvino-owned-process-guard/v1",
+        "official-openvino-adaptive-quality-terminal-guard/v1",
+    }:
+        quality_root = raw_path.parent.parent
+        for summary_path in sorted(quality_root.glob("capture-summary*.json")):
+            normalised = _normalise_failure(
+                RuntimeError("persisted quality failure"),
+                case=case,
+                default_role="quality",
+                default_raw_path=summary_path,
+            )
+            if normalised.receipt == raw_path:
+                return normalised
+        raise ValueError("terminal quality raw evidence has no summary binding")
+    reason = _normalized_code(
+        record.get("failure_code")
+        or record.get("reason_code")
+        or record.get("termination_reason")
+        or "measurement-failure"
+    )
+    stage = record.get("role")
+    if not isinstance(stage, str) or not stage:
+        raise ValueError("terminal measurement raw evidence has no role")
+    failure = RowFailure(
+        reason,
+        role="measurement",
+        stage=stage,
+        hard=False,
+        retryable=True,
+        receipt=raw_path,
+        raw_record=record,
+    )
+    return _normalise_failure(failure, case=case, default_role="measurement")
+
+
+def _validate_attempt_against_raw(
+    attempt: Mapping[str, Any],
+    case: BoundaryCase,
+) -> None:
+    recomputed = _recompute_attempt_from_raw(attempt, case)
+    expected = _attempt_record(
+        recomputed,
+        attempt_number=attempt.get("attempt_number"),
+        elapsed_seconds=attempt.get("elapsed_seconds"),
+        stage_timeouts=(
+            attempt.get("stage_timeouts")
+            if isinstance(attempt.get("stage_timeouts"), Mapping)
+            else {}
+        ),
+    )
+    security_fields = {
+        "role",
+        "stage",
+        "reason_code",
+        "hard",
+        "retryable",
+        "fingerprint",
+        "raw_record_path",
+        "raw_record_sha256",
+        "cleanup_proof",
+        "observed_available_ram_bytes",
+        "deadline_outcome",
+    }
+    if any(attempt.get(field) != expected.get(field) for field in security_fields):
+        raise ValueError("terminal attempt contradicts bound raw evidence")
+
+
 def _terminal_status(attempts: list[dict[str, Any]]) -> str:
     last = attempts[-1]
     if last["cleanup_proof"].get("safe") is not True:
@@ -1612,13 +1922,14 @@ def _write_skipped(
         )
 
 
-def run_boundary_campaign(
+def _run_boundary_campaign_with_job(
     config: BoundaryCampaignConfig,
     *,
     run_measurement: Callable[..., Mapping[str, Any]],
     run_quality: Callable[..., Mapping[str, Any]],
     available_ram: Callable[[], int | None],
     monotonic: Callable[[], float] = time.monotonic,
+    campaign_job: KillOnCloseJob,
 ) -> dict[str, Any]:
     """Execute the fixed serial CPU ladder and independent GPU control."""
 
@@ -1726,6 +2037,10 @@ def run_boundary_campaign(
                     or observed_ram < 4096 * _MIB
                 ):
                     failure = _admission_failure(case, observed_ram)
+                    failure.cleanup_proof = _campaign_job_cleanup_proof(campaign_job)
+                    failure = _persist_controller_failure_evidence(
+                        attempt_root, case, failure
+                    )
                     attempts.append(
                         _attempt_record(
                             failure,
@@ -1750,8 +2065,11 @@ def run_boundary_campaign(
                                 category="time",
                                 reason_code="row-deadline-exceeded",
                             ),
-                            cleanup_proof=_not_launched_cleanup_proof(),
+                            cleanup_proof=_campaign_job_cleanup_proof(campaign_job),
                             deadline_outcome="exceeded-before-measurement",
+                        )
+                        failure = _persist_controller_failure_evidence(
+                            attempt_root, case, failure
                         )
                         attempts.append(
                             _attempt_record(
@@ -1790,6 +2108,7 @@ def run_boundary_campaign(
                                 monotonic=monotonic,
                                 launch_minimum_available_ram_mib=4096,
                                 emergency_minimum_available_ram_mib=3072,
+                                campaign_job=campaign_job,
                             )
                             runtime_input = _quality_input(
                                 config,
@@ -1836,6 +2155,9 @@ def run_boundary_campaign(
                                         accepted_runtime.get("cleanup_proof", {})
                                     ),
                                     deadline_outcome="exceeded-after-measurement",
+                                )
+                                failure = _persist_controller_failure_evidence(
+                                    attempt_root, case, failure
                                 )
                                 attempts.append(
                                     _attempt_record(
@@ -1897,15 +2219,15 @@ def run_boundary_campaign(
                                                 category="time",
                                                 reason_code="row-deadline-exceeded",
                                             ),
-                                            cleanup_proof={
-                                                "safe": True,
-                                                "cleanup_process_count": 0,
-                                                "residual_owned_process_count": 0,
-                                                "emergency_actions": [],
-                                                "job_active_pid_evidence": "validated-quality-receipts",
-                                                "active_pids_after_cleanup": [],
-                                            },
+                                            cleanup_proof=dict(
+                                                accepted_quality.get(
+                                                    "cleanup_proof", {}
+                                                )
+                                            ),
                                             deadline_outcome="exceeded-after-quality",
+                                        )
+                                        failure = _persist_controller_failure_evidence(
+                                            attempt_root, case, failure
                                         )
                                         attempts.append(
                                             _attempt_record(
@@ -1980,6 +2302,36 @@ def run_boundary_campaign(
                 lane["status"] = "complete"
                 _atomic_write_json(state_path, state)
     return state
+
+
+def run_boundary_campaign(
+    config: BoundaryCampaignConfig,
+    *,
+    run_measurement: Callable[..., Mapping[str, Any]],
+    run_quality: Callable[..., Mapping[str, Any]],
+    available_ram: Callable[[], int | None],
+    monotonic: Callable[[], float] = time.monotonic,
+) -> dict[str, Any]:
+    """Execute the campaign under one named Kill-on-close Job boundary."""
+
+    root = Path(config.campaign_root).resolve()
+    campaign_job = KillOnCloseJob(_boundary_campaign_job_name(root))
+    try:
+        if campaign_job.active_pids():
+            raise RuntimeError("boundary campaign Job has pre-launch survivors")
+        state = _run_boundary_campaign_with_job(
+            config,
+            run_measurement=run_measurement,
+            run_quality=run_quality,
+            available_ram=available_ram,
+            monotonic=monotonic,
+            campaign_job=campaign_job,
+        )
+        if campaign_job.active_pids():
+            raise RuntimeError("boundary campaign Job has post-campaign survivors")
+        return state
+    finally:
+        campaign_job.close()
 
 
 def load_boundary_status(config: BoundaryCampaignConfig) -> dict[str, Any]:
@@ -2254,6 +2606,41 @@ def _build_execution_binding(
     }
 
 
+def _repository_local_evidence_path(
+    value: str | Path,
+    *,
+    repository_root: Path,
+) -> Path:
+    """Rebase a frozen historical evidence path into this repository checkout."""
+
+    root = repository_root.resolve()
+    source = Path(value)
+    if not source.is_absolute():
+        candidate = (root / source).resolve()
+    else:
+        resolved = source.resolve()
+        try:
+            resolved.relative_to(root)
+        except ValueError:
+            parts = source.parts
+            lowered = [part.casefold() for part in parts]
+            matches = [
+                index
+                for index in range(len(parts) - 1)
+                if lowered[index : index + 2] == ["experiments", "raw-results"]
+            ]
+            if len(matches) != 1:
+                raise ValueError("historical evidence path is not repository-relative")
+            candidate = (root / Path(*parts[matches[0] :])).resolve()
+        else:
+            candidate = resolved
+    try:
+        candidate.relative_to(root)
+    except ValueError as error:
+        raise ValueError("historical evidence path escapes repository root") from error
+    return candidate
+
+
 def _artifact_binding(
     case: BoundaryCase,
     *,
@@ -2270,7 +2657,12 @@ def _artifact_binding(
     identities = {
         (
             row.artifact_id,
-            str(Path(row.artifact_manifest_path).resolve()),
+            str(
+                _repository_local_evidence_path(
+                    row.artifact_manifest_path,
+                    repository_root=repository_root,
+                )
+            ),
             row.artifact_manifest_sha256,
         )
         for row in candidates

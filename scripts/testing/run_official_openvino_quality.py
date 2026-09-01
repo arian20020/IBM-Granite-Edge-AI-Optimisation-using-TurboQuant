@@ -521,8 +521,6 @@ def load_prompt_contract(
                     tokenizer_path.resolve().relative_to(ROOT.resolve())
                 except ValueError as exc:
                     raise ValueError("Granite tokenizer path escapes repository root") from exc
-                if not tokenizer_path.is_file():
-                    raise ValueError("declared Granite tokenizer is unavailable")
                 p5_observed_input_tokens = _token_count(
                     tokenizer_loader(tokenizer_path.resolve()), execution["prompt"]
                 )

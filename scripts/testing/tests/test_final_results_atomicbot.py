@@ -11,6 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from scripts.testing.final_results import llama_adapter
 from scripts.testing.final_results.llama_adapter import (
     ATOMICBOT_EXPECTED_IDS,
     _atomicbot_relationship_receipt,
@@ -26,6 +27,23 @@ from scripts.testing.final_results.csvio import validate_json
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 ROUTE = REPOSITORY_ROOT / "docs/testing/final-results/02-atomicbot-turboquant"
+
+
+@pytest.fixture
+def isolated_route(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    route = REPOSITORY_ROOT / ".pytest_cache" / "atomicbot" / tmp_path.name
+    if route.exists():
+        raise FileExistsError(route)
+    shutil.copytree(ROUTE, route)
+    monkeypatch.setattr(
+        llama_adapter,
+        "ATOMICBOT_ROUTE_RELATIVE",
+        route.relative_to(REPOSITORY_ROOT),
+    )
+    try:
+        yield route
+    finally:
+        shutil.rmtree(route)
 
 
 def _copy_sources(tmp_path: Path) -> Path:
@@ -356,7 +374,9 @@ def test_stale_index_inventory_and_duplicate_mutations_are_rejected(tmp_path: Pa
         build_atomicbot_bundle(root)
 
 
-def test_stale_index_audit_is_exact_and_portable_outputs_contain_no_absolute_paths():
+def test_stale_index_audit_is_exact_and_portable_outputs_contain_no_absolute_paths(
+    isolated_route: Path,
+):
     bundle = write_atomicbot_route(REPOSITORY_ROOT)
     audit = bundle.repository["source_reconciliation"]
     assert audit["index_row_count"] == 828
@@ -367,7 +387,7 @@ def test_stale_index_audit_is_exact_and_portable_outputs_contain_no_absolute_pat
     assert audit["duplicate_evidence_id_extra_rows"] == 4
 
     forbidden = ("C:\\Users\\", "C:/Users/", "\\\\?\\", str(REPOSITORY_ROOT))
-    for path in ROUTE.rglob("*"):
+    for path in isolated_route.rglob("*"):
         if path.is_file() and path.suffix.lower() not in {".docx", ".pdf"}:
             text = path.read_text(encoding="utf-8", errors="ignore")
             assert not any(value in text for value in forbidden), path
@@ -407,9 +427,11 @@ def test_conflicting_register_identity_and_silent_filtering_are_rejected(tmp_pat
         build_atomicbot_bundle(root)
 
 
-def test_route_generation_has_common_structure_schema_parity_and_honest_caveats():
+def test_route_generation_has_common_structure_schema_parity_and_honest_caveats(
+    isolated_route: Path,
+):
     bundle = write_atomicbot_route(REPOSITORY_ROOT)
-    markdown = ROUTE / "workbook/source/atomicbot-turboquant-final-report.md"
+    markdown = isolated_route / "workbook/source/atomicbot-turboquant-final-report.md"
     text = markdown.read_text(encoding="utf-8")
 
     assert len(bundle.attempts) == 19
@@ -417,17 +439,17 @@ def test_route_generation_has_common_structure_schema_parity_and_honest_caveats(
     assert "limited/provisional" in text
     assert "not directly comparable with OpenVINO" in text
     assert "Not collected" in text
-    assert json.loads((ROUTE / "validation/workbook-parity.json").read_text())["matches"] is True
-    assert json.loads((ROUTE / "validation/relationship-validation.json").read_text())["valid"] is True
-    relationship = json.loads((ROUTE / "validation/relationship-validation.json").read_text())
+    assert json.loads((isolated_route / "validation/workbook-parity.json").read_text())["matches"] is True
+    assert json.loads((isolated_route / "validation/relationship-validation.json").read_text())["valid"] is True
+    relationship = json.loads((isolated_route / "validation/relationship-validation.json").read_text())
     assert relationship["deviation_count"] == 5
     assert relationship["deviation_relationships_valid"] is True
     assert set(relationship["deviation_ids"]) == {
         "FAIL-AB-UI-ASSET", "FAIL-AB-DEVICE-GUARD", "FAIL-AB-08Q-MEMORY",
         "FAIL-AB-8B-SAFETY", "FAIL-AB-P5-TIMEOUT",
     }
-    assert json.loads((ROUTE / "validation/coverage-validation.json").read_text())["valid"] is True
-    assert json.loads((ROUTE / "validation/data-validation.json").read_text())["valid"] is True
+    assert json.loads((isolated_route / "validation/coverage-validation.json").read_text())["valid"] is True
+    assert json.loads((isolated_route / "validation/data-validation.json").read_text())["valid"] is True
 
 
 def test_all_canonical_records_validate_against_shared_schemas_and_references():
@@ -494,7 +516,7 @@ def test_generated_inventory_manifest_and_reproduction_contract():
     assert len(manifest_lines) == len(files) - 1
 
 
-def test_pdf_finalizer_uses_actual_structural_page_count():
+def test_pdf_finalizer_uses_actual_structural_page_count(isolated_route: Path):
     receipt = finalize_atomicbot_route(REPOSITORY_ROOT)
     assert receipt["valid"] is True
     assert receipt["checks"]["page_count"] >= 10

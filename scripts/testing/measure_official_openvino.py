@@ -1076,6 +1076,7 @@ def _write_sequence_receipt(
     record_path: Path | None,
     accepted: bool,
     controller_error: str | None = None,
+    cleanup_proof: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     spec_path = attempt_dir / "spec.json"
     receipt = {
@@ -1100,8 +1101,40 @@ def _write_sequence_receipt(
     }
     if controller_error is not None:
         receipt["controller_error"] = controller_error
+    if cleanup_proof is not None:
+        receipt["cleanup_proof"] = dict(cleanup_proof)
     atomic_write_json(attempt_dir / "sequence-receipt.json", receipt)
     return receipt
+
+
+def _completed_role_cleanup_proof(
+    completed: list[tuple[dict[str, Any], dict[str, Any], Path]],
+) -> dict[str, Any]:
+    bindings = [
+        {
+            "role": record.get("role"),
+            "path": str(Path(path).resolve()),
+            "sha256": _sha256_file(path),
+        }
+        for _receipt, record, path in completed
+    ]
+    safe = all(
+        record.get("cleanup_process_count") == 0
+        and record.get("residual_owned_process_count") == 0
+        and record.get("emergency_actions", []) == []
+        for _receipt, record, _path in completed
+    )
+    return {
+        "safe": safe,
+        "source": (
+            "validated-completed-role-records" if completed else "no-role-launched"
+        ),
+        "completed_roles": bindings,
+        "cleanup_process_count": 0 if safe else -1,
+        "residual_owned_process_count": 0 if safe else -1,
+        "emergency_actions": [],
+        "active_pids_after_cleanup": [] if safe else None,
+    }
 
 
 def _campaign_identity(
@@ -1292,6 +1325,7 @@ def _run_measurement_sequence_locked(
                 float(monotonic_deadline) - float(observed),
             )
         if role_timeout <= 0:
+            cleanup_proof = _completed_role_cleanup_proof(completed)
             receipt = _write_sequence_receipt(
                 campaign_root=root,
                 attempt_dir=attempt_dir,
@@ -1302,6 +1336,7 @@ def _run_measurement_sequence_locked(
                 record_path=None,
                 accepted=False,
                 controller_error="row monotonic deadline expired before launch",
+                cleanup_proof=cleanup_proof,
             )
             receipt_path = attempt_dir / "sequence-receipt.json"
             raise _sequence_failure(

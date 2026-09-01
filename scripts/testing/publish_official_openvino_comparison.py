@@ -1641,7 +1641,7 @@ def _validate_revision_overlay(
     files: Mapping[str, bytes],
     validator: Callable[[Path], Mapping[str, Any]],
 ) -> None:
-    overlay = staging_root / "revision-control-overlay"
+    overlay = staging_root / "o"
     root = Path(repo_root).resolve()
     docs_source = _inside(
         root / "docs/testing", root, "canonical revision-control source docs/testing"
@@ -1679,6 +1679,17 @@ def _canonical_json_bytes(value: Mapping[str, Any]) -> bytes:
         )
         + "\n"
     ).encode("utf-8")
+
+
+def _staging_parent(repo_root: Path) -> Path:
+    root = Path(repo_root).resolve()
+    system_temporary = Path(tempfile.gettempdir()).resolve()
+    if (
+        os.name == "nt"
+        and root.drive.casefold() == system_temporary.drive.casefold()
+    ):
+        return system_temporary
+    return root.parent
 
 
 def _runtime_matrix_identity_hashes(
@@ -1889,7 +1900,7 @@ def build_publication_bundle(
     for row in projected[REGISTER_PATHS[8]]:
         row["Source_Result_Path"] = state_relative.as_posix()
 
-    staging = Path(tempfile.mkdtemp(prefix=".wb04-comparison-stage-", dir=root.parent))
+    staging = Path(tempfile.mkdtemp(prefix=".s-", dir=_staging_parent(root)))
     primary_error: BaseException | None = None
     try:
         if staging_observer is not None:
@@ -2235,7 +2246,7 @@ def publish_reconciled_checkpoint(
             raise RuntimeError("publication destination drift detected before first replace")
 
         staging = Path(
-            tempfile.mkdtemp(prefix=".wb04-comparison-replace-", dir=root.parent)
+            tempfile.mkdtemp(prefix=".r-", dir=_staging_parent(root))
         )
         replaced: list[str] = []
         primary_error: BaseException | None = None

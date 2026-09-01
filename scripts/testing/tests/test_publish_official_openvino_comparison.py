@@ -1634,7 +1634,7 @@ def test_real_generator_revision_and_comparison_audit_run_only_in_staging(
 
 
 def complete_revision_fixture_repo(tmp_path: Path) -> tuple[Path, Path]:
-    repo = tmp_path / "complete-revision-fixture"
+    repo = tmp_path / "r"
     docs_source = ROOT / "docs/testing"
     docs_target = repo / "docs/testing"
     for source in docs_source.rglob("*"):

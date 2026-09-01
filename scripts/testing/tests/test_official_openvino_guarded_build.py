@@ -60,6 +60,7 @@ WRAPPER_DYNAMIC_COMMAND_VARIABLES = {
     "$python",
     "$resolvePath",
     "$setStrictMode",
+    "$TrustedRemoveModule",
     "$whereObject",
     "$writeOutput",
 }
@@ -1470,7 +1471,8 @@ def test_guard_assigns_containing_job_before_fine_job_and_resume(
 
 def test_powershell_wrapper_has_no_pre_guard_helper_launch():
     wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
-    source = wrapper.read_text(encoding="utf-8")
+    with wrapper.open("r", encoding="utf-8", newline="") as stream:
+        source = stream.read()
     invocation = "$guardNativeOutput = @(& $python @guardArguments)"
     prefix, separator, _ = source.partition(invocation)
     assert separator == invocation
@@ -1497,7 +1499,8 @@ def test_powershell_wrapper_has_no_pre_guard_helper_launch():
 
 def test_wrapper_module_qualifies_every_external_powershell_command():
     wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
-    source = wrapper.read_text(encoding="utf-8")
+    with wrapper.open("r", encoding="utf-8", newline="") as stream:
+        source = stream.read()
     commands = _powershell_command_asts(wrapper)
     observed_dynamic_variables = set()
     python_invocations = []
@@ -1549,6 +1552,7 @@ def test_wrapper_ignores_hostile_same_runspace_command_shadows(tmp_path):
         command=[str(whoami)],
     )
     external_commands = {
+        "Remove-Module": "Microsoft.PowerShell.Core",
         "Set-StrictMode": "Microsoft.PowerShell.Core",
         "ConvertFrom-Json": "Microsoft.PowerShell.Utility",
         "ConvertTo-Json": "Microsoft.PowerShell.Utility",

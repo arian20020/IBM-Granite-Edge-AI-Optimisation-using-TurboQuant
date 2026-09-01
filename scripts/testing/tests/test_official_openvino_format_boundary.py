@@ -41,16 +41,30 @@ def _stub_committed_model_hashes(monkeypatch, calls=None):
     from scripts.testing.official_openvino.artifact_inventory import sha256_file
 
     expected = {}
+    unavailable = []
     manifest_payload = json.loads(FIXTURE_MATRIX.read_text())
     for row in manifest_payload["cases"]:
         relative = row["artifact_manifest_path"]
         if relative is None:
             continue
         manifest = json.loads((ROOT / relative).read_text())
-        model_root = Path(manifest["artifact_root"])
+        model_root = Path(manifest["artifact_root"]).resolve()
+        try:
+            model_root.relative_to(ROOT.resolve())
+        except ValueError:
+            unavailable.append(model_root)
         for file_row in manifest["files"]:
             if file_row["path"] in {"openvino_model.bin", "openvino_model.xml"}:
-                expected[(model_root / file_row["path"]).resolve()] = file_row["sha256"]
+                model_file = (model_root / file_row["path"]).resolve()
+                expected[model_file] = file_row["sha256"]
+                if not model_file.is_file():
+                    unavailable.append(model_file)
+
+    if unavailable:
+        pytest.skip(
+            "external OpenVINO model artifacts are unavailable in this worktree; "
+            "artifact-bound projection integration is not executable"
+        )
 
     def controlled_sha256(path):
         source = Path(path).resolve()

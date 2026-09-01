@@ -25,6 +25,7 @@ _REPO_ROOT = _CONTROLLER_PATH.parents[3]
 _PYTHON_CONFIG_PATH = (
     _REPO_ROOT / ".venv-official-openvino-turboquant-py313" / "pyvenv.cfg"
 )
+_PYTHON_CONFIG_ENV = "OPENVINO_WB04_PYTHON_CONFIG"
 _FORMAL_METRICS = frozenset(
     {
         "load_ms", "ttft_ms", "prompt_tps", "tpot_ms", "decode_tps",
@@ -210,8 +211,12 @@ def _read_json(path: Path, label: str) -> _JsonArtifact:
 
 
 def _configured_python_executable() -> Path:
+    configured_path = os.environ.get(_PYTHON_CONFIG_ENV)
+    config_source = (
+        Path(configured_path) if configured_path is not None else _PYTHON_CONFIG_PATH
+    )
     config_path, raw = _read_bytes(
-        _PYTHON_CONFIG_PATH,
+        config_source,
         "configured Python identity",
     )
     try:
@@ -276,6 +281,30 @@ def _display_path(path: Path) -> str:
         return path.resolve().relative_to(_REPO_ROOT).as_posix()
     except ValueError:
         return str(path.resolve())
+
+
+def _repository_local_evidence_path(path: Path) -> Path:
+    root = _REPO_ROOT.resolve()
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(root)
+        return resolved
+    except ValueError:
+        parts = resolved.parts
+        lowered = [part.casefold() for part in parts]
+        matches = [
+            index
+            for index in range(len(parts) - 1)
+            if lowered[index : index + 2] == ["experiments", "raw-results"]
+        ]
+        if len(matches) != 1:
+            raise ValueError("historical evidence path is not repository-relative")
+        candidate = (root / Path(*parts[matches[0] :])).resolve()
+        try:
+            candidate.relative_to(root)
+        except ValueError as error:
+            raise ValueError("historical evidence path escapes repository root") from error
+        return candidate
 
 
 def _require_exact_keys(value: object, expected: frozenset[str], label: str) -> dict[str, Any]:
@@ -518,14 +547,28 @@ def _validate_attempt(
         raise ValueError(
             "attempt command executable is not the configured governed Python executable"
         )
-    expected_command = [
+    expected_prefix = [
         str(executable),
         "-m",
         "scripts.testing.official_openvino.measurement_worker",
         "--spec",
-        str(spec_path),
     ]
-    if command != expected_command:
+    command_spec = Path(command[4])
+    command_spec_matches = False
+    if command_spec.is_absolute():
+        command_spec_resolved = command_spec.resolve()
+        command_spec_matches = command_spec_resolved == spec_path
+        if not command_spec_matches:
+            try:
+                command_spec_matches = (
+                    _repository_local_evidence_path(command_spec_resolved) == spec_path
+                )
+            except ValueError:
+                command_spec_matches = False
+    if (
+        command[:4] != expected_prefix
+        or not command_spec_matches
+    ):
         raise ValueError(
             "attempt command is not exactly bound to the measurement worker and supplied spec"
         )

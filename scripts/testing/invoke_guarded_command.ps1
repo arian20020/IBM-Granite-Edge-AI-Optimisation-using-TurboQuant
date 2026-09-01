@@ -58,13 +58,65 @@ $bindTrustedCmdlet = {
     [string]$ExpectedName,
     [string]$ExpectedModule,
     [string]$ExpectedImplementingType,
-    [string]$ExpectedAssembly
+    [string]$ExpectedAssembly,
+    [Management.Automation.CmdletInfo]$TrustedRemoveModule = $null
   )
 
-  $commandInfo = $ExecutionContext.InvokeCommand.GetCommand(
-    $QualifiedName,
-    [Management.Automation.CommandTypes]::Cmdlet
-  )
+  $restoreModulePath = $ExpectedModule -cne 'Microsoft.PowerShell.Core'
+  $originalProcessModulePath = $null
+  if ($restoreModulePath) {
+    $originalProcessModulePath = [Environment]::GetEnvironmentVariable(
+      'PSModulePath',
+      [EnvironmentVariableTarget]::Process
+    )
+    [Environment]::SetEnvironmentVariable(
+      'PSModulePath',
+      [IO.Path]::Combine($PSHOME, 'Modules'),
+      [EnvironmentVariableTarget]::Process
+    )
+  }
+  try {
+    $commandInfo = $ExecutionContext.InvokeCommand.GetCommand(
+      $QualifiedName,
+      [Management.Automation.CommandTypes]::Cmdlet
+    )
+    if (
+      $restoreModulePath -and
+      $null -ne $TrustedRemoveModule -and
+      $null -ne $commandInfo -and
+      $null -ne $commandInfo.Module -and
+      -not [string]::IsNullOrWhiteSpace($commandInfo.Module.Path)
+    ) {
+      $candidateModuleRoot = [IO.Path]::GetFullPath(
+        [IO.Path]::Combine($PSHOME, 'Modules', $ExpectedModule)
+      ).TrimEnd([char[]]'\/')
+      $candidateModulePrefix = (
+        $candidateModuleRoot + [IO.Path]::DirectorySeparatorChar
+      )
+      $candidateModulePath = [IO.Path]::GetFullPath($commandInfo.Module.Path)
+      if (
+        -not $candidateModulePath.StartsWith(
+          $candidateModulePrefix,
+          [StringComparison]::OrdinalIgnoreCase
+        )
+      ) {
+        & $TrustedRemoveModule -ModuleInfo $commandInfo.Module -Force
+        $commandInfo = $ExecutionContext.InvokeCommand.GetCommand(
+          $QualifiedName,
+          [Management.Automation.CommandTypes]::Cmdlet
+        )
+      }
+    }
+  }
+  finally {
+    if ($restoreModulePath) {
+      [Environment]::SetEnvironmentVariable(
+        'PSModulePath',
+        $originalProcessModulePath,
+        [EnvironmentVariableTarget]::Process
+      )
+    }
+  }
   if (
     $null -eq $commandInfo -or
     $commandInfo -isnot [Management.Automation.CmdletInfo] -or
@@ -148,18 +200,26 @@ $setStrictMode = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Core' `
   'Microsoft.PowerShell.Commands.SetStrictModeCommand' `
   'System.Management.Automation'
+$removeModule = & $bindTrustedCmdlet `
+  'Microsoft.PowerShell.Core\Remove-Module' `
+  'Remove-Module' `
+  'Microsoft.PowerShell.Core' `
+  'Microsoft.PowerShell.Commands.RemoveModuleCommand' `
+  'System.Management.Automation'
 $convertFromJson = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Utility\ConvertFrom-Json' `
   'ConvertFrom-Json' `
   'Microsoft.PowerShell.Utility' `
   'Microsoft.PowerShell.Commands.ConvertFromJsonCommand' `
-  'Microsoft.PowerShell.Commands.Utility'
+  'Microsoft.PowerShell.Commands.Utility' `
+  $removeModule
 $convertToJson = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Utility\ConvertTo-Json' `
   'ConvertTo-Json' `
   'Microsoft.PowerShell.Utility' `
   'Microsoft.PowerShell.Commands.ConvertToJsonCommand' `
-  'Microsoft.PowerShell.Commands.Utility'
+  'Microsoft.PowerShell.Commands.Utility' `
+  $removeModule
 $forEachObject = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Core\ForEach-Object' `
   'ForEach-Object' `
@@ -171,31 +231,36 @@ $getAuthenticodeSignature = & $bindTrustedCmdlet `
   'Get-AuthenticodeSignature' `
   'Microsoft.PowerShell.Security' `
   'Microsoft.PowerShell.Commands.GetAuthenticodeSignatureCommand' `
-  'Microsoft.PowerShell.Security'
+  'Microsoft.PowerShell.Security' `
+  $removeModule
 $getChildItem = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Management\Get-ChildItem' `
   'Get-ChildItem' `
   'Microsoft.PowerShell.Management' `
   'Microsoft.PowerShell.Commands.GetChildItemCommand' `
-  'Microsoft.PowerShell.Commands.Management'
+  'Microsoft.PowerShell.Commands.Management' `
+  $removeModule
 $getItem = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Management\Get-Item' `
   'Get-Item' `
   'Microsoft.PowerShell.Management' `
   'Microsoft.PowerShell.Commands.GetItemCommand' `
-  'Microsoft.PowerShell.Commands.Management'
+  'Microsoft.PowerShell.Commands.Management' `
+  $removeModule
 $joinPath = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Management\Join-Path' `
   'Join-Path' `
   'Microsoft.PowerShell.Management' `
   'Microsoft.PowerShell.Commands.JoinPathCommand' `
-  'Microsoft.PowerShell.Commands.Management'
+  'Microsoft.PowerShell.Commands.Management' `
+  $removeModule
 $newObject = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Utility\New-Object' `
   'New-Object' `
   'Microsoft.PowerShell.Utility' `
   'Microsoft.PowerShell.Commands.NewObjectCommand' `
-  'Microsoft.PowerShell.Commands.Utility'
+  'Microsoft.PowerShell.Commands.Utility' `
+  $removeModule
 $outNull = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Core\Out-Null' `
   'Out-Null' `
@@ -207,19 +272,22 @@ $popLocation = & $bindTrustedCmdlet `
   'Pop-Location' `
   'Microsoft.PowerShell.Management' `
   'Microsoft.PowerShell.Commands.PopLocationCommand' `
-  'Microsoft.PowerShell.Commands.Management'
+  'Microsoft.PowerShell.Commands.Management' `
+  $removeModule
 $pushLocation = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Management\Push-Location' `
   'Push-Location' `
   'Microsoft.PowerShell.Management' `
   'Microsoft.PowerShell.Commands.PushLocationCommand' `
-  'Microsoft.PowerShell.Commands.Management'
+  'Microsoft.PowerShell.Commands.Management' `
+  $removeModule
 $resolvePath = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Management\Resolve-Path' `
   'Resolve-Path' `
   'Microsoft.PowerShell.Management' `
   'Microsoft.PowerShell.Commands.ResolvePathCommand' `
-  'Microsoft.PowerShell.Commands.Management'
+  'Microsoft.PowerShell.Commands.Management' `
+  $removeModule
 $whereObject = & $bindTrustedCmdlet `
   'Microsoft.PowerShell.Core\Where-Object' `
   'Where-Object' `
@@ -231,7 +299,8 @@ $writeOutput = & $bindTrustedCmdlet `
   'Write-Output' `
   'Microsoft.PowerShell.Utility' `
   'Microsoft.PowerShell.Commands.WriteOutputCommand' `
-  'Microsoft.PowerShell.Commands.Utility'
+  'Microsoft.PowerShell.Commands.Utility' `
+  $removeModule
 
 & $setStrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'

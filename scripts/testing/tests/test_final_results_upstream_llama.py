@@ -1,6 +1,7 @@
 import csv
 import dataclasses
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -508,8 +509,9 @@ def test_comparator_claims_bind_all_eligible_rows_and_reproduction_is_executable
         "scripts/testing/final_results/llama_adapter.py",
         "scripts/testing/tests/test_final_results_upstream_llama.py",
     ):
-        assert (REPOSITORY_ROOT / path).exists(), path
         assert path in commands or path in (route / "reproduction/dependencies.md").read_text(encoding="utf-8")
+        if path != ".tools/python311-portable/python.exe":
+            assert (REPOSITORY_ROOT / path).exists(), path
 
     rubric_text = (route / "quality/rubric.md").read_text(encoding="utf-8")
     calibration = (route / "quality/calibration.md").read_text(encoding="utf-8")
@@ -523,6 +525,20 @@ def test_comparator_claims_bind_all_eligible_rows_and_reproduction_is_executable
     assert "Calibration: Not collected" in calibration
     assert "Score increments: Not collected" in calibration
     assert all(row["task_type"] and row["deterministic_checks_json"] and row["generation_settings_json"] for row in prompt_rows)
+
+
+def test_documented_portable_python_is_available_when_installed():
+    executable = REPOSITORY_ROOT / ".tools/python311-portable/python.exe"
+    if not executable.is_file():
+        pytest.skip("ignored portable Python dependency is not installed in this worktree")
+    completed = subprocess.run(
+        [str(executable), "--version"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0
+    assert "Python 3.11.9" in completed.stdout + completed.stderr
 
 
 def test_pdf_finalizer_uses_the_current_structurally_valid_page_count():

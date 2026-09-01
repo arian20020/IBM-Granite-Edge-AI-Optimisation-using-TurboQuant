@@ -244,7 +244,7 @@ EXPECTED_REJECTION_AGGREGATES = {
     "scalar": (
         "experiments/raw-results/openvino-turboquant/2026-07-30/"
         "expected-rejections/scalar-semantic-rejections.json",
-        "3625cd61ea87c51cf8dce7c58d1dbe23f403571710030a769501ae39315f1f5f",
+        "f0b9e4fda6469276f7e6d2834987aa7749d1e181c4746a87b3122d5549dbba5a",
     ),
     "property": (
         "experiments/raw-results/openvino-turboquant/2026-07-30/"
@@ -341,6 +341,27 @@ def _relative(repo_root: Path, path: Path) -> str:
     return _within_repo(repo_root, path, "evidence path").relative_to(
         repo_root.resolve()
     ).as_posix()
+
+
+def _repository_local_evidence_path(repo_root: Path, value: str) -> Path:
+    root = repo_root.resolve()
+    resolved = Path(value).resolve()
+    try:
+        resolved.relative_to(root)
+        return resolved
+    except ValueError:
+        parts = resolved.parts
+        lowered = [part.casefold() for part in parts]
+        matches = [
+            index
+            for index in range(len(parts) - 1)
+            if lowered[index : index + 2] == ["experiments", "raw-results"]
+        ]
+        if len(matches) != 1:
+            raise ValueError("historical evidence path is not repository-relative")
+        candidate = (root / Path(*parts[matches[0] :])).resolve()
+        _within_repo(root, candidate, "historical evidence path")
+        return candidate
 
 
 def _source_ref(
@@ -750,11 +771,16 @@ def _validate_quality_guards(repo_root: Path) -> list[dict[str, str]]:
         observed = guard.get("observed_available_ram_bytes")
         job = guard.get("job_object")
         command = guard.get("command")
-        expected_bound_input = {
-            "name": "quality_worker_spec",
-            "path": str(spec_path),
-            "sha256": expected_spec_sha256,
-        }
+        bound_inputs = guard.get("bound_inputs")
+        bound_input = bound_inputs[0] if isinstance(bound_inputs, list) and len(bound_inputs) == 1 else None
+        bound_input_matches = (
+            isinstance(bound_input, dict)
+            and bound_input.get("name") == "quality_worker_spec"
+            and bound_input.get("sha256") == expected_spec_sha256
+            and isinstance(bound_input.get("path"), str)
+            and _repository_local_evidence_path(repo_root, bound_input["path"])
+            == spec_path
+        )
         if (
             guard.get("schema") != "official-openvino-owned-process-guard/v1"
             or guard.get("valid") is not False
@@ -775,7 +801,7 @@ def _validate_quality_guards(repo_root: Path) -> list[dict[str, str]]:
             or job.get("query_ok") is not True
             or job.get("survivor_pids_after_cleanup") != []
             or not isinstance(guard.get("run_id"), str)
-            or guard.get("bound_inputs") != [expected_bound_input]
+            or not bound_input_matches
             or not isinstance(command, list)
             or command.count("--spec") != 1
         ):
@@ -783,7 +809,9 @@ def _validate_quality_guards(repo_root: Path) -> list[dict[str, str]]:
         spec_index = command.index("--spec") + 1
         if (
             spec_index >= len(command)
-            or command[spec_index] != str(spec_path)
+            or not isinstance(command[spec_index], str)
+            or _repository_local_evidence_path(repo_root, command[spec_index])
+            != spec_path
             or spec_path != guard_path.parent / "worker-spec.json"
         ):
             raise ValueError(
