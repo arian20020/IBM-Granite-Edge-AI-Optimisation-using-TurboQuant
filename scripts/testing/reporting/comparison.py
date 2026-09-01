@@ -1236,7 +1236,7 @@ def write_cross_route_package(
     _write_text(route / "README.md", "# Guarded cross-route comparison\n\nThis route preserves complete status accounting and publishes protocol-gated comparisons without a universal repository score.")
     _write_text(route / "protocol/comparability-policy.md", "# Comparability policy\n\nThroughput requires compatible model, input length, output length, backend class, repetition treatment, and metric definition. Quality additionally requires identical prompt set, prompt-suite identity, rubric, scoring version, denominator, and aggregation. Missing required metadata is not comparable; incompatible complete methods are descriptive only.")
     _write_text(route / "reproduction/README.md", "# Reproduction\n\nRegeneration normalizes the existing five RouteBundle objects; it does not rerun inference.")
-    _write_text(route / "reproduction/commands.md", "# Commands\n\nUse `write_cross_route_package` to render Markdown/DOCX and catalogs, export only the owned DOCX through `Export-Final-Results-Pdf.ps1`, then use `finalize_cross_route_package`.\n")
+    _write_text(route / "reproduction/commands.md", "# Commands\n\nUse `write_cross_route_package` to render Markdown/DOCX and catalogs, export only the owned DOCX through `scripts/testing/cli/export_report.ps1`, then use `finalize_cross_route_package`.\n")
     _write_text(route / "evidence/claim-evidence-map.csv", "claim_id,claim_boundary\nCROSS-BOUNDARY-001,No universal ranking; source evidence remains in five route packages\n")
     markdown = route / "workbook/source/cross-route-comparison-final-report.md"
     docx = route / "workbook/generated/cross-route-comparison-final-report.docx"

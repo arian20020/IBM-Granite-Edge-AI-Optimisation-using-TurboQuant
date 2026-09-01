@@ -505,7 +505,7 @@ def test_comparator_claims_bind_all_eligible_rows_and_reproduction_is_executable
     for path in (
         ".tools/python311-portable/python.exe",
         "scripts/testing/requirements.txt",
-        "scripts/testing/Export-Final-Results-Pdf.ps1",
+        "scripts/testing/cli/export_report.ps1",
         "scripts/testing/reporting/llama_adapter.py",
         "scripts/testing/tests/test_final_results_upstream_llama.py",
     ):

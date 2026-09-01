@@ -8,19 +8,17 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Iterator, Sequence
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+if TYPE_CHECKING:
+    from scripts.testing.reporting.validate import ValidationReport
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
-
-from scripts.testing.reporting.validate import (  # noqa: E402
-    ValidationReport,
-    validate_collection,
-    validate_route,
-    write_validation_receipts,
-)
 
 
 ROUTE_CHOICES = (
@@ -47,11 +45,15 @@ class InvalidBuildRequest(ValueError):
     """The requested output location or route is unsafe or unsupported."""
 
 
-def _parser() -> argparse.ArgumentParser:
+def build_parser(
+    *,
+    include_validate_only: bool = True,
+) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--route", choices=ROUTE_CHOICES, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
-    parser.add_argument("--validate-only", action="store_true")
+    if include_validate_only:
+        parser.add_argument("--validate-only", action="store_true")
     return parser
 
 
@@ -66,7 +68,13 @@ def _selected_directories(route: str) -> tuple[str, ...]:
     return (ROUTE_DIRECTORIES[route],)
 
 
-def _validate_selection(output_root: Path, route: str) -> ValidationReport:
+def _validate_selection(output_root: Path, route: str) -> "ValidationReport":
+    from scripts.testing.reporting.validate import (
+        ValidationReport,
+        validate_collection,
+        validate_route,
+    )
+
     root = Path(output_root).resolve()
     if route == "all":
         return validate_collection(root)
@@ -83,7 +91,7 @@ def _validate_selection(output_root: Path, route: str) -> ValidationReport:
     return validate_route(root / _selected_directories(route)[0])
 
 
-def _print_report(report: ValidationReport) -> None:
+def _print_report(report: "ValidationReport") -> None:
     print(f"Validation {'passed' if report.valid else 'failed'}: {report.root}")
     for gate in report.gates:
         print(
@@ -144,7 +152,7 @@ def _export_pdf(docx: Path, pdf: Path) -> None:
             "-ExecutionPolicy",
             "Bypass",
             "-File",
-            str(REPOSITORY_ROOT / "scripts/testing/Export-Final-Results-Pdf.ps1"),
+            str(REPOSITORY_ROOT / "scripts/testing/cli/export_report.ps1"),
             "-DocxPath",
             str(docx),
             "-PdfPath",
@@ -298,7 +306,7 @@ def _all_bundles(existing: dict[str, object]) -> tuple[object, ...]:
     return tuple(ordered)
 
 
-def build_final_results(route: str, output_root: Path) -> ValidationReport:
+def build_final_results(route: str, output_root: Path) -> "ValidationReport":
     """Build selected routes in a new, repository-contained output root."""
     if route not in ROUTE_CHOICES:
         raise InvalidBuildRequest(f"unsupported route: {route}")
@@ -329,15 +337,17 @@ def build_final_results(route: str, output_root: Path) -> ValidationReport:
             finalize_cross_route_package(REPOSITORY_ROOT, output_root=output)
     report = _validate_selection(output, route)
     if route == "all":
+        from scripts.testing.reporting.validate import write_validation_receipts
+
         write_validation_receipts(output, report)
     return report
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+    args = build_parser().parse_args(argv)
     report = (
         _validate_selection(args.output_root, args.route)
-        if args.validate_only
+        if getattr(args, "validate_only", False)
         else build_final_results(args.route, args.output_root)
     )
     _print_report(report)

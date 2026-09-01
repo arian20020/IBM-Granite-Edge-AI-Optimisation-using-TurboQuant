@@ -38,11 +38,11 @@ from scripts.testing.reporting.validate import (
     validate_route,
     write_validation_receipts,
 )
-from scripts.testing.build_final_results import build_final_results
+from scripts.testing.cli.build_results import build_final_results
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-BUILD_SCRIPT = REPOSITORY_ROOT / "scripts/testing/build_final_results.py"
+BUILD_SCRIPT = REPOSITORY_ROOT / "scripts/testing/cli/build_results.py"
 
 
 ATTEMPT_FIELDS = (

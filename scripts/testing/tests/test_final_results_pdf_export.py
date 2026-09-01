@@ -19,7 +19,7 @@ from scripts.testing.reporting.report_model import Report, ReportParagraph, Repo
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-EXPORT_SCRIPT = REPOSITORY_ROOT / "scripts" / "testing" / "Export-Final-Results-Pdf.ps1"
+EXPORT_SCRIPT = REPOSITORY_ROOT / "scripts" / "testing" / "cli" / "export_report.ps1"
 
 
 def _find_word_executable() -> Path | None:
