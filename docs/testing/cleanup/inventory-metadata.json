@@ -1,0 +1,18 @@
+{
+  "canonical_branch": "testing/results-cleanup-v1",
+  "canonical_head": "4af0d2719f658346d768f32bf2d33e2c942c7fab",
+  "canonical_root": "C:\\Users\\Student\\Granite-Testing-Results-Cleanup-2026-09-01",
+  "canonical_status_capture_phase": "first real inventory pass after tool bootstrap and before any structural migration",
+  "canonical_status_sha256": "8db0e33b9d7eaae53d7cfe41463c1617aa4d0ee7ce4a23a1e1450eefc68e191a",
+  "record_count": 5057,
+  "schema": "testing-cleanup-inventory/v1",
+  "scopes": [
+    "docs/testing/final-results",
+    "experiments/raw-results",
+    "scripts/testing"
+  ],
+  "source_branch": "testing/openvino-turboquant-recovery",
+  "source_head": "5ec36c25826c03533f274e19b248d1c011b05de2",
+  "source_root": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery",
+  "source_status_sha256": "f941a5c84f174274cb99dfa43d7c30c6cbec5dc833ef695a0b1b6797185b6efa"
+}
