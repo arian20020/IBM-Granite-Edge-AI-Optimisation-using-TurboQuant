@@ -11,7 +11,7 @@ Run from the repository root in PowerShell. Stop immediately if any command exit
 2. Export the owned Word PDF
 
 ```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/Export-Final-Results-Pdf.ps1 -DocxPath docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx -PdfPath docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf -TimeoutSeconds 180
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx -PdfPath docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf -TimeoutSeconds 180
 ```
 
 3. Finalize and validate the PDF
@@ -29,5 +29,5 @@ Run from the repository root in PowerShell. Stop immediately if any command exit
 5. Run the focused validation suite
 
 ```powershell
-& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/test_final_results_upstream_llama.py -q
+& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/integration/test_final_results_upstream_llama.py -q
 ```

@@ -27,13 +27,17 @@ The archive already contains every source path cited by the five evidence indexe
 ## Run the release tests
 
 ```powershell
-python -m pytest scripts/testing/tests/test_final_results_*.py
+python -m pytest scripts/testing/tests/integration/test_final_results_*.py scripts/testing/tests/acceptance/test_build_final_results.py scripts/testing/tests/acceptance/test_final_results_*.py scripts/testing/tests/acceptance/test_official_openvino_docx.py
 ```
 
-PowerShell does not expand this wildcard for every executable. If your pytest build does not collect it, enumerate the matching paths first:
+PowerShell does not expand these wildcards for every executable. If your pytest build does not collect them, enumerate the matching paths first:
 
 ```powershell
-$releaseTests = Get-ChildItem scripts/testing/tests/test_final_results_*.py | ForEach-Object FullName
+$releaseTests =
+  (Get-ChildItem scripts/testing/tests/integration/test_final_results_*.py | ForEach-Object FullName) +
+  (Get-ChildItem scripts/testing/tests/acceptance/test_final_results_*.py | ForEach-Object FullName) +
+  (Resolve-Path scripts/testing/tests/acceptance/test_build_final_results.py).Path +
+  (Resolve-Path scripts/testing/tests/acceptance/test_official_openvino_docx.py).Path
 python -m pytest @releaseTests
 ```
 
