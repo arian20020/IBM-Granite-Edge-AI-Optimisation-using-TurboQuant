@@ -3,7 +3,7 @@
 Run from the repository root with the pinned portable test interpreter:
 
 ```powershell
-& '.tools/python311-portable/python.exe' -c "from pathlib import Path; from scripts.testing.final_results.openvino_adapter import write_experimental_route; write_experimental_route(Path.cwd())"
+& '.tools/python311-portable/python.exe' -c "from pathlib import Path; from scripts.testing.reporting.openvino_adapter import write_experimental_route; write_experimental_route(Path.cwd())"
 ```
 
 ## Frozen inputs

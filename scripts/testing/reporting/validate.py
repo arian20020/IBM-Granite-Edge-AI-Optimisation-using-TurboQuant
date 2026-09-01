@@ -860,7 +860,7 @@ def _gate_availability(data: _RouteData) -> GateResult:
 
 def _repository_root(route: Path) -> Path:
     for candidate in (route, *route.parents):
-        if (candidate / "scripts/testing/final_results").is_dir():
+        if (candidate / "scripts/testing/reporting").is_dir():
             return candidate
     return route.parent
 

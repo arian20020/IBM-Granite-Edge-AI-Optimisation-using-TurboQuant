@@ -7,8 +7,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.markdown_renderer import render_markdown
-from scripts.testing.final_results.report_model import (
+from scripts.testing.reporting.markdown_renderer import render_markdown
+from scripts.testing.reporting.report_model import (
     Report,
     ReportNote,
     ReportParagraph,

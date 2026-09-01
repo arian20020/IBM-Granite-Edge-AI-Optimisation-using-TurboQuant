@@ -42,7 +42,7 @@ python -m pytest @releaseTests
 The originals under each OpenVINO route's `results/source/` directory are immutable evidence-only, nonportable XLSX files. The primary handoff workbooks under `workbook/generated/` replace machine-specific absolute path cells and hyperlink targets with stable repository-relative references while preserving scientific values, formulas, and sheet structure:
 
 ```powershell
-python -c "from pathlib import Path; from scripts.testing.final_results.workbook_portability import write_portable_openvino_workbooks; write_portable_openvino_workbooks(Path.cwd())"
+python -c "from pathlib import Path; from scripts.testing.reporting.workbook_portability import write_portable_openvino_workbooks; write_portable_openvino_workbooks(Path.cwd())"
 ```
 
 The experimental workbook has 275 formulas and no cached formula results. It may show blank formula cells in a non-calculating reader until Excel recalculation; this is a display limitation, not formula removal.

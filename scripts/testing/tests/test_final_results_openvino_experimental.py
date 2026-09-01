@@ -14,10 +14,10 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.testing.final_results.csvio import validate_json
-from scripts.testing.final_results.evidence import validate_sha256_manifest
-from scripts.testing.final_results.models import Status
-from scripts.testing.final_results.openvino_adapter import (
+from scripts.testing.reporting.csvio import validate_json
+from scripts.testing.reporting.evidence import validate_sha256_manifest
+from scripts.testing.reporting.models import Status
+from scripts.testing.reporting.openvino_adapter import (
     build_experimental_bundle,
     build_experimental_validation_receipts,
     write_experimental_route,

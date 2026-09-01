@@ -15,9 +15,9 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.testing.final_results.models import Status
-import scripts.testing.final_results.openvino_adapter as openvino_adapter
-from scripts.testing.final_results.openvino_adapter import (
+from scripts.testing.reporting.models import Status
+import scripts.testing.reporting.openvino_adapter as openvino_adapter
+from scripts.testing.reporting.openvino_adapter import (
     build_official_bundle,
     build_official_validation_receipts,
     write_official_route,

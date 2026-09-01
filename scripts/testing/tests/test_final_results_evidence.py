@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.evidence import (
+from scripts.testing.reporting.evidence import (
     build_evidence_record,
     hash_file,
     repo_relative,

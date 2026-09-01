@@ -1347,7 +1347,7 @@ Run from the repository root in PowerShell. Stop immediately if any command exit
 1. Normalize and render
 
 ```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import write_upstream_llama_route; write_upstream_llama_route(root)"
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import write_upstream_llama_route; write_upstream_llama_route(root)"
 ```
 
 2. Export the owned Word PDF
@@ -1359,13 +1359,13 @@ Run from the repository root in PowerShell. Stop immediately if any command exit
 3. Finalize and validate the PDF
 
 ```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import finalize_upstream_llama_route; finalize_upstream_llama_route(root)"
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import finalize_upstream_llama_route; finalize_upstream_llama_route(root)"
 ```
 
 4. Validate the checksum manifest
 
 ```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.evidence import validate_sha256_manifest; errors=validate_sha256_manifest(root, root/'docs/testing/final-results/01-upstream-llama-cpp/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.evidence import validate_sha256_manifest; errors=validate_sha256_manifest(root, root/'docs/testing/final-results/01-upstream-llama-cpp/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
 ```
 
 5. Run the focused validation suite
@@ -1375,8 +1375,8 @@ Run from the repository root in PowerShell. Stop immediately if any command exit
 ```
 """,
     )
-    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- Portable interpreter: `.tools/python311-portable/python.exe` (validated with Python 3.11.9).\n- Pinned reporting packages: `scripts/testing/requirements.txt`.\n- Owned Word exporter: `scripts/testing/Export-Final-Results-Pdf.ps1` with a 180-second bound.\n- Normalizer/finalizer: `scripts/testing/final_results/llama_adapter.py`.\n- Focused validation: `scripts/testing/tests/test_final_results_upstream_llama.py`.\n- Microsoft Word is required only for the DOCX-to-PDF export step.")
-    _write_text(route / "reproduction/scripts/README.md", "# Reproduction scripts\n\nThe maintained adapter is `scripts/testing/final_results/llama_adapter.py`; it is referenced rather than copied.")
+    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- Portable interpreter: `.tools/python311-portable/python.exe` (validated with Python 3.11.9).\n- Pinned reporting packages: `scripts/testing/requirements.txt`.\n- Owned Word exporter: `scripts/testing/Export-Final-Results-Pdf.ps1` with a 180-second bound.\n- Normalizer/finalizer: `scripts/testing/reporting/llama_adapter.py`.\n- Focused validation: `scripts/testing/tests/test_final_results_upstream_llama.py`.\n- Microsoft Word is required only for the DOCX-to-PDF export step.")
+    _write_text(route / "reproduction/scripts/README.md", "# Reproduction scripts\n\nThe maintained adapter is `scripts/testing/reporting/llama_adapter.py`; it is referenced rather than copied.")
     _write_text(route / "README.md", "# Upstream llama.cpp final results\n\nCanonical Markdown: `workbook/source/upstream-llama-cpp-final-report.md`. Generated DOCX/PDF are derivatives. Source evidence remains in its authoritative repository locations.")
     markdown = route / "workbook/source/upstream-llama-cpp-final-report.md"
     docx = route / "workbook/generated/upstream-llama-cpp-final-report.docx"
@@ -2333,7 +2333,7 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
 
 1. Normalize and render
 ```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import write_atomicbot_route; write_atomicbot_route(root)"
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import write_atomicbot_route; write_atomicbot_route(root)"
 ```
 2. Export the owned Word PDF
 ```powershell
@@ -2341,19 +2341,19 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
 ```
 3. Finalize and validate the PDF
 ```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import finalize_atomicbot_route; finalize_atomicbot_route(root)"
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import finalize_atomicbot_route; finalize_atomicbot_route(root)"
 ```
 4. Validate manifest
 ```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.evidence import validate_sha256_manifest; errors=validate_sha256_manifest(root,root/'docs/testing/final-results/02-atomicbot-turboquant/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.evidence import validate_sha256_manifest; errors=validate_sha256_manifest(root,root/'docs/testing/final-results/02-atomicbot-turboquant/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
 ```
 5. Run focused validation
 ```powershell
 & .tools/python311-portable/python.exe -m pytest scripts/testing/tests/test_final_results_atomicbot.py -q
 ```
 """)
-    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- `scripts/testing/Export-Final-Results-Pdf.ps1` (owned Word, 180 seconds)\n- `scripts/testing/final_results/llama_adapter.py`\n- `scripts/testing/tests/test_final_results_atomicbot.py`")
-    _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/final_results/llama_adapter.py`.")
+    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- `scripts/testing/Export-Final-Results-Pdf.ps1` (owned Word, 180 seconds)\n- `scripts/testing/reporting/llama_adapter.py`\n- `scripts/testing/tests/test_final_results_atomicbot.py`")
+    _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/reporting/llama_adapter.py`.")
     _write_text(route / "README.md", "# AtomicBot TurboQuant final results\n\nCanonical Markdown and generated derivatives preserve WB-02 v1.7 evidence boundaries. Quality is limited/provisional and not directly OpenVINO-comparable.")
     markdown = route / "workbook/source/atomicbot-turboquant-final-report.md"; docx = route / "workbook/generated/atomicbot-turboquant-final-report.docx"
     render_markdown(report, markdown); render_docx(report, docx)
@@ -3528,7 +3528,7 @@ def write_animehacker_route(repo_root: Path) -> RouteBundle:
 
 1. Normalize and render
 ```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import write_animehacker_route; write_animehacker_route(root)"
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import write_animehacker_route; write_animehacker_route(root)"
 ```
 2. Export the owned Word PDF
 ```powershell
@@ -3536,19 +3536,19 @@ def write_animehacker_route(repo_root: Path) -> RouteBundle:
 ```
 3. Finalize and validate
 ```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.final_results.llama_adapter import finalize_animehacker_route; finalize_animehacker_route(root)"
+& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import finalize_animehacker_route; finalize_animehacker_route(root)"
 ```
 4. Validate manifest
 ```powershell
-& .tools/python311-portable/python.exe -c "from pathlib import Path; from scripts.testing.final_results.evidence import validate_sha256_manifest; root=Path.cwd(); errors=validate_sha256_manifest(root,root/'docs/testing/final-results/03-animehacker-tq3-0/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
+& .tools/python311-portable/python.exe -c "from pathlib import Path; from scripts.testing.reporting.evidence import validate_sha256_manifest; root=Path.cwd(); errors=validate_sha256_manifest(root,root/'docs/testing/final-results/03-animehacker-tq3-0/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
 ```
 5. Run focused validation
 ```powershell
 & .tools/python311-portable/python.exe -m pytest scripts/testing/tests/test_final_results_animehacker.py -q
 ```
 """)
-    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- Microsoft Word via the bounded owned exporter\n- `scripts/testing/final_results/llama_adapter.py`")
-    _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/final_results/llama_adapter.py`.")
+    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- Microsoft Word via the bounded owned exporter\n- `scripts/testing/reporting/llama_adapter.py`")
+    _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/reporting/llama_adapter.py`.")
     _write_text(route / "README.md", "# animehacker TQ3_0 final results\n\nCanonical Markdown and synchronized DOCX/PDF derivatives preserve WB-03 v1.5 authority, rejected evidence, safety classifications, and missing-value boundaries.")
 
     markdown = route / "workbook/source/animehacker-tq3-0-final-report.md"

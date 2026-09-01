@@ -354,7 +354,7 @@ def write_portable_openvino_route_workbook(
         "output_path": output.relative_to(root).as_posix(),
         "output_role": "primary portable workbook derivative",
         "receipt_path": receipt_path.relative_to(root).as_posix(),
-        "sanitizer": "scripts/testing/final_results/workbook_portability.py",
+        "sanitizer": "scripts/testing/reporting/workbook_portability.py",
         "scientific_values_preserved": True,
         "formulas_preserved": True,
         "sheet_structure_preserved": True,

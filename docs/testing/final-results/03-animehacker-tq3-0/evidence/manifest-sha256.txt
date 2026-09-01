@@ -18,9 +18,9 @@ ee2cfa02b3dac4bfe4ec533a9c8c9638adbf0a12168be8e0633c4353bcca9498  docs/testing/f
 108ca7102708a84d42c8822d644e0087416c3aa60af3cc10c8580cd2d38ee727  docs/testing/final-results/03-animehacker-tq3-0/quality/rubric.md
 5d10d488dc5cf0e0c960e88cb4f84db42888e8859727d7f504b854b1a501573c  docs/testing/final-results/03-animehacker-tq3-0/quality/scores.csv
 23115b237f1f5b9919c4d7eff09bc2776e1c27024250a9e1e0704255c8ce140b  docs/testing/final-results/03-animehacker-tq3-0/reproduction/README.md
-d5aea76869831026a8bb6f88c51a1a24a98dbd1f508e583b509cb8f3c4fff668  docs/testing/final-results/03-animehacker-tq3-0/reproduction/commands.md
-51ab433d0530ea6b2dd475010f8c8d0dac2840e5673d93e1c3fd577553b199c0  docs/testing/final-results/03-animehacker-tq3-0/reproduction/dependencies.md
-0ce4ef15874af483ce302cd6ef8c62b52f5ea1747308ea3f70ecf154c764a30c  docs/testing/final-results/03-animehacker-tq3-0/reproduction/scripts/README.md
+f16e33278a4bb9ddbbe04f00957d73f903fde613227997ae58545b76a68e8b4b  docs/testing/final-results/03-animehacker-tq3-0/reproduction/commands.md
+7f60be108a190839a502e695fb66af9d7d0e08e0517376e0bd4c8ba1b6cab173  docs/testing/final-results/03-animehacker-tq3-0/reproduction/dependencies.md
+c33b5236535602327711fc91fd1ae7ee2316a0da72c04ef2e9fd4a0c8cff934e  docs/testing/final-results/03-animehacker-tq3-0/reproduction/scripts/README.md
 69bc6037dbbca9cd2aa5ac10c42a026f7a1c345edd5d5f79289b01cd58454c86  docs/testing/final-results/03-animehacker-tq3-0/results/attempts.csv
 6947b2b978557c1d555bcc2aad58c4ca70dcaea7a555d4ab44622fd9b264974b  docs/testing/final-results/03-animehacker-tq3-0/results/availability-matrix.csv
 1911aa8bbedb5964b87f48a7c9671a42bd107947bdde24d289187a99798677f4  docs/testing/final-results/03-animehacker-tq3-0/results/measurements.csv

@@ -103,7 +103,7 @@
       "sheet": "Detailed Results"
     }
   ],
-  "sanitizer": "scripts/testing/final_results/workbook_portability.py",
+  "sanitizer": "scripts/testing/reporting/workbook_portability.py",
   "schema_version": "1.0.0",
   "scientific_values_preserved": true,
   "sheet_structure_preserved": true,

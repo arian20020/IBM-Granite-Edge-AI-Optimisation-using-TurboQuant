@@ -12,9 +12,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results import llama_adapter
-from scripts.testing.final_results.csvio import validate_json
-from scripts.testing.final_results.llama_adapter import (
+from scripts.testing.reporting import llama_adapter
+from scripts.testing.reporting.csvio import validate_json
+from scripts.testing.reporting.llama_adapter import (
     ANIMEHACKER_EXPECTED_IDS,
     _animehacker_relationship_receipt,
     audit_animehacker_sources,
@@ -23,9 +23,9 @@ from scripts.testing.final_results.llama_adapter import (
     finalize_animehacker_route,
     write_animehacker_route,
 )
-from scripts.testing.final_results.models import Status
-from scripts.testing.final_results.openvino_report import SECTION_ORDER
-from scripts.testing.final_results.report_model import ReportParagraph, ReportTable
+from scripts.testing.reporting.models import Status
+from scripts.testing.reporting.openvino_report import SECTION_ORDER
+from scripts.testing.reporting.report_model import ReportParagraph, ReportTable
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]

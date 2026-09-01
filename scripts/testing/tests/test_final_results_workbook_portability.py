@@ -13,7 +13,7 @@ import openpyxl
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 
-from scripts.testing.final_results.workbook_portability import (
+from scripts.testing.reporting.workbook_portability import (
     sanitize_workbook,
     write_portable_openvino_route_workbook,
     write_portable_openvino_workbooks,

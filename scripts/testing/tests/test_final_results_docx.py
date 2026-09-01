@@ -10,8 +10,8 @@ from lxml import etree
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.markdown_renderer import render_markdown
-from scripts.testing.final_results.report_model import (
+from scripts.testing.reporting.markdown_renderer import render_markdown
+from scripts.testing.reporting.report_model import (
     Report,
     ReportNote,
     ReportParagraph,
@@ -24,13 +24,13 @@ WORD_NAMESPACE = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/
 
 
 def _renderer():
-    from scripts.testing.final_results.docx_renderer import render_docx
+    from scripts.testing.reporting.docx_renderer import render_docx
 
     return render_docx
 
 
 def _parity_comparator():
-    from scripts.testing.final_results.parity import compare_markdown_docx
+    from scripts.testing.reporting.parity import compare_markdown_docx
 
     return compare_markdown_docx
 

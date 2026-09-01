@@ -13,12 +13,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.csvio import write_csv, write_json
-from scripts.testing.final_results.docx_renderer import render_docx
-from scripts.testing.final_results.evidence import hash_file
-from scripts.testing.final_results.markdown_renderer import render_markdown
-from scripts.testing.final_results.comparison import build_catalogs
-from scripts.testing.final_results.models import (
+from scripts.testing.reporting.csvio import write_csv, write_json
+from scripts.testing.reporting.docx_renderer import render_docx
+from scripts.testing.reporting.evidence import hash_file
+from scripts.testing.reporting.markdown_renderer import render_markdown
+from scripts.testing.reporting.comparison import build_catalogs
+from scripts.testing.reporting.models import (
     AttemptRecord,
     EvidenceRecord,
     MeasurementRecord,
@@ -27,12 +27,12 @@ from scripts.testing.final_results.models import (
     Status,
     SummaryRecord,
 )
-from scripts.testing.final_results.report_model import (
+from scripts.testing.reporting.report_model import (
     Report,
     ReportParagraph,
     ReportSection,
 )
-from scripts.testing.final_results.validate import (
+from scripts.testing.reporting.validate import (
     GATE_ORDER,
     validate_collection,
     validate_route,

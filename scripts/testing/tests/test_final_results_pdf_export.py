@@ -15,7 +15,7 @@ from pypdf import PdfReader
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.report_model import Report, ReportParagraph, ReportSection
+from scripts.testing.reporting.report_model import Report, ReportParagraph, ReportSection
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -61,7 +61,7 @@ WORD_EXE = _find_word_executable()
 
 
 def _renderer():
-    from scripts.testing.final_results.docx_renderer import render_docx
+    from scripts.testing.reporting.docx_renderer import render_docx
 
     return render_docx
 

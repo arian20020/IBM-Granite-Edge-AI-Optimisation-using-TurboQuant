@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.models import (
+from scripts.testing.reporting.models import (
     AttemptRecord,
     MeasurementRecord,
     QualityRecord,
@@ -17,11 +17,11 @@ from scripts.testing.final_results.models import (
     Status,
     SummaryRecord,
 )
-from scripts.testing.final_results.openvino_adapter import (
+from scripts.testing.reporting.openvino_adapter import (
     build_experimental_bundle,
     build_official_bundle,
 )
-from scripts.testing.final_results.report_model import (
+from scripts.testing.reporting.report_model import (
     ReportNote,
     ReportParagraph,
     ReportSection,
@@ -148,7 +148,7 @@ def _tables(report) -> dict[str, ReportTable]:
 
 
 def test_throughput_direct_comparison_requires_every_protocol_dimension():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     left = _bundle("left")
     right = _bundle("right")
@@ -195,7 +195,7 @@ def test_throughput_direct_comparison_requires_every_protocol_dimension():
 
 
 def test_keyed_throughput_comparison_rejects_relationship_preserving_set_swap():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     def combine(route_id: str, first: RouteBundle, second: RouteBundle) -> RouteBundle:
         return RouteBundle(
@@ -221,7 +221,7 @@ def test_keyed_throughput_comparison_rejects_relationship_preserving_set_swap():
 
 
 def test_throughput_preserves_repetition_keyed_token_relationships():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     left = _bundle("left")
     right = _bundle("right")
@@ -258,7 +258,7 @@ def test_throughput_preserves_repetition_keyed_token_relationships():
 
 
 def test_throughput_rejects_one_missing_required_repetition_token_value():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     left = _bundle("left")
     right = _bundle("right")
@@ -279,7 +279,7 @@ def test_throughput_rejects_one_missing_required_repetition_token_value():
 
 
 def test_quality_ranking_requires_identical_method_and_denominator():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     left = _bundle("left")
     right = _bundle("right")
@@ -299,7 +299,7 @@ def test_quality_ranking_requires_identical_method_and_denominator():
 
 
 def test_quality_comparison_preserves_prompt_row_relationships_and_suite_identity():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     left = _bundle("left")
     left = dataclasses.replace(
@@ -331,7 +331,7 @@ def test_quality_comparison_preserves_prompt_row_relationships_and_suite_identit
 
 
 def test_missing_required_quality_metadata_on_both_sides_is_not_direct():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     left = _bundle("left", prompt_suite=None)
     right = _bundle("right", prompt_suite=None)
@@ -345,7 +345,7 @@ def test_missing_required_quality_metadata_on_both_sides_is_not_direct():
 
 
 def test_missing_required_quality_metadata_without_shared_cases_is_not_comparable():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     left = _bundle("left", case_id="case-left", prompt_suite=None)
     right = _bundle("right", case_id="case-right", prompt_suite=None)
@@ -359,7 +359,7 @@ def test_missing_required_quality_metadata_without_shared_cases_is_not_comparabl
 
 
 def test_disjoint_quality_routes_reject_missing_identity_and_row_dimensions():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     def remove_required_identity(bundle: RouteBundle) -> RouteBundle:
         return dataclasses.replace(
@@ -381,8 +381,8 @@ def test_disjoint_quality_routes_reject_missing_identity_and_row_dimensions():
 
 
 def test_openvino_v3_and_legacy_llama_quality_are_descriptive_only():
-    from scripts.testing.final_results.comparison import classify_comparability
-    from scripts.testing.final_results.llama_adapter import build_upstream_llama_bundle
+    from scripts.testing.reporting.comparison import classify_comparability
+    from scripts.testing.reporting.llama_adapter import build_upstream_llama_bundle
 
     openvino = build_experimental_bundle(REPOSITORY_ROOT)
     llama = build_upstream_llama_bundle(REPOSITORY_ROOT)
@@ -393,7 +393,7 @@ def test_openvino_v3_and_legacy_llama_quality_are_descriptive_only():
 
 
 def test_real_openvino_scope_is_fifteen_matched_and_twelve_experimental_only():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     experimental = build_experimental_bundle(REPOSITORY_ROOT)
     official = build_official_bundle(REPOSITORY_ROOT)
@@ -407,7 +407,7 @@ def test_real_openvino_scope_is_fifteen_matched_and_twelve_experimental_only():
 
 
 def test_absent_metric_evidence_is_not_comparable_with_explicit_reason():
-    from scripts.testing.final_results.comparison import classify_comparability
+    from scripts.testing.reporting.comparison import classify_comparability
 
     result = classify_comparability(_bundle("left"), _bundle("blocked", status=Status.BLOCKED), "quality")
     assert result.classification == "not_comparable"
@@ -426,8 +426,8 @@ def test_absent_metric_evidence_is_not_comparable_with_explicit_reason():
 
 
 def test_report_preserves_statuses_and_forbids_universal_or_incompatible_ranking():
-    from scripts.testing.final_results.comparison import build_cross_route_report
-    from scripts.testing.final_results.llama_adapter import (
+    from scripts.testing.reporting.comparison import build_cross_route_report
+    from scripts.testing.reporting.llama_adapter import (
         build_animehacker_bundle,
         build_atomicbot_bundle,
         build_upstream_llama_bundle,
@@ -470,7 +470,7 @@ def test_report_preserves_statuses_and_forbids_universal_or_incompatible_ranking
 
 
 def test_catalog_rows_keep_every_attempt_and_machine_readable_comparison_reasons():
-    from scripts.testing.final_results.comparison import build_catalogs
+    from scripts.testing.reporting.comparison import build_catalogs
 
     bundles = (
         _bundle("passed"),
@@ -492,7 +492,7 @@ def test_catalog_rows_keep_every_attempt_and_machine_readable_comparison_reasons
 
 
 def test_cross_route_validation_is_derived_from_report_and_catalog_content():
-    from scripts.testing.final_results.comparison import build_cross_route_report, build_cross_route_validation, build_catalogs
+    from scripts.testing.reporting.comparison import build_cross_route_report, build_cross_route_validation, build_catalogs
 
     bundles = (_bundle("left"), _bundle("right"))
     report = build_cross_route_report(bundles)
@@ -668,7 +668,7 @@ def test_cross_route_validation_is_derived_from_report_and_catalog_content():
     ),
 )
 def test_ranking_prose_gate_rejects_controller_probes(wording):
-    from scripts.testing.final_results.comparison import (
+    from scripts.testing.reporting.comparison import (
         build_catalogs,
         build_cross_route_report,
         build_cross_route_validation,
@@ -707,7 +707,7 @@ def test_ranking_prose_gate_rejects_controller_probes(wording):
     ),
 )
 def test_ranking_prose_gate_rejects_ordinal_controller_probes(wording):
-    from scripts.testing.final_results.comparison import (
+    from scripts.testing.reporting.comparison import (
         build_catalogs,
         build_cross_route_report,
         build_cross_route_validation,
@@ -731,7 +731,7 @@ def test_ranking_prose_gate_rejects_ordinal_controller_probes(wording):
 @pytest.mark.parametrize("copula", ("is", "was"))
 @pytest.mark.parametrize("ordinal", ("first", "second", "third", "fourth"))
 def test_ranking_prose_gate_rejects_copular_entity_ordinals(entity, copula, ordinal):
-    from scripts.testing.final_results.comparison import (
+    from scripts.testing.reporting.comparison import (
         build_catalogs,
         build_cross_route_report,
         build_cross_route_validation,
@@ -761,7 +761,7 @@ def test_ranking_prose_gate_rejects_copular_entity_ordinals(entity, copula, ordi
     ("first", "second", "third", "fourth", "1st", "2nd", "3rd", "4th"),
 )
 def test_ranking_prose_gate_rejects_placed_in_ordinal_place(ordinal):
-    from scripts.testing.final_results.comparison import (
+    from scripts.testing.reporting.comparison import (
         build_catalogs,
         build_cross_route_report,
         build_cross_route_validation,
@@ -798,7 +798,7 @@ def test_ranking_prose_gate_rejects_placed_in_ordinal_place(ordinal):
     ),
 )
 def test_ranking_prose_gate_accepts_controller_negations(wording):
-    from scripts.testing.final_results.comparison import (
+    from scripts.testing.reporting.comparison import (
         build_catalogs,
         build_cross_route_report,
         build_cross_route_validation,
@@ -819,7 +819,7 @@ def test_ranking_prose_gate_accepts_controller_negations(wording):
 
 
 def test_package_writer_creates_portable_parity_valid_artifacts_and_catalogs(tmp_path):
-    from scripts.testing.final_results.comparison import write_cross_route_package
+    from scripts.testing.reporting.comparison import write_cross_route_package
 
     output = tmp_path / "docs/testing/final-results"
     bundles = (_bundle("left"), _bundle("right"), _bundle("failed", status=Status.FAILED))
@@ -863,7 +863,7 @@ def test_pdf_finalizer_reports_only_automated_checks_and_manual_qa_is_separate(t
     import pytest
     import shutil
 
-    from scripts.testing.final_results.comparison import (
+    from scripts.testing.reporting.comparison import (
         finalize_cross_route_package,
         record_cross_route_manual_visual_qa,
     )

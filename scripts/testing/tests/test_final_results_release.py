@@ -19,7 +19,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 
-from scripts.testing.final_results.validate import (
+from scripts.testing.reporting.validate import (
     validate_collection,
     validate_release_metadata,
 )

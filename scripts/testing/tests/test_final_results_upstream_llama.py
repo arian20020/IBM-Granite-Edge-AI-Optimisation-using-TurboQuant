@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.models import Status
+from scripts.testing.reporting.models import Status
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -35,7 +35,7 @@ EXPECTED_SECTIONS = [
 
 
 def _module():
-    from scripts.testing.final_results import llama_adapter
+    from scripts.testing.reporting import llama_adapter
 
     return llama_adapter
 
@@ -183,7 +183,7 @@ def test_bundle_mutation_changes_report_values_proving_source_derived_rendering(
 
 
 def test_canonical_records_validate_and_references_reconcile():
-    from scripts.testing.final_results.csvio import validate_json
+    from scripts.testing.reporting.csvio import validate_json
 
     bundle = _module().build_upstream_llama_bundle(REPOSITORY_ROOT)
     schemas = REPOSITORY_ROOT / "docs/testing/final-results/standards/schemas"
@@ -506,7 +506,7 @@ def test_comparator_claims_bind_all_eligible_rows_and_reproduction_is_executable
         ".tools/python311-portable/python.exe",
         "scripts/testing/requirements.txt",
         "scripts/testing/Export-Final-Results-Pdf.ps1",
-        "scripts/testing/final_results/llama_adapter.py",
+        "scripts/testing/reporting/llama_adapter.py",
         "scripts/testing/tests/test_final_results_upstream_llama.py",
     ):
         assert path in commands or path in (route / "reproduction/dependencies.md").read_text(encoding="utf-8")

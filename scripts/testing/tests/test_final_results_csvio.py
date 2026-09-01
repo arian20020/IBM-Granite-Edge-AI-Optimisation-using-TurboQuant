@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.csvio import validate_json, write_csv, write_json
+from scripts.testing.reporting.csvio import validate_json, write_csv, write_json
 
 
 SCHEMAS = (

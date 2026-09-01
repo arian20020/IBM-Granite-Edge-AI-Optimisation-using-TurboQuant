@@ -223,7 +223,18 @@ def _classification(
         ".md",
         ".txt",
     }:
-        destination = f"scripts/testing/tools/{posix.name}" if len(posix.parts) == 3 else path
+        if path.startswith("scripts/testing/final_results/"):
+            destination = path.replace(
+                "scripts/testing/final_results/",
+                "scripts/testing/reporting/",
+                1,
+            )
+        else:
+            destination = (
+                f"scripts/testing/tools/{posix.name}"
+                if len(posix.parts) == 3
+                else path
+            )
         return "move_active", destination, "active testing code or command dependency"
     if duplicate_group:
         return "archive_external", path, "exact duplicate with no active evidence binding"

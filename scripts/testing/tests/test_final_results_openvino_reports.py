@@ -6,12 +6,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.models import Status
-from scripts.testing.final_results.openvino_adapter import (
+from scripts.testing.reporting.models import Status
+from scripts.testing.reporting.openvino_adapter import (
     build_experimental_bundle,
     build_official_bundle,
 )
-from scripts.testing.final_results.report_model import (
+from scripts.testing.reporting.report_model import (
     ReportNote,
     ReportParagraph,
     ReportTable,
@@ -39,7 +39,7 @@ EXPECTED_SECTIONS = [
 
 
 def _module():
-    from scripts.testing.final_results import openvino_report
+    from scripts.testing.reporting import openvino_report
 
     return openvino_report
 
@@ -242,7 +242,7 @@ def test_route_manifest_regeneration_is_exact_and_hash_valid(tmp_path):
 
     module.regenerate_route_manifest(tmp_path, route)
 
-    from scripts.testing.final_results.evidence import validate_sha256_manifest
+    from scripts.testing.reporting.evidence import validate_sha256_manifest
 
     assert validate_sha256_manifest(tmp_path, manifest) == []
     entries = [line.split("  ", 1)[1] for line in manifest.read_text(encoding="utf-8").splitlines()]

@@ -15,7 +15,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from scripts.testing.final_results.validate import (  # noqa: E402
+from scripts.testing.reporting.validate import (  # noqa: E402
     ValidationReport,
     validate_collection,
     validate_route,
@@ -72,7 +72,7 @@ def _validate_selection(output_root: Path, route: str) -> ValidationReport:
         return validate_collection(root)
     if route == "openvino":
         reports = [validate_route(root / name) for name in _selected_directories(route)]
-        from scripts.testing.final_results.validate import GateResult
+        from scripts.testing.reporting.validate import GateResult
 
         gates = []
         for gate_name in reports[0].to_dict()["gate_order"]:
@@ -109,7 +109,7 @@ def _prepare_output_root(output_root: Path) -> Path:
 
 @contextmanager
 def _remapped_route_roots(output_root: Path) -> Iterator[None]:
-    from scripts.testing.final_results import llama_adapter, openvino_adapter
+    from scripts.testing.reporting import llama_adapter, openvino_adapter
 
     relative = output_root.relative_to(REPOSITORY_ROOT)
     assignments = (
@@ -168,16 +168,16 @@ def _export_pdf(docx: Path, pdf: Path) -> None:
 def _write_openvino_report(route: Path, bundle: object) -> None:
     from pypdf import PdfReader
 
-    from scripts.testing.final_results.csvio import write_json
-    from scripts.testing.final_results.docx_renderer import render_docx
-    from scripts.testing.final_results.markdown_renderer import render_markdown
-    from scripts.testing.final_results.openvino_report import (
+    from scripts.testing.reporting.csvio import write_json
+    from scripts.testing.reporting.docx_renderer import render_docx
+    from scripts.testing.reporting.markdown_renderer import render_markdown
+    from scripts.testing.reporting.openvino_report import (
         SECTION_ORDER,
         build_openvino_report,
         regenerate_route_manifest,
     )
-    from scripts.testing.final_results.parity import compare_markdown_docx
-    from scripts.testing.final_results.workbook_portability import (
+    from scripts.testing.reporting.parity import compare_markdown_docx
+    from scripts.testing.reporting.workbook_portability import (
         write_portable_openvino_route_workbook,
     )
 
@@ -233,7 +233,7 @@ def _write_openvino_report(route: Path, bundle: object) -> None:
 
 
 def _build_standard_routes(route: str, output_root: Path) -> dict[str, object]:
-    from scripts.testing.final_results import llama_adapter, openvino_adapter
+    from scripts.testing.reporting import llama_adapter, openvino_adapter
 
     selected = set(_selected_directories(route))
     bundles: dict[str, object] = {}
@@ -277,7 +277,7 @@ def _build_standard_routes(route: str, output_root: Path) -> dict[str, object]:
 
 
 def _all_bundles(existing: dict[str, object]) -> tuple[object, ...]:
-    from scripts.testing.final_results import llama_adapter, openvino_adapter
+    from scripts.testing.reporting import llama_adapter, openvino_adapter
 
     builders = {
         "upstream-llama": llama_adapter.build_upstream_llama_bundle,
@@ -311,7 +311,7 @@ def build_final_results(route: str, output_root: Path) -> ValidationReport:
             standard_route = "cross-route"
         bundles = _build_standard_routes(standard_route, output)
         if route in {"all", "cross-route"}:
-            from scripts.testing.final_results.comparison import (
+            from scripts.testing.reporting.comparison import (
                 finalize_cross_route_package,
                 write_cross_route_package,
             )

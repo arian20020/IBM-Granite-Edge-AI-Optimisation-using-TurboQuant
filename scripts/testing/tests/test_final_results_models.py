@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.testing.final_results.models import (
+from scripts.testing.reporting.models import (
     AttemptRecord,
     EvidenceRecord,
     FailureRecord,
