@@ -8,6 +8,7 @@ import math
 import re
 import statistics
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
@@ -66,6 +67,86 @@ _METRIC_FIELDS = {
     "prompt_tokens_per_second": "prompt_tokens_per_second",
     "generation_tokens_per_second": "generation_tokens_per_second",
     "peak_working_set_bytes": "peak_working_set_bytes",
+}
+_DERIVATION_LIMITATION_ALLOWLIST = (
+    {
+        (
+            "upstream-llama-cpp",
+            f"{case_id}--kv_cache_allocated_bytes",
+            "kv_cache_allocated_bytes",
+            "median of exactly three deduplicated runtime KV allocations",
+            3,
+        ): "KV allocation is retained only in route-specific source evidence, not a canonical measurement column"
+        for case_id in (
+            "UL-01", "UL-02", "UL-03", "UL-04", "UL-05", "UL-06", "UL-07",
+            "UL-08", "UL-09", "UL-10", "UL-11", "UL-12", "UL-13",
+        )
+    }
+    | {
+        (
+            "atomicbot-turboquant",
+            f"{case_id}--kv_cache_allocated_bytes",
+            "kv_cache_allocated_bytes",
+            "median of three validated repetitions",
+            3,
+        ): "KV allocation is retained only in route-specific source evidence, not a canonical measurement column"
+        for case_id in (
+            "AB-01", "AB-02", "AB-03", "AB-04", "AB-05", "AB-06", "AB-07",
+            "AB-08F", "AB-08Q", "AB-09", "AB-10", "AB-11", "AB-12", "AB-13",
+            "AB-14", "AB-15", "AB-15M", "AB-KV3-F16-4K", "AB-KV8-F16-4K",
+        )
+    }
+    | {
+        (
+            "atomicbot-turboquant",
+            f"{case_id}--{metric}",
+            metric,
+            "arithmetic mean of three validated repetition means",
+            3,
+        ): f"{label} utilization means are retained only in route-specific source evidence, not a canonical measurement column"
+        for case_id in (
+            "AB-01", "AB-02", "AB-03", "AB-04", "AB-05", "AB-06", "AB-07",
+            "AB-08F", "AB-08Q", "AB-09", "AB-10", "AB-11", "AB-12", "AB-13",
+            "AB-14", "AB-15", "AB-15M", "AB-KV3-F16-4K", "AB-KV8-F16-4K",
+        )
+        for metric, label in (("cpu_mean_percent", "CPU"), ("gpu_mean_percent", "GPU"))
+    }
+    | {
+        (
+            "animehacker-tq3-0",
+            f"{case_id}--kv_cache_allocated_bytes",
+            "kv_cache_allocated_bytes",
+            "median of exactly 3 explicitly included formal samples",
+            3,
+        ): "KV allocation is retained only in route-specific source evidence, not a canonical measurement column"
+        for case_id in ("AH-01", "AH-02", "AH-03", "AH-04", "AH-05", "AH-08", "AH-09")
+    }
+)
+_EXPECTED_ROUTE_DIRECTORIES = {
+    "01-upstream-llama-cpp": "upstream-llama-cpp",
+    "02-atomicbot-turboquant": "atomicbot-turboquant",
+    "03-animehacker-tq3-0": "animehacker-tq3-0",
+    "04-openvino-experimental-fork": "openvino-experimental-fork",
+    "05-openvino-official-upstream": "openvino-official-upstream",
+    "06-cross-route-comparison": "cross-route-comparison",
+}
+_CATALOG_NUMERIC_FIELDS = {
+    "attempt_count",
+    "measurement_count",
+    "summary_count",
+    "quality_count",
+    "failure_count",
+    "evidence_count",
+    "value",
+    "prompt_count",
+    "record_count",
+    "awarded_points",
+    "denominator",
+    "normalized_score_10",
+    "size_bytes",
+    "matched_case_count",
+    "left_only_case_count",
+    "right_only_case_count",
 }
 _TASK14_METADATA = (
     "README.md",
@@ -333,20 +414,117 @@ def _gate_ids(data: _RouteData) -> GateResult:
             issues.append(
                 _issue(f"duplicate_{field}", f"duplicate {field}: {duplicate}", data.root / _CSV_FILES[name])
             )
+    route_id = str(data.manifest.get("route_id", ""))
+    campaign_id = str(data.manifest.get("campaign_id", ""))
     attempts = {str(row.get("attempt_id")): row for row in data.rows["attempts"]}
     test_ids = {str(row.get("test_case_id")) for row in data.rows["attempts"]}
     measurement_ids = {str(row.get("measurement_id")) for row in data.rows["measurements"]}
     evidence_ids = {str(row.get("evidence_id")) for row in data.rows["evidence"]}
+    for name, rows in data.rows.items():
+        for row in rows:
+            record_id = str(row.get(_ID_FIELDS[name], ""))
+            if str(row.get("route_id", "")) != route_id:
+                issues.append(
+                    _issue(
+                        "row_route_mismatch",
+                        f"{name} {record_id} route_id does not match route manifest",
+                        data.root / _CSV_FILES[name],
+                    )
+                )
+            if str(row.get("campaign_id", "")) != campaign_id:
+                issues.append(
+                    _issue(
+                        "row_campaign_mismatch",
+                        f"{name} {record_id} campaign_id does not match route manifest",
+                        data.root / _CSV_FILES[name],
+                    )
+                )
+
+    def reference_ids(value: object) -> tuple[str, ...]:
+        return tuple(str(item) for item in value) if isinstance(value, (list, tuple)) else ()
+
+    for attempt in data.rows["attempts"]:
+        for evidence_id in reference_ids(attempt.get("evidence_ids")):
+            if evidence_id not in evidence_ids:
+                issues.append(
+                    _issue(
+                        "unknown_attempt_evidence_reference",
+                        f"attempt {attempt.get('attempt_id')} references unknown evidence {evidence_id}",
+                        data.root / _CSV_FILES["attempts"],
+                    )
+                )
     for name in ("measurements", "failures"):
         for row in data.rows[name]:
-            if str(row.get("attempt_id")) not in attempts:
+            attempt = attempts.get(str(row.get("attempt_id")))
+            if attempt is None:
                 issues.append(_issue("unknown_attempt_reference", f"{name} references unknown attempt {row.get('attempt_id')}", data.root / _CSV_FILES[name]))
             if str(row.get("test_case_id")) not in test_ids:
                 issues.append(_issue("unknown_test_case_reference", f"{name} references unknown test case {row.get('test_case_id')}", data.root / _CSV_FILES[name]))
+            if attempt is not None and str(row.get("test_case_id")) != str(attempt.get("test_case_id")):
+                issues.append(
+                    _issue(
+                        "attempt_test_case_mismatch",
+                        f"{name} record {row.get(_ID_FIELDS[name])} test case differs from attempt {row.get('attempt_id')}",
+                        data.root / _CSV_FILES[name],
+                    )
+                )
+    for name in ("measurements", "quality"):
+        for row in data.rows[name]:
+            evidence_id = str(row.get("source_evidence_id") or "")
+            record_id = str(row.get(_ID_FIELDS[name], ""))
+            if not evidence_id or evidence_id not in evidence_ids:
+                issues.append(
+                    _issue(
+                        "unknown_source_evidence_reference",
+                        f"{name} {record_id} references unknown source evidence {evidence_id or '<missing>'}",
+                        data.root / _CSV_FILES[name],
+                    )
+                )
+    for row in data.rows["quality"]:
+        if str(row.get("test_case_id")) not in test_ids:
+            issues.append(
+                _issue(
+                    "unknown_test_case_reference",
+                    f"quality references unknown test case {row.get('test_case_id')}",
+                    data.root / _CSV_FILES["quality"],
+                )
+            )
     for row in data.rows["summaries"]:
         for measurement_id in row.get("source_measurement_ids", ()) or ():
             if str(measurement_id) not in measurement_ids:
                 issues.append(_issue("unknown_measurement_reference", f"summary references unknown measurement {measurement_id}", data.root / _CSV_FILES["summaries"]))
+                continue
+            measurement = next(
+                item
+                for item in data.rows["measurements"]
+                if str(item.get("measurement_id")) == str(measurement_id)
+            )
+            if str(measurement.get("test_case_id")) != str(row.get("test_case_id")):
+                issues.append(
+                    _issue(
+                        "summary_measurement_case_mismatch",
+                        f"summary {row.get('summary_id')} references measurement {measurement_id} from another test case",
+                        data.root / _CSV_FILES["summaries"],
+                    )
+                )
+        if str(row.get("test_case_id")) not in test_ids:
+            issues.append(
+                _issue(
+                    "unknown_test_case_reference",
+                    f"summary references unknown test case {row.get('test_case_id')}",
+                    data.root / _CSV_FILES["summaries"],
+                )
+            )
+    for failure in data.rows["failures"]:
+        for evidence_id in reference_ids(failure.get("evidence_ids")):
+            if evidence_id not in evidence_ids:
+                issues.append(
+                    _issue(
+                        "unknown_failure_evidence_reference",
+                        f"failure {failure.get('failure_id')} references unknown evidence {evidence_id}",
+                        data.root / _CSV_FILES["failures"],
+                    )
+                )
     for row in data.rows["evidence"]:
         for evidence_id in row.get("input_evidence_ids", ()) or ():
             if str(evidence_id) not in evidence_ids:
@@ -427,9 +605,27 @@ def _gate_derivation(data: _RouteData) -> GateResult:
     for summary in data.rows["summaries"]:
         expected = _expected_summary_value(summary, measurements)
         if expected is None:
-            limitations.append(
-                f"{summary.get('summary_id')}: aggregation cannot be independently recomputed from canonical measurement columns"
+            source_ids = tuple(summary.get("source_measurement_ids", ()) or ())
+            limitation_key = (
+                str(data.manifest.get("route_id", "")),
+                str(summary.get("summary_id", "")),
+                str(summary.get("metric_name", "")),
+                str(summary.get("aggregation", "")),
+                len(source_ids),
             )
+            rationale = _DERIVATION_LIMITATION_ALLOWLIST.get(limitation_key)
+            if rationale is None:
+                issues.append(
+                    _issue(
+                        "unsupported_summary_derivation",
+                        f"{summary.get('summary_id')}: derivation is not recomputable and is not an approved legacy limitation",
+                        data.root / _CSV_FILES["summaries"],
+                    )
+                )
+            else:
+                limitations.append(
+                    f"{summary.get('summary_id')}: {rationale}; exact allowlist key={limitation_key!r}"
+                )
             continue
         actual = summary.get("value")
         if not isinstance(actual, (int, float)) or isinstance(actual, bool) or not math.isclose(float(actual), float(expected), rel_tol=1e-9, abs_tol=1e-9):
@@ -486,16 +682,52 @@ def _gate_availability(data: _RouteData) -> GateResult:
     for attempt in data.rows["attempts"]:
         attempts_by_test.setdefault(str(attempt.get("test_case_id")), []).append(attempt)
     availability_by_test = {str(row.get("test_case_id")): row for row in availability}
+    if len(availability_by_test) != len(availability):
+        issues.append(_issue("duplicate_availability_test_case", "availability contains duplicate test-case rows", path))
     if set(attempts_by_test) != set(availability_by_test):
         issues.append(_issue("availability_case_set_mismatch", "availability test-case set differs from attempts", path))
     for test_case_id in sorted(set(attempts_by_test) & set(availability_by_test)):
-        published = str(availability_by_test[test_case_id].get("status", "")).casefold()
-        retained_statuses = {
-            str(attempt.get("status", "")).casefold()
-            for attempt in attempts_by_test[test_case_id]
-        }
-        if published not in retained_statuses:
-            issues.append(_issue("availability_status_mismatch", f"availability status differs for {test_case_id}", path))
+        retained = attempts_by_test[test_case_id]
+        terminal = [
+            attempt
+            for attempt in retained
+            if str(attempt.get("attempt_id", "")).casefold().endswith("--terminal")
+        ]
+        if len(terminal) == 1:
+            authoritative = terminal[0]
+        elif len(retained) == 1:
+            authoritative = retained[0]
+        else:
+            issues.append(
+                _issue(
+                    "ambiguous_terminal_attempt",
+                    f"no unique authoritative terminal attempt for {test_case_id}",
+                    data.root / _CSV_FILES["attempts"],
+                )
+            )
+            continue
+        published_row = availability_by_test[test_case_id]
+        published = str(published_row.get("status", "")).casefold()
+        expected = str(authoritative.get("status", "")).casefold()
+        if published != expected:
+            issues.append(
+                _issue(
+                    "availability_terminal_status_mismatch",
+                    f"availability status {published!r} differs from terminal status {expected!r} for {test_case_id}",
+                    path,
+                )
+            )
+        for field in ("model_id", "weight_format_id", "cache_format_id", "backend_id"):
+            published_value = str(published_row.get(field) or "")
+            expected_value = str(authoritative.get(field) or "")
+            if published_value != expected_value:
+                issues.append(
+                    _issue(
+                        "availability_terminal_identity_mismatch",
+                        f"availability {field} differs from terminal attempt for {test_case_id}",
+                        path,
+                    )
+                )
     return GateResult("availability", tuple(issues))
 
 
@@ -704,27 +936,319 @@ def _route_directories(root: Path) -> list[Path]:
     )
 
 
+def _bundle_from_route_data(data: _RouteData):
+    from .models import (
+        AttemptRecord,
+        EvidenceRecord,
+        FailureRecord,
+        MeasurementRecord,
+        QualityRecord,
+        RouteBundle,
+        Status,
+        SummaryRecord,
+    )
+
+    def status(value: object) -> Status:
+        return Status(str(value))
+
+    attempts = tuple(
+        AttemptRecord(
+            **{
+                **row,
+                "status": status(row.get("status")),
+                "evidence_ids": tuple(row.get("evidence_ids", ()) or ()),
+            }
+        )
+        for row in data.rows["attempts"]
+    )
+    measurements = tuple(MeasurementRecord(**row) for row in data.rows["measurements"])
+    summaries = tuple(
+        SummaryRecord(
+            **{
+                **row,
+                "source_measurement_ids": tuple(
+                    row.get("source_measurement_ids", ()) or ()
+                ),
+            }
+        )
+        for row in data.rows["summaries"]
+    )
+    quality = tuple(QualityRecord(**row) for row in data.rows["quality"])
+    failures = tuple(
+        FailureRecord(
+            **{
+                **row,
+                "status": status(row.get("status")),
+                "evidence_ids": tuple(row.get("evidence_ids", ()) or ()),
+            }
+        )
+        for row in data.rows["failures"]
+    )
+    evidence = tuple(
+        EvidenceRecord(
+            **{
+                **row,
+                "input_evidence_ids": tuple(
+                    row.get("input_evidence_ids", ()) or ()
+                ),
+            }
+        )
+        for row in data.rows["evidence"]
+    )
+    return RouteBundle(
+        route_id=str(data.manifest["route_id"]),
+        campaign_id=str(data.manifest["campaign_id"]),
+        attempts=attempts,
+        measurements=measurements,
+        summaries=summaries,
+        quality=quality,
+        failures=failures,
+        evidence=evidence,
+        repository=dict(data.manifest.get("repository", {}) or {}),
+        hardware=dict(data.manifest.get("hardware", {}) or {}),
+        software=dict(data.manifest.get("software", {}) or {}),
+    )
+
+
+def _expected_catalogs(
+    route_data: Sequence[_RouteData],
+) -> dict[str, list[dict[str, object]]]:
+    from .comparison import build_catalogs
+
+    return build_catalogs(tuple(_bundle_from_route_data(data) for data in route_data))
+
+
+def _csv_scalar(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return str(value).lower()
+    return str(value)
+
+
+def _expected_catalog_table(
+    name: str, rows: Sequence[Mapping[str, object]]
+) -> tuple[tuple[str, ...], list[dict[str, str]]]:
+    fallbacks = {
+        "failure-summary.csv": (
+            "route_id",
+            "campaign_id",
+            "failure_id",
+            "status",
+            "reason",
+        ),
+        "evidence-manifest.csv": (
+            "route_id",
+            "campaign_id",
+            "evidence_id",
+            "relative_path",
+            "sha256",
+        ),
+    }
+    fields = tuple(rows[0]) if rows else fallbacks.get(name, ("route_id",))
+    return fields, [
+        {field: _csv_scalar(row.get(field)) for field in fields} for row in rows
+    ]
+
+
+def _read_csv_table(path: Path) -> tuple[tuple[str, ...], list[dict[str, str]]]:
+    with path.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if reader.fieldnames is None:
+            raise ValueError("missing CSV header")
+        return tuple(reader.fieldnames), [
+            {str(key): str(value or "") for key, value in row.items() if key is not None}
+            for row in reader
+        ]
+
+
+def _catalog_tables_match(
+    expected_fields: tuple[str, ...],
+    expected: Sequence[Mapping[str, str]],
+    actual_fields: tuple[str, ...],
+    actual: Sequence[Mapping[str, str]],
+) -> bool:
+    if expected_fields != actual_fields or len(expected) != len(actual):
+        return False
+    for expected_row, actual_row in zip(expected, actual):
+        for field in expected_fields:
+            expected_value = expected_row.get(field, "")
+            actual_value = actual_row.get(field, "")
+            if field not in _CATALOG_NUMERIC_FIELDS:
+                if actual_value != expected_value:
+                    return False
+                continue
+            try:
+                if Decimal(actual_value) != Decimal(expected_value):
+                    return False
+            except InvalidOperation:
+                if actual_value != expected_value:
+                    return False
+    return True
+
+
+def _collection_reconciliation_issues(
+    collection: Path, route_data_by_name: Mapping[str, _RouteData]
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    required_standard = tuple(_EXPECTED_ROUTE_DIRECTORIES)[:5]
+    if any(name not in route_data_by_name for name in required_standard):
+        return issues
+    source_data = [route_data_by_name[name] for name in required_standard]
+    try:
+        catalogs = _expected_catalogs(source_data)
+    except (KeyError, TypeError, ValueError) as error:
+        return [
+            _issue(
+                "catalog_recomputation_failed",
+                f"canonical route rows could not be converted into catalogs: {error}",
+                collection / "catalog",
+            )
+        ]
+
+    for name, expected_rows in catalogs.items():
+        path = collection / "catalog" / name
+        expected_fields, expected_table = _expected_catalog_table(name, expected_rows)
+        try:
+            actual_fields, actual_table = _read_csv_table(path)
+        except (OSError, UnicodeError, csv.Error, ValueError) as error:
+            issues.append(_issue("catalog_content_mismatch", f"{name}: {error}", path))
+            continue
+        if not _catalog_tables_match(
+            expected_fields, expected_table, actual_fields, actual_table
+        ):
+            issues.append(
+                _issue(
+                    "catalog_content_mismatch",
+                    f"{name} does not exactly match catalogs recomputed from canonical route rows",
+                    path,
+                )
+            )
+
+    cross = route_data_by_name.get("06-cross-route-comparison")
+    if cross is None:
+        return issues
+    expected_route_ids = sorted(str(data.manifest.get("route_id", "")) for data in source_data)
+    expected_campaign_ids = sorted(str(data.manifest.get("campaign_id", "")) for data in source_data)
+    expected_attempt_count = sum(len(data.rows["attempts"]) for data in source_data)
+    expected_comparison_count = len(catalogs["comparability-matrix.csv"])
+    manifest = cross.manifest
+    if sorted(str(value) for value in manifest.get("source_route_ids", ()) or ()) != expected_route_ids:
+        issues.append(
+            _issue(
+                "cross_route_source_routes_mismatch",
+                "cross-route source_route_ids differ from the five canonical route manifests",
+                cross.root / "route-manifest.json",
+            )
+        )
+    if sorted(str(value) for value in manifest.get("source_campaign_ids", ()) or ()) != expected_campaign_ids:
+        issues.append(
+            _issue(
+                "cross_route_source_campaigns_mismatch",
+                "cross-route source_campaign_ids differ from the five canonical route manifests",
+                cross.root / "route-manifest.json",
+            )
+        )
+    if manifest.get("attempt_count") != expected_attempt_count:
+        issues.append(
+            _issue(
+                "cross_route_attempt_count_mismatch",
+                f"cross-route attempt_count must be {expected_attempt_count}",
+                cross.root / "route-manifest.json",
+            )
+        )
+    if manifest.get("comparability_decision_count") != expected_comparison_count:
+        issues.append(
+            _issue(
+                "cross_route_comparison_count_mismatch",
+                f"cross-route comparability_decision_count must be {expected_comparison_count}",
+                cross.root / "route-manifest.json",
+            )
+        )
+
+    mirrored = {
+        "campaign-summary.csv": cross.root / "results/route-status-summary.csv",
+        "comparability-matrix.csv": cross.root / "results/comparability-matrix.csv",
+    }
+    for catalog_name, path in mirrored.items():
+        expected_fields, expected_table = _expected_catalog_table(
+            catalog_name, catalogs[catalog_name]
+        )
+        try:
+            actual_fields, actual_table = _read_csv_table(path)
+        except (OSError, UnicodeError, csv.Error, ValueError) as error:
+            issues.append(
+                _issue(
+                    "cross_route_result_mismatch",
+                    f"{path.name}: {error}",
+                    path,
+                )
+            )
+            continue
+        if not _catalog_tables_match(
+            expected_fields, expected_table, actual_fields, actual_table
+        ):
+            issues.append(
+                _issue(
+                    "cross_route_result_mismatch",
+                    f"{path.name} does not match canonical route rows",
+                    path,
+                )
+            )
+    return issues
+
+
 def validate_collection(root: Path) -> ValidationReport:
     """Validate every discovered route and collection release boundary read-only."""
     collection = Path(root).resolve()
     reports: list[ValidationReport] = []
-    discovery_issue: ValidationIssue | None = None
+    discovery_issues: list[ValidationIssue] = []
+    route_data_by_name: dict[str, _RouteData] = {}
     try:
         routes = _route_directories(collection)
     except OSError as error:
         routes = []
-        discovery_issue = _issue("invalid_collection_root", str(error), collection)
-    if not routes and discovery_issue is None:
-        discovery_issue = _issue("no_routes", "collection contains no numbered route directories", collection)
+        discovery_issues.append(_issue("invalid_collection_root", str(error), collection))
+    if not routes and not discovery_issues:
+        discovery_issues.append(_issue("no_routes", "collection contains no numbered route directories", collection))
+    actual_names = {route.name for route in routes}
+    expected_names = set(_EXPECTED_ROUTE_DIRECTORIES)
+    if actual_names != expected_names:
+        missing = sorted(expected_names - actual_names)
+        unexpected = sorted(actual_names - expected_names)
+        discovery_issues.append(
+            _issue(
+                "collection_route_set_mismatch",
+                f"expected exactly six route directories; missing={missing}, unexpected={unexpected}",
+                collection,
+            )
+        )
     for route in routes:
-        reports.append(validate_route(route))
+        data = _load_route(route)
+        route_data_by_name[route.name] = data
+        expected_route_id = _EXPECTED_ROUTE_DIRECTORIES.get(route.name)
+        if expected_route_id is not None and data.manifest.get("route_id") != expected_route_id:
+            discovery_issues.append(
+                _issue(
+                    "collection_route_identity_mismatch",
+                    f"{route.name} must publish route_id {expected_route_id!r}",
+                    route / "route-manifest.json",
+                )
+            )
+        reports.append(ValidationReport("route", data.root, tuple(_route_gates(data))))
+
+    reconciliation_issues = _collection_reconciliation_issues(
+        collection, route_data_by_name
+    )
 
     gates: list[GateResult] = []
     for gate_name in GATE_ORDER[:-1]:
         issues: list[ValidationIssue] = []
         limitations: list[str] = []
-        if gate_name == "schema" and discovery_issue is not None:
-            issues.append(discovery_issue)
+        if gate_name == "schema":
+            issues.extend(discovery_issues)
+        if gate_name == "comparability":
+            issues.extend(reconciliation_issues)
         for report in reports:
             gate = report.gate(gate_name)
             prefix = report.root.name

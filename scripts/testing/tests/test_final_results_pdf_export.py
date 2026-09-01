@@ -785,6 +785,9 @@ def test_cleanup_observation_can_verify_causal_exit_after_previous_five_second_l
     )
     assert cleanup["cleanup_observation_timeout_seconds"] == 15
     assert cleanup["minimum_cleanup_observation_seconds"] == 6
+    assert cleanup["identity_present_through_minimum_observation"] is True
+    assert cleanup["first_identity_gone_observed_ms"] >= 5000
+    assert cleanup["first_identity_gone_observed_ms"] < 15000
     assert cleanup["cleanup_observation_elapsed_ms"] >= 6000
     assert cleanup["word_exited"] is True
     assert cleanup["cleanup_succeeded"] is False

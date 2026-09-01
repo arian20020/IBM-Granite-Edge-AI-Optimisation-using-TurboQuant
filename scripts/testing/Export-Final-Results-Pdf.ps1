@@ -555,6 +555,40 @@ function Invoke-WordPdfExport {
             }
             catch { $attempts.documents_release.error = $_.Exception.Message }
         }
+        $cleanupObservationTimeoutSeconds = 15
+        $cleanupObservationStarted = [datetime]::UtcNow
+        $exitDeadline = $cleanupObservationStarted.AddSeconds(
+            $cleanupObservationTimeoutSeconds
+        )
+        $firstIdentityGoneObservedMs = $null
+        $identityPresentThroughMinimumObservation = (
+            $null -ne $identity -and $MinimumCleanupObservationSeconds -eq 0
+        )
+        if ($null -ne $identity -and $MinimumCleanupObservationSeconds -gt 0) {
+            do {
+                if (Test-ProcessIdentityGone -Identity $identity) {
+                    $firstIdentityGoneObservedMs = [int64][Math]::Round(
+                        ([datetime]::UtcNow - $cleanupObservationStarted).TotalMilliseconds
+                    )
+                    break
+                }
+                Start-Sleep -Milliseconds 50
+            } while (
+                ([datetime]::UtcNow - $cleanupObservationStarted).TotalSeconds -lt
+                    $MinimumCleanupObservationSeconds -and
+                [datetime]::UtcNow -lt $exitDeadline
+            )
+            if ($null -eq $firstIdentityGoneObservedMs) {
+                $identityPresentThroughMinimumObservation = -not (
+                    Test-ProcessIdentityGone -Identity $identity
+                )
+                if (-not $identityPresentThroughMinimumObservation) {
+                    $firstIdentityGoneObservedMs = [int64][Math]::Round(
+                        ([datetime]::UtcNow - $cleanupObservationStarted).TotalMilliseconds
+                    )
+                }
+            }
+        }
         if ($null -ne $word) {
             $attempts.application_quit.attempted = $true
             [object]$saveWordChanges = 0
@@ -584,22 +618,16 @@ function Invoke-WordPdfExport {
         [System.GC]::Collect()
         [System.GC]::WaitForPendingFinalizers()
         $wordExited = $false
-        $cleanupObservationTimeoutSeconds = 15
-        $cleanupObservationStarted = [datetime]::UtcNow
-        $identityGoneObserved = $false
         if ($null -ne $identity) {
-            $exitDeadline = $cleanupObservationStarted.AddSeconds(
-                $cleanupObservationTimeoutSeconds
-            )
             do {
-                if (-not $identityGoneObserved) {
-                    $identityGoneObserved = Test-ProcessIdentityGone -Identity $identity
+                if ($null -eq $firstIdentityGoneObservedMs -and (
+                    Test-ProcessIdentityGone -Identity $identity
+                )) {
+                    $firstIdentityGoneObservedMs = [int64][Math]::Round(
+                        ([datetime]::UtcNow - $cleanupObservationStarted).TotalMilliseconds
+                    )
                 }
-                $minimumObservationReached = (
-                    ([datetime]::UtcNow - $cleanupObservationStarted).TotalSeconds -ge
-                    $MinimumCleanupObservationSeconds
-                )
-                $wordExited = ($identityGoneObserved -and $minimumObservationReached)
+                $wordExited = $null -ne $firstIdentityGoneObservedMs
                 if (-not $wordExited) { Start-Sleep -Milliseconds 50 }
             } while (-not $wordExited -and [datetime]::UtcNow -lt $exitDeadline)
         }
@@ -619,6 +647,8 @@ function Invoke-WordPdfExport {
             worker_exited = $false
             cleanup_observation_timeout_seconds = $cleanupObservationTimeoutSeconds
             minimum_cleanup_observation_seconds = $MinimumCleanupObservationSeconds
+            identity_present_through_minimum_observation = $identityPresentThroughMinimumObservation
+            first_identity_gone_observed_ms = $firstIdentityGoneObservedMs
             cleanup_observation_elapsed_ms = $cleanupObservationElapsedMs
             cleanup_succeeded = ($wordExited -and $attemptsSucceeded)
         }

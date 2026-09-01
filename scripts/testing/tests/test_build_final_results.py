@@ -17,6 +17,16 @@ from scripts.testing.final_results.csvio import write_csv, write_json
 from scripts.testing.final_results.docx_renderer import render_docx
 from scripts.testing.final_results.evidence import hash_file
 from scripts.testing.final_results.markdown_renderer import render_markdown
+from scripts.testing.final_results.comparison import build_catalogs
+from scripts.testing.final_results.models import (
+    AttemptRecord,
+    EvidenceRecord,
+    MeasurementRecord,
+    QualityRecord,
+    RouteBundle,
+    Status,
+    SummaryRecord,
+)
 from scripts.testing.final_results.report_model import (
     Report,
     ReportParagraph,
@@ -102,6 +112,27 @@ EVIDENCE_FIELDS = (
     "derived",
     "input_evidence_ids",
 )
+QUALITY_FIELDS = (
+    "route_id",
+    "campaign_id",
+    "test_case_id",
+    "quality_id",
+    "prompt_id",
+    "criterion_id",
+    "score",
+    "maximum_score",
+    "prompt_suite_id",
+    "rubric_id",
+    "scoring_version",
+    "source_evidence_id",
+)
+ROUTES = (
+    ("01-upstream-llama-cpp", "upstream-llama-cpp"),
+    ("02-atomicbot-turboquant", "atomicbot-turboquant"),
+    ("03-animehacker-tq3-0", "animehacker-tq3-0"),
+    ("04-openvino-experimental-fork", "openvino-experimental-fork"),
+    ("05-openvino-official-upstream", "openvino-official-upstream"),
+)
 
 
 def _write_pdf(path: Path, text: str) -> None:
@@ -125,7 +156,7 @@ def _write_route(collection: Path, directory: str, route_id: str) -> Path:
         "route_id": route_id,
         "campaign_id": campaign_id,
         "test_case_id": f"{route_id}-case-1",
-        "attempt_id": f"{route_id}-attempt-1",
+        "attempt_id": f"{route_id}--terminal",
         "status": "passed",
         "executed": True,
         "reason": "",
@@ -189,7 +220,7 @@ def _write_route(collection: Path, directory: str, route_id: str) -> Path:
             "attempt_count": 1,
             "measurement_count": 3,
             "summary_count": 1,
-            "quality_count": 0,
+            "quality_count": 1,
             "failure_count": 0,
             "evidence_count": 1,
             "repository": {},
@@ -226,11 +257,26 @@ def _write_route(collection: Path, directory: str, route_id: str) -> Path:
             "status",
         ),
     )
-    write_csv(route / "quality/scores.csv", (), (
-        "route_id", "campaign_id", "test_case_id", "quality_id", "prompt_id",
-        "criterion_id", "score", "maximum_score", "prompt_suite_id", "rubric_id",
-        "scoring_version", "source_evidence_id",
-    ))
+    write_csv(
+        route / "quality/scores.csv",
+        (
+            {
+                "route_id": route_id,
+                "campaign_id": campaign_id,
+                "test_case_id": attempt["test_case_id"],
+                "quality_id": f"{route_id}-quality-1",
+                "prompt_id": "prompt-1",
+                "criterion_id": "criterion-1",
+                "score": 1.0,
+                "maximum_score": 1.0,
+                "prompt_suite_id": "suite-1",
+                "rubric_id": "rubric-1",
+                "scoring_version": "v1",
+                "source_evidence_id": evidence_id,
+            },
+        ),
+        QUALITY_FIELDS,
+    )
     write_csv(route / "failures/failure-register.csv", (), FAILURE_FIELDS)
     write_csv(route / "evidence/evidence-index.csv", (evidence,), EVIDENCE_FIELDS)
     write_csv(
@@ -265,7 +311,105 @@ def _write_route(collection: Path, directory: str, route_id: str) -> Path:
     return route
 
 
-def _write_cross_route(collection: Path) -> Path:
+def _fixture_bundle(route: Path) -> RouteBundle:
+    manifest = json.loads((route / "route-manifest.json").read_text(encoding="utf-8"))
+    attempts, _ = _rows(route / "results/attempts.csv")
+    measurements, _ = _rows(route / "results/measurements.csv")
+    summaries, _ = _rows(route / "results/summary-results.csv")
+    quality, _ = _rows(route / "quality/scores.csv")
+    evidence, _ = _rows(route / "evidence/evidence-index.csv")
+    return RouteBundle(
+        route_id=manifest["route_id"],
+        campaign_id=manifest["campaign_id"],
+        attempts=tuple(
+            AttemptRecord(
+                route_id=row["route_id"],
+                campaign_id=row["campaign_id"],
+                test_case_id=row["test_case_id"],
+                attempt_id=row["attempt_id"],
+                status=Status(row["status"]),
+                executed=row["executed"] == "true",
+                reason=row["reason"],
+                model_id=row["model_id"] or None,
+                weight_format_id=row["weight_format_id"] or None,
+                cache_format_id=row["cache_format_id"] or None,
+                backend_id=row["backend_id"] or None,
+                source_status=row["source_status"] or None,
+                failure_kind=row["failure_kind"] or None,
+                evidence_ids=tuple(json.loads(row["evidence_ids"])),
+            )
+            for row in attempts
+        ),
+        measurements=tuple(
+            MeasurementRecord(
+                route_id=row["route_id"],
+                campaign_id=row["campaign_id"],
+                test_case_id=row["test_case_id"],
+                attempt_id=row["attempt_id"],
+                measurement_id=row["measurement_id"],
+                run_id=row["run_id"] or None,
+                repetition_id=row["repetition_id"] or None,
+                source_evidence_id=row["source_evidence_id"] or None,
+                latency_ms=float(row["latency_ms"]) if row["latency_ms"] else None,
+                input_tokens=int(row["input_tokens"]) if row["input_tokens"] else None,
+                output_tokens=int(row["output_tokens"]) if row["output_tokens"] else None,
+            )
+            for row in measurements
+        ),
+        summaries=tuple(
+            SummaryRecord(
+                route_id=row["route_id"],
+                campaign_id=row["campaign_id"],
+                test_case_id=row["test_case_id"],
+                summary_id=row["summary_id"],
+                metric_name=row["metric_name"],
+                value=float(row["value"]) if row["value"] else None,
+                unit=row["unit"],
+                aggregation=row["aggregation"],
+                source_measurement_ids=tuple(json.loads(row["source_measurement_ids"])),
+            )
+            for row in summaries
+        ),
+        quality=tuple(
+            QualityRecord(
+                route_id=row["route_id"],
+                campaign_id=row["campaign_id"],
+                test_case_id=row["test_case_id"],
+                quality_id=row["quality_id"],
+                prompt_id=row["prompt_id"] or None,
+                criterion_id=row["criterion_id"] or None,
+                score=float(row["score"]) if row["score"] else None,
+                maximum_score=float(row["maximum_score"]) if row["maximum_score"] else None,
+                prompt_suite_id=row["prompt_suite_id"] or None,
+                rubric_id=row["rubric_id"] or None,
+                scoring_version=row["scoring_version"] or None,
+                source_evidence_id=row["source_evidence_id"] or None,
+            )
+            for row in quality
+        ),
+        evidence=tuple(
+            EvidenceRecord(
+                route_id=row["route_id"],
+                campaign_id=row["campaign_id"],
+                evidence_id=row["evidence_id"],
+                role=row["role"],
+                relative_path=row["relative_path"],
+                sha256=row["sha256"],
+                size_bytes=int(row["size_bytes"]),
+                source_label=row["source_label"] or None,
+                derived=row["derived"] == "true",
+                input_evidence_ids=tuple(json.loads(row["input_evidence_ids"])),
+            )
+            for row in evidence
+        ),
+    )
+
+
+def _write_cross_route(
+    collection: Path,
+    bundles: tuple[RouteBundle, ...],
+    catalogs: dict[str, list[dict[str, object]]],
+) -> Path:
     route = collection / "06-cross-route-comparison"
     write_json(
         route / "route-manifest.json",
@@ -273,10 +417,10 @@ def _write_cross_route(collection: Path) -> Path:
             "route_id": "cross-route-comparison",
             "revision": "R1",
             "generated_date": "2026-08-30",
-            "source_route_ids": ["alpha", "beta"],
-            "source_campaign_ids": ["alpha-campaign", "beta-campaign"],
-            "attempt_count": 2,
-            "comparability_decision_count": 2,
+            "source_route_ids": sorted(bundle.route_id for bundle in bundles),
+            "source_campaign_ids": sorted(bundle.campaign_id for bundle in bundles),
+            "attempt_count": 5,
+            "comparability_decision_count": 20,
             "universal_ranking_permitted": False,
         },
     )
@@ -302,14 +446,38 @@ def _write_cross_route(collection: Path) -> Path:
         route / "validation/cross-route-validation.json",
         {"valid": True, "universal_ranking_present": False},
     )
+    comparison = catalogs["comparability-matrix.csv"]
+    campaigns = catalogs["campaign-summary.csv"]
+    write_csv(
+        route / "results/comparability-matrix.csv",
+        comparison,
+        tuple(comparison[0]),
+    )
+    write_csv(
+        route / "results/route-status-summary.csv",
+        campaigns,
+        tuple(campaigns[0]),
+    )
     return route
 
 
 def _collection(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     collection = tmp_path / "final-results"
-    alpha = _write_route(collection, "01-alpha", "alpha")
-    beta = _write_route(collection, "02-beta", "beta")
-    cross = _write_cross_route(collection)
+    routes = tuple(_write_route(collection, directory, route_id) for directory, route_id in ROUTES)
+    bundles = tuple(_fixture_bundle(route) for route in routes)
+    catalogs = build_catalogs(bundles)
+    for name, rows in catalogs.items():
+        fallbacks = {
+            "failure-summary.csv": ("route_id", "campaign_id", "failure_id", "status", "reason"),
+            "evidence-manifest.csv": ("route_id", "campaign_id", "evidence_id", "relative_path", "sha256"),
+        }
+        write_csv(
+            collection / "catalog" / name,
+            rows,
+            tuple(rows[0]) if rows else fallbacks.get(name, ("route_id",)),
+        )
+    cross = _write_cross_route(collection, bundles, catalogs)
+    alpha, beta = routes[:2]
     return collection, alpha, beta, cross
 
 
@@ -351,7 +519,7 @@ def test_validation_catches_missing_intended_attempt(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
     path = alpha / "protocol/intended-test-matrix.csv"
     rows, fields = _rows(path)
-    rows.append({"test_case_id": "alpha-case-2", "intended": "true"})
+    rows.append({"test_case_id": "upstream-llama-cpp-case-2", "intended": "true"})
     write_csv(path, rows, fields)
 
     report = validate_route(alpha)
@@ -371,6 +539,137 @@ def test_validation_catches_incorrect_median(tmp_path):
     assert "derived_value_mismatch" in _codes(report, "derivation")
 
 
+def test_validation_fails_closed_for_renamed_supported_aggregation(tmp_path):
+    _, alpha, _, _ = _collection(tmp_path)
+    path = alpha / "results/summary-results.csv"
+    rows, fields = _rows(path)
+    rows[0]["value"] = "999"
+    rows[0]["aggregation"] = "renamed latency reduction"
+    write_csv(path, rows, fields)
+
+    report = validate_route(alpha)
+
+    assert report.gate("derivation").valid is False
+    assert "unsupported_summary_derivation" in _codes(report, "derivation")
+
+
+def test_derivation_allowlist_is_closed_to_exact_approved_summary_ids(tmp_path):
+    _, alpha, _, _ = _collection(tmp_path)
+    path = alpha / "results/summary-results.csv"
+    rows, fields = _rows(path)
+    rows[0].update(
+        {
+            "summary_id": "UL-01--kv_cache_allocated_bytes",
+            "metric_name": "kv_cache_allocated_bytes",
+            "value": "123",
+            "unit": "bytes",
+            "aggregation": "median of exactly three deduplicated runtime KV allocations",
+        }
+    )
+    write_csv(path, rows, fields)
+    approved = validate_route(alpha)
+    assert approved.gate("derivation").valid is True
+    assert len(approved.gate("derivation").limitations) == 1
+
+    rows[0]["summary_id"] = "UL-INVENTED--kv_cache_allocated_bytes"
+    write_csv(path, rows, fields)
+    invented = validate_route(alpha)
+
+    assert "unsupported_summary_derivation" in _codes(invented, "derivation")
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "id_field"),
+    (
+        ("results/measurements.csv", "measurement_id"),
+        ("quality/scores.csv", "quality_id"),
+    ),
+)
+def test_validation_catches_nonexistent_source_evidence_id(
+    tmp_path, relative_path, id_field
+):
+    _, alpha, _, _ = _collection(tmp_path)
+    path = alpha / relative_path
+    rows, fields = _rows(path)
+    rows[0]["source_evidence_id"] = "does-not-exist"
+    mutated_id = rows[0][id_field]
+    write_csv(path, rows, fields)
+
+    report = validate_route(alpha)
+
+    issues = report.gate("ids").issues
+    assert any(
+        issue.code == "unknown_source_evidence_reference"
+        and mutated_id in issue.message
+        for issue in issues
+    )
+
+
+def test_validation_catches_attempt_evidence_reference(tmp_path):
+    _, alpha, _, _ = _collection(tmp_path)
+    path = alpha / "results/attempts.csv"
+    rows, fields = _rows(path)
+    rows[0]["evidence_ids"] = json.dumps(["does-not-exist"])
+    write_csv(path, rows, fields)
+
+    report = validate_route(alpha)
+
+    assert "unknown_attempt_evidence_reference" in _codes(report, "ids")
+
+
+def test_validation_catches_failure_evidence_and_same_case_relationships(tmp_path):
+    _, alpha, _, _ = _collection(tmp_path)
+    attempts, _ = _rows(alpha / "results/attempts.csv")
+    attempt = attempts[0]
+    write_csv(
+        alpha / "failures/failure-register.csv",
+        (
+            {
+                "route_id": attempt["route_id"],
+                "campaign_id": attempt["campaign_id"],
+                "test_case_id": "wrong-case",
+                "attempt_id": attempt["attempt_id"],
+                "failure_id": "bad-failure",
+                "status": "failed",
+                "stage": "test",
+                "reason": "retained historical failure",
+                "source_status": "failed",
+                "evidence_ids": json.dumps(["does-not-exist"]),
+            },
+        ),
+        FAILURE_FIELDS,
+    )
+
+    report = validate_route(alpha)
+
+    codes = _codes(report, "ids")
+    assert "unknown_failure_evidence_reference" in codes
+    assert "attempt_test_case_mismatch" in codes
+
+
+def test_validation_catches_row_route_campaign_and_summary_case_relationships(tmp_path):
+    _, alpha, beta, _ = _collection(tmp_path)
+    beta_attempts, _ = _rows(beta / "results/attempts.csv")
+    measurement_path = alpha / "results/measurements.csv"
+    measurements, measurement_fields = _rows(measurement_path)
+    measurements[0]["route_id"] = "wrong-route"
+    measurements[0]["campaign_id"] = "wrong-campaign"
+    measurements[0]["attempt_id"] = beta_attempts[0]["attempt_id"]
+    write_csv(measurement_path, measurements, measurement_fields)
+    summary_path = alpha / "results/summary-results.csv"
+    summaries, summary_fields = _rows(summary_path)
+    summaries[0]["test_case_id"] = "wrong-case"
+    write_csv(summary_path, summaries, summary_fields)
+
+    report = validate_route(alpha)
+
+    codes = _codes(report, "ids")
+    assert "row_route_mismatch" in codes
+    assert "row_campaign_mismatch" in codes
+    assert "unknown_attempt_reference" in codes
+    assert "summary_measurement_case_mismatch" in codes
+
+
 def test_validation_catches_measurement_for_non_passed_attempt(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
     attempt_path = alpha / "results/attempts.csv"
@@ -382,16 +681,16 @@ def test_validation_catches_measurement_for_non_passed_attempt(tmp_path):
         alpha / "failures/failure-register.csv",
         (
             {
-                "route_id": "alpha",
-                "campaign_id": "alpha-campaign",
-                "test_case_id": "alpha-case-1",
-                "attempt_id": "alpha-attempt-1",
-                "failure_id": "alpha-failure-1",
+                "route_id": attempts[0]["route_id"],
+                "campaign_id": attempts[0]["campaign_id"],
+                "test_case_id": attempts[0]["test_case_id"],
+                "attempt_id": attempts[0]["attempt_id"],
+                "failure_id": "upstream-llama-cpp-failure-1",
                 "status": "blocked",
                 "stage": "preflight",
                 "reason": "controlled block",
                 "source_status": "blocked",
-                "evidence_ids": json.dumps(["alpha-evidence"]),
+                "evidence_ids": attempts[0]["evidence_ids"],
             },
         ),
         FAILURE_FIELDS,
@@ -411,7 +710,7 @@ def test_availability_accepts_passed_terminal_attempt_with_retained_rejection(tm
     rejected = dict(attempts[0])
     rejected.update(
         {
-            "attempt_id": "alpha-attempt-rejected",
+            "attempt_id": "upstream-llama-cpp--historical-rejected",
             "status": "failed",
             "reason": "retained rejected evidence",
             "source_status": "rejected",
@@ -429,16 +728,16 @@ def test_availability_accepts_passed_terminal_attempt_with_retained_rejection(tm
         alpha / "failures/failure-register.csv",
         (
             {
-                "route_id": "alpha",
-                "campaign_id": "alpha-campaign",
-                "test_case_id": "alpha-case-1",
-                "attempt_id": "alpha-attempt-rejected",
-                "failure_id": "alpha-rejected-failure",
+                "route_id": rejected["route_id"],
+                "campaign_id": rejected["campaign_id"],
+                "test_case_id": rejected["test_case_id"],
+                "attempt_id": rejected["attempt_id"],
+                "failure_id": "upstream-llama-cpp-rejected-failure",
                 "status": "failed",
                 "stage": "evidence-review",
                 "reason": "retained rejected evidence",
                 "source_status": "rejected",
-                "evidence_ids": json.dumps(["alpha-evidence"]),
+                "evidence_ids": rejected["evidence_ids"],
             },
         ),
         FAILURE_FIELDS,
@@ -449,9 +748,35 @@ def test_availability_accepts_passed_terminal_attempt_with_retained_rejection(tm
     assert report.gate("availability").valid is True
 
 
+def test_availability_rejects_stale_failed_status_beside_terminal_pass(tmp_path):
+    _, alpha, _, _ = _collection(tmp_path)
+    attempt_path = alpha / "results/attempts.csv"
+    attempts, attempt_fields = _rows(attempt_path)
+    historical = dict(attempts[0])
+    historical.update(
+        {
+            "attempt_id": "upstream-llama-cpp--historical-failed",
+            "status": "failed",
+            "reason": "retained historical failure",
+            "source_status": "rejected",
+            "failure_kind": "invalid-runtime-evidence",
+        }
+    )
+    attempts.append(historical)
+    write_csv(attempt_path, attempts, attempt_fields)
+    availability_path = alpha / "results/availability-matrix.csv"
+    availability, availability_fields = _rows(availability_path)
+    availability[0]["status"] = "failed"
+    write_csv(availability_path, availability, availability_fields)
+
+    report = validate_route(alpha)
+
+    assert "availability_terminal_status_mismatch" in _codes(report, "availability")
+
+
 def test_validation_catches_missing_evidence(tmp_path):
     collection, alpha, _, _ = _collection(tmp_path)
-    (collection / "sources/alpha.txt").unlink()
+    (collection / "sources/upstream-llama-cpp.txt").unlink()
 
     report = validate_route(alpha)
 
@@ -460,7 +785,7 @@ def test_validation_catches_missing_evidence(tmp_path):
 
 def test_validation_catches_evidence_hash_mismatch(tmp_path):
     collection, alpha, _, _ = _collection(tmp_path)
-    (collection / "sources/alpha.txt").write_text("changed\n", encoding="utf-8")
+    (collection / "sources/upstream-llama-cpp.txt").write_text("changed\n", encoding="utf-8")
 
     report = validate_route(alpha)
 
@@ -469,10 +794,10 @@ def test_validation_catches_evidence_hash_mismatch(tmp_path):
 
 def test_checkout_crlf_manifest_is_a_nonblocking_integrity_limitation(tmp_path):
     collection, alpha, _, _ = _collection(tmp_path)
-    source = collection / "sources/alpha.txt"
+    source = collection / "sources/upstream-llama-cpp.txt"
     manifest = alpha / "evidence/manifest-sha256.txt"
     manifest.write_bytes(
-        f"{hash_file(source)}  sources/alpha.txt\r\n".encode("utf-8")
+        f"{hash_file(source)}  sources/upstream-llama-cpp.txt\r\n".encode("utf-8")
     )
 
     report = validate_route(alpha)
@@ -530,6 +855,77 @@ def test_validation_checks_cross_route_checksum_manifest(tmp_path):
     report = validate_collection(collection)
 
     assert "manifest_validation_error" in _codes(report, "paths_hashes")
+
+
+def test_collection_requires_exact_complete_six_route_directories(tmp_path):
+    collection, _, _, _ = _collection(tmp_path)
+    missing = collection / "05-openvino-official-upstream"
+    missing.rename(collection / "05-wrong-route")
+
+    report = validate_collection(collection)
+
+    assert report.gate("release_readiness").valid is False
+    assert "collection_route_set_mismatch" in _codes(report, "schema")
+
+
+def test_collection_reconciles_cross_route_source_identities_and_counts(tmp_path):
+    collection, _, _, cross = _collection(tmp_path)
+    manifest_path = cross / "route-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["source_route_ids"] = manifest["source_route_ids"][:-1]
+    manifest["source_campaign_ids"] = ["stale-campaign"]
+    manifest["attempt_count"] = 999
+    manifest["comparability_decision_count"] = 999
+    write_json(manifest_path, manifest)
+
+    report = validate_collection(collection)
+
+    assert report.gate("release_readiness").valid is False
+    codes = _codes(report, "comparability")
+    assert "cross_route_source_routes_mismatch" in codes
+    assert "cross_route_source_campaigns_mismatch" in codes
+    assert "cross_route_attempt_count_mismatch" in codes
+    assert "cross_route_comparison_count_mismatch" in codes
+
+
+@pytest.mark.parametrize(
+    "catalog_name",
+    (
+        "route-register.csv",
+        "campaign-summary.csv",
+        "performance-summary.csv",
+        "quality-summary.csv",
+        "failure-summary.csv",
+        "evidence-manifest.csv",
+        "claim-evidence-map.csv",
+        "comparability-matrix.csv",
+    ),
+)
+def test_collection_independently_recomputes_every_catalog(tmp_path, catalog_name):
+    collection, _, _, _ = _collection(tmp_path)
+    (collection / "catalog" / catalog_name).write_text(
+        "route_id,attempt_count\nwrong,999\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    report = validate_collection(collection)
+
+    assert report.gate("release_readiness").valid is False
+    assert "catalog_content_mismatch" in _codes(report, "comparability")
+
+
+def test_catalog_numeric_cells_allow_equivalent_integer_float_spelling(tmp_path):
+    collection, _, _, _ = _collection(tmp_path)
+    path = collection / "catalog/performance-summary.csv"
+    rows, fields = _rows(path)
+    assert rows[0]["value"] == "20.0"
+    rows[0]["value"] = "20"
+    write_csv(path, rows, fields)
+
+    report = validate_collection(collection)
+
+    assert report.valid is True
 
 
 def test_receipt_writer_emits_required_json_and_markdown(tmp_path):
