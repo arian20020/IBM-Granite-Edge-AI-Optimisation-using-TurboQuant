@@ -6,6 +6,7 @@ from pathlib import Path
 
 WRAPPER = (
     Path(__file__).parents[1]
+    / "tools"
     / "build_openvino_turboquant.ps1"
 )
 

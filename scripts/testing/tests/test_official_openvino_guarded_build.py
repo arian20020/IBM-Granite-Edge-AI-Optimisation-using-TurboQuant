@@ -562,14 +562,15 @@ def _copy_guard_controller_package(
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
     wrapper_source = (
-        ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+        ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     )
+    wrapper_destination = (
+        destination_root / "scripts" / "testing" / "tools"
+    )
+    wrapper_destination.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(
         wrapper_source,
-        destination_root
-        / "scripts"
-        / "testing"
-        / "invoke_guarded_command.ps1",
+        wrapper_destination / "invoke_guarded_command.ps1",
     )
     if not publication_hook and controller_hook is None:
         return
@@ -1329,7 +1330,7 @@ def test_cli_rejects_command_without_literal_separator(tmp_path):
 
 
 def test_powershell_51_wrapper_preserves_command_array(tmp_path):
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     evidence_root = tmp_path / "powershell evidence"
     driver = tmp_path / "driver.ps1"
     program = "import json,sys;print(json.dumps(sys.argv[1:]),flush=True)"
@@ -1470,7 +1471,7 @@ def test_guard_assigns_containing_job_before_fine_job_and_resume(
 
 
 def test_powershell_wrapper_has_no_pre_guard_helper_launch():
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     with wrapper.open("r", encoding="utf-8", newline="") as stream:
         source = stream.read()
     invocation = "$guardNativeOutput = @(& $python @guardArguments)"
@@ -1498,7 +1499,7 @@ def test_powershell_wrapper_has_no_pre_guard_helper_launch():
 
 
 def test_wrapper_module_qualifies_every_external_powershell_command():
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     with wrapper.open("r", encoding="utf-8", newline="") as stream:
         source = stream.read()
     commands = _powershell_command_asts(wrapper)
@@ -1538,7 +1539,7 @@ def test_wrapper_module_qualifies_every_external_powershell_command():
 
 
 def test_wrapper_ignores_hostile_same_runspace_command_shadows(tmp_path):
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     driver = tmp_path / "hostile-command-shadow-driver.ps1"
     evidence_root = tmp_path / "hostile-command-shadow-evidence"
     whoami = Path(os.environ["SystemRoot"]) / "System32" / "whoami.exe"
@@ -1632,6 +1633,7 @@ def _invoke_wrapper_with_publication_replacement(
         trusted_root
         / "scripts"
         / "testing"
+        / "tools"
         / "invoke_guarded_command.ps1"
     )
     child_working_directory = tmp_path / f"{artifact}-child-working"
@@ -1746,7 +1748,7 @@ def test_wrapper_ignores_inherited_pythonpath_sitecustomize(tmp_path):
         ),
         encoding="utf-8",
     )
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     driver = tmp_path / "isolated-startup-driver.ps1"
     whoami = Path(os.environ["SystemRoot"]) / "System32" / "whoami.exe"
     _write_wrapper_driver(
@@ -1787,7 +1789,7 @@ def test_wrapper_ignores_python_path_shim_with_approved_runtime(tmp_path):
         ),
         encoding="ascii",
     )
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     driver = tmp_path / "unsigned-python-shim-driver.ps1"
     whoami = Path(os.environ["SystemRoot"]) / "System32" / "whoami.exe"
     _write_wrapper_driver(
@@ -1827,7 +1829,7 @@ def test_wrapper_rejects_unapproved_runtime_hashes_before_launch(
     runtime_overrides,
     expected_error,
 ):
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     driver = tmp_path / "unapproved-runtime-driver.ps1"
     marker = tmp_path / "runtime-child-must-not-run"
     child = (
@@ -1857,7 +1859,7 @@ def test_wrapper_rejects_unsigned_approved_runtime_before_launch(tmp_path):
     fake_dll = fake_install / "python999.dll"
     fake_python.write_bytes(b"unsigned-python-executable")
     fake_dll.write_bytes(b"unsigned-python-runtime-dll")
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     driver = tmp_path / "unsigned-approved-runtime-driver.ps1"
     marker = tmp_path / "unsigned-runtime-child-must-not-run"
     child = (
@@ -1902,7 +1904,7 @@ def test_wrapper_rejects_hash_approved_pe_text_tamper(
         else copied_dll
     )
     _flip_pe_text_byte(target)
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     driver = tmp_path / f"{tampered_component}-pe-tamper-driver.ps1"
     marker = tmp_path / f"{tampered_component}-child-must-not-run"
     child = (
@@ -1946,7 +1948,7 @@ def test_wrapper_rejects_runtime_install_junction(tmp_path):
     )
     if created.returncode != 0:
         pytest.skip(f"directory junction unavailable: {created.stderr}")
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     driver = tmp_path / "runtime-junction-driver.ps1"
     marker = tmp_path / "runtime-junction-child-must-not-run"
     child = (
@@ -1998,7 +2000,7 @@ def test_wrapper_resolves_controller_only_from_wrapper_repo_root(tmp_path):
         ),
         encoding="utf-8",
     )
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     driver = tmp_path / "pinned-working-directory-driver.ps1"
     whoami = Path(os.environ["SystemRoot"]) / "System32" / "whoami.exe"
     child_working_directory = tmp_path / "separate-child-working-directory"
@@ -2085,6 +2087,7 @@ def test_wrapper_ignores_poisoned_repo_bytecode_cache(
         trusted_root
         / "scripts"
         / "testing"
+        / "tools"
         / "invoke_guarded_command.ps1"
     )
     driver = tmp_path / f"{module_name}-bytecode-cache-driver.ps1"
@@ -2121,6 +2124,7 @@ def _invoke_wrapper_with_controller_stdout_mode(
         trusted_root
         / "scripts"
         / "testing"
+        / "tools"
         / "invoke_guarded_command.ps1"
     )
     child_working_directory = tmp_path / f"{mode}-child-working"
@@ -2266,6 +2270,7 @@ def test_wrapper_binds_to_completed_controller_run_after_subst_retarget(
         trusted_root
         / "scripts"
         / "testing"
+        / "tools"
         / "invoke_guarded_command.ps1"
     )
     driver = tmp_path / "binding-driver.ps1"
@@ -2329,7 +2334,7 @@ def test_wrapper_binds_to_completed_controller_run_after_subst_retarget(
 def test_powershell_51_wrapper_accepts_subst_aliases_by_filesystem_identity(
     tmp_path,
 ):
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     subst_root = tmp_path / "subst-root"
     physical_working_directory = subst_root / "working"
     physical_working_directory.mkdir(parents=True)
@@ -2434,7 +2439,7 @@ def test_powershell_51_wrapper_accepts_subst_aliases_by_filesystem_identity(
 
 
 def test_powershell_wrapper_forwards_configured_ram_floor(tmp_path):
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     evidence_root = tmp_path / "configured-ram-floor-evidence"
     driver = tmp_path / "configured-ram-floor-driver.ps1"
     requested_mib = 4096
@@ -2460,7 +2465,7 @@ def test_powershell_wrapper_forwards_configured_ram_floor(tmp_path):
 
 
 def test_powershell_wrapper_persists_exact_verification_stdout(tmp_path):
-    wrapper = ROOT / "scripts" / "testing" / "invoke_guarded_command.ps1"
+    wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     evidence_root = tmp_path / "verification-output-evidence"
     verification_path = (
         evidence_root / "verification-output.verification.json"
@@ -2505,7 +2510,7 @@ def test_guard_primitives_have_one_owner_and_legacy_modules_reexport():
         / "owned_process_guard.py"
     )
     capability_path = (
-        ROOT / "scripts" / "testing" / "run_openvino_reference_capability.py"
+        ROOT / "scripts" / "testing" / "tools" / "run_openvino_reference_capability.py"
     )
     measurement_path = ROOT / "scripts/testing/campaigns/llama_cpp/measure_run.py"
     sources = {

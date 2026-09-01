@@ -364,7 +364,7 @@ function Write-AtomicUtf8Json {
 }
 
 $repoRoot = [IO.Path]::GetFullPath(
-  [IO.Path]::Combine($PSScriptRoot, '..', '..')
+  [IO.Path]::Combine($PSScriptRoot, '..', '..', '..')
 )
 $resolvedPythonExecutable = if ([IO.File]::Exists($PythonExecutable)) {
   (Resolve-Path -LiteralPath $PythonExecutable).Path

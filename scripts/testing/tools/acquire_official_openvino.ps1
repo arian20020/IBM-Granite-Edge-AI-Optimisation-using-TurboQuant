@@ -9,7 +9,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../..")).Path
 $venvRoot = Join-Path $repoRoot ".venv-official-openvino-$OpenVINOTag"
 $sourceRoot = Join-Path $repoRoot "external/official-openvino/$CampaignDate"
 $evidenceRoot = Join-Path $repoRoot "experiments/raw-results/official-openvino/$CampaignDate"

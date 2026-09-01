@@ -12,6 +12,7 @@ ARCHIVE_ROOT = ROOT / "archive/testing-code/2026-09-01"
 TESTING_ROOT = ROOT / "scripts/testing"
 ALLOWED_ROOT_FILES = {"README.md", "requirements.txt"}
 ALLOWED_ROOT_DIRS = {"campaigns", "cli", "examples", "reporting", "tests", "tools"}
+IGNORED_ROOT_DIRS = {".pytest_cache", "__pycache__"}
 EXPECTED_ARCHIVE_BASELINE = "d0eb34f2"
 
 
@@ -125,10 +126,14 @@ def test_tracked_task1_root_scripts_have_a_complete_migration_inventory() -> Non
 
 def test_scripts_testing_root_is_limited_to_documented_files_and_directories() -> None:
     root_files = {path.name for path in TESTING_ROOT.iterdir() if path.is_file()}
-    root_dirs = {path.name for path in TESTING_ROOT.iterdir() if path.is_dir()}
+    root_dirs = {
+        path.name
+        for path in TESTING_ROOT.iterdir()
+        if path.is_dir() and path.name not in IGNORED_ROOT_DIRS
+    }
 
     assert root_files == ALLOWED_ROOT_FILES
-    assert ALLOWED_ROOT_DIRS.issubset(root_dirs)
+    assert root_dirs == ALLOWED_ROOT_DIRS
 
 
 def test_active_code_no_longer_imports_or_points_at_legacy_root_scripts() -> None:

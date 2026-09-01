@@ -9,7 +9,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../..")).Path
 
 if (-not $UpstreamPath) {
     $commonGitDir = (& git -C $repoRoot rev-parse --path-format=absolute --git-common-dir).Trim()

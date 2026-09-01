@@ -358,7 +358,7 @@ $minimumAvailableRamMiBValue = $MinimumAvailableRamMiB.ToString(
   [Globalization.CultureInfo]::InvariantCulture
 )
 $controllerRepositoryRoot = [IO.Path]::GetFullPath(
-  (& $joinPath $PSScriptRoot '..\..')
+  (& $joinPath $PSScriptRoot '..\..\..')
 )
 $controllerModulePath = (
   & $joinPath $controllerRepositoryRoot `
