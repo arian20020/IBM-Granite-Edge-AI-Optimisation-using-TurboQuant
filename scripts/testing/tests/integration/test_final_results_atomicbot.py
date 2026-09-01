@@ -431,7 +431,7 @@ def test_route_generation_has_common_structure_schema_parity_and_honest_caveats(
     isolated_route: Path,
 ):
     bundle = write_atomicbot_route(REPOSITORY_ROOT)
-    markdown = isolated_route / "workbook/source/atomicbot-turboquant-final-report.md"
+    markdown = isolated_route / "reports/atomicbot-turboquant-report.md"
     text = markdown.read_text(encoding="utf-8")
 
     assert len(bundle.attempts) == 19
@@ -439,17 +439,20 @@ def test_route_generation_has_common_structure_schema_parity_and_honest_caveats(
     assert "limited/provisional" in text
     assert "not directly comparable with OpenVINO" in text
     assert "Not collected" in text
-    assert json.loads((isolated_route / "validation/workbook-parity.json").read_text())["matches"] is True
-    assert json.loads((isolated_route / "validation/relationship-validation.json").read_text())["valid"] is True
-    relationship = json.loads((isolated_route / "validation/relationship-validation.json").read_text())
+    validation = json.loads(
+        (isolated_route / "validation/validation.json").read_text()
+    )
+    assert validation["checks"]["workbook_parity"]["matches"] is True
+    assert validation["checks"]["relationship"]["valid"] is True
+    relationship = validation["checks"]["relationship"]
     assert relationship["deviation_count"] == 5
     assert relationship["deviation_relationships_valid"] is True
     assert set(relationship["deviation_ids"]) == {
         "FAIL-AB-UI-ASSET", "FAIL-AB-DEVICE-GUARD", "FAIL-AB-08Q-MEMORY",
         "FAIL-AB-8B-SAFETY", "FAIL-AB-P5-TIMEOUT",
     }
-    assert json.loads((isolated_route / "validation/coverage-validation.json").read_text())["valid"] is True
-    assert json.loads((isolated_route / "validation/data-validation.json").read_text())["valid"] is True
+    assert validation["checks"]["coverage"]["valid"] is True
+    assert validation["checks"]["data"]["valid"] is True
 
 
 def test_all_canonical_records_validate_against_shared_schemas_and_references():
@@ -497,13 +500,14 @@ def test_relationship_receipt_rejects_deviation_mutations(mutator, expected_erro
 
 def test_generated_inventory_manifest_and_reproduction_contract():
     expected = (
-        "README.md", "route-manifest.json", "protocol/intended-test-matrix.csv",
-        "system/repository.json", "results/attempts.csv", "results/measurements.csv",
-        "results/summary-results.csv", "quality/scores.csv", "quality/rubric.md",
-        "failures/failure-register.csv", "evidence/evidence-index.csv",
+        "README.md", "data/route.json", "reproduction/protocol/intended-test-matrix.csv",
+        "reproduction/system/repository.json", "data/attempts.csv", "data/measurements.csv",
+        "data/summaries.csv", "data/quality.csv", "reproduction/quality/rubric.md",
+        "data/failures.csv", "evidence/evidence-index.csv",
         "evidence/claim-evidence-map.csv", "reproduction/commands.md",
-        "validation/workbook-parity.json", "workbook/source/atomicbot-turboquant-final-report.md",
-        "workbook/generated/atomicbot-turboquant-final-report.docx",
+        "validation/validation.json", "validation/validation.md",
+        "reports/atomicbot-turboquant-report.md",
+        "reports/atomicbot-turboquant-report.docx",
     )
     for relative in expected:
         assert (ROUTE / relative).is_file(), relative

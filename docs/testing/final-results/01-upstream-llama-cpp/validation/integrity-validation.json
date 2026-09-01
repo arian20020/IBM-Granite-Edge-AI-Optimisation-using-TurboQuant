@@ -1,6 +1,0 @@
-{
-  "manifest": "docs/testing/final-results/01-upstream-llama-cpp/evidence/manifest-sha256.txt",
-  "manifest_validation": "Passed after final PDF and validation receipt generation",
-  "policy": "All route files except the checksum manifest itself are included",
-  "valid": true
-}

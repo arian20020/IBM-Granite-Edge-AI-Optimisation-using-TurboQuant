@@ -6,7 +6,7 @@
 ```
 2. Export the owned Word PDF
 ```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.docx -PdfPath docs/testing/final-results/03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.pdf -TimeoutSeconds 180
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.docx -PdfPath docs/testing/final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.pdf -TimeoutSeconds 180
 ```
 3. Finalize and validate
 ```powershell

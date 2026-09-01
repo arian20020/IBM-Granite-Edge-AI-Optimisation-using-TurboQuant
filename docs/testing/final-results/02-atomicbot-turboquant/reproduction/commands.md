@@ -6,7 +6,7 @@
 ```
 2. Export the owned Word PDF
 ```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.docx -PdfPath docs/testing/final-results/02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.pdf -TimeoutSeconds 180
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.docx -PdfPath docs/testing/final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.pdf -TimeoutSeconds 180
 ```
 3. Finalize and validate the PDF
 ```powershell

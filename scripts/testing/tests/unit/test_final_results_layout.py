@@ -247,6 +247,24 @@ def test_validate_layout_accepts_materialized_new_route_and_rejects_stale_paths(
     assert any("stale_removed_path" in issue for issue in issues)
 
 
+def test_validate_layout_distinguishes_route_paths_from_raw_results_evidence(tmp_path):
+    route = _build_old_route(tmp_path)
+    migrated = _materialize_new_layout(tmp_path, route)
+    _write_text(
+        migrated / "evidence/source-locations.csv",
+        "relative_path\nexperiments/raw-results/upstream-llama-cpp/source.json\n",
+    )
+
+    assert validate_layout(migrated) == ()
+
+    _write_text(
+        migrated / "README.md",
+        "# Route\n\nLegacy canonical table: `results/attempts.csv`.\n",
+    )
+
+    assert "stale_removed_path:README.md" in validate_layout(migrated)
+
+
 def test_route_migration_rejects_duplicate_destinations(tmp_path):
     route = _build_old_route(tmp_path)
     _write_text(route / "workbook/source/rogue-final-report.md", "# Rogue\n")

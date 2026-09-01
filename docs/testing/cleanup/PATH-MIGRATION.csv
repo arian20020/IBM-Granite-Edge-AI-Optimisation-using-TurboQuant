@@ -1,1 +1,110 @@
 old_path,new_path,reason
+docs/testing/final-results/01-upstream-llama-cpp/failures/curated-logs/README.md,docs/testing/final-results/01-upstream-llama-cpp/evidence/failures/curated-logs/README.md,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/failures/failure-register.csv,docs/testing/final-results/01-upstream-llama-cpp/data/failures.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/failures/README.md,docs/testing/final-results/01-upstream-llama-cpp/evidence/failures/README.md,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/protocol/deviations.csv,docs/testing/final-results/01-upstream-llama-cpp/data/deviations.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/protocol/execution-sequence.md,docs/testing/final-results/01-upstream-llama-cpp/reproduction/protocol/execution-sequence.md,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/protocol/intended-test-matrix.csv,docs/testing/final-results/01-upstream-llama-cpp/reproduction/protocol/intended-test-matrix.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/protocol/metric-definitions.md,docs/testing/final-results/01-upstream-llama-cpp/reproduction/protocol/metric-definitions.md,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/protocol/test-plan.md,docs/testing/final-results/01-upstream-llama-cpp/reproduction/protocol/test-plan.md,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/quality/adjudication-log.csv,docs/testing/final-results/01-upstream-llama-cpp/reproduction/quality/adjudication-log.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/quality/calibration.md,docs/testing/final-results/01-upstream-llama-cpp/reproduction/quality/calibration.md,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/quality/outputs-index.csv,docs/testing/final-results/01-upstream-llama-cpp/reproduction/quality/outputs-index.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/quality/prompt-suite.csv,docs/testing/final-results/01-upstream-llama-cpp/reproduction/quality/prompt-suite.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/quality/README.md,docs/testing/final-results/01-upstream-llama-cpp/reproduction/quality/README.md,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/quality/rubric.md,docs/testing/final-results/01-upstream-llama-cpp/reproduction/quality/rubric.md,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/quality/scores.csv,docs/testing/final-results/01-upstream-llama-cpp/data/quality.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/results/attempts.csv,docs/testing/final-results/01-upstream-llama-cpp/data/attempts.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/results/availability-matrix.csv,docs/testing/final-results/01-upstream-llama-cpp/data/availability-matrix.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/results/measurements.csv,docs/testing/final-results/01-upstream-llama-cpp/data/measurements.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/results/source/README.md,docs/testing/final-results/01-upstream-llama-cpp/evidence/source/README.md,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/results/summary-results.csv,docs/testing/final-results/01-upstream-llama-cpp/data/summaries.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/route-manifest.json,docs/testing/final-results/01-upstream-llama-cpp/data/route.json,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/system/environment.txt,docs/testing/final-results/01-upstream-llama-cpp/reproduction/system/environment.txt,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/system/hardware.json,docs/testing/final-results/01-upstream-llama-cpp/reproduction/system/hardware.json,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/system/model-artifacts.csv,docs/testing/final-results/01-upstream-llama-cpp/reproduction/system/model-artifacts.csv,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/system/repository.json,docs/testing/final-results/01-upstream-llama-cpp/reproduction/system/repository.json,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/system/software.json,docs/testing/final-results/01-upstream-llama-cpp/reproduction/system/software.json,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/validation/coverage-validation.json,docs/testing/final-results/01-upstream-llama-cpp/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/01-upstream-llama-cpp/validation/data-validation.json,docs/testing/final-results/01-upstream-llama-cpp/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/01-upstream-llama-cpp/validation/integrity-validation.json,docs/testing/final-results/01-upstream-llama-cpp/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/01-upstream-llama-cpp/validation/relationship-validation.json,docs/testing/final-results/01-upstream-llama-cpp/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/01-upstream-llama-cpp/validation/validation-report.md,docs/testing/final-results/01-upstream-llama-cpp/validation/validation.md,Consolidate human-readable validation summary
+docs/testing/final-results/01-upstream-llama-cpp/validation/visual-validation.json,docs/testing/final-results/01-upstream-llama-cpp/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/01-upstream-llama-cpp/validation/workbook-parity.json,docs/testing/final-results/01-upstream-llama-cpp/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx,docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.docx,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf,docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.pdf,Task 8 compact published-route layout
+docs/testing/final-results/01-upstream-llama-cpp/workbook/source/upstream-llama-cpp-final-report.md,docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/failures/curated-logs/README.md,docs/testing/final-results/02-atomicbot-turboquant/evidence/failures/curated-logs/README.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/failures/failure-register.csv,docs/testing/final-results/02-atomicbot-turboquant/data/failures.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/failures/README.md,docs/testing/final-results/02-atomicbot-turboquant/evidence/failures/README.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/protocol/deviations.csv,docs/testing/final-results/02-atomicbot-turboquant/data/deviations.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/protocol/execution-sequence.md,docs/testing/final-results/02-atomicbot-turboquant/reproduction/protocol/execution-sequence.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/protocol/intended-test-matrix.csv,docs/testing/final-results/02-atomicbot-turboquant/reproduction/protocol/intended-test-matrix.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/protocol/metric-definitions.md,docs/testing/final-results/02-atomicbot-turboquant/reproduction/protocol/metric-definitions.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/protocol/test-plan.md,docs/testing/final-results/02-atomicbot-turboquant/reproduction/protocol/test-plan.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/quality/adjudication-log.csv,docs/testing/final-results/02-atomicbot-turboquant/reproduction/quality/adjudication-log.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/quality/calibration.md,docs/testing/final-results/02-atomicbot-turboquant/reproduction/quality/calibration.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/quality/outputs-index.csv,docs/testing/final-results/02-atomicbot-turboquant/reproduction/quality/outputs-index.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/quality/prompt-suite.csv,docs/testing/final-results/02-atomicbot-turboquant/reproduction/quality/prompt-suite.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/quality/README.md,docs/testing/final-results/02-atomicbot-turboquant/reproduction/quality/README.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/quality/rubric.md,docs/testing/final-results/02-atomicbot-turboquant/reproduction/quality/rubric.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/quality/scores.csv,docs/testing/final-results/02-atomicbot-turboquant/data/quality.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/results/attempts.csv,docs/testing/final-results/02-atomicbot-turboquant/data/attempts.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/results/availability-matrix.csv,docs/testing/final-results/02-atomicbot-turboquant/data/availability-matrix.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/results/measurements.csv,docs/testing/final-results/02-atomicbot-turboquant/data/measurements.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/results/source/README.md,docs/testing/final-results/02-atomicbot-turboquant/evidence/source/README.md,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/results/summary-results.csv,docs/testing/final-results/02-atomicbot-turboquant/data/summaries.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/route-manifest.json,docs/testing/final-results/02-atomicbot-turboquant/data/route.json,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/system/environment.txt,docs/testing/final-results/02-atomicbot-turboquant/reproduction/system/environment.txt,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/system/hardware.json,docs/testing/final-results/02-atomicbot-turboquant/reproduction/system/hardware.json,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/system/model-artifacts.csv,docs/testing/final-results/02-atomicbot-turboquant/reproduction/system/model-artifacts.csv,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/system/repository.json,docs/testing/final-results/02-atomicbot-turboquant/reproduction/system/repository.json,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/system/software.json,docs/testing/final-results/02-atomicbot-turboquant/reproduction/system/software.json,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/validation/coverage-validation.json,docs/testing/final-results/02-atomicbot-turboquant/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/02-atomicbot-turboquant/validation/data-validation.json,docs/testing/final-results/02-atomicbot-turboquant/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/02-atomicbot-turboquant/validation/integrity-validation.json,docs/testing/final-results/02-atomicbot-turboquant/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/02-atomicbot-turboquant/validation/relationship-validation.json,docs/testing/final-results/02-atomicbot-turboquant/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/02-atomicbot-turboquant/validation/validation-report.md,docs/testing/final-results/02-atomicbot-turboquant/validation/validation.md,Consolidate human-readable validation summary
+docs/testing/final-results/02-atomicbot-turboquant/validation/visual-validation.json,docs/testing/final-results/02-atomicbot-turboquant/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/02-atomicbot-turboquant/validation/workbook-parity.json,docs/testing/final-results/02-atomicbot-turboquant/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.docx,docs/testing/final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.docx,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.pdf,docs/testing/final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.pdf,Task 8 compact published-route layout
+docs/testing/final-results/02-atomicbot-turboquant/workbook/source/atomicbot-turboquant-final-report.md,docs/testing/final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/failures/curated-logs/README.md,docs/testing/final-results/03-animehacker-tq3-0/evidence/failures/curated-logs/README.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/failures/failure-register.csv,docs/testing/final-results/03-animehacker-tq3-0/data/failures.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/failures/README.md,docs/testing/final-results/03-animehacker-tq3-0/evidence/failures/README.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/protocol/deviations.csv,docs/testing/final-results/03-animehacker-tq3-0/data/deviations.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/protocol/execution-sequence.md,docs/testing/final-results/03-animehacker-tq3-0/reproduction/protocol/execution-sequence.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/protocol/intended-test-matrix.csv,docs/testing/final-results/03-animehacker-tq3-0/reproduction/protocol/intended-test-matrix.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/protocol/metric-definitions.md,docs/testing/final-results/03-animehacker-tq3-0/reproduction/protocol/metric-definitions.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/protocol/test-plan.md,docs/testing/final-results/03-animehacker-tq3-0/reproduction/protocol/test-plan.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/quality/adjudication-log.csv,docs/testing/final-results/03-animehacker-tq3-0/reproduction/quality/adjudication-log.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/quality/calibration.md,docs/testing/final-results/03-animehacker-tq3-0/reproduction/quality/calibration.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/quality/outputs-index.csv,docs/testing/final-results/03-animehacker-tq3-0/reproduction/quality/outputs-index.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/quality/prompt-suite.csv,docs/testing/final-results/03-animehacker-tq3-0/reproduction/quality/prompt-suite.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/quality/README.md,docs/testing/final-results/03-animehacker-tq3-0/reproduction/quality/README.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/quality/rubric.md,docs/testing/final-results/03-animehacker-tq3-0/reproduction/quality/rubric.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/quality/scores.csv,docs/testing/final-results/03-animehacker-tq3-0/data/quality.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/results/attempts.csv,docs/testing/final-results/03-animehacker-tq3-0/data/attempts.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/results/availability-matrix.csv,docs/testing/final-results/03-animehacker-tq3-0/data/availability-matrix.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/results/measurements.csv,docs/testing/final-results/03-animehacker-tq3-0/data/measurements.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/results/resource-observations.csv,docs/testing/final-results/03-animehacker-tq3-0/data/resource-observations.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/results/source/README.md,docs/testing/final-results/03-animehacker-tq3-0/evidence/source/README.md,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/results/summary-results.csv,docs/testing/final-results/03-animehacker-tq3-0/data/summaries.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/route-manifest.json,docs/testing/final-results/03-animehacker-tq3-0/data/route.json,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/system/environment.txt,docs/testing/final-results/03-animehacker-tq3-0/reproduction/system/environment.txt,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/system/hardware.json,docs/testing/final-results/03-animehacker-tq3-0/reproduction/system/hardware.json,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/system/model-artifacts.csv,docs/testing/final-results/03-animehacker-tq3-0/reproduction/system/model-artifacts.csv,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/system/repository.json,docs/testing/final-results/03-animehacker-tq3-0/reproduction/system/repository.json,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/system/software.json,docs/testing/final-results/03-animehacker-tq3-0/reproduction/system/software.json,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/validation/coverage-validation.json,docs/testing/final-results/03-animehacker-tq3-0/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/03-animehacker-tq3-0/validation/data-validation.json,docs/testing/final-results/03-animehacker-tq3-0/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/03-animehacker-tq3-0/validation/integrity-validation.json,docs/testing/final-results/03-animehacker-tq3-0/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/03-animehacker-tq3-0/validation/relationship-validation.json,docs/testing/final-results/03-animehacker-tq3-0/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/03-animehacker-tq3-0/validation/validation-report.md,docs/testing/final-results/03-animehacker-tq3-0/validation/validation.md,Consolidate human-readable validation summary
+docs/testing/final-results/03-animehacker-tq3-0/validation/visual-validation.json,docs/testing/final-results/03-animehacker-tq3-0/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/03-animehacker-tq3-0/validation/workbook-parity.json,docs/testing/final-results/03-animehacker-tq3-0/validation/validation.json,Consolidate named validation receipt
+docs/testing/final-results/03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.docx,docs/testing/final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.docx,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.pdf,docs/testing/final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.pdf,Task 8 compact published-route layout
+docs/testing/final-results/03-animehacker-tq3-0/workbook/source/animehacker-tq3-0-final-report.md,docs/testing/final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.md,Task 8 compact published-route layout

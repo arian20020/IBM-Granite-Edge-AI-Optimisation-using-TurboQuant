@@ -380,16 +380,19 @@ def test_generated_route_has_common_structure_parity_integrity_and_portability(
     isolated_route: Path,
 ):
     bundle = write_animehacker_route(REPOSITORY_ROOT)
-    markdown = isolated_route / "workbook/source/animehacker-tq3-0-final-report.md"
+    markdown = isolated_route / "reports/animehacker-tq3-0-report.md"
     text = markdown.read_text(encoding="utf-8")
 
     assert all(heading in text for heading in SECTION_ORDER)
     assert "seven" in text.lower() and "three" in text.lower()
     assert "historical failure" in text.lower()
     assert "Not collected" in text
-    assert json.loads((isolated_route / "validation/workbook-parity.json").read_text())["matches"] is True
-    assert json.loads((isolated_route / "validation/relationship-validation.json").read_text())["valid"] is True
-    assert json.loads((isolated_route / "validation/coverage-validation.json").read_text())["valid"] is True
+    validation = json.loads(
+        (isolated_route / "validation/validation.json").read_text()
+    )
+    assert validation["checks"]["workbook_parity"]["matches"] is True
+    assert validation["checks"]["relationship"]["valid"] is True
+    assert validation["checks"]["coverage"]["valid"] is True
     assert len(bundle.attempts) > 10
 
     forbidden = ("C:\\Users\\", "C:/Users/", "\\\\?\\", str(REPOSITORY_ROOT))
@@ -423,14 +426,14 @@ def test_canonical_records_validate_and_relationships_reconcile():
 
 def test_generated_inventory_manifest_and_reproduction_contract():
     expected = (
-        "README.md", "route-manifest.json", "protocol/intended-test-matrix.csv",
-        "system/repository.json", "results/attempts.csv", "results/measurements.csv",
-        "results/summary-results.csv", "results/resource-observations.csv",
-        "quality/scores.csv", "quality/rubric.md", "failures/failure-register.csv",
+        "README.md", "data/route.json", "reproduction/protocol/intended-test-matrix.csv",
+        "reproduction/system/repository.json", "data/attempts.csv", "data/measurements.csv",
+        "data/summaries.csv", "data/resource-observations.csv",
+        "data/quality.csv", "reproduction/quality/rubric.md", "data/failures.csv",
         "evidence/evidence-index.csv", "evidence/claim-evidence-map.csv",
-        "reproduction/commands.md", "validation/workbook-parity.json",
-        "workbook/source/animehacker-tq3-0-final-report.md",
-        "workbook/generated/animehacker-tq3-0-final-report.docx",
+        "reproduction/commands.md", "validation/validation.json",
+        "validation/validation.md", "reports/animehacker-tq3-0-report.md",
+        "reports/animehacker-tq3-0-report.docx",
     )
     for relative in expected:
         assert (ROUTE / relative).is_file(), relative

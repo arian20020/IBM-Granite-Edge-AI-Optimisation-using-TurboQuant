@@ -481,6 +481,20 @@ def _text_files(root: Path) -> tuple[Path, ...]:
     )
 
 
+def _contains_stale_path_reference(text: str) -> bool:
+    removed_directories = "|".join(
+        re.escape(name) for name in _REMOVED_TOP_LEVELS if "." not in name
+    )
+    removed = rf"(?:{removed_directories})/|route\-manifest\.json\b"
+    route_relative = re.compile(
+        rf"(?<![A-Za-z0-9_.\-/])(?:{removed})"
+    )
+    published_route = re.compile(
+        rf"docs/testing/final-results/\d{{2}}-[^/\s]+/(?:{removed})"
+    )
+    return bool(route_relative.search(text) or published_route.search(text))
+
+
 def validate_layout(route_root: Path) -> tuple[str, ...]:
     """Return deterministic contract violations for a compact route layout."""
     root = Path(route_root).resolve()
@@ -513,11 +527,10 @@ def validate_layout(route_root: Path) -> tuple[str, ...]:
         content = manifest.read_text(encoding="utf-8")
         if re.search(r"(^|\s)evidence/manifest-sha256\.txt$", content, re.MULTILINE):
             issues.append("manifest_self_inclusion:evidence/manifest-sha256.txt")
-    stale_prefixes = tuple(f"{name}/" for name in _REMOVED_TOP_LEVELS) + ("route-manifest.json",)
     for path in _text_files(root):
         text = path.read_text(encoding="utf-8")
         relative = path.relative_to(root).as_posix()
-        if any(prefix in text for prefix in stale_prefixes):
+        if _contains_stale_path_reference(text):
             issues.append(f"stale_removed_path:{relative}")
     if validation_json.is_file() and validation_md.is_file():
         payload = json.loads(validation_json.read_text(encoding="utf-8"))

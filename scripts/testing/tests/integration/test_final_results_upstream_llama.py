@@ -216,30 +216,30 @@ def test_generated_route_inventory_receipts_and_semantic_parity_exist():
     route = REPOSITORY_ROOT / "docs/testing/final-results/01-upstream-llama-cpp"
     expected = {
         "README.md",
-        "route-manifest.json",
-        "protocol/intended-test-matrix.csv",
-        "results/attempts.csv",
-        "results/measurements.csv",
-        "results/summary-results.csv",
-        "quality/scores.csv",
-        "failures/failure-register.csv",
+        "data/route.json",
+        "reproduction/protocol/intended-test-matrix.csv",
+        "data/attempts.csv",
+        "data/measurements.csv",
+        "data/summaries.csv",
+        "data/quality.csv",
+        "data/failures.csv",
         "evidence/evidence-index.csv",
         "evidence/manifest-sha256.txt",
-        "workbook/source/upstream-llama-cpp-final-report.md",
-        "workbook/generated/upstream-llama-cpp-final-report.docx",
-        "workbook/generated/upstream-llama-cpp-final-report.pdf",
-        "validation/coverage-validation.json",
-        "validation/data-validation.json",
-        "validation/workbook-parity.json",
-        "validation/integrity-validation.json",
-        "validation/visual-validation.json",
+        "reports/upstream-llama-cpp-report.md",
+        "reports/upstream-llama-cpp-report.docx",
+        "reports/upstream-llama-cpp-report.pdf",
+        "validation/validation.json",
+        "validation/validation.md",
     }
 
     assert expected <= {
         path.relative_to(route).as_posix() for path in route.rglob("*") if path.is_file()
     }
-    assert json.loads((route / "validation/workbook-parity.json").read_text(encoding="utf-8"))["matches"] is True
-    assert json.loads((route / "validation/visual-validation.json").read_text(encoding="utf-8"))["valid"] is True
+    validation = json.loads(
+        (route / "validation/validation.json").read_text(encoding="utf-8")
+    )
+    assert validation["checks"]["workbook_parity"]["matches"] is True
+    assert validation["checks"]["visual"]["valid"] is True
 
 
 def test_independent_authorities_reconcile_and_known_divergences_are_explicit():
@@ -513,9 +513,10 @@ def test_comparator_claims_bind_all_eligible_rows_and_reproduction_is_executable
         if path != ".tools/python311-portable/python.exe":
             assert (REPOSITORY_ROOT / path).exists(), path
 
-    rubric_text = (route / "quality/rubric.md").read_text(encoding="utf-8")
-    calibration = (route / "quality/calibration.md").read_text(encoding="utf-8")
-    prompt_rows = list(csv.DictReader((route / "quality/prompt-suite.csv").open(encoding="utf-8-sig", newline="")))
+    quality_root = route / "reproduction/quality"
+    rubric_text = (quality_root / "rubric.md").read_text(encoding="utf-8")
+    calibration = (quality_root / "calibration.md").read_text(encoding="utf-8")
+    prompt_rows = list(csv.DictReader((quality_root / "prompt-suite.csv").open(encoding="utf-8-sig", newline="")))
     assert "GTQ-QUALITY-RUBRIC-v1" in rubric_text
     assert all(name in rubric_text for name in (
         "correctness_and_grounding", "instruction_and_format_adherence",

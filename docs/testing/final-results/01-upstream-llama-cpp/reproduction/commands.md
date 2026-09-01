@@ -11,7 +11,7 @@ Run from the repository root in PowerShell. Stop immediately if any command exit
 2. Export the owned Word PDF
 
 ```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx -PdfPath docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf -TimeoutSeconds 180
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.docx -PdfPath docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.pdf -TimeoutSeconds 180
 ```
 
 3. Finalize and validate the PDF

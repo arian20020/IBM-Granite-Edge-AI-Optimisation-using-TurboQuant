@@ -1,0 +1,1321 @@
+{
+  "checks": {
+    "coverage": {
+      "completed_count": 7,
+      "formal_measurement_count": 21,
+      "quality_count": 42,
+      "rejected_attempt_count": 1,
+      "safety_classified_count": 3,
+      "terminal_attempt_count": 10,
+      "valid": true
+    },
+    "data": {
+      "explicit_inclusion_required": true,
+      "formal_runtime_summary_count": 7,
+      "historical_failure_attempt_count": 11,
+      "missing_value_display": "Not collected",
+      "rejected_runtime_summary_count": 2,
+      "status_authority": "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+      "unresolved_failure_count": 0,
+      "valid": true
+    },
+    "integrity": {
+      "pdf_sha256": "6d7e86d5f90511ee139aa50cc5b439b9746898edb551a9ea2204ab40daed4643",
+      "pdf_size_bytes": 217791,
+      "valid": true
+    },
+    "relationship": {
+      "authenticated_authority_count": 47,
+      "authority_relationships_valid": true,
+      "canonical_failure_count": 4,
+      "complete_entity_relationships_valid": true,
+      "errors": [],
+      "evidence_count": 742,
+      "formal_measurement_count": 21,
+      "historical_failure_count": 11,
+      "quality_count": 42,
+      "summary_count": 35,
+      "terminal_attempt_count": 10,
+      "total_attempt_count": 11,
+      "valid": true
+    },
+    "visual": {
+      "checks": {
+        "all_pages_nonblank": true,
+        "all_sections_present": true,
+        "historical_failure_boundary_present": true,
+        "missing_value_boundary_present": true,
+        "page_count": 7,
+        "pagination_markers_present": true,
+        "pdf_signature": true,
+        "status_boundary_present": true
+      },
+      "inspected_pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "valid": true,
+      "visual_findings": {
+        "evidence_table_pages": "7",
+        "inspection": "Every rendered page inspected; no blank, clipped, corrupt, or truncated content observed.",
+        "inspection_method": "Rendered every PDF page with PyMuPDF and inspected all full-page images",
+        "inspection_page_ranges": [
+          "1-7"
+        ],
+        "revision_history_pages": "7",
+        "temporary_contact_sheets_committed": false
+      }
+    },
+    "workbook_parity": {
+      "differences": [],
+      "headings": {
+        "docx": [
+          "animehacker TQ3_0 Final Test Report",
+          "1. Title and document control",
+          "DC-01 — Document control",
+          "2. Technical summary",
+          "3. Key findings and decision-relevant evidence",
+          "KF-01 — Decision-relevant findings",
+          "4. Repository, branch, commit, build, hardware, and software identity",
+          "SYS-01 — Controlled identity",
+          "5. Objectives, scope, test matrix, and execution sequence",
+          "6. Model, weight, cache-format, and backend availability",
+          "AV-01 — Model, cache, and backend availability",
+          "7. Complete attempt accounting",
+          "AT-01 — Complete terminal attempt accounting",
+          "8. Performance results and repetition detail",
+          "PF-01 — Performance and resource observations",
+          "9. Quality methodology and results",
+          "QL-01 — Historical prompt-score means",
+          "10. Device/backend use and fallback verification",
+          "11. Failures, blocks, deviations, and recovery attempts",
+          "FL-01 — Historical failures, recoveries, and terminal classifications",
+          "12. Limitations, uncertainty, robustness checks, and claim boundaries",
+          "13. Reproduction guidance",
+          "14. Evidence index and hashes",
+          "EV-01 — Key authenticated evidence",
+          "15. Revision history",
+          "RH-01 — Revision history"
+        ],
+        "markdown": [
+          "animehacker TQ3_0 Final Test Report",
+          "1. Title and document control",
+          "DC-01 — Document control",
+          "2. Technical summary",
+          "3. Key findings and decision-relevant evidence",
+          "KF-01 — Decision-relevant findings",
+          "4. Repository, branch, commit, build, hardware, and software identity",
+          "SYS-01 — Controlled identity",
+          "5. Objectives, scope, test matrix, and execution sequence",
+          "6. Model, weight, cache-format, and backend availability",
+          "AV-01 — Model, cache, and backend availability",
+          "7. Complete attempt accounting",
+          "AT-01 — Complete terminal attempt accounting",
+          "8. Performance results and repetition detail",
+          "PF-01 — Performance and resource observations",
+          "9. Quality methodology and results",
+          "QL-01 — Historical prompt-score means",
+          "10. Device/backend use and fallback verification",
+          "11. Failures, blocks, deviations, and recovery attempts",
+          "FL-01 — Historical failures, recoveries, and terminal classifications",
+          "12. Limitations, uncertainty, robustness checks, and claim boundaries",
+          "13. Reproduction guidance",
+          "14. Evidence index and hashes",
+          "EV-01 — Key authenticated evidence",
+          "15. Revision history",
+          "RH-01 — Revision history"
+        ]
+      },
+      "headings_match": true,
+      "matches": true,
+      "tables": {
+        "docx": [
+          [
+            [
+              "Document control",
+              "Value"
+            ],
+            [
+              "Route ID",
+              "animehacker-tq3-0"
+            ],
+            [
+              "Revision",
+              "1.1"
+            ],
+            [
+              "Generated date",
+              "2026-09-01"
+            ],
+            [
+              "Evidence IDs",
+              "animehacker-3409c4fff1f57d4b988a, animehacker-ca0c684bb478b8527653, animehacker-34ab10f0a8210699f64b, animehacker-d0a6c059ef53abfb592a, animehacker-79e759f5588cae2c50d5, animehacker-e73b2f1205e6c7f8d4d3, animehacker-9088849e3d9565254d7d, animehacker-44a8d70b058f1c5cac52, animehacker-6517f74c71a0537eb162, animehacker-c1863347fee0fae7618f, animehacker-17b6142958ab2916e9ed, animehacker-d25f303e05b5147dc9ca, animehacker-4ee219bf5ee960cb094d"
+            ]
+          ],
+          [
+            [
+              "Field",
+              "Value"
+            ],
+            [
+              "Route",
+              "animehacker-tq3-0"
+            ],
+            [
+              "Campaign",
+              "wb-03-v1.5-2026-07-18"
+            ],
+            [
+              "Controlled source",
+              "WB-03 v1.5"
+            ],
+            [
+              "Canonical format",
+              "Markdown"
+            ]
+          ],
+          [
+            [
+              "Finding",
+              "Evidence-bound conclusion"
+            ],
+            [
+              "Runtime",
+              "Seven formal rows have exactly three explicitly included samples each."
+            ],
+            [
+              "Safety",
+              "AH-06, AH-07, and AH-10 remain safety-classified; no request metrics are fabricated."
+            ],
+            [
+              "TQ3_0",
+              "CPU activation is validated; AH-09 is CPU-resident TQ3 KV with 1/41 SYCL layers offloaded."
+            ],
+            [
+              "Rejected evidence",
+              "Superseded AH-09 summaries are excluded from statistics but retained in the attempt/failure ledger."
+            ]
+          ],
+          [
+            [
+              "Field",
+              "Value"
+            ],
+            [
+              "Repository",
+              "https://github.com/animehacker/llama-turboquant"
+            ],
+            [
+              "Commit",
+              "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc"
+            ],
+            [
+              "CPU",
+              "12th Gen Intel Core i5-12450H"
+            ],
+            [
+              "RAM",
+              "16.0 GB installed; 15.7 GB usable"
+            ],
+            [
+              "GPU",
+              "Intel UHD Graphics; shared system memory"
+            ],
+            [
+              "OS",
+              "Windows 11 Home 10.0.26200 build 26200"
+            ]
+          ],
+          [
+            [
+              "Test",
+              "Model",
+              "Cache",
+              "Backend",
+              "Status"
+            ],
+            [
+              "AH-01",
+              "gemma-1b-q4-k-m",
+              "f16",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-02",
+              "gemma-1b-q4-k-m",
+              "tq3_0",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-03",
+              "granite-3b-bf16",
+              "f16",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-04",
+              "granite-3b-bf16",
+              "q8_0",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-05",
+              "granite-3b-bf16",
+              "tq3_0",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-06",
+              "granite-8b-q8-0",
+              "f16",
+              "cpu",
+              "Blocked"
+            ],
+            [
+              "AH-07",
+              "granite-8b-q8-0",
+              "tq3_0",
+              "cpu",
+              "Blocked"
+            ],
+            [
+              "AH-08",
+              "granite-3b-bf16",
+              "f16",
+              "sycl-partial",
+              "Passed"
+            ],
+            [
+              "AH-09",
+              "granite-3b-bf16",
+              "tq3_0",
+              "sycl-partial",
+              "Passed"
+            ],
+            [
+              "AH-10",
+              "granite-8b-q8-0",
+              "tq3_0",
+              "sycl-partial",
+              "Blocked"
+            ]
+          ],
+          [
+            [
+              "Test",
+              "Status",
+              "Executed",
+              "Backend",
+              "Reason"
+            ],
+            [
+              "AH-01",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-02",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-03",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-04",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-05",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-06",
+              "Blocked",
+              "No",
+              "cpu",
+              "Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence"
+            ],
+            [
+              "AH-07",
+              "Blocked",
+              "No",
+              "cpu",
+              "Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence"
+            ],
+            [
+              "AH-08",
+              "Passed",
+              "Yes",
+              "sycl-partial",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-09",
+              "Passed",
+              "Yes",
+              "sycl-partial",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-10",
+              "Blocked",
+              "No",
+              "sycl-partial",
+              "Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence"
+            ]
+          ],
+          [
+            [
+              "Test",
+              "TTFT ms",
+              "Decode tok/s",
+              "Peak WS MiB",
+              "KV MiB",
+              "CPU mean %",
+              "GPU mean %",
+              "Admission"
+            ],
+            [
+              "AH-01",
+              "140.39",
+              "46.323",
+              "929.49",
+              "26.00",
+              "56.90",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-02",
+              "137.75",
+              "37.749",
+              "911.06",
+              "5.69",
+              "58.44",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-03",
+              "274.92",
+              "15.872",
+              "3663.23",
+              "160.00",
+              "62.04",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-04",
+              "243.23",
+              "15.819",
+              "3672.14",
+              "170.00",
+              "61.97",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-05",
+              "252.57",
+              "11.536",
+              "3575.03",
+              "70.00",
+              "62.70",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-06",
+              "Not collected",
+              "Not collected",
+              "8913.65",
+              "320.00",
+              "Not collected",
+              "Not collected",
+              "safety evidence only; excluded from formal statistics"
+            ],
+            [
+              "AH-07",
+              "Not collected",
+              "Not collected",
+              "8737.70",
+              "140.00",
+              "Not collected",
+              "Not collected",
+              "safety evidence only; excluded from formal statistics"
+            ],
+            [
+              "AH-08",
+              "309.95",
+              "15.184",
+              "3130.69",
+              "320.00",
+              "62.03",
+              "16.31",
+              "included"
+            ],
+            [
+              "AH-09",
+              "491.00",
+              "12.109",
+              "2891.66",
+              "70.00",
+              "63.14",
+              "12.61",
+              "included"
+            ],
+            [
+              "AH-10",
+              "Not collected",
+              "Not collected",
+              "8969.62",
+              "70.00",
+              "Not collected",
+              "Not collected",
+              "safety evidence only; excluded from formal statistics"
+            ]
+          ],
+          [
+            [
+              "Test",
+              "Mean /10",
+              "Boundary"
+            ],
+            [
+              "AH-01",
+              "6.2250",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-02",
+              "3.6583",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-03",
+              "6.3917",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-04",
+              "6.7250",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-05",
+              "3.2750",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-08",
+              "6.2750",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-09",
+              "6.0583",
+              "Historical route-specific screen"
+            ]
+          ],
+          [
+            [
+              "ID",
+              "Scope",
+              "Code",
+              "Resolution"
+            ],
+            [
+              "AH-F01",
+              "AH-B02",
+              "DEP",
+              "Yes"
+            ],
+            [
+              "AH-F02",
+              "AH-B02",
+              "BF",
+              "Yes"
+            ],
+            [
+              "AH-F03",
+              "AH-B05",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F04",
+              "AH-B05",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F05",
+              "AH-B06",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F06",
+              "AH-B05",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F07",
+              "AH-B05",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F08",
+              "AH-06/AH-07",
+              "SAFETY",
+              "Yes - safety-classified"
+            ],
+            [
+              "AH-F09",
+              "AH-09",
+              "RECOVERY",
+              "Yes - recovered with bounded partial placement"
+            ],
+            [
+              "AH-F11",
+              "AH-10",
+              "SAFETY",
+              "Yes - safety-classified"
+            ],
+            [
+              "AH-F10",
+              "AH-04/P5",
+              "QUAL",
+              "Yes"
+            ]
+          ],
+          [
+            [
+              "Evidence ID",
+              "Role",
+              "Repository-relative path",
+              "SHA-256"
+            ],
+            [
+              "animehacker-3409c4fff1f57d4b988a",
+              "controlled-workbook-markdown",
+              "docs/testing/workbooks/text-templates/03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.md",
+              "f4b86b1aaca43745c2a701e38c6571968596ef586e8fd775b69aa4b7983770b0"
+            ],
+            [
+              "animehacker-ca0c684bb478b8527653",
+              "intended-matrix",
+              "experiments/manifests/animehacker-tq3-0/retest-matrix.json",
+              "c254679cabac29b2cb2f8c6528cf1fb371161ebfb0a11f7607bd464c3f56484c"
+            ],
+            [
+              "animehacker-34ab10f0a8210699f64b",
+              "reconciliation",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+              "02f6dea288f1b704747ec07b0adacd2644990e645eb7fa45ff32fa71098ebc15"
+            ],
+            [
+              "animehacker-d0a6c059ef53abfb592a",
+              "raw-evidence",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/state.json",
+              "25bd4e668fe6f443ec338f82d8e6db8cbb5e75dc44a10c200a52ce32003b4cbf"
+            ],
+            [
+              "animehacker-79e759f5588cae2c50d5",
+              "raw-evidence",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/state.json",
+              "6bfd0e30352e587ef1036bdee4ea5fd474cd530c50c882412e3e9cef877d9cea"
+            ],
+            [
+              "animehacker-e73b2f1205e6c7f8d4d3",
+              "reconciliation",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/reconciliation-final.json",
+              "4347b7dd353001b35bb13d5d1c304e970cae533c10b4102dd918e46731d6c28b"
+            ],
+            [
+              "animehacker-9088849e3d9565254d7d",
+              "reconciliation",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json",
+              "b60e97f3855bda1ec0e4d9858e40d7f3c21f669735940aa6788c8c1446b01241"
+            ],
+            [
+              "animehacker-44a8d70b058f1c5cac52",
+              "reconciliation",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-vulkan/reconciliation.json",
+              "57871c024dc5c425692ec436974ac397088a6c43192448719e13b61cbadfddda"
+            ],
+            [
+              "animehacker-6517f74c71a0537eb162",
+              "quality-evidence",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/adjudication.json",
+              "5123c0fd2016159fb2b48ea2bedfa039af30798112d18b6f52fe914322fe521b"
+            ],
+            [
+              "animehacker-c1863347fee0fae7618f",
+              "raw-evidence",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/quality-adjudications.json",
+              "4fb179143e2867023d264c5b5d73cbfe3fa5901c81338a78f5e8d41b3cdc37d9"
+            ],
+            [
+              "animehacker-17b6142958ab2916e9ed",
+              "quality-register",
+              "docs/testing/Quality-Evaluation-Register.csv",
+              "4d8e327caf025090b61c917152ba3f656209376e2365b11c40eeaf0c3236797c"
+            ],
+            [
+              "animehacker-d25f303e05b5147dc9ca",
+              "prompt-contract",
+              "experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json",
+              "9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f"
+            ],
+            [
+              "animehacker-4ee219bf5ee960cb094d",
+              "quality-rubric",
+              "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
+              "a36016f66e02c9e28f0938cf81335dc4b522e9f92b7d9bad3031f90b7ef91d90"
+            ]
+          ],
+          [
+            [
+              "Revision",
+              "Date",
+              "Change"
+            ],
+            [
+              "1.0",
+              "2026-09-01",
+              "Initial unified final-results publication from WB-03 v1.5 evidence"
+            ],
+            [
+              "1.1",
+              "2026-09-01",
+              "Authenticated complete source entities and publication-ready evidence presentation"
+            ]
+          ]
+        ],
+        "markdown": [
+          [
+            [
+              "Document control",
+              "Value"
+            ],
+            [
+              "Route ID",
+              "animehacker-tq3-0"
+            ],
+            [
+              "Revision",
+              "1.1"
+            ],
+            [
+              "Generated date",
+              "2026-09-01"
+            ],
+            [
+              "Evidence IDs",
+              "animehacker-3409c4fff1f57d4b988a, animehacker-ca0c684bb478b8527653, animehacker-34ab10f0a8210699f64b, animehacker-d0a6c059ef53abfb592a, animehacker-79e759f5588cae2c50d5, animehacker-e73b2f1205e6c7f8d4d3, animehacker-9088849e3d9565254d7d, animehacker-44a8d70b058f1c5cac52, animehacker-6517f74c71a0537eb162, animehacker-c1863347fee0fae7618f, animehacker-17b6142958ab2916e9ed, animehacker-d25f303e05b5147dc9ca, animehacker-4ee219bf5ee960cb094d"
+            ]
+          ],
+          [
+            [
+              "Field",
+              "Value"
+            ],
+            [
+              "Route",
+              "animehacker-tq3-0"
+            ],
+            [
+              "Campaign",
+              "wb-03-v1.5-2026-07-18"
+            ],
+            [
+              "Controlled source",
+              "WB-03 v1.5"
+            ],
+            [
+              "Canonical format",
+              "Markdown"
+            ]
+          ],
+          [
+            [
+              "Finding",
+              "Evidence-bound conclusion"
+            ],
+            [
+              "Runtime",
+              "Seven formal rows have exactly three explicitly included samples each."
+            ],
+            [
+              "Safety",
+              "AH-06, AH-07, and AH-10 remain safety-classified; no request metrics are fabricated."
+            ],
+            [
+              "TQ3_0",
+              "CPU activation is validated; AH-09 is CPU-resident TQ3 KV with 1/41 SYCL layers offloaded."
+            ],
+            [
+              "Rejected evidence",
+              "Superseded AH-09 summaries are excluded from statistics but retained in the attempt/failure ledger."
+            ]
+          ],
+          [
+            [
+              "Field",
+              "Value"
+            ],
+            [
+              "Repository",
+              "https://github.com/animehacker/llama-turboquant"
+            ],
+            [
+              "Commit",
+              "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc"
+            ],
+            [
+              "CPU",
+              "12th Gen Intel Core i5-12450H"
+            ],
+            [
+              "RAM",
+              "16.0 GB installed; 15.7 GB usable"
+            ],
+            [
+              "GPU",
+              "Intel UHD Graphics; shared system memory"
+            ],
+            [
+              "OS",
+              "Windows 11 Home 10.0.26200 build 26200"
+            ]
+          ],
+          [
+            [
+              "Test",
+              "Model",
+              "Cache",
+              "Backend",
+              "Status"
+            ],
+            [
+              "AH-01",
+              "gemma-1b-q4-k-m",
+              "f16",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-02",
+              "gemma-1b-q4-k-m",
+              "tq3_0",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-03",
+              "granite-3b-bf16",
+              "f16",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-04",
+              "granite-3b-bf16",
+              "q8_0",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-05",
+              "granite-3b-bf16",
+              "tq3_0",
+              "cpu",
+              "Passed"
+            ],
+            [
+              "AH-06",
+              "granite-8b-q8-0",
+              "f16",
+              "cpu",
+              "Blocked"
+            ],
+            [
+              "AH-07",
+              "granite-8b-q8-0",
+              "tq3_0",
+              "cpu",
+              "Blocked"
+            ],
+            [
+              "AH-08",
+              "granite-3b-bf16",
+              "f16",
+              "sycl-partial",
+              "Passed"
+            ],
+            [
+              "AH-09",
+              "granite-3b-bf16",
+              "tq3_0",
+              "sycl-partial",
+              "Passed"
+            ],
+            [
+              "AH-10",
+              "granite-8b-q8-0",
+              "tq3_0",
+              "sycl-partial",
+              "Blocked"
+            ]
+          ],
+          [
+            [
+              "Test",
+              "Status",
+              "Executed",
+              "Backend",
+              "Reason"
+            ],
+            [
+              "AH-01",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-02",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-03",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-04",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-05",
+              "Passed",
+              "Yes",
+              "cpu",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-06",
+              "Blocked",
+              "No",
+              "cpu",
+              "Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence"
+            ],
+            [
+              "AH-07",
+              "Blocked",
+              "No",
+              "cpu",
+              "Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence"
+            ],
+            [
+              "AH-08",
+              "Passed",
+              "Yes",
+              "sycl-partial",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-09",
+              "Passed",
+              "Yes",
+              "sycl-partial",
+              "Completed with explicitly included evidence"
+            ],
+            [
+              "AH-10",
+              "Blocked",
+              "No",
+              "sycl-partial",
+              "Safety prerequisite blocked inference before a request; classification resolved with cleanup evidence"
+            ]
+          ],
+          [
+            [
+              "Test",
+              "TTFT ms",
+              "Decode tok/s",
+              "Peak WS MiB",
+              "KV MiB",
+              "CPU mean %",
+              "GPU mean %",
+              "Admission"
+            ],
+            [
+              "AH-01",
+              "140.39",
+              "46.323",
+              "929.49",
+              "26.00",
+              "56.90",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-02",
+              "137.75",
+              "37.749",
+              "911.06",
+              "5.69",
+              "58.44",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-03",
+              "274.92",
+              "15.872",
+              "3663.23",
+              "160.00",
+              "62.04",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-04",
+              "243.23",
+              "15.819",
+              "3672.14",
+              "170.00",
+              "61.97",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-05",
+              "252.57",
+              "11.536",
+              "3575.03",
+              "70.00",
+              "62.70",
+              "0.00",
+              "included"
+            ],
+            [
+              "AH-06",
+              "Not collected",
+              "Not collected",
+              "8913.65",
+              "320.00",
+              "Not collected",
+              "Not collected",
+              "safety evidence only; excluded from formal statistics"
+            ],
+            [
+              "AH-07",
+              "Not collected",
+              "Not collected",
+              "8737.70",
+              "140.00",
+              "Not collected",
+              "Not collected",
+              "safety evidence only; excluded from formal statistics"
+            ],
+            [
+              "AH-08",
+              "309.95",
+              "15.184",
+              "3130.69",
+              "320.00",
+              "62.03",
+              "16.31",
+              "included"
+            ],
+            [
+              "AH-09",
+              "491.00",
+              "12.109",
+              "2891.66",
+              "70.00",
+              "63.14",
+              "12.61",
+              "included"
+            ],
+            [
+              "AH-10",
+              "Not collected",
+              "Not collected",
+              "8969.62",
+              "70.00",
+              "Not collected",
+              "Not collected",
+              "safety evidence only; excluded from formal statistics"
+            ]
+          ],
+          [
+            [
+              "Test",
+              "Mean /10",
+              "Boundary"
+            ],
+            [
+              "AH-01",
+              "6.2250",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-02",
+              "3.6583",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-03",
+              "6.3917",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-04",
+              "6.7250",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-05",
+              "3.2750",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-08",
+              "6.2750",
+              "Historical route-specific screen"
+            ],
+            [
+              "AH-09",
+              "6.0583",
+              "Historical route-specific screen"
+            ]
+          ],
+          [
+            [
+              "ID",
+              "Scope",
+              "Code",
+              "Resolution"
+            ],
+            [
+              "AH-F01",
+              "AH-B02",
+              "DEP",
+              "Yes"
+            ],
+            [
+              "AH-F02",
+              "AH-B02",
+              "BF",
+              "Yes"
+            ],
+            [
+              "AH-F03",
+              "AH-B05",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F04",
+              "AH-B05",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F05",
+              "AH-B06",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F06",
+              "AH-B05",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F07",
+              "AH-B05",
+              "REPRO",
+              "Yes"
+            ],
+            [
+              "AH-F08",
+              "AH-06/AH-07",
+              "SAFETY",
+              "Yes - safety-classified"
+            ],
+            [
+              "AH-F09",
+              "AH-09",
+              "RECOVERY",
+              "Yes - recovered with bounded partial placement"
+            ],
+            [
+              "AH-F11",
+              "AH-10",
+              "SAFETY",
+              "Yes - safety-classified"
+            ],
+            [
+              "AH-F10",
+              "AH-04/P5",
+              "QUAL",
+              "Yes"
+            ]
+          ],
+          [
+            [
+              "Evidence ID",
+              "Role",
+              "Repository-relative path",
+              "SHA-256"
+            ],
+            [
+              "animehacker-3409c4fff1f57d4b988a",
+              "controlled-workbook-markdown",
+              "docs/testing/workbooks/text-templates/03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.md",
+              "f4b86b1aaca43745c2a701e38c6571968596ef586e8fd775b69aa4b7983770b0"
+            ],
+            [
+              "animehacker-ca0c684bb478b8527653",
+              "intended-matrix",
+              "experiments/manifests/animehacker-tq3-0/retest-matrix.json",
+              "c254679cabac29b2cb2f8c6528cf1fb371161ebfb0a11f7607bd464c3f56484c"
+            ],
+            [
+              "animehacker-34ab10f0a8210699f64b",
+              "reconciliation",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+              "02f6dea288f1b704747ec07b0adacd2644990e645eb7fa45ff32fa71098ebc15"
+            ],
+            [
+              "animehacker-d0a6c059ef53abfb592a",
+              "raw-evidence",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/state.json",
+              "25bd4e668fe6f443ec338f82d8e6db8cbb5e75dc44a10c200a52ce32003b4cbf"
+            ],
+            [
+              "animehacker-79e759f5588cae2c50d5",
+              "raw-evidence",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/state.json",
+              "6bfd0e30352e587ef1036bdee4ea5fd474cd530c50c882412e3e9cef877d9cea"
+            ],
+            [
+              "animehacker-e73b2f1205e6c7f8d4d3",
+              "reconciliation",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/reconciliation-final.json",
+              "4347b7dd353001b35bb13d5d1c304e970cae533c10b4102dd918e46731d6c28b"
+            ],
+            [
+              "animehacker-9088849e3d9565254d7d",
+              "reconciliation",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json",
+              "b60e97f3855bda1ec0e4d9858e40d7f3c21f669735940aa6788c8c1446b01241"
+            ],
+            [
+              "animehacker-44a8d70b058f1c5cac52",
+              "reconciliation",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-vulkan/reconciliation.json",
+              "57871c024dc5c425692ec436974ac397088a6c43192448719e13b61cbadfddda"
+            ],
+            [
+              "animehacker-6517f74c71a0537eb162",
+              "quality-evidence",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/adjudication.json",
+              "5123c0fd2016159fb2b48ea2bedfa039af30798112d18b6f52fe914322fe521b"
+            ],
+            [
+              "animehacker-c1863347fee0fae7618f",
+              "raw-evidence",
+              "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/quality-adjudications.json",
+              "4fb179143e2867023d264c5b5d73cbfe3fa5901c81338a78f5e8d41b3cdc37d9"
+            ],
+            [
+              "animehacker-17b6142958ab2916e9ed",
+              "quality-register",
+              "docs/testing/Quality-Evaluation-Register.csv",
+              "4d8e327caf025090b61c917152ba3f656209376e2365b11c40eeaf0c3236797c"
+            ],
+            [
+              "animehacker-d25f303e05b5147dc9ca",
+              "prompt-contract",
+              "experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json",
+              "9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f"
+            ],
+            [
+              "animehacker-4ee219bf5ee960cb094d",
+              "quality-rubric",
+              "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
+              "a36016f66e02c9e28f0938cf81335dc4b522e9f92b7d9bad3031f90b7ef91d90"
+            ]
+          ],
+          [
+            [
+              "Revision",
+              "Date",
+              "Change"
+            ],
+            [
+              "1.0",
+              "2026-09-01",
+              "Initial unified final-results publication from WB-03 v1.5 evidence"
+            ],
+            [
+              "1.1",
+              "2026-09-01",
+              "Authenticated complete source entities and publication-ready evidence presentation"
+            ]
+          ]
+        ]
+      },
+      "tables_match": true,
+      "valid": true
+    }
+  },
+  "findings": [],
+  "limitations": [],
+  "route_id": "animehacker-tq3-0",
+  "status": "passed",
+  "valid": true
+}

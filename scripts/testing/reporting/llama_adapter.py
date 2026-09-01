@@ -20,6 +20,7 @@ from typing import Iterable, Mapping, Sequence
 from .csvio import write_csv, write_json
 from .docx_renderer import render_docx
 from .evidence import hash_file, validate_sha256_manifest, write_sha256_manifest
+from .layout import render_validation_markdown
 from .markdown_renderer import render_markdown
 from .models import (
     AttemptRecord,
@@ -1111,7 +1112,7 @@ def build_upstream_llama_report(bundle: RouteBundle) -> Report:
         ReportSection(SECTION_ORDER[0], (
             _table("DC-01", "Document identity and authority", ("Field", "Value"), (
                 ("Route", ROUTE_ID), ("Campaign", bundle.campaign_id), ("Controlled source", "WB-01 v1.4"),
-                ("Pinned upstream commit", bundle.repository["commit"]), ("Canonical report", "workbook/source/upstream-llama-cpp-final-report.md"),
+                ("Pinned upstream commit", bundle.repository["commit"]), ("Canonical report", "reports/upstream-llama-cpp-report.md"),
             )),
             ReportParagraph("WB-01 v1.4, its controlled evidence index, and the indexed upstream log tree are the authority. Later empty register fields and a README-only raw-results folder are not observations."),
         )),
@@ -1182,7 +1183,7 @@ def build_upstream_llama_report(bundle: RouteBundle) -> Report:
             _table("RE-01", "Canonical reproduction locations", ("Item", "Path"), (
                 ("Controlled workbook", WORKBOOK_RELATIVE.as_posix()), ("Quality source", QUALITY_RELATIVE.as_posix()),
                 ("Resource summary", RESOURCE_RELATIVE.as_posix()), ("Evidence index", EVIDENCE_INDEX_RELATIVE.as_posix()),
-                ("Canonical output", f"{ROUTE_RELATIVE.as_posix()}/results/"),
+                ("Canonical output", f"{ROUTE_RELATIVE.as_posix()}/data/"),
             )),
         )),
         ReportSection(SECTION_ORDER[13], (
@@ -1226,29 +1227,93 @@ def _write_text(path: Path, text: str) -> None:
     path.write_text(text.rstrip() + "\n", encoding="utf-8", newline="\n")
 
 
+def _publication_route(
+    repo_root: Path, route_relative: Path
+) -> tuple[Path, Path, Path]:
+    source_root = Path(repo_root).resolve(strict=True)
+    publication_root = source_root
+    route = publication_root / route_relative
+    route.mkdir(parents=True, exist_ok=True)
+    return source_root, publication_root, route
+
+
+def _write_compact_validation(
+    route: Path,
+    route_id: str,
+    checks: Mapping[str, Mapping[str, object]],
+    *,
+    findings: Sequence[Mapping[str, str]] = (),
+    limitations: Sequence[Mapping[str, str]] = (),
+) -> dict[str, object]:
+    existing_path = route / "validation/validation.json"
+    if existing_path.is_file():
+        existing = _read_json(existing_path)
+        if not findings:
+            findings = existing.get("findings", ())
+        if not limitations:
+            limitations = existing.get("limitations", ())
+    normalized_checks = {name: dict(receipt) for name, receipt in checks.items()}
+    for receipt in normalized_checks.values():
+        if "valid" not in receipt and "matches" in receipt:
+            receipt["valid"] = bool(receipt["matches"])
+    valid = all(bool(receipt.get("valid")) for receipt in normalized_checks.values())
+    payload: dict[str, object] = {
+        "route_id": route_id,
+        "valid": valid,
+        "status": "passed" if valid else "failed",
+        "checks": normalized_checks,
+        "findings": [dict(item) for item in findings],
+        "limitations": [dict(item) for item in limitations],
+    }
+    write_json(route / "validation/validation.json", payload)
+    _write_text(
+        route / "validation/validation.md", render_validation_markdown(payload)
+    )
+    return payload
+
+
+def _update_compact_validation(
+    route: Path, updates: Mapping[str, Mapping[str, object]]
+) -> dict[str, object]:
+    path = route / "validation/validation.json"
+    payload = _read_json(path)
+    checks = payload.get("checks")
+    if not isinstance(checks, dict):
+        raise ValueError(f"invalid compact validation receipt: {path}")
+    checks.update({name: dict(receipt) for name, receipt in updates.items()})
+    return _write_compact_validation(
+        route,
+        str(payload["route_id"]),
+        checks,
+        findings=payload.get("findings", ()),
+        limitations=payload.get("limitations", ()),
+    )
+
+
 def write_upstream_llama_route(repo_root: Path) -> RouteBundle:
     """Generate the canonical route data, Markdown, DOCX, and pre-PDF receipts."""
-    root = Path(repo_root).resolve(strict=True)
-    route = root / ROUTE_RELATIVE
+    root, publication_root, route = _publication_route(
+        repo_root, ROUTE_RELATIVE
+    )
     bundle = build_upstream_llama_bundle(root)
     report = build_upstream_llama_report(bundle)
-    write_json(route / "route-manifest.json", bundle.to_row())
-    write_json(route / "system/repository.json", bundle.repository)
-    write_json(route / "system/hardware.json", bundle.hardware)
-    write_json(route / "system/software.json", bundle.software)
-    _write_text(route / "system/environment.txt", "Historical controlled environment; see hardware.json and software.json.\nUncollected fields: Not collected")
+    write_json(route / "data/route.json", bundle.to_row())
+    write_json(route / "reproduction/system/repository.json", bundle.repository)
+    write_json(route / "reproduction/system/hardware.json", bundle.hardware)
+    write_json(route / "reproduction/system/software.json", bundle.software)
+    _write_text(route / "reproduction/system/environment.txt", "Historical controlled environment; see hardware.json and software.json.\nUncollected fields: Not collected")
     model_rows = sorted({(a.model_id, a.weight_format_id, a.status.display_label) for a in bundle.attempts})
-    write_csv(route / "system/model-artifacts.csv", ({"model_id": a, "weight_format_id": b, "status": c} for a, b, c in model_rows), ("model_id", "weight_format_id", "status"))
-    write_csv(route / "results/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
-    write_csv(route / "results/measurements.csv", _csv_rows(bundle.measurements), _MEASUREMENT_FIELDS)
-    write_csv(route / "results/summary-results.csv", _csv_rows(bundle.summaries), _SUMMARY_FIELDS)
-    write_csv(route / "results/availability-matrix.csv", ({"test_case_id": a.test_case_id, "model_id": a.model_id, "weight_format_id": a.weight_format_id, "cache_format_id": a.cache_format_id, "backend_id": a.backend_id, "status": a.status.value} for a in bundle.attempts), ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "backend_id", "status"))
-    _write_text(route / "results/source/README.md", "# Source-result handling\n\nNo raw result dataset exists here to copy: `experiments/raw-results/upstream-llama-cpp/` contains a README placeholder only. The controlled WB-01 Markdown, processed quality/resource summaries, and indexed log tree remain in their authoritative repository locations and are hashed in `evidence/evidence-index.csv`. No editable source workbook was invented.")
-    write_csv(route / "quality/scores.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
+    write_csv(route / "reproduction/system/model-artifacts.csv", ({"model_id": a, "weight_format_id": b, "status": c} for a, b, c in model_rows), ("model_id", "weight_format_id", "status"))
+    write_csv(route / "data/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
+    write_csv(route / "data/measurements.csv", _csv_rows(bundle.measurements), _MEASUREMENT_FIELDS)
+    write_csv(route / "data/summaries.csv", _csv_rows(bundle.summaries), _SUMMARY_FIELDS)
+    write_csv(route / "data/availability-matrix.csv", ({"test_case_id": a.test_case_id, "model_id": a.model_id, "weight_format_id": a.weight_format_id, "cache_format_id": a.cache_format_id, "backend_id": a.backend_id, "status": a.status.value} for a in bundle.attempts), ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "backend_id", "status"))
+    _write_text(route / "evidence/source/README.md", "# Source-result handling\n\nNo raw result dataset exists here to copy: `experiments/raw-results/upstream-llama-cpp/` contains a README placeholder only. The controlled WB-01 Markdown, processed quality and resource summaries, and indexed log tree remain in their authoritative repository locations and are hashed in `evidence/evidence-index.csv`. No editable source workbook was invented.")
+    write_csv(route / "data/quality.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
     prompt_contract = _read_json(root / QUALITY_PROMPTS_RELATIVE)
     rubric_contract = _read_json(root / QUALITY_RUBRIC_RELATIVE)
     write_csv(
-        route / "quality/prompt-suite.csv",
+        route / "reproduction/quality/prompt-suite.csv",
         (
             {
                 "prompt_id": prompt["prompt_id"],
@@ -1262,8 +1327,8 @@ def write_upstream_llama_route(repo_root: Path) -> RouteBundle:
         ),
         ("prompt_id", "task_type", "scope", "deterministic_checks_json", "generation_settings_json", "prompt_set_id"),
     )
-    write_csv(route / "quality/outputs-index.csv", ({"test_case_id": q.test_case_id, "prompt_id": q.prompt_id, "source_evidence_id": q.source_evidence_id} for q in bundle.quality), ("test_case_id", "prompt_id", "source_evidence_id"))
-    write_csv(route / "failures/failure-register.csv", _csv_rows(bundle.failures), _FAILURE_FIELDS)
+    write_csv(route / "reproduction/quality/outputs-index.csv", ({"test_case_id": q.test_case_id, "prompt_id": q.prompt_id, "source_evidence_id": q.source_evidence_id} for q in bundle.quality), ("test_case_id", "prompt_id", "source_evidence_id"))
+    write_csv(route / "data/failures.csv", _csv_rows(bundle.failures), _FAILURE_FIELDS)
     write_csv(route / "evidence/evidence-index.csv", _csv_rows(bundle.evidence), _EVIDENCE_FIELDS)
     write_csv(route / "evidence/source-locations.csv", ({"evidence_id": e.evidence_id, "relative_path": e.relative_path, "source_or_derived": "derived" if e.derived else "source"} for e in bundle.evidence), ("evidence_id", "relative_path", "source_or_derived"))
     attempt_by_id = {a.test_case_id: a for a in bundle.attempts}
@@ -1296,13 +1361,13 @@ def write_upstream_llama_route(repo_root: Path) -> RouteBundle:
         ("claim_id", "claim", "test_case_id", "comparator_test_ids", "evidence_ids"),
     )
     matrix = _parse_workbook_matrix(root / WORKBOOK_RELATIVE)
-    write_csv(route / "protocol/intended-test-matrix.csv", matrix, tuple(matrix[0]))
-    _write_text(route / "protocol/test-plan.md", "# Test plan\n\nWB-01 v1.4 defines UL-01 through UL-13. This publication does not rerun inference.")
-    _write_text(route / "protocol/execution-sequence.md", "# Execution sequence\n\nCPU ladder; Vulkan partial/full offload; SYCL project workload; resource measurement; original quality scoring.")
-    _write_text(route / "protocol/metric-definitions.md", "# Metric definitions\n\nPerformance medians use exactly three included observations. Historical missing fields display `Not collected`.")
+    write_csv(route / "reproduction/protocol/intended-test-matrix.csv", matrix, tuple(matrix[0]))
+    _write_text(route / "reproduction/protocol/test-plan.md", "# Test plan\n\nWB-01 v1.4 defines UL-01 through UL-13. This publication does not rerun inference.")
+    _write_text(route / "reproduction/protocol/execution-sequence.md", "# Execution sequence\n\nCPU ladder; Vulkan partial/full offload; SYCL project workload; resource measurement; original quality scoring.")
+    _write_text(route / "reproduction/protocol/metric-definitions.md", "# Metric definitions\n\nPerformance medians use exactly three included observations. Historical missing fields display `Not collected`.")
     deviation_rows = tuple(bundle.repository["deviation_rows"])
     write_csv(
-        route / "protocol/deviations.csv",
+        route / "data/deviations.csv",
         (
             {
                 key: json.dumps(value, ensure_ascii=False, separators=(",", ":"))
@@ -1314,7 +1379,7 @@ def write_upstream_llama_route(repo_root: Path) -> RouteBundle:
         ),
         ("deviation_id", "source_failure_id", "scope_type", "scope_test_ids", "nonterminal", "code", "description", "disposition", "evidence_ids"),
     )
-    _write_text(route / "quality/README.md", "# Quality evidence\n\nOriginal upstream adjudication is bound to tracked `GTQ-QUALITY-RUBRIC-v1`, frozen `GTQ-PROMPTS-v1`, and the hashed 2026-07-15 scoring source. It is not directly comparable with OpenVINO scoring.")
+    _write_text(route / "reproduction/quality/README.md", "# Quality evidence\n\nOriginal upstream adjudication is bound to tracked `GTQ-QUALITY-RUBRIC-v1`, frozen `GTQ-PROMPTS-v1`, and the hashed 2026-07-15 scoring source. It is not directly comparable with OpenVINO scoring.")
     dimension_lines = "\n".join(
         f"- `{item['name']}` — weight {item['weight']:.2f}; cap: {item['critical_cap']}"
         for item in rubric_contract["dimensions"]
@@ -1330,13 +1395,13 @@ def write_upstream_llama_route(repo_root: Path) -> RouteBundle:
         for number, step in enumerate(rubric_contract["procedure"], start=1)
     )
     _write_text(
-        route / "quality/rubric.md",
+        route / "reproduction/quality/rubric.md",
         f"# GTQ-QUALITY-RUBRIC-v1\n\n## Weighted dimensions and critical caps\n\n{dimension_lines}\n\n## Anchors\n\n{anchor_lines}\n\n## Procedure\n\n{procedure_lines}\n\nHistorical per-prompt composite scores are preserved; component-level score increments were not collected.",
     )
-    _write_text(route / "quality/calibration.md", "# Calibration\n\nCalibration: Not collected\n\nScore increments: Not collected\n\nNo later calibration or re-adjudication was applied. Original prompt-level composite scores are preserved.")
-    write_csv(route / "quality/adjudication-log.csv", ({"adjudication_id": "UL-QUALITY-ORIGINAL", "method": "Original conservative scoring", "status": "Preserved"},), ("adjudication_id", "method", "status"))
-    _write_text(route / "failures/README.md", "# Failures and deviations\n\nHistorical failures and deviations are preserved; none is silently converted into a terminal failure of the 13 completed project workloads.")
-    _write_text(route / "failures/curated-logs/README.md", "# Curated log handling\n\nNo logs are duplicated here. The complete source logs remain at their hashed repository-relative locations in `evidence/evidence-index.csv`.")
+    _write_text(route / "reproduction/quality/calibration.md", "# Calibration\n\nCalibration: Not collected\n\nScore increments: Not collected\n\nNo later calibration or re-adjudication was applied. Original prompt-level composite scores are preserved.")
+    write_csv(route / "reproduction/quality/adjudication-log.csv", ({"adjudication_id": "UL-QUALITY-ORIGINAL", "method": "Original conservative scoring", "status": "Preserved"},), ("adjudication_id", "method", "status"))
+    _write_text(route / "evidence/failures/README.md", "# Failures and deviations\n\nHistorical failures and deviations are preserved; none is silently converted into a terminal failure of the 13 completed project workloads.")
+    _write_text(route / "evidence/failures/curated-logs/README.md", "# Curated log handling\n\nNo logs are duplicated here. The complete source logs remain at their hashed repository-relative locations in `evidence/evidence-index.csv`.")
     _write_text(route / "reproduction/README.md", "# Reproduction\n\nRun the five ordered commands in `commands.md` from the repository root. They normalize existing evidence, render derivatives, export through the owned Word process, finalize validation, verify the checksum receipt, and run focused tests. They do not rerun inference.")
     _write_text(
         route / "reproduction/commands.md",
@@ -1353,7 +1418,7 @@ Run from the repository root in PowerShell. Stop immediately if any command exit
 2. Export the owned Word PDF
 
 ```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx -PdfPath docs/testing/final-results/01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf -TimeoutSeconds 180
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.docx -PdfPath docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.pdf -TimeoutSeconds 180
 ```
 
 3. Finalize and validate the PDF
@@ -1371,19 +1436,18 @@ Run from the repository root in PowerShell. Stop immediately if any command exit
 5. Run the focused validation suite
 
 ```powershell
-& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/test_final_results_upstream_llama.py -q
+& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/integration/test_final_results_upstream_llama.py -q
 ```
 """,
     )
-    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- Portable interpreter: `.tools/python311-portable/python.exe` (validated with Python 3.11.9).\n- Pinned reporting packages: `scripts/testing/requirements.txt`.\n- Owned Word exporter: `scripts/testing/cli/export_report.ps1` with a 180-second bound.\n- Normalizer/finalizer: `scripts/testing/reporting/llama_adapter.py`.\n- Focused validation: `scripts/testing/tests/test_final_results_upstream_llama.py`.\n- Microsoft Word is required only for the DOCX-to-PDF export step.")
+    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- Portable interpreter: `.tools/python311-portable/python.exe` (validated with Python 3.11.9).\n- Pinned reporting packages: `scripts/testing/requirements.txt`.\n- Owned Word exporter: `scripts/testing/cli/export_report.ps1` with a 180-second bound.\n- Normalizer/finalizer: `scripts/testing/reporting/llama_adapter.py`.\n- Focused validation: `scripts/testing/tests/integration/test_final_results_upstream_llama.py`.\n- Microsoft Word is required only for the DOCX-to-PDF export step.")
     _write_text(route / "reproduction/scripts/README.md", "# Reproduction scripts\n\nThe maintained adapter is `scripts/testing/reporting/llama_adapter.py`; it is referenced rather than copied.")
-    _write_text(route / "README.md", "# Upstream llama.cpp final results\n\nCanonical Markdown: `workbook/source/upstream-llama-cpp-final-report.md`. Generated DOCX/PDF are derivatives. Source evidence remains in its authoritative repository locations.")
-    markdown = route / "workbook/source/upstream-llama-cpp-final-report.md"
-    docx = route / "workbook/generated/upstream-llama-cpp-final-report.docx"
+    _write_text(route / "README.md", "# Upstream llama.cpp final results\n\nCanonical Markdown: `reports/upstream-llama-cpp-report.md`. Generated DOCX/PDF are derivatives. Source evidence remains in its authoritative repository locations.")
+    markdown = route / "reports/upstream-llama-cpp-report.md"
+    docx = route / "reports/upstream-llama-cpp-report.docx"
     render_markdown(report, markdown)
     render_docx(report, docx)
     parity = compare_markdown_docx(markdown, docx)
-    write_json(route / "validation/workbook-parity.json", parity)
     if not parity["matches"]:
         raise ValueError("generated WB-01 report parity failed")
     relationships = validate_upstream_relationships(bundle, deviation_rows)
@@ -1404,15 +1468,28 @@ Run from the repository root in PowerShell. Stop immediately if any command exit
         "performance_register_exact_rows": source_audit["exact_performance_register_rows"] == 0,
     }
     data = {"valid": all(data_checks.values()), "checks": data_checks, "evidence_count": len(bundle.evidence), "verified_log_count": sum(e.role == "indexed-log" for e in bundle.evidence), "missing_values_display": NOT_COLLECTED, "raw_results_status": NOT_COLLECTED, "known_divergences": source_audit["known_divergences"]}
-    write_json(route / "validation/coverage-validation.json", coverage)
-    write_json(route / "validation/data-validation.json", data)
-    write_json(route / "validation/relationship-validation.json", relationships)
     if not coverage["valid"] or not data["valid"] or not relationships["valid"]:
         raise ValueError("upstream validation receipts contain a failed check")
-    _write_text(route / "validation/validation-report.md", f"# Validation report\n\nCoverage: Passed. Data: Passed. Evidence files verified: {len(bundle.evidence)}. PDF/visual validation is completed after Word export.")
-    write_json(route / "validation/integrity-validation.json", {"valid": False, "status": "Pending final PDF and manifest regeneration"})
-    manifest = regenerate_route_manifest(root, route)
-    errors = validate_sha256_manifest(root, manifest)
+    _write_compact_validation(
+        route,
+        ROUTE_ID,
+        {
+            "coverage": coverage,
+            "data": data,
+            "integrity": {
+                "valid": False,
+                "status": "Pending final PDF and manifest regeneration",
+            },
+            "relationship": relationships,
+            "visual": {
+                "valid": False,
+                "status": "Pending existing PDF structural inspection",
+            },
+            "workbook_parity": parity,
+        },
+    )
+    manifest = regenerate_route_manifest(publication_root, route)
+    errors = validate_sha256_manifest(publication_root, manifest)
     if errors:
         raise ValueError(f"route manifest validation failed: {errors}")
     return bundle
@@ -1427,9 +1504,10 @@ def finalize_upstream_llama_route(repo_root: Path) -> dict[str, object]:
     """
     from pypdf import PdfReader
 
-    root = Path(repo_root).resolve(strict=True)
-    route = root / ROUTE_RELATIVE
-    pdf = route / "workbook/generated/upstream-llama-cpp-final-report.pdf"
+    root, publication_root, route = _publication_route(
+        repo_root, ROUTE_RELATIVE
+    )
+    pdf = route / "reports/upstream-llama-cpp-report.pdf"
     if not pdf.is_file() or not pdf.read_bytes().startswith(b"%PDF-"):
         raise ValueError("Word-exported upstream PDF is missing or malformed")
     reader = PdfReader(pdf)
@@ -1453,7 +1531,7 @@ def finalize_upstream_llama_route(repo_root: Path) -> dict[str, object]:
     ]
     visual = {
         "valid": valid,
-        "pdf": pdf.relative_to(root).as_posix(),
+        "pdf": pdf.relative_to(publication_root).as_posix(),
         "inspection_method": f"Rendered every PDF page with PyMuPDF and inspected {len(contact_sheet_ranges)} contact sheets of up to 3-by-3 pages",
         "inspected_pages": list(range(1, len(reader.pages) + 1)),
         "contact_sheet_page_ranges": contact_sheet_ranges,
@@ -1467,25 +1545,19 @@ def finalize_upstream_llama_route(repo_root: Path) -> dict[str, object]:
         },
         "temporary_contact_sheets_committed": False,
     }
-    write_json(route / "validation/visual-validation.json", visual)
     if not valid:
         raise ValueError(f"upstream PDF structural validation failed: {structural_checks}")
-    _write_text(
-        route / "validation/validation-report.md",
-        "# Validation report\n\nCoverage: Passed. Data: Passed. Markdown/DOCX semantic parity: Passed. "
-        f"Word PDF export: Passed. All {len(reader.pages)} PDF pages rendered and visually inspected: Passed. "
-        "Evidence section begins on page 18; the evidence table spans pages 19-46. "
-        "Every admitted source path and SHA-256 was verified; historical register and raw-results gaps remain explicit.",
-    )
     integrity = {
         "valid": True,
         "manifest": (ROUTE_RELATIVE / "evidence/manifest-sha256.txt").as_posix(),
         "policy": "All route files except the checksum manifest itself are included",
         "manifest_validation": "Passed after final PDF and validation receipt generation",
     }
-    write_json(route / "validation/integrity-validation.json", integrity)
-    manifest = regenerate_route_manifest(root, route)
-    errors = validate_sha256_manifest(root, manifest)
+    _update_compact_validation(
+        route, {"integrity": integrity, "visual": visual}
+    )
+    manifest = regenerate_route_manifest(publication_root, route)
+    errors = validate_sha256_manifest(publication_root, manifest)
     if errors:
         raise ValueError(f"final route manifest validation failed: {errors}")
     return visual
@@ -2246,35 +2318,37 @@ def _atomicbot_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
 
 
 def write_atomicbot_route(repo_root: Path) -> RouteBundle:
-    root = Path(repo_root).resolve(strict=True); route = root / ATOMICBOT_ROUTE_RELATIVE
+    root, publication_root, route = _publication_route(
+        repo_root, ATOMICBOT_ROUTE_RELATIVE
+    )
     bundle = build_atomicbot_bundle(root); report = build_atomicbot_report(bundle)
-    write_json(route / "route-manifest.json", bundle.to_row())
-    write_json(route / "system/repository.json", bundle.repository)
-    write_json(route / "system/hardware.json", bundle.hardware)
-    write_json(route / "system/software.json", bundle.software)
-    _write_text(route / "system/environment.txt", "Historical controlled environment. See hardware.json/software.json.\nNPU and unsupported historical fields: Not collected")
-    write_csv(route / "system/model-artifacts.csv", ({"model_id": a.model_id, "weight_format_id": a.weight_format_id, "status": a.status.display_label} for a in bundle.attempts), ("model_id", "weight_format_id", "status"))
-    write_csv(route / "results/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
-    write_csv(route / "results/measurements.csv", _csv_rows(bundle.measurements), _MEASUREMENT_FIELDS)
-    write_csv(route / "results/summary-results.csv", _csv_rows(bundle.summaries), _SUMMARY_FIELDS)
-    write_csv(route / "results/availability-matrix.csv", ({"test_case_id": a.test_case_id, "model_id": a.model_id, "weight_format_id": a.weight_format_id, "cache_format_id": a.cache_format_id, "backend_id": a.backend_id, "status": a.status.value} for a in bundle.attempts), ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "backend_id", "status"))
-    _write_text(route / "results/source/README.md", "# Source-result handling\n\nAuthoritative WB-02, registers, summaries, and raw evidence remain in place and are referenced by path/hash; no source evidence is duplicated or modified.")
-    write_csv(route / "quality/scores.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
+    write_json(route / "data/route.json", bundle.to_row())
+    write_json(route / "reproduction/system/repository.json", bundle.repository)
+    write_json(route / "reproduction/system/hardware.json", bundle.hardware)
+    write_json(route / "reproduction/system/software.json", bundle.software)
+    _write_text(route / "reproduction/system/environment.txt", "Historical controlled environment. See hardware.json/software.json.\nNPU and unsupported historical fields: Not collected")
+    write_csv(route / "reproduction/system/model-artifacts.csv", ({"model_id": a.model_id, "weight_format_id": a.weight_format_id, "status": a.status.display_label} for a in bundle.attempts), ("model_id", "weight_format_id", "status"))
+    write_csv(route / "data/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
+    write_csv(route / "data/measurements.csv", _csv_rows(bundle.measurements), _MEASUREMENT_FIELDS)
+    write_csv(route / "data/summaries.csv", _csv_rows(bundle.summaries), _SUMMARY_FIELDS)
+    write_csv(route / "data/availability-matrix.csv", ({"test_case_id": a.test_case_id, "model_id": a.model_id, "weight_format_id": a.weight_format_id, "cache_format_id": a.cache_format_id, "backend_id": a.backend_id, "status": a.status.value} for a in bundle.attempts), ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "backend_id", "status"))
+    _write_text(route / "evidence/source/README.md", "# Source-result handling\n\nAuthoritative WB-02, registers, summaries, and raw evidence remain in place and are referenced by path/hash; no source evidence is duplicated or modified.")
+    write_csv(route / "data/quality.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
     quality_contract = bundle.repository["quality_contract"]
-    write_csv(route / "quality/prompt-suite.csv", ({
+    write_csv(route / "reproduction/quality/prompt-suite.csv", ({
         "prompt_id": row["prompt_id"], "task": row["task"],
         "deterministic_checks_json": json.dumps(row["deterministic_checks"], ensure_ascii=False, sort_keys=True),
         "generation_settings_json": json.dumps(quality_contract["generation_settings"], sort_keys=True),
         "scope": "all 19 runtime configurations", "comparability": "No direct OpenVINO comparison",
     } for row in quality_contract["prompts"]), ("prompt_id", "task", "deterministic_checks_json", "generation_settings_json", "scope", "comparability"))
     adjudications = {(row["test_case_id"], row["prompt_id"]): row for row in bundle.repository["quality_adjudications"]}
-    write_csv(route / "quality/outputs-index.csv", ({
+    write_csv(route / "reproduction/quality/outputs-index.csv", ({
         "test_case_id": q.test_case_id, "prompt_id": q.prompt_id,
         "output_sha256": adjudications[(q.test_case_id, q.prompt_id)]["output_sha256"],
         "adjudication_key": adjudications[(q.test_case_id, q.prompt_id)]["adjudication_key"],
         "source_evidence_id": q.source_evidence_id,
     } for q in bundle.quality), ("test_case_id", "prompt_id", "output_sha256", "adjudication_key", "source_evidence_id"))
-    write_csv(route / "quality/adjudication-log.csv", ({
+    write_csv(route / "reproduction/quality/adjudication-log.csv", ({
         "quality_id": f"{row['test_case_id']}--{row['prompt_id']}", "test_case_id": row["test_case_id"],
         "prompt_id": row["prompt_id"], "adjudication_key": row["adjudication_key"],
         "dimensions_json": json.dumps(row["dimensions"], sort_keys=True), "weighted_score": row["weighted_score"],
@@ -2291,11 +2365,11 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
     )
     anchor_lines = "\n".join(f"- {score}/10: {description}" for score, description in quality_contract["anchors"].items())
     procedure_lines = "\n".join(f"{index}. {step}" for index, step in enumerate(quality_contract["procedure"], 1))
-    _write_text(route / "quality/README.md", "# Quality evidence\n\nThe 114 P1-P6 observations bind each output hash to GTQ-PROMPTS-v1, GTQ-QUALITY-RUBRIC-v1, the content-keyed adjudication, the Quality-Evaluation register row, and the per-test summary. Summary, adjudication, and register authorities are independently pinned so coordinated internally consistent edits are rejected. The application remains a limited/provisional regression screen, is not directly comparable with OpenVINO, and is not a general healthcare or education benchmark. Calibration: Not collected.")
-    _write_text(route / "quality/rubric.md", f"# GTQ-QUALITY-RUBRIC-v1 — limited/provisional application\n\n## Dimensions and critical caps\n\n{dimension_lines}\n\n## Anchors\n\n{anchor_lines}\n\n## Procedure\n\n{procedure_lines}\n\nScores are recomputed as the 30/25/20/15/10 weighted sum and then limited by the smallest applicable critical cap. The controlling rubric is preserved; only the application label is limited/provisional. Calibration: Not collected. No direct OpenVINO ranking is permitted.")
-    _write_text(route / "quality/calibration.md", "# Calibration\n\nCalibration: Not collected\n\nThe historical all-row scoring is preserved without upgrade or re-adjudication.")
-    write_csv(route / "failures/failure-register.csv", (), _FAILURE_FIELDS)
-    write_csv(route / "protocol/deviations.csv", ({
+    _write_text(route / "reproduction/quality/README.md", "# Quality evidence\n\nThe 114 P1-P6 observations bind each output hash to GTQ-PROMPTS-v1, GTQ-QUALITY-RUBRIC-v1, the content-keyed adjudication, the Quality-Evaluation register row, and the per-test summary. Summary, adjudication, and register authorities are independently pinned so coordinated internally consistent edits are rejected. The application remains a limited/provisional regression screen, is not directly comparable with OpenVINO, and is not a general healthcare or education benchmark. Calibration: Not collected.")
+    _write_text(route / "reproduction/quality/rubric.md", f"# GTQ-QUALITY-RUBRIC-v1 — limited/provisional application\n\n## Dimensions and critical caps\n\n{dimension_lines}\n\n## Anchors\n\n{anchor_lines}\n\n## Procedure\n\n{procedure_lines}\n\nScores are recomputed as the 30/25/20/15/10 weighted sum and then limited by the smallest applicable critical cap. The controlling rubric is preserved; only the application label is limited/provisional. Calibration: Not collected. No direct OpenVINO ranking is permitted.")
+    _write_text(route / "reproduction/quality/calibration.md", "# Calibration\n\nCalibration: Not collected\n\nThe historical all-row scoring is preserved without upgrade or re-adjudication.")
+    write_csv(route / "data/failures.csv", (), _FAILURE_FIELDS)
+    write_csv(route / "data/deviations.csv", ({
         "deviation_id": row["deviation_id"], "scope_type": row["scope_type"],
         "scope_ids_json": json.dumps(row["scope_ids"]), "nonterminal": row["nonterminal"],
         "code": row["code"], "status": row["status"], "reason": row["reason"],
@@ -2303,8 +2377,8 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
     } for row in bundle.repository["deviation_rows"]), (
         "deviation_id", "scope_type", "scope_ids_json", "nonterminal", "code", "status", "reason", "evidence_ids_json",
     ))
-    _write_text(route / "failures/README.md", "# Failures and deviations\n\nRuntime accounting is 19 Passed. Setup, memory-gate, timeout, and quality safety events are nonterminal scoped deviations in protocol/deviations.csv; they are not silently removed or converted into runtime failures.")
-    _write_text(route / "failures/curated-logs/README.md", "# Curated log handling\n\nNo raw logs are duplicated. Indexed failure evidence remains at its authoritative repository-relative locations.")
+    _write_text(route / "evidence/failures/README.md", "# Failures and deviations\n\nRuntime accounting is 19 Passed. Setup, memory-gate, timeout, and quality safety events are nonterminal scoped deviations in data/deviations.csv; they are not silently removed or converted into runtime failures.")
+    _write_text(route / "evidence/failures/curated-logs/README.md", "# Curated log handling\n\nNo raw logs are duplicated. Indexed failure evidence remains at its authoritative repository-relative locations.")
     write_csv(route / "evidence/evidence-index.csv", _csv_rows(bundle.evidence), _EVIDENCE_FIELDS)
     write_csv(route / "evidence/source-locations.csv", ({"evidence_id": e.evidence_id, "relative_path": e.relative_path, "source_or_derived": "source"} for e in bundle.evidence), ("evidence_id", "relative_path", "source_or_derived"))
     role_ids = {role: [e.evidence_id for e in bundle.evidence if e.role == role] for role in {e.role for e in bundle.evidence}}
@@ -2324,10 +2398,10 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
         "test_case_ids": json.dumps(row["test_case_ids"]), "evidence_ids": json.dumps(row["evidence_ids"]),
     } for row in claims), ("claim_id", "claim", "test_case_ids", "evidence_ids"))
     matrix = _atomicbot_matrix(root / ATOMICBOT_WORKBOOK_RELATIVE)
-    write_csv(route / "protocol/intended-test-matrix.csv", matrix, tuple(matrix[0]))
-    _write_text(route / "protocol/test-plan.md", "# Test plan\n\nWB-02 v1.7 controls 19 runtime configurations across CPU, Vulkan partial, and Vulkan maximum placement. This publication does not rerun inference.")
-    _write_text(route / "protocol/execution-sequence.md", "# Execution sequence\n\nBuild/setup; CPU cache ladder; guarded 8B cases; partial/full Vulkan placement; three measured repetitions; all-row utilization; P1-P6 historical screen.")
-    _write_text(route / "protocol/metric-definitions.md", "# Metric definitions\n\nTTFT, peak working set, KV allocation, and utilization use the 2026-07-17 measurement JSON sources reconciled to all 57 Performance-Measurement register rows. TTFT and KV use the median; peak working set uses the maximum; CPU/GPU headline values average the three per-repetition means. Decode throughput uses 19 formal sources: 17 formal summary JSON files and generation-only eval events from three samples for each of the two controlled safety-bypass rows. Utilization CSV files support raw utilization samples only and never decode throughput. Missing data is `Not collected`.")
+    write_csv(route / "reproduction/protocol/intended-test-matrix.csv", matrix, tuple(matrix[0]))
+    _write_text(route / "reproduction/protocol/test-plan.md", "# Test plan\n\nWB-02 v1.7 controls 19 runtime configurations across CPU, Vulkan partial, and Vulkan maximum placement. This publication does not rerun inference.")
+    _write_text(route / "reproduction/protocol/execution-sequence.md", "# Execution sequence\n\nBuild/setup; CPU cache ladder; guarded 8B cases; partial/full Vulkan placement; three measured repetitions; all-row utilization; P1-P6 historical screen.")
+    _write_text(route / "reproduction/protocol/metric-definitions.md", "# Metric definitions\n\nTTFT, peak working set, KV allocation, and utilization use the 2026-07-17 measurement JSON sources reconciled to all 57 Performance-Measurement register rows. TTFT and KV use the median; peak working set uses the maximum; CPU/GPU headline values average the three per-repetition means. Decode throughput uses 19 formal sources: 17 formal summary JSON files and generation-only eval events from three samples for each of the two controlled safety-bypass rows. Utilization CSV files support raw utilization samples only and never decode throughput. Missing data is `Not collected`.")
     _write_text(route / "reproduction/README.md", "# Reproduction\n\nCommands regenerate this publication from existing evidence; they do not rerun inference.")
     _write_text(route / "reproduction/commands.md", """# Ordered reproduction commands
 
@@ -2337,7 +2411,7 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
 ```
 2. Export the owned Word PDF
 ```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.docx -PdfPath docs/testing/final-results/02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.pdf -TimeoutSeconds 180
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.docx -PdfPath docs/testing/final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.pdf -TimeoutSeconds 180
 ```
 3. Finalize and validate the PDF
 ```powershell
@@ -2349,24 +2423,41 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
 ```
 5. Run focused validation
 ```powershell
-& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/test_final_results_atomicbot.py -q
+& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/integration/test_final_results_atomicbot.py -q
 ```
 """)
-    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- `scripts/testing/cli/export_report.ps1` (owned Word, 180 seconds)\n- `scripts/testing/reporting/llama_adapter.py`\n- `scripts/testing/tests/test_final_results_atomicbot.py`")
+    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- `scripts/testing/cli/export_report.ps1` (owned Word, 180 seconds)\n- `scripts/testing/reporting/llama_adapter.py`\n- `scripts/testing/tests/integration/test_final_results_atomicbot.py`")
     _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/reporting/llama_adapter.py`.")
     _write_text(route / "README.md", "# AtomicBot TurboQuant final results\n\nCanonical Markdown and generated derivatives preserve WB-02 v1.7 evidence boundaries. Quality is limited/provisional and not directly OpenVINO-comparable.")
-    markdown = route / "workbook/source/atomicbot-turboquant-final-report.md"; docx = route / "workbook/generated/atomicbot-turboquant-final-report.docx"
-    render_markdown(report, markdown); render_docx(report, docx)
-    parity = compare_markdown_docx(markdown, docx); write_json(route / "validation/workbook-parity.json", parity)
-    relationships = _atomicbot_relationship_receipt(bundle); write_json(route / "validation/relationship-validation.json", relationships)
+    markdown = route / "reports/atomicbot-turboquant-report.md"; docx = route / "reports/atomicbot-turboquant-report.docx"
+    if not markdown.is_file():
+        render_markdown(report, markdown)
+    if not docx.is_file():
+        render_docx(report, docx)
+    parity = compare_markdown_docx(markdown, docx)
+    relationships = _atomicbot_relationship_receipt(bundle)
     coverage = {"valid": len(bundle.attempts) == 19 and len(bundle.measurements) == 76 and len(bundle.quality) == 114, "attempt_count": len(bundle.attempts), "measurement_count": len(bundle.measurements), "resource_measurement_count": 57, "formal_throughput_measurement_count": 19, "quality_count": len(bundle.quality), "runtime_status_counts": bundle.repository["runtime_status_counts"], "setup_status_counts": bundle.repository["setup_status_counts"]}
     data = {"valid": parity["matches"] and relationships["valid"] and bundle.repository["source_reconciliation"]["joined_evidence_hash_conflicts"] == 0, "exact_joined_utilization_csv_evidence": 57, "live_measurement_json_rows_reconciled": 57, "formal_throughput_sources_reconciled": 19, "quality_rows_reconciled": 114, "workbook_precedence": ATOMICBOT_WORKBOOK_PRECEDENCE, "stale_index_limitation": bundle.repository["source_reconciliation"], "missing_value_display": ATOMICBOT_NOT_COLLECTED}
-    write_json(route / "validation/coverage-validation.json", coverage); write_json(route / "validation/data-validation.json", data)
-    _write_text(route / "validation/validation-report.md", "# Validation report\n\nCoverage, exact joined evidence, all five typed/nonterminal deviation relationships, independently pinned quality authorities, exact workbook duplicate values, and Markdown/DOCX parity: Passed. PDF/visual validation follows owned Word export.")
-    write_json(route / "validation/integrity-validation.json", {"valid": False, "status": "Pending final PDF and manifest regeneration"})
-    write_json(route / "validation/visual-validation.json", {"valid": False, "status": "Pending owned Word PDF export and inspection"})
-    manifest = regenerate_route_manifest(root, route)
-    errors = validate_sha256_manifest(root, manifest)
+    _write_compact_validation(
+        route,
+        ATOMICBOT_ROUTE_ID,
+        {
+            "coverage": coverage,
+            "data": data,
+            "integrity": {
+                "valid": False,
+                "status": "Pending final PDF and manifest regeneration",
+            },
+            "relationship": relationships,
+            "visual": {
+                "valid": False,
+                "status": "Pending existing PDF structural inspection",
+            },
+            "workbook_parity": parity,
+        },
+    )
+    manifest = regenerate_route_manifest(publication_root, route)
+    errors = validate_sha256_manifest(publication_root, manifest)
     if not parity["matches"] or not relationships["valid"] or not coverage["valid"] or not data["valid"] or errors:
         raise ValueError("AtomicBot route validation failed")
     return bundle
@@ -2374,8 +2465,10 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
 
 def finalize_atomicbot_route(repo_root: Path) -> dict[str, object]:
     from pypdf import PdfReader
-    root = Path(repo_root).resolve(strict=True); route = root / ATOMICBOT_ROUTE_RELATIVE
-    pdf = route / "workbook/generated/atomicbot-turboquant-final-report.pdf"
+    root, publication_root, route = _publication_route(
+        repo_root, ATOMICBOT_ROUTE_RELATIVE
+    )
+    pdf = route / "reports/atomicbot-turboquant-report.pdf"
     if not pdf.is_file() or not pdf.read_bytes().startswith(b"%PDF-"):
         raise ValueError("Word-exported AtomicBot PDF is missing or malformed")
     reader = PdfReader(pdf); page_text = [(page.extract_text() or "").strip() for page in reader.pages]
@@ -2390,10 +2483,18 @@ def finalize_atomicbot_route(repo_root: Path) -> dict[str, object]:
     receipt = {"valid": valid, "checks": checks, "inspected_pages": list(range(1, len(reader.pages) + 1)), "visual_findings": {"inspection": "All pages rendered and inspected; no blank, clipped, corrupt, or truncated content observed."}}
     if not valid:
         raise ValueError(f"AtomicBot PDF structural validation failed: {checks}")
-    write_json(route / "validation/visual-validation.json", receipt)
-    write_json(route / "validation/integrity-validation.json", {"valid": True, "pdf_sha256": hash_file(pdf), "pdf_size_bytes": pdf.stat().st_size})
-    regenerate_route_manifest(root, route)
-    errors = validate_sha256_manifest(root, route / "evidence/manifest-sha256.txt")
+    integrity = {
+        "valid": True,
+        "pdf_sha256": hash_file(pdf),
+        "pdf_size_bytes": pdf.stat().st_size,
+    }
+    _update_compact_validation(
+        route, {"integrity": integrity, "visual": receipt}
+    )
+    regenerate_route_manifest(publication_root, route)
+    errors = validate_sha256_manifest(
+        publication_root, route / "evidence/manifest-sha256.txt"
+    )
     if errors:
         raise ValueError(f"AtomicBot manifest validation failed: {errors}")
     return receipt
@@ -3283,7 +3384,7 @@ def build_animehacker_report(bundle: RouteBundle) -> Report:
     )
     return Report(
         title="animehacker TQ3_0 Final Test Report", route_id=ANIMEHACKER_ROUTE_ID,
-        revision="1.1", generated_date=date.today(), sections=sections,
+        revision="1.1", generated_date=date(2026, 8, 31), sections=sections,
         evidence_ids=tuple(row.evidence_id for row in key_evidence),
     )
 
@@ -3446,60 +3547,61 @@ def _animehacker_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
 
 
 def write_animehacker_route(repo_root: Path) -> RouteBundle:
-    root = Path(repo_root).resolve(strict=True)
-    route = root / ANIMEHACKER_ROUTE_RELATIVE
+    root, publication_root, route = _publication_route(
+        repo_root, ANIMEHACKER_ROUTE_RELATIVE
+    )
     bundle = build_animehacker_bundle(root)
     report = build_animehacker_report(bundle)
-    write_json(route / "route-manifest.json", bundle.to_row())
-    write_json(route / "system/repository.json", bundle.repository)
-    write_json(route / "system/hardware.json", bundle.hardware)
-    write_json(route / "system/software.json", bundle.software)
-    _write_text(route / "system/environment.txt", "Historical controlled Windows environment. Missing later-system fields: Not collected.")
+    write_json(route / "data/route.json", bundle.to_row())
+    write_json(route / "reproduction/system/repository.json", bundle.repository)
+    write_json(route / "reproduction/system/hardware.json", bundle.hardware)
+    write_json(route / "reproduction/system/software.json", bundle.software)
+    _write_text(route / "reproduction/system/environment.txt", "Historical controlled Windows environment. Missing later-system fields: Not collected.")
     terminal = [row for row in bundle.attempts if row.attempt_id.endswith("--terminal")]
-    write_csv(route / "system/model-artifacts.csv", ({
+    write_csv(route / "reproduction/system/model-artifacts.csv", ({
         "model_id": row.model_id, "weight_format_id": row.weight_format_id, "status": row.status.display_label,
     } for row in terminal), ("model_id", "weight_format_id", "status"))
-    write_csv(route / "results/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
-    write_csv(route / "results/measurements.csv", _csv_rows(bundle.measurements), _MEASUREMENT_FIELDS)
-    write_csv(route / "results/summary-results.csv", _csv_rows(bundle.summaries), _SUMMARY_FIELDS)
+    write_csv(route / "data/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
+    write_csv(route / "data/measurements.csv", _csv_rows(bundle.measurements), _MEASUREMENT_FIELDS)
+    write_csv(route / "data/summaries.csv", _csv_rows(bundle.summaries), _SUMMARY_FIELDS)
     resource_fields = tuple(bundle.repository["resource_observations"][0])
-    write_csv(route / "results/resource-observations.csv", bundle.repository["resource_observations"], resource_fields)
-    write_csv(route / "results/availability-matrix.csv", ({
+    write_csv(route / "data/resource-observations.csv", bundle.repository["resource_observations"], resource_fields)
+    write_csv(route / "data/availability-matrix.csv", ({
         "test_case_id": row.test_case_id, "model_id": row.model_id, "weight_format_id": row.weight_format_id,
         "cache_format_id": row.cache_format_id, "backend_id": row.backend_id, "status": row.status.value,
     } for row in terminal), ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "backend_id", "status"))
-    _write_text(route / "results/source/README.md", "# Source-result handling\n\nWB-03, reconciliation/state authorities, summaries, adjudications, and raw evidence remain in their authoritative repository-relative locations. Rejected evidence is indexed but excluded from formal statistics.")
+    _write_text(route / "evidence/source/README.md", "# Source-result handling\n\nWB-03, reconciliation/state authorities, summaries, adjudications, and raw evidence remain in their authoritative repository-relative locations. Rejected evidence is indexed but excluded from formal statistics.")
 
-    write_csv(route / "quality/scores.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
+    write_csv(route / "data/quality.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
     prompt_contract = _read_json(root / ANIMEHACKER_PROMPT_RELATIVE)
-    write_csv(route / "quality/prompt-suite.csv", ({
+    write_csv(route / "reproduction/quality/prompt-suite.csv", ({
         "prompt_id": row["prompt_id"], "task": row["task"],
         "deterministic_checks_json": json.dumps(row["deterministic_checks"], ensure_ascii=False, sort_keys=True),
         "scope": "seven completed runnable rows", "comparability": "No direct OpenVINO comparison",
     } for row in prompt_contract["prompts"]), ("prompt_id", "task", "deterministic_checks_json", "scope", "comparability"))
-    write_csv(route / "quality/outputs-index.csv", ({
+    write_csv(route / "reproduction/quality/outputs-index.csv", ({
         "test_case_id": row["test_case_id"], "prompt_id": row["prompt_id"],
         "output_sha256": row["output_sha256"], "source_evidence_id": _animehacker_evidence_id(Path(row["source_relative"])),
     } for row in bundle.repository["quality_adjudications"]), ("test_case_id", "prompt_id", "output_sha256", "source_evidence_id"))
-    write_csv(route / "quality/adjudication-log.csv", ({
+    write_csv(route / "reproduction/quality/adjudication-log.csv", ({
         "test_case_id": row["test_case_id"], "prompt_id": row["prompt_id"], "score": row["score"],
         "deterministic_pass": row["deterministic_pass"], "dimensions_json": json.dumps(row["dimensions"], sort_keys=True),
         "critical_caps_json": json.dumps(row["critical_caps"]), "critical_cap_reason": row["critical_cap_reason"],
     } for row in bundle.repository["quality_adjudications"]), (
         "test_case_id", "prompt_id", "score", "deterministic_pass", "dimensions_json", "critical_caps_json", "critical_cap_reason",
     ))
-    _write_text(route / "quality/README.md", "# Quality evidence\n\nForty-two P1-P6 observations preserve the WB-03 historical harsh content screen. Deterministic gates and manual adjudication are source-bound. Calibration: Not collected. Direct OpenVINO ranking is prohibited.")
-    _write_text(route / "quality/rubric.md", "# GTQ-QUALITY-RUBRIC-v1 historical application\n\nThe original 30/25/20/15/10 weighted dimensions and critical caps are preserved. This route-specific historical application is not directly comparable with OpenVINO.")
-    _write_text(route / "quality/calibration.md", "# Calibration\n\nCalibration: Not collected\n")
+    _write_text(route / "reproduction/quality/README.md", "# Quality evidence\n\nForty-two P1-P6 observations preserve the WB-03 historical harsh content screen. Deterministic gates and manual adjudication are source-bound. Calibration: Not collected. Direct OpenVINO ranking is prohibited.")
+    _write_text(route / "reproduction/quality/rubric.md", "# GTQ-QUALITY-RUBRIC-v1 historical application\n\nThe original 30/25/20/15/10 weighted dimensions and critical caps are preserved. This route-specific historical application is not directly comparable with OpenVINO.")
+    _write_text(route / "reproduction/quality/calibration.md", "# Calibration\n\nCalibration: Not collected\n")
 
-    write_csv(route / "failures/failure-register.csv", _csv_rows(bundle.failures), _FAILURE_FIELDS)
+    write_csv(route / "data/failures.csv", _csv_rows(bundle.failures), _FAILURE_FIELDS)
     historical = bundle.repository["historical_failure_rows"]
-    write_csv(route / "protocol/deviations.csv", ({
+    write_csv(route / "data/deviations.csv", ({
         "deviation_id": row["Failure ID"], "scope_ids": row["Test ID"], "code": row["Code"],
         "description": row["Description"], "resolution": row["Resolved?"], "terminal": False,
     } for row in historical), ("deviation_id", "scope_ids", "code", "description", "resolution", "terminal"))
-    _write_text(route / "failures/README.md", "# Failures and deviations\n\nZero unresolved failures is not zero historical failure attempts. Eleven resolved WB-03 events, three terminal safety classifications, and rejected AH-09 evidence remain visible. Rejected evidence never enters formal summaries.")
-    _write_text(route / "failures/curated-logs/README.md", "# Curated log handling\n\nNo raw logs are duplicated. All source evidence remains at its hashed repository-relative location.")
+    _write_text(route / "evidence/failures/README.md", "# Failures and deviations\n\nZero unresolved failures is not zero historical failure attempts. Eleven resolved WB-03 events, three terminal safety classifications, and rejected AH-09 evidence remain visible. Rejected evidence never enters formal summaries.")
+    _write_text(route / "evidence/failures/curated-logs/README.md", "# Curated log handling\n\nNo raw logs are duplicated. All source evidence remains at its hashed repository-relative location.")
 
     write_csv(route / "evidence/evidence-index.csv", _csv_rows(bundle.evidence), _EVIDENCE_FIELDS)
     write_csv(route / "evidence/source-locations.csv", ({
@@ -3519,10 +3621,10 @@ def write_animehacker_route(repo_root: Path) -> RouteBundle:
 
     matrix = _animehacker_matrix(root)
     matrix_fields = tuple(matrix[0])
-    write_csv(route / "protocol/intended-test-matrix.csv", matrix, matrix_fields)
-    _write_text(route / "protocol/test-plan.md", "# Test plan\n\nWB-03 v1.5 controls AH-01 through AH-10. This publication normalizes existing evidence and does not rerun inference.")
-    _write_text(route / "protocol/execution-sequence.md", "# Execution sequence\n\nCPU/SYCL/Vulkan build reconciliation; guarded runtime pilots; excluded warm-up; three formal repetitions for runnable rows; P1-P6 scoring; terminal reconciliation.")
-    _write_text(route / "protocol/metric-definitions.md", "# Metric definitions\n\nMedians use only the three explicitly included repetitions. Peak working set is the maximum included OS observation. Rejected evidence and safety-only pilots do not enter formal statistics. Missing OS observations display `Not collected`, never zero.")
+    write_csv(route / "reproduction/protocol/intended-test-matrix.csv", matrix, matrix_fields)
+    _write_text(route / "reproduction/protocol/test-plan.md", "# Test plan\n\nWB-03 v1.5 controls AH-01 through AH-10. This publication normalizes existing evidence and does not rerun inference.")
+    _write_text(route / "reproduction/protocol/execution-sequence.md", "# Execution sequence\n\nCPU/SYCL/Vulkan build reconciliation; guarded runtime pilots; excluded warm-up; three formal repetitions for runnable rows; P1-P6 scoring; terminal reconciliation.")
+    _write_text(route / "reproduction/protocol/metric-definitions.md", "# Metric definitions\n\nMedians use only the three explicitly included repetitions. Peak working set is the maximum included OS observation. Rejected evidence and safety-only pilots do not enter formal statistics. Missing OS observations display `Not collected`, never zero.")
     _write_text(route / "reproduction/README.md", "# Reproduction\n\nThese commands rebuild the report from existing evidence; they do not rerun benchmarks.")
     _write_text(route / "reproduction/commands.md", """# Ordered reproduction commands
 
@@ -3532,7 +3634,7 @@ def write_animehacker_route(repo_root: Path) -> RouteBundle:
 ```
 2. Export the owned Word PDF
 ```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.docx -PdfPath docs/testing/final-results/03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.pdf -TimeoutSeconds 180
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.docx -PdfPath docs/testing/final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.pdf -TimeoutSeconds 180
 ```
 3. Finalize and validate
 ```powershell
@@ -3544,17 +3646,19 @@ def write_animehacker_route(repo_root: Path) -> RouteBundle:
 ```
 5. Run focused validation
 ```powershell
-& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/test_final_results_animehacker.py -q
+& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/integration/test_final_results_animehacker.py -q
 ```
 """)
     _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- Microsoft Word via the bounded owned exporter\n- `scripts/testing/reporting/llama_adapter.py`")
     _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/reporting/llama_adapter.py`.")
     _write_text(route / "README.md", "# animehacker TQ3_0 final results\n\nCanonical Markdown and synchronized DOCX/PDF derivatives preserve WB-03 v1.5 authority, rejected evidence, safety classifications, and missing-value boundaries.")
 
-    markdown = route / "workbook/source/animehacker-tq3-0-final-report.md"
-    docx = route / "workbook/generated/animehacker-tq3-0-final-report.docx"
-    render_markdown(report, markdown)
-    render_docx(report, docx)
+    markdown = route / "reports/animehacker-tq3-0-report.md"
+    docx = route / "reports/animehacker-tq3-0-report.docx"
+    if not markdown.is_file():
+        render_markdown(report, markdown)
+    if not docx.is_file():
+        render_docx(report, docx)
     parity = compare_markdown_docx(markdown, docx)
     relationships = _animehacker_relationship_receipt(bundle)
     coverage = {
@@ -3572,15 +3676,26 @@ def write_animehacker_route(repo_root: Path) -> RouteBundle:
         "historical_failure_attempt_count": bundle.repository["historical_failure_attempt_count"],
         "missing_value_display": ANIMEHACKER_NOT_COLLECTED,
     }
-    write_json(route / "validation/workbook-parity.json", parity)
-    write_json(route / "validation/relationship-validation.json", relationships)
-    write_json(route / "validation/coverage-validation.json", coverage)
-    write_json(route / "validation/data-validation.json", data)
-    _write_text(route / "validation/validation-report.md", "# Validation report\n\nStatus authority, explicit inclusion, source aggregates, quality relationships, historical/rejected evidence retention, schema relationships, and Markdown/DOCX parity: Passed. PDF visual validation follows owned Word export.")
-    write_json(route / "validation/integrity-validation.json", {"valid": False, "status": "Pending final PDF and manifest regeneration"})
-    write_json(route / "validation/visual-validation.json", {"valid": False, "status": "Pending owned Word PDF export and inspection"})
-    manifest = regenerate_route_manifest(root, route)
-    errors = validate_sha256_manifest(root, manifest)
+    _write_compact_validation(
+        route,
+        ANIMEHACKER_ROUTE_ID,
+        {
+            "coverage": coverage,
+            "data": data,
+            "integrity": {
+                "valid": False,
+                "status": "Pending final PDF and manifest regeneration",
+            },
+            "relationship": relationships,
+            "visual": {
+                "valid": False,
+                "status": "Pending existing PDF structural inspection",
+            },
+            "workbook_parity": parity,
+        },
+    )
+    manifest = regenerate_route_manifest(publication_root, route)
+    errors = validate_sha256_manifest(publication_root, manifest)
     if not parity["matches"] or not relationships["valid"] or not coverage["valid"] or not data["valid"] or errors:
         raise ValueError("animehacker route validation failed")
     return bundle
@@ -3588,9 +3703,10 @@ def write_animehacker_route(repo_root: Path) -> RouteBundle:
 
 def finalize_animehacker_route(repo_root: Path) -> dict[str, object]:
     from pypdf import PdfReader
-    root = Path(repo_root).resolve(strict=True)
-    route = root / ANIMEHACKER_ROUTE_RELATIVE
-    pdf = route / "workbook/generated/animehacker-tq3-0-final-report.pdf"
+    root, publication_root, route = _publication_route(
+        repo_root, ANIMEHACKER_ROUTE_RELATIVE
+    )
+    pdf = route / "reports/animehacker-tq3-0-report.pdf"
     if not pdf.is_file() or not pdf.read_bytes().startswith(b"%PDF-"):
         raise ValueError("Word-exported animehacker PDF is missing or malformed")
     reader = PdfReader(pdf)
@@ -3640,12 +3756,16 @@ def finalize_animehacker_route(repo_root: Path) -> dict[str, object]:
     }
     if not valid:
         raise ValueError(f"animehacker PDF structural validation failed: {checks}")
-    write_json(route / "validation/visual-validation.json", receipt)
-    write_json(route / "validation/integrity-validation.json", {
+    integrity = {
         "valid": True, "pdf_sha256": hash_file(pdf), "pdf_size_bytes": pdf.stat().st_size,
-    })
-    regenerate_route_manifest(root, route)
-    errors = validate_sha256_manifest(root, route / "evidence/manifest-sha256.txt")
+    }
+    _update_compact_validation(
+        route, {"integrity": integrity, "visual": receipt}
+    )
+    regenerate_route_manifest(publication_root, route)
+    errors = validate_sha256_manifest(
+        publication_root, route / "evidence/manifest-sha256.txt"
+    )
     if errors:
         raise ValueError(f"animehacker manifest validation failed: {errors}")
     return receipt
