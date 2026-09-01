@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import io
 import json
@@ -42,7 +43,7 @@ REPORT_STEMS = {
     "05-openvino-official-upstream": "openvino-official-upstream-final-report",
     "06-cross-route-comparison": "cross-route-comparison-final-report",
 }
-OPENVINO_WORKBOOKS = {
+OPENVINO_SOURCE_WORKBOOKS = {
     "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx": (
         "Dashboard",
         "Format Comparison",
@@ -64,6 +65,26 @@ OPENVINO_WORKBOOKS = {
         "Methodology",
         "Source Data",
     ),
+}
+OPENVINO_PORTABLE_WORKBOOKS = {
+    "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-portable-results.xlsx": OPENVINO_SOURCE_WORKBOOKS[
+        "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
+    ],
+    "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-portable-results.xlsx": OPENVINO_SOURCE_WORKBOOKS[
+        "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx"
+    ],
+}
+OPENVINO_WORKBOOKS = {
+    **OPENVINO_SOURCE_WORKBOOKS,
+    **OPENVINO_PORTABLE_WORKBOOKS,
+}
+OPENVINO_WORKBOOK_RECEIPTS = {
+    "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json",
+    "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json",
+}
+OPENVINO_MACHINE_PATH_COUNTS = {
+    **{path: count for path, count in zip(OPENVINO_SOURCE_WORKBOOKS, (55, 15), strict=True)},
+    **{path: 0 for path in OPENVINO_PORTABLE_WORKBOOKS},
 }
 CATALOGS = (
     "catalog/route-register.csv",
@@ -108,6 +129,19 @@ def _git_index_release_blobs() -> dict[str, bytes]:
             capture_output=True,
         ).stdout
     return blobs
+
+
+def _published_evidence_sources() -> dict[str, tuple[str, int]]:
+    records: dict[str, tuple[str, int]] = {}
+    for route in ROUTES[:5]:
+        index = RELEASE_ROOT / route / "evidence/evidence-index.csv"
+        with index.open("r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                relative = row["relative_path"].replace("\\", "/")
+                identity = (row["sha256"].lower(), int(row["size_bytes"]))
+                assert records.get(relative, identity) == identity, relative
+                records[relative] = identity
+    return records
 
 
 def _write_filesystem_manifest(release_root: Path) -> None:
@@ -181,6 +215,7 @@ def test_release_portal_links_every_route_report_workbook_and_control_surface():
             }
         )
     expected.update(OPENVINO_WORKBOOKS)
+    expected.update(OPENVINO_WORKBOOK_RECEIPTS)
 
     assert expected <= targets
     assert all((RELEASE_ROOT / target).is_file() for target in expected)
@@ -227,6 +262,7 @@ def test_ro_crate_covers_reports_tables_systems_and_generation_provenance():
             }
         )
     expected_files.update(OPENVINO_WORKBOOKS)
+    expected_files.update(OPENVINO_WORKBOOK_RECEIPTS)
     assert expected_files <= entities.keys()
 
     for route in ROUTES[:5]:
@@ -249,6 +285,8 @@ def test_ro_crate_covers_reports_tables_systems_and_generation_provenance():
         for suffix in ("docx", "pdf")
     } <= generated.keys()
     assert "manifest-sha256.txt" in generated
+    assert set(OPENVINO_PORTABLE_WORKBOOKS) <= generated.keys()
+    assert OPENVINO_WORKBOOK_RECEIPTS <= generated.keys()
 
     for entity_id, entity in generated.items():
         activity_id = entity["wasGeneratedBy"]["@id"]
@@ -301,6 +339,9 @@ def test_reproduction_commands_are_exact_and_preserve_the_no_rerun_boundary():
     assert "test_final_results_*.py" in text
     assert "does not rerun benchmarks" in text.casefold()
     assert "does not modify raw evidence" in text.casefold()
+    assert "no external hydration" in text.casefold()
+    assert "non-calculating" in text.casefold()
+    assert "recalculation" in text.casefold()
     for route in ROUTES:
         assert f"{route}/reproduction/" in text
 
@@ -309,7 +350,7 @@ def test_openvino_workbooks_pass_read_only_sheet_and_formula_reference_qa():
     for relative, expected_sheets in OPENVINO_WORKBOOKS.items():
         workbook = openpyxl.load_workbook(
             RELEASE_ROOT / relative,
-            read_only=True,
+            read_only=False,
             data_only=False,
             keep_links=True,
         )
@@ -318,6 +359,7 @@ def test_openvino_workbooks_pass_read_only_sheet_and_formula_reference_qa():
             known_sheets = set(workbook.sheetnames)
             formulas: list[str] = []
             literal_errors: list[tuple[str, str]] = []
+            machine_paths: list[tuple[str, str]] = []
             for sheet in workbook.worksheets:
                 for row in sheet.iter_rows():
                     for cell in row:
@@ -326,6 +368,18 @@ def test_openvino_workbooks_pass_read_only_sheet_and_formula_reference_qa():
                             formulas.append(value)
                         if isinstance(value, str) and value in FORMULA_ERROR_VALUES:
                             literal_errors.append((sheet.title, cell.coordinate))
+                        if isinstance(value, str) and (
+                            re.match(r"^[A-Za-z]:[\\/]", value)
+                            or value.casefold().startswith("file://")
+                            or value.startswith("\\\\")
+                        ):
+                            machine_paths.append((sheet.title, cell.coordinate))
+                        if cell.hyperlink and isinstance(cell.hyperlink.target, str) and (
+                            re.match(r"^[A-Za-z]:[\\/]", cell.hyperlink.target)
+                            or cell.hyperlink.target.casefold().startswith("file://")
+                            or cell.hyperlink.target.startswith("\\\\")
+                        ):
+                            machine_paths.append((sheet.title, f"{cell.coordinate}:hyperlink"))
 
             missing_sheet_refs = []
             external_refs = []
@@ -345,6 +399,7 @@ def test_openvino_workbooks_pass_read_only_sheet_and_formula_reference_qa():
             assert not literal_errors
             expected_formula_count = 275 if relative.startswith("04-") else 0
             assert len(formulas) == expected_formula_count
+            assert len(machine_paths) == OPENVINO_MACHINE_PATH_COUNTS[relative]
         finally:
             workbook.close()
 
@@ -357,6 +412,10 @@ def test_release_readiness_records_every_pdf_page_and_spreadsheet_qa():
     )
     assert readiness["valid"] is True
     assert readiness["status"] == "ready_with_documented_limitations"
+    assert readiness["release_version"] == "unified-final-results-2026-09-01-v2"
+    assert readiness["basis"]["raw_git_archive_self_contained"] is True
+    assert readiness["basis"]["external_hydration_required"] is False
+    assert readiness["basis"]["published_evidence_source_count"] == 1846
     assert readiness["qa_method"]["pdf_renderer"] == "PyMuPDF"
 
     pdf_qa = readiness["qa"]["pdf_reports"]
@@ -379,6 +438,18 @@ def test_release_readiness_records_every_pdf_page_and_spreadsheet_qa():
         assert receipt["missing_sheet_reference_count"] == 0
         assert receipt["external_formula_reference_count"] == 0
         assert receipt["formula_error_count"] == 0
+        assert receipt["machine_absolute_path_count"] == OPENVINO_MACHINE_PATH_COUNTS[relative]
+        assert receipt["cached_formula_value_count"] == 0
+        expected_role = (
+            "primary_portable_derivative"
+            if relative in OPENVINO_PORTABLE_WORKBOOKS
+            else "immutable_evidence_only_nonportable"
+        )
+        assert receipt["role"] == expected_role
+
+    limitations = " ".join(readiness["limitations"]).casefold()
+    assert "non-calculating" in limitations
+    assert "recalculation" in limitations
 
 
 def test_collection_validator_applies_blocking_release_metadata_gate():
@@ -442,11 +513,52 @@ def test_release_manifest_matches_git_index_canonical_blobs_for_archive_portabil
         assert archived[relative] == payload, relative
 
 
+def test_every_published_evidence_source_is_exact_in_raw_git_archive(tmp_path: Path):
+    expected = _published_evidence_sources()
+    tree = subprocess.run(
+        ["git", "write-tree"],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    archive_path = tmp_path / "release.tar"
+    subprocess.run(
+        ["git", "archive", "--format=tar", f"--output={archive_path}", tree],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+    )
+    archived: dict[str, tuple[str, int]] = {}
+    with tarfile.open(archive_path, mode="r:") as bundle:
+        for member in bundle.getmembers():
+            if not member.isfile() or member.name not in expected:
+                continue
+            payload = bundle.extractfile(member).read()
+            archived[member.name] = (hashlib.sha256(payload).hexdigest(), len(payload))
+
+    missing = sorted(set(expected) - set(archived))
+    mismatched = sorted(
+        relative
+        for relative, (digest, size) in expected.items()
+        if relative in archived and archived[relative] != (digest, size)
+    )
+
+    assert missing == []
+    assert mismatched == []
+
+
 @pytest.mark.parametrize(
     ("mutation", "expected_code"),
     [
         (lambda payload: payload.update(valid=False), "release_readiness_invalid"),
         (lambda payload: payload.update(status="failed"), "release_readiness_invalid"),
+        (
+            lambda payload: payload["basis"].update(
+                raw_git_archive_self_contained=False,
+                external_hydration_required=True,
+            ),
+            "release_readiness_invalid",
+        ),
         (
             lambda payload: next(iter(payload["qa"]["pdf_reports"].values())).update(
                 page_count=0,
@@ -470,6 +582,13 @@ def test_release_manifest_matches_git_index_canonical_blobs_for_archive_portabil
             lambda payload: next(
                 iter(payload["qa"]["openvino_workbooks"].values())
             ).update(missing_sheet_reference_count=1),
+            "workbook_qa_invalid",
+        ),
+        (
+            lambda payload: payload["qa"]["openvino_workbooks"][
+                "04-openvino-experimental-fork/workbook/generated/"
+                "openvino-experimental-fork-portable-results.xlsx"
+            ].update(machine_absolute_path_count=1),
             "workbook_qa_invalid",
         ),
     ],
@@ -497,13 +616,13 @@ def test_release_metadata_gate_rejects_human_summary_disagreement(
     path = canonical_release / "validation/validation-summary.md"
     text = path.read_text(encoding="utf-8")
     assert (
-        "Overall result for release package `unified-final-results-2026-09-01`: **Passed"
+        "Overall result for release package `unified-final-results-2026-09-01-v2`: **Passed"
         in text
     )
     path.write_text(
         text.replace(
-            "Overall result for release package `unified-final-results-2026-09-01`: **Passed",
-            "Overall result for release package `unified-final-results-2026-09-01`: **Failed",
+            "Overall result for release package `unified-final-results-2026-09-01-v2`: **Passed",
+            "Overall result for release package `unified-final-results-2026-09-01-v2`: **Failed",
         ),
         encoding="utf-8",
         newline="\n",
@@ -521,10 +640,10 @@ def test_release_metadata_gate_rejects_human_summary_count_disagreement(
 ):
     path = canonical_release / "validation/validation-summary.md"
     text = path.read_text(encoding="utf-8")
-    assert "| `release_metadata` | Passed | 0 | 5 |" in text
+    assert "| `release_metadata` | Passed | 0 | 6 |" in text
     path.write_text(
         text.replace(
-            "| `release_metadata` | Passed | 0 | 5 |",
+            "| `release_metadata` | Passed | 0 | 6 |",
             "| `release_metadata` | Passed | 0 | 999 |",
         ),
         encoding="utf-8",

@@ -1,0 +1,1 @@
+Return the authoritative marker and identify its status: draft amber-12; final cobalt-47.

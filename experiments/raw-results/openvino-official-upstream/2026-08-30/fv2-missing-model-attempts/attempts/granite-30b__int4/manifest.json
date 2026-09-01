@@ -1,0 +1,161 @@
+{
+  "artifact_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\models\\openvino\\granite-30b-int4-official-ibm-4fae6278",
+  "cache_ladder_if_available": [
+    "tbq3",
+    "u4",
+    "tbq4",
+    "u8",
+    "f16"
+  ],
+  "case_id": "granite-30b__int4",
+  "failure_reason": "official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host",
+  "failure_stage": "conversion_preflight",
+  "model": "granite-30b",
+  "preflight": {
+    "available_ram_bytes": 9502789632,
+    "emergency_floor_bytes": 2147483648,
+    "estimated_peak_bytes": 58805266368,
+    "required_available_bytes": 60952750016,
+    "shortfall_bytes": 51449960384,
+    "status": "hardware_preflight_blocked"
+  },
+  "schema": "official-openvino-missing-model-attempt/v1",
+  "source": {
+    "files": [
+      {
+        "lfs_sha256": null,
+        "path": ".gitattributes",
+        "size": 1519
+      },
+      {
+        "lfs_sha256": null,
+        "path": "README.md",
+        "size": 32319
+      },
+      {
+        "lfs_sha256": null,
+        "path": "chat_template.jinja",
+        "size": 6099
+      },
+      {
+        "lfs_sha256": null,
+        "path": "config.json",
+        "size": 828
+      },
+      {
+        "lfs_sha256": null,
+        "path": "generation_config.json",
+        "size": 147
+      },
+      {
+        "lfs_sha256": null,
+        "path": "merges.txt",
+        "size": 916646
+      },
+      {
+        "lfs_sha256": "3da68efc6d8f4521a5fbd2110c4bf7dc8980801a594263b4b37eae6d7e552461",
+        "path": "model-00001-of-00012.safetensors",
+        "size": 4999680904
+      },
+      {
+        "lfs_sha256": "5eb2adac81835084e75a6d6e72b5174928a2490cdf9e64d6a56ca61c11f77c35",
+        "path": "model-00002-of-00012.safetensors",
+        "size": 4798388112
+      },
+      {
+        "lfs_sha256": "a6ef358eb2e8b007241cae805a07a3e88dbd4690a6834f08645481f871aa4f1d",
+        "path": "model-00003-of-00012.safetensors",
+        "size": 4982920568
+      },
+      {
+        "lfs_sha256": "ae17279f089bd43784604484343cc74609877f9a558a02bdbe722a36570271a0",
+        "path": "model-00004-of-00012.safetensors",
+        "size": 4798388168
+      },
+      {
+        "lfs_sha256": "04656afd99eb901dcfd317a5a1bb8f992b029375c5b41312d3733e2d8ceaa466",
+        "path": "model-00005-of-00012.safetensors",
+        "size": 4982920568
+      },
+      {
+        "lfs_sha256": "988e01044e1cedef41ddb67ea0eebb485ac41ad66cfbb0aedaf7d1af7abf17e1",
+        "path": "model-00006-of-00012.safetensors",
+        "size": 4798388168
+      },
+      {
+        "lfs_sha256": "eb26321978384faaf005dacd4d5cea2640c3b56a5345388ab745c98e13aab0cf",
+        "path": "model-00007-of-00012.safetensors",
+        "size": 4982920568
+      },
+      {
+        "lfs_sha256": "c5300bc74e67dfec4edae5357661702e9b3a13a39c665f704e7daed8d4fedb2c",
+        "path": "model-00008-of-00012.safetensors",
+        "size": 4798388168
+      },
+      {
+        "lfs_sha256": "66415273778086c2264be48f53106c08eff57a9108788a69a5574ae0459f9aaf",
+        "path": "model-00009-of-00012.safetensors",
+        "size": 4982920568
+      },
+      {
+        "lfs_sha256": "ebfeb0a76a4798ac825fb85cba6a56f160f1ee721dbd80c277d8c8d6c77b98f5",
+        "path": "model-00010-of-00012.safetensors",
+        "size": 4798388168
+      },
+      {
+        "lfs_sha256": "9c1a625144f3ea50fd60508b843547b24a280603c1b34931c929d160b6cae6cb",
+        "path": "model-00011-of-00012.safetensors",
+        "size": 4982920568
+      },
+      {
+        "lfs_sha256": "8d0f7c9dd784559d7be4c8abe9111267bb18ad57d26484cb75aeacd8e9af1397",
+        "path": "model-00012-of-00012.safetensors",
+        "size": 3825300016
+      },
+      {
+        "lfs_sha256": null,
+        "path": "model.safetensors.index.json",
+        "size": 47705
+      },
+      {
+        "lfs_sha256": null,
+        "path": "model.sig",
+        "size": 13019
+      },
+      {
+        "lfs_sha256": null,
+        "path": "special_tokens_map.json",
+        "size": 579
+      },
+      {
+        "lfs_sha256": null,
+        "path": "tokenizer.json",
+        "size": 7153421
+      },
+      {
+        "lfs_sha256": null,
+        "path": "tokenizer_config.json",
+        "size": 17659
+      },
+      {
+        "lfs_sha256": null,
+        "path": "vocab.json",
+        "size": 1612704
+      }
+    ],
+    "model_id": "ibm-granite/granite-4.1-30b",
+    "revision": "4fae6278f7132abf5e971f9de49ebbad09c54cce",
+    "tensor_bytes": 57731524544
+  },
+  "status": "hardware_preflight_blocked",
+  "tool_versions": {
+    "huggingface-hub": "0.36.0",
+    "nncf": "3.3.0",
+    "openvino": "2026.3.1",
+    "optimum": "2.3.0",
+    "optimum-intel": "2.1.0",
+    "psutil": "7.0.0",
+    "torch": "2.13.0"
+  },
+  "weight_precision": "int4"
+}

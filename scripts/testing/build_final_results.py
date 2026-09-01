@@ -177,6 +177,9 @@ def _write_openvino_report(route: Path, bundle: object) -> None:
         regenerate_route_manifest,
     )
     from scripts.testing.final_results.parity import compare_markdown_docx
+    from scripts.testing.final_results.workbook_portability import (
+        write_portable_openvino_route_workbook,
+    )
 
     report = build_openvino_report(bundle)
     stem = route.name.removeprefix("04-").removeprefix("05-")
@@ -225,6 +228,7 @@ def _write_openvino_report(route: Path, bundle: object) -> None:
             "status": "Passed after final PDF and validation receipt generation",
         },
     )
+    write_portable_openvino_route_workbook(REPOSITORY_ROOT, route)
     regenerate_route_manifest(REPOSITORY_ROOT, route)
 
 

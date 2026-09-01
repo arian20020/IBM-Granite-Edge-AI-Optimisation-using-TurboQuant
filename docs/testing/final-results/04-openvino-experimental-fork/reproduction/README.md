@@ -15,6 +15,8 @@ Run from the repository root with the pinned portable test interpreter:
 
 The adapter only normalizes existing evidence; it does not rerun inference. Do not replace unavailable observations with zero, infer missing hardware, or copy values from another campaign. A source conflict stops generation.
 
+The source XLSX is retained byte-identically under `../results/source/` as evidence-only/nonportable. The primary handoff is `../workbook/generated/openvino-experimental-fork-portable-results.xlsx`; its adjacent provenance receipt records the 55 absolute-path replacements and source/output hashes. The 275 formulas have no cached results and may appear blank in non-calculating readers until Excel recalculation.
+
 ## Manifest update boundary
 
-`../evidence/manifest-sha256.txt` is an exact receipt for the current planned route file set. Task 8 will add generated report and workbook artifacts. After that planned set is complete, regenerate the manifest deliberately and validate it. The non-destructive manifest API intentionally refuses to overwrite a different existing receipt during a routine adapter rerun.
+`../evidence/manifest-sha256.txt` is an exact receipt for the complete route file set, including the portable XLSX and its provenance receipt. Regenerate it only after the final file set is known; the non-destructive manifest API intentionally refuses to overwrite a different existing receipt during a routine adapter rerun.

@@ -222,6 +222,8 @@ def test_official_generation_writes_common_route_and_copies_only_primary_workboo
         "workbook/source/openvino-official-upstream-final-report.md",
         "workbook/generated/openvino-official-upstream-final-report.docx",
         "workbook/generated/openvino-official-upstream-final-report.pdf",
+        "workbook/generated/openvino-official-upstream-portable-results.xlsx",
+        "workbook/generated/portable-workbook-provenance.json",
     }
     actual = {path.relative_to(ROUTE).as_posix() for path in ROUTE.rglob("*") if path.is_file()}
     assert actual == expected

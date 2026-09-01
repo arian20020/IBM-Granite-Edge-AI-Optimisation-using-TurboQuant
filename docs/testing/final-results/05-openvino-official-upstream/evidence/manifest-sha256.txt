@@ -6,7 +6,7 @@ e1a57ac8aca5e210307ec0c0226887a9bee2a72d5799c411e2862cb59e9aff86  docs/testing/f
 aa902e805c6e3d1220fd15b55ae8b36586ac0cf01221abf73cca7b8d423e1718  docs/testing/final-results/05-openvino-official-upstream/quality/outputs-index.csv
 a36aac8137d2017dd16460809c0d62e9217c0984b7bae8e769869918c924f887  docs/testing/final-results/05-openvino-official-upstream/quality/prompt-suite.csv
 720aae6e867036a7c9082f9df29f5f09932d51fa5052560ba1bacf44206ef338  docs/testing/final-results/05-openvino-official-upstream/quality/scores.csv
-d367b6edce6d3f9eb756caccfcf7ce0ea816956808422a71e807de91b6efc717  docs/testing/final-results/05-openvino-official-upstream/reproduction/README.md
+4481aa25e49e4e7d65e7e53a51320990692275f2ec1b0ec1ed7172fa1c9cb637  docs/testing/final-results/05-openvino-official-upstream/reproduction/README.md
 3e58884b17a133efc6e5852935a796b4768e1f901e61931a6531cd8722c01272  docs/testing/final-results/05-openvino-official-upstream/results/attempts.csv
 79ebf88a6aa2d6d71c8c2c73afb3ed54eaad7deb3aede40f0ce99f5d0320976f  docs/testing/final-results/05-openvino-official-upstream/results/availability-matrix.csv
 d7b23dbe42d29d2377adde3615e7f63d88bba5a9f929915511367a5be2ddb651  docs/testing/final-results/05-openvino-official-upstream/results/measurements.csv
@@ -24,4 +24,6 @@ d1f89f9e77eb3857912b3b51b28fe27523fc1da6f3e2fcb4f631d310e6d1f881  docs/testing/f
 4fc7cbf5410924be82ddc579df3af81def44d5409fc2560a8e268f69977c245b  docs/testing/final-results/05-openvino-official-upstream/validation/workbook-parity.json
 fec4ed6a706ebca1dfec03697ca16e3463b91517e95136bd61d447badc5c697b  docs/testing/final-results/05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.docx
 5f7dde8af8a36ccbd62326cb881346b79eaa94f9a507fe1b91dd472abd362a55  docs/testing/final-results/05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.pdf
+402cad868092d2031d82819cc4d27b7c6840ddf28d13c9a00d1ec1c2be62ed7b  docs/testing/final-results/05-openvino-official-upstream/workbook/generated/openvino-official-upstream-portable-results.xlsx
+4bea1dc9559a6f1eba921b4c49311bbcc49b9bd87f00ca2177d3ebc2451debf2  docs/testing/final-results/05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json
 4ac1327f29df927e1f854c0156d0c1895cc323b310b8e3af8cb72ed91c027902  docs/testing/final-results/05-openvino-official-upstream/workbook/source/openvino-official-upstream-final-report.md

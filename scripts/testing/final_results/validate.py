@@ -179,11 +179,25 @@ _RELEASE_REPORT_PATHS = tuple(
         ("generated", "pdf"),
     )
 )
-_OPENVINO_WORKBOOK_PATHS = (
+_OPENVINO_SOURCE_WORKBOOK_PATHS = (
     "04-openvino-experimental-fork/results/source/"
     "Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
     "05-openvino-official-upstream/results/source/"
     "Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx",
+)
+_OPENVINO_PORTABLE_WORKBOOK_PATHS = (
+    "04-openvino-experimental-fork/workbook/generated/"
+    "openvino-experimental-fork-portable-results.xlsx",
+    "05-openvino-official-upstream/workbook/generated/"
+    "openvino-official-upstream-portable-results.xlsx",
+)
+_OPENVINO_WORKBOOK_RECEIPT_PATHS = (
+    "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json",
+    "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json",
+)
+_OPENVINO_WORKBOOK_PATHS = (
+    *_OPENVINO_SOURCE_WORKBOOK_PATHS,
+    *_OPENVINO_PORTABLE_WORKBOOK_PATHS,
 )
 _EXPECTED_PDF_PAGE_COUNTS = {
     f"{route}/workbook/generated/{stem}.pdf": page_count
@@ -194,7 +208,7 @@ _EXPECTED_PDF_PAGE_COUNTS = {
     )
 }
 _EXPECTED_WORKBOOK_QA = {
-    _OPENVINO_WORKBOOK_PATHS[0]: {
+    _OPENVINO_SOURCE_WORKBOOK_PATHS[0]: {
         "sheets": (
             "Dashboard",
             "Format Comparison",
@@ -216,8 +230,11 @@ _EXPECTED_WORKBOOK_QA = {
             "Source Data": "A1:BB83",
         },
         "formula_count": 275,
+        "cached_formula_value_count": 0,
+        "machine_absolute_path_count": 55,
+        "role": "immutable_evidence_only_nonportable",
     },
-    _OPENVINO_WORKBOOK_PATHS[1]: {
+    _OPENVINO_SOURCE_WORKBOOK_PATHS[1]: {
         "sheets": (
             "Executive Summary",
             "Format Comparison",
@@ -241,7 +258,20 @@ _EXPECTED_WORKBOOK_QA = {
             "Source Data": "A1:E16",
         },
         "formula_count": 0,
+        "cached_formula_value_count": 0,
+        "machine_absolute_path_count": 15,
+        "role": "immutable_evidence_only_nonportable",
     },
+}
+_EXPECTED_WORKBOOK_QA[_OPENVINO_PORTABLE_WORKBOOK_PATHS[0]] = {
+    **_EXPECTED_WORKBOOK_QA[_OPENVINO_SOURCE_WORKBOOK_PATHS[0]],
+    "machine_absolute_path_count": 0,
+    "role": "primary_portable_derivative",
+}
+_EXPECTED_WORKBOOK_QA[_OPENVINO_PORTABLE_WORKBOOK_PATHS[1]] = {
+    **_EXPECTED_WORKBOOK_QA[_OPENVINO_SOURCE_WORKBOOK_PATHS[1]],
+    "machine_absolute_path_count": 0,
+    "role": "primary_portable_derivative",
 }
 _RELEASE_CATALOG_PATHS = (
     "catalog/route-register.csv",
@@ -1495,6 +1525,7 @@ def _release_ro_crate_issues(collection: Path) -> list[ValidationIssue]:
     expected_files = {
         *_RELEASE_REPORT_PATHS,
         *_OPENVINO_WORKBOOK_PATHS,
+        *_OPENVINO_WORKBOOK_RECEIPT_PATHS,
         *_RELEASE_CATALOG_PATHS,
         *(
             f"{route}/{relative}"
@@ -1538,7 +1569,11 @@ def _release_ro_crate_issues(collection: Path) -> list[ValidationIssue]:
         path
         for path in _RELEASE_REPORT_PATHS
         if path.endswith((".docx", ".pdf"))
-    } | {"manifest-sha256.txt"}
+    } | {
+        "manifest-sha256.txt",
+        *_OPENVINO_PORTABLE_WORKBOOK_PATHS,
+        *_OPENVINO_WORKBOOK_RECEIPT_PATHS,
+    }
     for entity_id in sorted(expected_generated):
         entity = entities.get(entity_id, {})
         if "#generated-artifact" not in _entity_references(entity.get("additionalType")):
@@ -1570,6 +1605,28 @@ def _release_ro_crate_issues(collection: Path) -> list[ValidationIssue]:
                 _issue(
                     "generated_artifact_activity_invalid",
                     f"source activity does not bind inputs and result for {entity_id}",
+                    path,
+                )
+            )
+    for entity_id in _OPENVINO_SOURCE_WORKBOOK_PATHS:
+        if "#nonportable-source-evidence" not in _entity_references(
+            entities.get(entity_id, {}).get("additionalType")
+        ):
+            issues.append(
+                _issue(
+                    "nonportable_source_marker_missing",
+                    f"source workbook must be labelled evidence-only/nonportable: {entity_id}",
+                    path,
+                )
+            )
+    for entity_id in _OPENVINO_PORTABLE_WORKBOOK_PATHS:
+        if "#portable-workbook" not in _entity_references(
+            entities.get(entity_id, {}).get("additionalType")
+        ):
+            issues.append(
+                _issue(
+                    "portable_workbook_marker_missing",
+                    f"portable workbook must retain its portability marker: {entity_id}",
                     path,
                 )
             )
@@ -1614,6 +1671,7 @@ def validate_release_metadata(root: Path) -> GateResult:
             *_RELEASE_CATALOG_PATHS,
             *_RELEASE_REPORT_PATHS,
             *_OPENVINO_WORKBOOK_PATHS,
+            *_OPENVINO_WORKBOOK_RECEIPT_PATHS,
             *(f"{route}/route-manifest.json" for route in _RELEASE_ROUTES),
         }
         unlinked = sorted(expected_targets - portal_targets)
@@ -1660,14 +1718,20 @@ def validate_release_metadata(root: Path) -> GateResult:
             readiness.get("valid") is not True
             or readiness.get("status") != "ready_with_documented_limitations"
             or readiness.get("release_version")
-            != "unified-final-results-2026-09-01"
+            != "unified-final-results-2026-09-01-v2"
             or readiness.get("basis", {}).get("all_ordered_validation_gates_passed")
             is not True
+            or readiness.get("basis", {}).get("raw_git_archive_self_contained")
+            is not True
+            or readiness.get("basis", {}).get("external_hydration_required")
+            is not False
+            or readiness.get("basis", {}).get("published_evidence_source_count")
+            != 1846
         ):
             issues.append(
                 _issue(
                     "release_readiness_invalid",
-                    "release readiness must record the exact passed status, version, and gate result",
+                    "release readiness must record the exact passed version, self-contained archive status, and gate result",
                     readiness_path,
                 )
             )
@@ -1729,6 +1793,11 @@ def validate_release_metadata(root: Path) -> GateResult:
                 or tuple(receipt.get("sheets", ())) != expected["sheets"]
                 or receipt.get("sheet_dimensions") != expected["sheet_dimensions"]
                 or receipt.get("formula_count") != expected["formula_count"]
+                or receipt.get("cached_formula_value_count")
+                != expected["cached_formula_value_count"]
+                or receipt.get("machine_absolute_path_count")
+                != expected["machine_absolute_path_count"]
+                or receipt.get("role") != expected["role"]
                 or receipt.get("missing_sheet_reference_count") != 0
                 or receipt.get("external_formula_reference_count") != 0
                 or receipt.get("formula_error_count") != 0
@@ -1741,6 +1810,18 @@ def validate_release_metadata(root: Path) -> GateResult:
                     )
                 )
         limitations.extend(str(item) for item in readiness.get("limitations", ()))
+        if not any(
+            "non-calculating" in limitation.casefold()
+            and "recalculation" in limitation.casefold()
+            for limitation in limitations
+        ):
+            issues.append(
+                _issue(
+                    "formula_recalculation_disclosure_missing",
+                    "readiness must disclose blank experimental formulas in non-calculating readers until recalculation",
+                    readiness_path,
+                )
+            )
     except (OSError, UnicodeError, json.JSONDecodeError, AttributeError) as error:
         issues.append(_issue("invalid_release_readiness", str(error), readiness_path))
 
@@ -1748,7 +1829,7 @@ def validate_release_metadata(root: Path) -> GateResult:
     try:
         summary = summary_path.read_text(encoding="utf-8")
         expected_overall = (
-            "Overall result for release package `unified-final-results-2026-09-01`: "
+            "Overall result for release package `unified-final-results-2026-09-01-v2`: "
             "**Passed — ready with documented limitations**."
         )
         gate_rows = {

@@ -1,0 +1,1 @@
+Return one JSON object with status ready, count 42, and verified true, with no markdown or extra keys.  Use only the supplied evidence, preserve every requested number and unit, distinguish observations from conclusions, and do not invent missing facts. Keep the response clear for its intended reader.

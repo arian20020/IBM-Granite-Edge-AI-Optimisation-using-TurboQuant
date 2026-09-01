@@ -198,6 +198,8 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
         "validation/coverage-validation.json",
         "validation/data-validation.json",
         "validation/integrity-validation.json",
+        "workbook/generated/openvino-experimental-fork-portable-results.xlsx",
+        "workbook/generated/portable-workbook-provenance.json",
     }
     assert required_files <= {
         path.relative_to(ROUTE).as_posix()

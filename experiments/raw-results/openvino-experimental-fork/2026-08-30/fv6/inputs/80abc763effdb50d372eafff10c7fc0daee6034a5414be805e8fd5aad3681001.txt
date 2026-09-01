@@ -1,0 +1,1 @@
+A course had 80 enrolled, 68 completed, and 51 completers passed. Calculate completion rate and pass rate among completers with different denominators.  Use only the supplied evidence, preserve every requested number and unit, distinguish observations from conclusions, and do not invent missing facts. Keep the response clear for its intended reader.

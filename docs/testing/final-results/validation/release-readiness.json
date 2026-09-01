@@ -1,14 +1,22 @@
 {
   "schema_version": "1.0.0",
   "release_date": "2026-09-01",
-  "release_version": "unified-final-results-2026-09-01",
+  "release_version": "unified-final-results-2026-09-01-v2",
   "valid": true,
   "status": "ready_with_documented_limitations",
   "basis": {
-    "snapshot": "canonical_git_index_release_bytes",
-    "input_revision": "c154a5461c9d54ae3ad2ccfa141a3a18f564e2a5",
-    "input_revision_role": "Task 13 base input; not the completed release commit",
+    "snapshot": "raw_git_archive_of_enclosing_release_commit",
+    "input_revision": "5083159bc69e4eee456007705fa9fdeef92c8e95",
+    "input_revision_role": "Final-review input revision; distinct from the completed release commit",
     "release_identity": "release_version plus manifest-sha256.txt plus enclosing Git commit",
+    "raw_git_archive_self_contained": true,
+    "external_hydration_required": false,
+    "raw_git_archive_validate_only_exit_code": 0,
+    "published_evidence_source_count": 1846,
+    "newly_admitted_cited_source_count": 173,
+    "newly_admitted_route_regeneration_alias_count": 2,
+    "newly_admitted_source_path_count": 175,
+    "admitted_controlled_register_count": 5,
     "route_count": 5,
     "cross_route_package_count": 1,
     "intended_attempt_count": 169,
@@ -293,6 +301,8 @@
     },
     "openvino_workbooks": {
       "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx": {
+        "role": "immutable_evidence_only_nonportable",
+        "sha256": "09820a5b19edb11efd7640f1d9a13802b82fb464ab6e14622998d2565c5aca83",
         "read_only": true,
         "data_only": false,
         "keep_links": true,
@@ -317,12 +327,16 @@
           "Source Data": "A1:BB83"
         },
         "formula_count": 275,
+        "cached_formula_value_count": 0,
+        "machine_absolute_path_count": 55,
         "missing_sheet_reference_count": 0,
         "external_formula_reference_count": 0,
         "formula_error_count": 0,
         "result": "passed"
       },
       "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx": {
+        "role": "immutable_evidence_only_nonportable",
+        "sha256": "1d5fc2893e0c7f412140b3fa1a26c4a0c18e3c65ecfa356e80549dc4cd10aff7",
         "read_only": true,
         "data_only": false,
         "keep_links": true,
@@ -349,18 +363,101 @@
           "Source Data": "A1:E16"
         },
         "formula_count": 0,
+        "cached_formula_value_count": 0,
+        "machine_absolute_path_count": 15,
         "missing_sheet_reference_count": 0,
         "external_formula_reference_count": 0,
         "formula_error_count": 0,
+        "result": "passed"
+      },
+      "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-portable-results.xlsx": {
+        "role": "primary_portable_derivative",
+        "sha256": "d6b41105b80ebbd1e4214ead709541a52c142b45b60efc9ff4baad2dd1dd8f23",
+        "source_sha256": "09820a5b19edb11efd7640f1d9a13802b82fb464ab6e14622998d2565c5aca83",
+        "provenance_receipt": "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json",
+        "read_only": true,
+        "data_only": false,
+        "keep_links": true,
+        "sheets": [
+          "Dashboard",
+          "Format Comparison",
+          "Sector Summary",
+          "Detailed Results",
+          "Quality Details",
+          "Availability Matrix",
+          "Methodology",
+          "Source Data"
+        ],
+        "sheet_dimensions": {
+          "Dashboard": "A1:N28",
+          "Format Comparison": "A1:M17",
+          "Sector Summary": "A1:N32",
+          "Detailed Results": "A1:AF82",
+          "Quality Details": "A1:U3889",
+          "Availability Matrix": "A1:J20",
+          "Methodology": "A1:H37",
+          "Source Data": "A1:BB83"
+        },
+        "formula_count": 275,
+        "cached_formula_value_count": 0,
+        "machine_absolute_path_count": 0,
+        "path_replacement_count": 55,
+        "missing_sheet_reference_count": 0,
+        "external_formula_reference_count": 0,
+        "formula_error_count": 0,
+        "scientific_values_formulas_and_structure_preserved": true,
+        "result": "passed"
+      },
+      "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-portable-results.xlsx": {
+        "role": "primary_portable_derivative",
+        "sha256": "402cad868092d2031d82819cc4d27b7c6840ddf28d13c9a00d1ec1c2be62ed7b",
+        "source_sha256": "1d5fc2893e0c7f412140b3fa1a26c4a0c18e3c65ecfa356e80549dc4cd10aff7",
+        "provenance_receipt": "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json",
+        "read_only": true,
+        "data_only": false,
+        "keep_links": true,
+        "sheets": [
+          "Executive Summary",
+          "Format Comparison",
+          "Sector Summary",
+          "Detailed Results",
+          "Quality Details",
+          "Availability Matrix",
+          "Missing Attempts",
+          "Methodology",
+          "Source Data"
+        ],
+        "sheet_dimensions": {
+          "Executive Summary": "A1:L29",
+          "Format Comparison": "A1:M14",
+          "Sector Summary": "A1:I185",
+          "Detailed Results": "A1:AJ50",
+          "Quality Details": "A1:U2165",
+          "Availability Matrix": "A1:G14",
+          "Missing Attempts": "A1:K11",
+          "Methodology": "A1:H31",
+          "Source Data": "A1:E16"
+        },
+        "formula_count": 0,
+        "cached_formula_value_count": 0,
+        "machine_absolute_path_count": 0,
+        "path_replacement_count": 15,
+        "missing_sheet_reference_count": 0,
+        "external_formula_reference_count": 0,
+        "formula_error_count": 0,
+        "scientific_values_formulas_and_structure_preserved": true,
         "result": "passed"
       }
     },
     "totals": {
       "pdf_files": 6,
       "pdf_pages_inspected": 202,
-      "openvino_workbooks": 2,
-      "workbook_sheets": 17,
-      "formulas_inspected": 275
+      "openvino_workbooks": 4,
+      "workbook_sheets": 34,
+      "formulas_inspected": 550,
+      "cached_formula_values": 0,
+      "source_machine_absolute_paths": 70,
+      "portable_machine_absolute_paths": 0
     }
   },
   "citation": {
@@ -373,7 +470,8 @@
     "Verified author metadata is unavailable, so CITATION.cff is intentionally omitted.",
     "Cross-route performance and quality are direct only where the comparability matrix records matching required dimensions.",
     "The release process validates and packages existing evidence; it does not rerun benchmarks or modify raw evidence.",
-    "The top-level manifest hashes canonical staged Git blobs. A preserved live worktree with protected uncommitted AtomicBot files is not the release authority and those bytes are not silently blessed."
+    "The top-level manifest hashes canonical staged Git blobs. A preserved live worktree with protected uncommitted AtomicBot files is not the release authority and those bytes are not silently blessed.",
+    "The experimental source and portable workbooks contain formulas without cached results; formula cells may appear blank in non-calculating readers until Excel recalculation."
   ],
-  "decision": "Publish release package unified-final-results-2026-09-01, identified by its manifest and enclosing Git commit, with the documented boundaries above; do not claim universal route superiority, deployment safety, licensing permission, or authorship."
+  "decision": "Publish self-contained release package unified-final-results-2026-09-01-v2, identified by its manifest and enclosing Git commit, with the documented boundaries above; no external hydration is required, and no claim is made of universal route superiority, deployment safety, licensing permission, or authorship."
 }

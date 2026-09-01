@@ -1,0 +1,1 @@
+Values are 4, 6, 8, 10. Calculate the arithmetic mean and show the sum.

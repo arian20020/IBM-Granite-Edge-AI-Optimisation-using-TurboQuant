@@ -310,6 +310,42 @@
       }
     },
     {
+      "@id": "#experimental-openvino-portable-workbook-generation",
+      "@type": "CreateAction",
+      "name": "Generate the portable experimental OpenVINO workbook and provenance receipt",
+      "object": [
+        {
+          "@id": "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
+        }
+      ],
+      "result": [
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-portable-results.xlsx"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json"
+        }
+      ]
+    },
+    {
+      "@id": "#official-openvino-portable-workbook-generation",
+      "@type": "CreateAction",
+      "name": "Generate the portable official OpenVINO workbook and provenance receipt",
+      "object": [
+        {
+          "@id": "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx"
+        }
+      ],
+      "result": [
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-portable-results.xlsx"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json"
+        }
+      ]
+    },
+    {
       "@id": "#06-cross-route-comparison-docx-generation",
       "@type": "CreateAction",
       "name": "Generate 06-cross-route-comparison DOCX report",
@@ -348,6 +384,16 @@
       "name": "Generated release artifact"
     },
     {
+      "@id": "#portable-workbook",
+      "@type": "DefinedTerm",
+      "name": "Portable primary workbook derivative"
+    },
+    {
+      "@id": "#nonportable-source-evidence",
+      "@type": "DefinedTerm",
+      "name": "Immutable evidence-only nonportable source workbook"
+    },
+    {
       "@id": "#release-manifest-generation",
       "@type": "CreateAction",
       "name": "Hash the complete release file set, excluding the manifest itself",
@@ -369,22 +415,22 @@
       ]
     },
     {
-      "@id": "#input-revision-c154a546",
+      "@id": "#input-revision-5083159b",
       "@type": "PropertyValue",
-      "name": "Task 13 input revision",
+      "name": "Final-review input revision",
       "propertyID": "git:inputRevision",
-      "value": "c154a5461c9d54ae3ad2ccfa141a3a18f564e2a5",
-      "description": "Base input revision only; the completed release is identified by its version, manifest, and enclosing Git commit."
+      "value": "5083159bc69e4eee456007705fa9fdeef92c8e95",
+      "description": "Distinct input revision only; the completed release is identified by its v2 version, manifest, and enclosing Git commit."
     },
     {
       "@id": "./",
       "@type": "Dataset",
       "name": "Granite + TurboQuant unified testing results",
-      "description": "Evidence-first release containing five normalized route packages and one guarded cross-route comparison.",
+      "description": "Self-contained evidence-first release containing five normalized route packages, one guarded cross-route comparison, and portable OpenVINO workbook derivatives.",
       "datePublished": "2026-09-01",
-      "version": "unified-final-results-2026-09-01",
+      "version": "unified-final-results-2026-09-01-v2",
       "isBasedOn": {
-        "@id": "#input-revision-c154a546"
+        "@id": "#input-revision-5083159b"
       },
       "license": {
         "@id": "LICENSES.md"
@@ -614,6 +660,18 @@
         },
         {
           "@id": "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-portable-results.xlsx"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-portable-results.xlsx"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json"
         },
         {
           "@id": "manifest-sha256.txt"
@@ -1067,6 +1125,15 @@
           "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.pdf"
         },
         {
+          "@id": "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-portable-results.xlsx"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json"
+        },
+        {
           "@id": "04-openvino-experimental-fork/results/attempts.csv"
         },
         {
@@ -1108,7 +1175,16 @@
       "@id": "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
       "@type": "File",
       "name": "Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
-      "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "description": "Byte-identical source evidence retained for audit; nonportable because it contains machine-specific absolute paths.",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "additionalType": [
+        {
+          "@id": "#nonportable-source-evidence"
+        }
+      ],
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
     },
     {
       "@id": "04-openvino-experimental-fork/results/summary-results.csv",
@@ -1199,6 +1275,44 @@
       }
     },
     {
+      "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-portable-results.xlsx",
+      "@type": "File",
+      "name": "Experimental OpenVINO portable results workbook",
+      "description": "Primary portable workbook derivative with stable repository-relative evidence references.",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        },
+        {
+          "@id": "#portable-workbook"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#experimental-openvino-portable-workbook-generation"
+      },
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json",
+      "@type": "File",
+      "name": "Experimental OpenVINO portable workbook provenance",
+      "encodingFormat": "application/json",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#experimental-openvino-portable-workbook-generation"
+      },
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
       "@id": "05-openvino-official-upstream/",
       "@type": "Dataset",
       "name": "05-openvino-official-upstream",
@@ -1214,6 +1328,15 @@
         },
         {
           "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.pdf"
+        },
+        {
+          "@id": "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-portable-results.xlsx"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json"
         },
         {
           "@id": "05-openvino-official-upstream/results/attempts.csv"
@@ -1257,7 +1380,16 @@
       "@id": "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx",
       "@type": "File",
       "name": "Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx",
-      "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "description": "Byte-identical source evidence retained for audit; nonportable because it contains machine-specific absolute paths.",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "additionalType": [
+        {
+          "@id": "#nonportable-source-evidence"
+        }
+      ],
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
     },
     {
       "@id": "05-openvino-official-upstream/results/summary-results.csv",
@@ -1343,6 +1475,44 @@
       "@type": "File",
       "name": "05-openvino-official-upstream canonical report",
       "encodingFormat": "text/markdown",
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-portable-results.xlsx",
+      "@type": "File",
+      "name": "Official OpenVINO portable results workbook",
+      "description": "Primary portable workbook derivative with stable repository-relative evidence references.",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        },
+        {
+          "@id": "#portable-workbook"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#official-openvino-portable-workbook-generation"
+      },
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json",
+      "@type": "File",
+      "name": "Official OpenVINO portable workbook provenance",
+      "encodingFormat": "application/json",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#official-openvino-portable-workbook-generation"
+      },
       "isPartOf": {
         "@id": "05-openvino-official-upstream/"
       }

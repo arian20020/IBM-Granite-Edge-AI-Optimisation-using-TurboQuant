@@ -1,0 +1,46 @@
+model,weight_precision,cache_codec,status,executed,decode_tps,ttft_ms,peak_working_set_mb,kv_mb,quality_score,failure_reason
+granite-3b,int4,tbq3,passed,true,17.751513,4413.813965,3635.527,,5.4167,
+granite-3b,int8,tbq3,passed,true,8.685952,1393.526489,6639.434,,5.4792,
+granite-3b,fp16,tbq3,conversion_failed,false,,,,,,emergency_ram_floor_reached
+granite-3b,int4,u4,passed,true,16.503994,5474.520508,3634.691,,5.5208,
+granite-3b,int8,u4,passed,true,10.20571,961.838562,6641.211,,5.7917,
+granite-3b,fp16,u4,conversion_failed,false,,,,,,emergency_ram_floor_reached
+granite-3b,int4,tbq4,passed,true,16.401503,5580.098633,3634.789,,5.8542,
+granite-3b,int8,tbq4,passed,true,10.180064,1138.158569,6640.996,,5.5208,
+granite-3b,fp16,tbq4,conversion_failed,false,,,,,,emergency_ram_floor_reached
+granite-3b,int4,u8,passed,true,16.442816,5461.910156,3636.484,,5.7708,
+granite-3b,int8,u8,passed,true,10.110771,1007.126221,6643.984,,5.7708,
+granite-3b,fp16,u8,conversion_failed,false,,,,,,emergency_ram_floor_reached
+granite-3b,int4,f16,passed,true,16.448201,5544.200684,3636.703,,5.7708,
+granite-3b,int8,f16,passed,true,10.062454,1012.513428,6645.016,,5.7708,
+granite-3b,fp16,f16,conversion_failed,false,,,,,,emergency_ram_floor_reached
+granite-8b,int4,tbq3,passed,true,7.095104,14040.073242,8537.84,,5.2083,
+granite-8b,int8,tbq3,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,fp16,tbq3,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,int4,u4,passed,true,7.56234,13993.325195,8538.504,,5.375,
+granite-8b,int8,u4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,fp16,u4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,int4,tbq4,passed,true,7.594366,13886.695312,8535.387,,5.6042,
+granite-8b,int8,tbq4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,fp16,tbq4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,int4,u8,passed,true,7.582979,13955.961914,8539.691,,5.6042,
+granite-8b,int8,u8,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,fp16,u8,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,int4,f16,passed,true,7.613034,13917.237305,8540.461,,5.6042,
+granite-8b,int8,f16,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-8b,fp16,f16,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int4,tbq3,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int8,tbq3,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,fp16,tbq3,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int4,u4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int8,u4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,fp16,u4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int4,tbq4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int8,tbq4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,fp16,tbq4,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int4,u8,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int8,u8,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,fp16,u8,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int4,f16,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,int8,f16,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host
+granite-30b,fp16,f16,hardware_preflight_blocked,false,,,,,,official source metadata proves conversion cannot preserve the 2 GiB emergency RAM floor on this host

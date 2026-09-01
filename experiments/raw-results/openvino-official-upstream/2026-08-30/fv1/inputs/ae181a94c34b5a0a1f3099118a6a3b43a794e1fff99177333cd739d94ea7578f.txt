@@ -1,0 +1,1 @@
+Instructions say take one 10 mg tablet each morning for seven days with water and never double a missed dose. Convert this into clear patient-facing instructions.  Use only the supplied evidence, preserve every requested number and unit, distinguish observations from conclusions, and do not invent missing facts. Keep the response clear for its intended reader.

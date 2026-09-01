@@ -6,7 +6,7 @@ fb8e365c7bca1d3388b1bfbe6b98d2d0e8434fbd6d2f0a5f146569c34fb85342  docs/testing/f
 0eff70d27732a688503d8eb486908bd252d76088ddb50a25feb512d1a760fb84  docs/testing/final-results/04-openvino-experimental-fork/quality/outputs-index.csv
 a57506758297d1166d1f674b727cb7e79ec9b70319064215e3c66f2f37e25ac3  docs/testing/final-results/04-openvino-experimental-fork/quality/prompt-suite.csv
 178076af76aba1e4408c6ab61af530256b36eef59f027cb9c957ab2b2689d13f  docs/testing/final-results/04-openvino-experimental-fork/quality/scores.csv
-e575d4d0ba2b3fa3158ef899db516261db06b9ae5e42ce9b0600df4dbbaa45f9  docs/testing/final-results/04-openvino-experimental-fork/reproduction/README.md
+5e54ce6aaf0a53e6aa016351879d3fcce0e13f6f908c3320c93950b0034574c6  docs/testing/final-results/04-openvino-experimental-fork/reproduction/README.md
 35b5ed3aa3011f39df0f11f217a309f20a20dcbdfb5b8a4ade7acfaf729a8c4b  docs/testing/final-results/04-openvino-experimental-fork/results/attempts.csv
 e06498f6d209d9f5f373523e1881a74317d46618aaa244138ac5a1eef77facd8  docs/testing/final-results/04-openvino-experimental-fork/results/availability-matrix.csv
 b13691be5f94c348b4ca5aff657d8ca277744796320d9e27eb02a043ba14c046  docs/testing/final-results/04-openvino-experimental-fork/results/measurements.csv
@@ -24,4 +24,6 @@ bb7a5b9c95614c7d621307e31b4a1866297e57ea6cc41116e2042dc864e772dc  docs/testing/f
 848ac54fda1f10b16e83ad8866e763fa8634184d9bca3edf26f8e0bd47ed8ae0  docs/testing/final-results/04-openvino-experimental-fork/validation/workbook-parity.json
 66d5b6e707fb104c2756158e6bfec117101a6c1877c887d15b44de88d23cd437  docs/testing/final-results/04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.docx
 3f63cb7e4f6560c3234aa9023befe0d4bd3d3848580ee69166267f58ebcf9f64  docs/testing/final-results/04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.pdf
+d6b41105b80ebbd1e4214ead709541a52c142b45b60efc9ff4baad2dd1dd8f23  docs/testing/final-results/04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-portable-results.xlsx
+5f61271b252177ea554e82a816180dd6dd95a20a5da27aa48cd8daf54d1cc72f  docs/testing/final-results/04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json
 f3a95f5accc21fb46206e0d32ebd74e4560e87ae8f4bd0c5a13b509e85c9412d  docs/testing/final-results/04-openvino-experimental-fork/workbook/source/openvino-experimental-fork-final-report.md

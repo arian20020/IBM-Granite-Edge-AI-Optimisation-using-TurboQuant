@@ -1,0 +1,82 @@
+model,weight_precision,cache_codec,status,executed,decode_tps,ttft_ms,peak_working_set_mb,kv_mb,quality_score,failure_reason
+granite-3b,int4,tbq3,passed,true,17.792446,5937.23291,3632.773,,5.2083,
+granite-3b,int8,tbq3,passed,true,9.796556,1042.16748,6639.477,,5.75,
+granite-3b,fp16,tbq3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-3b fp16
+granite-3b,int4,polar3,passed,true,16.084175,5553.71582,3632.387,,0.8958,
+granite-3b,int8,polar3,passed,true,10.07309,1000.142029,6639.219,,2.2292,
+granite-3b,fp16,polar3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-3b fp16
+granite-3b,int4,tbq3_qjl,passed,true,16.412837,5502.022949,3631.738,,2.8333,
+granite-3b,int8,tbq3_qjl,passed,true,10.192055,1164.085327,6638.684,,4.5833,
+granite-3b,fp16,tbq3_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-3b fp16
+granite-3b,int4,u4,passed,true,17.115348,5915.463379,3632.902,,5.6667,
+granite-3b,int8,u4,passed,true,10.342418,955.917114,6637.652,,6.0833,
+granite-3b,fp16,u4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-3b fp16
+granite-3b,int4,tbq4,passed,true,16.625103,5459.310059,3632.941,,5.0,
+granite-3b,int8,tbq4,passed,true,10.384617,987.274841,6639.398,,5.9375,
+granite-3b,fp16,tbq4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-3b fp16
+granite-3b,int4,polar4,passed,true,15.837707,5776.168945,3631.453,,6.0,
+granite-3b,int8,polar4,passed,true,9.960445,963.089233,6639.785,,5.5,
+granite-3b,fp16,polar4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-3b fp16
+granite-3b,int4,tbq4_qjl,passed,true,16.607259,5635.446777,3632.68,,5.4375,
+granite-3b,int8,tbq4_qjl,passed,true,10.218998,1048.270752,6637.863,,5.625,
+granite-3b,fp16,tbq4_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-3b fp16
+granite-3b,int4,u8,passed,true,17.12676,5560.893066,3633.441,,0.0,
+granite-3b,int8,u8,passed,true,10.458758,953.454041,6642.008,,0.0,
+granite-3b,fp16,u8,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-3b fp16
+granite-3b,int4,f16,passed,true,16.972069,5474.490234,3635.02,,0.0,
+granite-3b,int8,f16,passed,true,10.540252,1019.314453,6640.77,,0.0,
+granite-3b,fp16,f16,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-3b fp16
+granite-8b,int4,tbq3,passed,true,7.367582,15094.581055,8533.848,,5.375,
+granite-8b,int8,tbq3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b int8
+granite-8b,fp16,tbq3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b fp16
+granite-8b,int4,polar3,passed,true,7.535494,13918.449219,8534.48,,3.8333,
+granite-8b,int8,polar3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b int8
+granite-8b,fp16,polar3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b fp16
+granite-8b,int4,tbq3_qjl,passed,true,7.634369,14031.924805,8534.418,,5.25,
+granite-8b,int8,tbq3_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b int8
+granite-8b,fp16,tbq3_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b fp16
+granite-8b,int4,u4,passed,true,7.894287,14452.326172,8534.902,,5.0833,
+granite-8b,int8,u4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b int8
+granite-8b,fp16,u4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b fp16
+granite-8b,int4,tbq4,passed,true,7.765224,14146.05957,8535.555,,5.9792,
+granite-8b,int8,tbq4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b int8
+granite-8b,fp16,tbq4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b fp16
+granite-8b,int4,polar4,passed,true,7.475157,13939.860352,8536.141,,5.4375,
+granite-8b,int8,polar4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b int8
+granite-8b,fp16,polar4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b fp16
+granite-8b,int4,tbq4_qjl,passed,true,7.364409,14518.374023,8535.789,,5.375,
+granite-8b,int8,tbq4_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b int8
+granite-8b,fp16,tbq4_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b fp16
+granite-8b,int4,u8,passed,true,7.660995,14730.056641,8539.164,,0.0,
+granite-8b,int8,u8,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b int8
+granite-8b,fp16,u8,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b fp16
+granite-8b,int4,f16,passed,true,7.687743,14642.585938,8538.121,,0.0,
+granite-8b,int8,f16,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b int8
+granite-8b,fp16,f16,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-8b fp16
+granite-30b,int4,tbq3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int4
+granite-30b,int8,tbq3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int8
+granite-30b,fp16,tbq3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b fp16
+granite-30b,int4,polar3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int4
+granite-30b,int8,polar3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int8
+granite-30b,fp16,polar3,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b fp16
+granite-30b,int4,tbq3_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int4
+granite-30b,int8,tbq3_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int8
+granite-30b,fp16,tbq3_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b fp16
+granite-30b,int4,u4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int4
+granite-30b,int8,u4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int8
+granite-30b,fp16,u4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b fp16
+granite-30b,int4,tbq4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int4
+granite-30b,int8,tbq4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int8
+granite-30b,fp16,tbq4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b fp16
+granite-30b,int4,polar4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int4
+granite-30b,int8,polar4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int8
+granite-30b,fp16,polar4,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b fp16
+granite-30b,int4,tbq4_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int4
+granite-30b,int8,tbq4_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int8
+granite-30b,fp16,tbq4_qjl,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b fp16
+granite-30b,int4,u8,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int4
+granite-30b,int8,u8,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int8
+granite-30b,fp16,u8,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b fp16
+granite-30b,int4,f16,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int4
+granite-30b,int8,f16,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b int8
+granite-30b,fp16,f16,model_artifact_unavailable,false,,,,,,no validated OpenVINO artifact supplied for granite-30b fp16

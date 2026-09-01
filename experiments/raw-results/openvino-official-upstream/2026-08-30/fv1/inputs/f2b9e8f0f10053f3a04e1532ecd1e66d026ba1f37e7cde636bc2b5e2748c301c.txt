@@ -1,0 +1,1 @@
+Explain in plain language how KV-cache compression affects memory, speed, and answer quality for an offline language model.

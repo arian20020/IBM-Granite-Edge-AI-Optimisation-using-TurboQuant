@@ -1,0 +1,1 @@
+A fictional trial has improvement in 30/50 for A and 24/50 for B. Calculate both rates and absolute percentage-point difference without claiming causation.  Use only the supplied evidence, preserve every requested number and unit, distinguish observations from conclusions, and do not invent missing facts. Keep the response clear for its intended reader.

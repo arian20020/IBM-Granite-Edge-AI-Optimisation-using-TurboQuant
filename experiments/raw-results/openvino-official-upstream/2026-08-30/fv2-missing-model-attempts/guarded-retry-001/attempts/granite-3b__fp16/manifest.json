@@ -1,0 +1,112 @@
+{
+  "artifact_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\models\\openvino\\granite-3b-fp16-official-ibm-c0650403",
+  "cache_ladder_if_available": [
+    "tbq3",
+    "u4",
+    "tbq4",
+    "u8",
+    "f16"
+  ],
+  "case_id": "granite-3b__fp16",
+  "failure_reason": "FileNotFoundError: [WinError 3] The system cannot find the path specified: '..\\\\..\\\\blobs\\\\903cac6443fe2b41f95d4418da168b6e4129c073' -> 'C:\\\\Users\\\\Student\\\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\\\.worktrees\\\\openvino-turboquant-recovery\\\\external\\\\models\\\\huggingface-official-granite-cache\\\\models--ibm-granite--granite-4.1-3b\\\\snapshots\\\\c0650403e44e78ec0262dab1c90914c65b196c4e\\\\chat_template.jinja'",
+  "failure_stage": "model_acquisition",
+  "launch_policy": "guarded_probe",
+  "model": "granite-3b",
+  "preflight": {
+    "available_ram_bytes": 9478864896,
+    "emergency_floor_bytes": 2147483648,
+    "estimated_peak_bytes": 7879456616,
+    "required_available_bytes": 10026940264,
+    "shortfall_bytes": 548075368,
+    "status": "hardware_preflight_blocked"
+  },
+  "schema": "official-openvino-missing-model-attempt/v1",
+  "source": {
+    "files": [
+      {
+        "lfs_sha256": null,
+        "path": ".gitattributes",
+        "size": 1519
+      },
+      {
+        "lfs_sha256": null,
+        "path": "README.md",
+        "size": 32480
+      },
+      {
+        "lfs_sha256": null,
+        "path": "chat_template.jinja",
+        "size": 6099
+      },
+      {
+        "lfs_sha256": null,
+        "path": "config.json",
+        "size": 801
+      },
+      {
+        "lfs_sha256": null,
+        "path": "generation_config.json",
+        "size": 147
+      },
+      {
+        "lfs_sha256": null,
+        "path": "merges.txt",
+        "size": 916646
+      },
+      {
+        "lfs_sha256": "895bf5f2d7c8b06ca902499567d3c3d9ed30061e4c5ad94bf8216286ca67e2fd",
+        "path": "model-00001-of-00002.safetensors",
+        "size": 4991538344
+      },
+      {
+        "lfs_sha256": "de8c9efdaa6f669d595bda8b949213cba92ea69689fd2a27fbceed3d1ebeb2f7",
+        "path": "model-00002-of-00002.safetensors",
+        "size": 1814176448
+      },
+      {
+        "lfs_sha256": null,
+        "path": "model.safetensors.index.json",
+        "size": 29871
+      },
+      {
+        "lfs_sha256": null,
+        "path": "model.sig",
+        "size": 10696
+      },
+      {
+        "lfs_sha256": null,
+        "path": "special_tokens_map.json",
+        "size": 579
+      },
+      {
+        "lfs_sha256": null,
+        "path": "tokenizer.json",
+        "size": 7153421
+      },
+      {
+        "lfs_sha256": null,
+        "path": "tokenizer_config.json",
+        "size": 17659
+      },
+      {
+        "lfs_sha256": null,
+        "path": "vocab.json",
+        "size": 1612704
+      }
+    ],
+    "model_id": "ibm-granite/granite-4.1-3b",
+    "revision": "c0650403e44e78ec0262dab1c90914c65b196c4e",
+    "tensor_bytes": 6805714792
+  },
+  "status": "acquisition_failed",
+  "tool_versions": {
+    "huggingface-hub": "0.36.0",
+    "nncf": "3.3.0",
+    "openvino": "2026.3.1",
+    "optimum": "2.3.0",
+    "optimum-intel": "2.1.0",
+    "psutil": "7.0.0",
+    "torch": "2.13.0"
+  },
+  "weight_precision": "fp16"
+}

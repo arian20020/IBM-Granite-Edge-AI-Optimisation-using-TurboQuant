@@ -3412,12 +3412,18 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         "The adapter only normalizes existing evidence; it does not rerun inference. "
         "Do not replace unavailable observations with zero, infer missing hardware, "
         "or copy values from another campaign. A source conflict stops generation.\n\n"
+        "The source XLSX is retained byte-identically under `../results/source/` as "
+        "evidence-only/nonportable. The primary handoff is "
+        "`../workbook/generated/openvino-experimental-fork-portable-results.xlsx`; "
+        "its adjacent provenance receipt records the 55 absolute-path replacements "
+        "and source/output hashes. The 275 formulas have no cached results and may "
+        "appear blank in non-calculating readers until Excel recalculation.\n\n"
         "## Manifest update boundary\n\n"
-        "`../evidence/manifest-sha256.txt` is an exact receipt for the current planned "
-        "route file set. Task 8 will add generated report and workbook artifacts. After "
-        "that planned set is complete, regenerate the manifest deliberately and validate "
-        "it. The non-destructive manifest API intentionally refuses to overwrite a "
-        "different existing receipt during a routine adapter rerun.\n",
+        "`../evidence/manifest-sha256.txt` is an exact receipt for the complete route "
+        "file set, including the portable XLSX and its provenance receipt. Regenerate "
+        "it only after the final file set is known; the non-destructive manifest API "
+        "intentionally refuses to overwrite a different existing receipt during a "
+        "routine adapter rerun.\n",
         encoding="utf-8",
         newline="\n",
     )
@@ -4436,12 +4442,15 @@ def write_official_route(repo_root: Path) -> RouteBundle:
         "## Authority boundary\n\n"
         f"- `{detailed.relative_path}` ({detailed.sha256}) is authoritative for all 45 final statuses.\n"
         f"- `{quality.relative_path}` ({quality.sha256}) and the indexed fv1 raw results supply observations only for the 15 fv2-passed cases.\n"
-        f"- `{primary.relative_path}` ({primary.sha256}) is the primary revised workbook copied into `../results/source/`.\n"
+        f"- `{primary.relative_path}` ({primary.sha256}) is the revised workbook copied byte-identically into `../results/source/` as evidence-only/nonportable.\n"
         f"- `{prior.relative_path}` ({prior.sha256}) is indexed as prior evidence and is not duplicated.\n\n"
+        "The primary handoff is `../workbook/generated/"
+        "openvino-official-upstream-portable-results.xlsx`; its adjacent provenance "
+        "receipt records the 15 absolute-path replacements and source/output hashes. "
         "The adapter does not rerun inference. It rejects missing passed evidence, any "
         "published metric on a non-passed fv2 row, source conflicts, and missing final "
-        "failure manifests. The checksum manifest is non-destructive; Task 8 must "
-        "deliberately regenerate it after adding final report artifacts.\n",
+        "failure manifests. Regenerate the non-destructive checksum manifest only after "
+        "the complete report, portable workbook, and receipt set is present.\n",
         encoding="utf-8",
         newline="\n",
     )

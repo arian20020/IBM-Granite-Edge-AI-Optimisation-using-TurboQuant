@@ -1,0 +1,1 @@
+Project Cedar launched on 14 March, uses CPU, and has a 12 GiB memory limit. Return project, date, device, and memory in that order.  Use only the supplied evidence, preserve every requested number and unit, distinguish observations from conclusions, and do not invent missing facts. Keep the response clear for its intended reader.
