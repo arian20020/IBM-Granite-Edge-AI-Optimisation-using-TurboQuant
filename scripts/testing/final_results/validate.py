@@ -932,7 +932,11 @@ def _route_directories(root: Path) -> list[Path]:
     return sorted(
         path
         for path in Path(root).iterdir()
-        if path.is_dir() and re.match(r"^0[1-6]-", path.name)
+        if path.is_dir()
+        and (
+            re.match(r"^\d{2}-", path.name)
+            or (path / "route-manifest.json").is_file()
+        )
     )
 
 
@@ -1056,10 +1060,19 @@ def _read_csv_table(path: Path) -> tuple[tuple[str, ...], list[dict[str, str]]]:
         reader = csv.DictReader(handle)
         if reader.fieldnames is None:
             raise ValueError("missing CSV header")
-        return tuple(reader.fieldnames), [
-            {str(key): str(value or "") for key, value in row.items() if key is not None}
-            for row in reader
-        ]
+        fields = tuple(reader.fieldnames)
+        rows: list[dict[str, str]] = []
+        for row_number, row in enumerate(reader, start=2):
+            surplus = row.get(None)
+            missing = sum(value is None for key, value in row.items() if key is not None)
+            if surplus is not None or missing:
+                actual_width = len(fields) + len(surplus or ()) - missing
+                raise ValueError(
+                    f"row width mismatch at row {row_number}: "
+                    f"expected {len(fields)}, found {actual_width}"
+                )
+            rows.append({str(key): str(value or "") for key, value in row.items()})
+        return fields, rows
 
 
 def _catalog_tables_match(

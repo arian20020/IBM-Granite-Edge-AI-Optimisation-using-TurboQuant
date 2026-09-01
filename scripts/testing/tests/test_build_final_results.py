@@ -133,6 +133,24 @@ ROUTES = (
     ("04-openvino-experimental-fork", "openvino-experimental-fork"),
     ("05-openvino-official-upstream", "openvino-official-upstream"),
 )
+COLLECTION_CSV_TABLES = (
+    ("catalog/route-register.csv", "catalog_content_mismatch"),
+    ("catalog/campaign-summary.csv", "catalog_content_mismatch"),
+    ("catalog/performance-summary.csv", "catalog_content_mismatch"),
+    ("catalog/quality-summary.csv", "catalog_content_mismatch"),
+    ("catalog/failure-summary.csv", "catalog_content_mismatch"),
+    ("catalog/evidence-manifest.csv", "catalog_content_mismatch"),
+    ("catalog/claim-evidence-map.csv", "catalog_content_mismatch"),
+    ("catalog/comparability-matrix.csv", "catalog_content_mismatch"),
+    (
+        "06-cross-route-comparison/results/route-status-summary.csv",
+        "cross_route_result_mismatch",
+    ),
+    (
+        "06-cross-route-comparison/results/comparability-matrix.csv",
+        "cross_route_result_mismatch",
+    ),
+)
 
 
 def _write_pdf(path: Path, text: str) -> None:
@@ -868,6 +886,42 @@ def test_collection_requires_exact_complete_six_route_directories(tmp_path):
     assert "collection_route_set_mismatch" in _codes(report, "schema")
 
 
+@pytest.mark.parametrize(
+    ("directory_name", "write_manifest"),
+    (
+        ("07-rogue-route", True),
+        ("07-route-shaped-only", False),
+        ("manifest-only-rogue", True),
+    ),
+)
+def test_collection_rejects_rogue_route_directory(
+    tmp_path, directory_name, write_manifest
+):
+    collection, _, _, _ = _collection(tmp_path)
+    rogue = collection / directory_name
+    rogue.mkdir()
+    if write_manifest:
+        write_json(rogue / "route-manifest.json", {"route_id": "rogue-route"})
+
+    report = validate_collection(collection)
+
+    assert report.gate("schema").valid is False
+    assert report.gate("release_readiness").valid is False
+    assert "collection_route_set_mismatch" in _codes(report, "schema")
+
+
+def test_collection_ignores_non_route_support_directories(tmp_path):
+    collection, _, _, _ = _collection(tmp_path)
+    for name in ("validation", "standards", "sources"):
+        support = collection / name
+        support.mkdir(exist_ok=True)
+        (support / "README.md").write_text("support files\n", encoding="utf-8")
+
+    report = validate_collection(collection)
+
+    assert report.valid is True
+
+
 def test_collection_reconciles_cross_route_source_identities_and_counts(tmp_path):
     collection, _, _, cross = _collection(tmp_path)
     manifest_path = cross / "route-manifest.json"
@@ -926,6 +980,37 @@ def test_catalog_numeric_cells_allow_equivalent_integer_float_spelling(tmp_path)
     report = validate_collection(collection)
 
     assert report.valid is True
+
+
+@pytest.mark.parametrize(("relative_path", "expected_code"), COLLECTION_CSV_TABLES)
+@pytest.mark.parametrize("width_mutation", ("long", "short", "header-long"))
+def test_collection_csv_tables_reject_row_width_mismatch(
+    tmp_path, relative_path, expected_code, width_mutation
+):
+    collection, _, _, _ = _collection(tmp_path)
+    path = collection / relative_path
+    with path.open(encoding="utf-8", newline="") as handle:
+        table = list(csv.reader(handle))
+    row_index = 1
+    if len(table) == 1:
+        table.append(["wrong"] * len(table[0]))
+    if width_mutation == "header-long":
+        table[0].append("rogue-header")
+    elif width_mutation == "long":
+        table[row_index].append("rogue-cell")
+    else:
+        table[row_index].pop()
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerows(table)
+
+    report = validate_collection(collection)
+
+    assert report.gate("release_readiness").valid is False
+    assert any(
+        issue.code == expected_code and "row width mismatch" in issue.message
+        for issue in report.gate("comparability").issues
+    ), [(issue.code, issue.message) for issue in report.gate("comparability").issues]
 
 
 def test_receipt_writer_emits_required_json_and_markdown(tmp_path):
