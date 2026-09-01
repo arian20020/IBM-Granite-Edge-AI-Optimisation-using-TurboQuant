@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import re
+import subprocess
 import sys
+import tarfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
 import fitz
 import openpyxl
+import pytest
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
@@ -80,6 +84,55 @@ FORMULA_ERROR_VALUES = {
     "#NUM!",
     "#NULL!",
 }
+
+
+def _git_index_release_blobs() -> dict[str, bytes]:
+    prefix = RELEASE_ROOT.relative_to(REPOSITORY_ROOT).as_posix()
+    listing = subprocess.run(
+        ["git", "ls-files", "--stage", "--", prefix],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    blobs: dict[str, bytes] = {}
+    for line in listing.splitlines():
+        metadata, repository_relative = line.split("\t", 1)
+        _, object_id, stage = metadata.split()
+        assert stage == "0", repository_relative
+        release_relative = PurePosixPath(repository_relative).relative_to(prefix).as_posix()
+        blobs[release_relative] = subprocess.run(
+            ["git", "cat-file", "blob", object_id],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout
+    return blobs
+
+
+def _write_filesystem_manifest(release_root: Path) -> None:
+    manifest = release_root / "manifest-sha256.txt"
+    entries = []
+    for path in sorted(
+        (path for path in release_root.rglob("*") if path.is_file() and path != manifest),
+        key=lambda path: path.relative_to(release_root).as_posix(),
+    ):
+        relative = path.relative_to(release_root).as_posix()
+        entries.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative}")
+    manifest.write_text("\n".join(entries) + "\n", encoding="utf-8", newline="\n")
+
+
+@pytest.fixture
+def canonical_release(tmp_path: Path) -> Path:
+    root = tmp_path / "final-results"
+    for relative, payload in _git_index_release_blobs().items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+    _write_filesystem_manifest(root)
+    baseline = validate_release_metadata(root)
+    assert baseline.valid, baseline.issues
+    return root
 
 
 def _markdown_targets(path: Path) -> set[str]:
@@ -345,3 +398,163 @@ def test_release_metadata_gate_rejects_a_partial_metadata_publication(tmp_path):
 
     assert gate.valid is False
     assert {issue.code for issue in gate.issues} == {"missing_release_metadata"}
+
+
+def test_release_manifest_matches_git_index_canonical_blobs_for_archive_portability():
+    blobs = _git_index_release_blobs()
+    lines = (RELEASE_ROOT / "manifest-sha256.txt").read_text(encoding="utf-8").splitlines()
+    entries = dict(line.split("  ", 1)[::-1] for line in lines)
+    expected_paths = set(blobs) - {"manifest-sha256.txt"}
+
+    assert set(entries) == expected_paths
+    for relative in sorted(expected_paths):
+        assert entries[relative] == hashlib.sha256(blobs[relative]).hexdigest(), relative
+
+    critical_route_metadata = {
+        f"{route}/{name}"
+        for route in ("02-atomicbot-turboquant", "03-animehacker-tq3-0")
+        for name in ("route-manifest.json", "evidence/manifest-sha256.txt")
+    }
+    assert critical_route_metadata <= entries.keys()
+
+    tree = subprocess.run(
+        ["git", "write-tree"],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    archive = subprocess.run(
+        ["git", "archive", "--format=tar", tree],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+    prefix = RELEASE_ROOT.relative_to(REPOSITORY_ROOT).as_posix() + "/"
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as bundle:
+        archived = {
+            member.name.removeprefix(prefix): bundle.extractfile(member).read()
+            for member in bundle.getmembers()
+            if member.isfile() and member.name.startswith(prefix)
+        }
+    assert set(archived) == set(blobs)
+    for relative, payload in blobs.items():
+        assert archived[relative] == payload, relative
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_code"),
+    [
+        (lambda payload: payload.update(valid=False), "release_readiness_invalid"),
+        (lambda payload: payload.update(status="failed"), "release_readiness_invalid"),
+        (
+            lambda payload: next(iter(payload["qa"]["pdf_reports"].values())).update(
+                page_count=0,
+                inspected_pages=[],
+            ),
+            "pdf_qa_invalid",
+        ),
+        (
+            lambda payload: next(
+                iter(payload["qa"]["openvino_workbooks"].values())
+            ).update(result="failed"),
+            "workbook_qa_invalid",
+        ),
+        (
+            lambda payload: next(
+                iter(payload["qa"]["openvino_workbooks"].values())
+            ).update(formula_count=0),
+            "workbook_qa_invalid",
+        ),
+        (
+            lambda payload: next(
+                iter(payload["qa"]["openvino_workbooks"].values())
+            ).update(missing_sheet_reference_count=1),
+            "workbook_qa_invalid",
+        ),
+    ],
+)
+def test_release_metadata_gate_fails_closed_on_readiness_mutations(
+    canonical_release: Path,
+    mutation,
+    expected_code: str,
+):
+    path = canonical_release / "validation/release-readiness.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    mutation(payload)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
+    _write_filesystem_manifest(canonical_release)
+
+    gate = validate_release_metadata(canonical_release)
+
+    assert gate.valid is False
+    assert expected_code in {issue.code for issue in gate.issues}
+
+
+def test_release_metadata_gate_rejects_human_summary_disagreement(
+    canonical_release: Path,
+):
+    path = canonical_release / "validation/validation-summary.md"
+    text = path.read_text(encoding="utf-8")
+    assert (
+        "Overall result for release package `unified-final-results-2026-09-01`: **Passed"
+        in text
+    )
+    path.write_text(
+        text.replace(
+            "Overall result for release package `unified-final-results-2026-09-01`: **Passed",
+            "Overall result for release package `unified-final-results-2026-09-01`: **Failed",
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    _write_filesystem_manifest(canonical_release)
+
+    gate = validate_release_metadata(canonical_release)
+
+    assert gate.valid is False
+    assert "validation_summary_mismatch" in {issue.code for issue in gate.issues}
+
+
+def test_release_metadata_gate_rejects_human_summary_count_disagreement(
+    canonical_release: Path,
+):
+    path = canonical_release / "validation/validation-summary.md"
+    text = path.read_text(encoding="utf-8")
+    assert "| `release_metadata` | Passed | 0 | 5 |" in text
+    path.write_text(
+        text.replace(
+            "| `release_metadata` | Passed | 0 | 5 |",
+            "| `release_metadata` | Passed | 0 | 999 |",
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    _write_filesystem_manifest(canonical_release)
+
+    gate = validate_release_metadata(canonical_release)
+
+    assert gate.valid is False
+    assert "validation_summary_mismatch" in {issue.code for issue in gate.issues}
+
+
+def test_release_metadata_gate_requires_generated_marker_and_activity(
+    canonical_release: Path,
+):
+    path = canonical_release / "ro-crate-metadata.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    expected_pdf = (
+        "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf"
+    )
+    entity = next(item for item in payload["@graph"] if item.get("@id") == expected_pdf)
+    entity.pop("additionalType")
+    entity.pop("wasGeneratedBy")
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
+    _write_filesystem_manifest(canonical_release)
+
+    gate = validate_release_metadata(canonical_release)
+
+    codes = {issue.code for issue in gate.issues}
+    assert gate.valid is False
+    assert "generated_artifact_marker_missing" in codes
+    assert "generated_artifact_activity_missing" in codes

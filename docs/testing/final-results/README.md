@@ -1,6 +1,6 @@
 # Granite + TurboQuant unified testing results
 
-> **Release status — ready with documented limitations.** The five route packages account for all **169 intended attempts**: 81 passed, 6 failed, 28 blocked, and 54 artifact-unavailable. All ordered validation gates pass for the committed clean snapshot at `c154a5461c9d54ae3ad2ccfa141a3a18f564e2a5`. This is a bounded evidence release, not a universal route ranking or a new benchmark run.
+> **Release status — ready with documented limitations.** The five route packages account for all **169 intended attempts**: 81 passed, 6 failed, 28 blocked, and 54 artifact-unavailable. All ordered validation gates pass for release package `unified-final-results-2026-09-01`. Task 13 commit `c154a5461c9d54ae3ad2ccfa141a3a18f564e2a5` is its input revision, not the completed release identity. This is a bounded evidence release, not a universal route ranking or a new benchmark run.
 
 ## Start here
 
@@ -34,4 +34,4 @@ For audit and reuse:
 
 Availability and complete attempt accounting precede performance comparison. A passed observation is not proof of deployment suitability, clinical safety, educational efficacy, or causal superiority. OpenVINO quality values are published only for passed configurations. Missing artifacts, blocked conversions, failed attempts, different prompts, and unmatched runtime dimensions remain visible rather than being converted to zero or silently discarded.
 
-The top manifest describes the **committed clean release snapshot**. A live worktree containing protected, uncommitted AtomicBot bytes can legitimately fail only the two corresponding top-manifest hashes; those bytes are not silently blessed by this release.
+The top manifest describes canonical Git-index bytes for release package `unified-final-results-2026-09-01` and excludes itself. The manifest plus the enclosing Git commit identifies a concrete release; no metadata file makes a cyclic claim about its own eventual commit SHA. A live worktree containing protected, uncommitted AtomicBot bytes is not silently blessed by this release.

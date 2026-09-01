@@ -5,6 +5,13 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 *.ps1 text eol=crlf
+
+# Release checksums are defined over canonical Git blobs. Keep exported archives
+# and fresh checkouts byte-identical to those LF-normalized text blobs.
+docs/testing/final-results/** text eol=lf
+docs/testing/final-results/**/*.docx -text
+docs/testing/final-results/**/*.pdf -text
+docs/testing/final-results/**/*.xlsx -text
 # BEGIN IXN CONTROLLED EXPERIMENT EVIDENCE
 # Machine-generated evidence is immutable. Do not normalize line endings.
 experiments/granite_turboquant_intel/logs/** -text whitespace=-blank-at-eol,-blank-at-eof

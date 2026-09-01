@@ -369,12 +369,23 @@
       ]
     },
     {
+      "@id": "#input-revision-c154a546",
+      "@type": "PropertyValue",
+      "name": "Task 13 input revision",
+      "propertyID": "git:inputRevision",
+      "value": "c154a5461c9d54ae3ad2ccfa141a3a18f564e2a5",
+      "description": "Base input revision only; the completed release is identified by its version, manifest, and enclosing Git commit."
+    },
+    {
       "@id": "./",
       "@type": "Dataset",
       "name": "Granite + TurboQuant unified testing results",
       "description": "Evidence-first release containing five normalized route packages and one guarded cross-route comparison.",
       "datePublished": "2026-09-01",
-      "version": "c154a5461c9d54ae3ad2ccfa141a3a18f564e2a5",
+      "version": "unified-final-results-2026-09-01",
+      "isBasedOn": {
+        "@id": "#input-revision-c154a546"
+      },
       "license": {
         "@id": "LICENSES.md"
       },

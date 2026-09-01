@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import math
 import re
 import statistics
+import subprocess
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -156,6 +158,8 @@ _TASK14_METADATA = (
     "LICENSES.md",
     "ro-crate-metadata.json",
     "manifest-sha256.txt",
+    "validation/release-readiness.json",
+    "validation/validation-summary.md",
 )
 _RELEASE_ROUTES = tuple(_EXPECTED_ROUTE_DIRECTORIES)
 _REPORT_STEMS = {
@@ -181,6 +185,64 @@ _OPENVINO_WORKBOOK_PATHS = (
     "05-openvino-official-upstream/results/source/"
     "Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx",
 )
+_EXPECTED_PDF_PAGE_COUNTS = {
+    f"{route}/workbook/generated/{stem}.pdf": page_count
+    for (route, stem), page_count in zip(
+        _REPORT_STEMS.items(),
+        (47, 22, 7, 54, 52, 20),
+        strict=True,
+    )
+}
+_EXPECTED_WORKBOOK_QA = {
+    _OPENVINO_WORKBOOK_PATHS[0]: {
+        "sheets": (
+            "Dashboard",
+            "Format Comparison",
+            "Sector Summary",
+            "Detailed Results",
+            "Quality Details",
+            "Availability Matrix",
+            "Methodology",
+            "Source Data",
+        ),
+        "sheet_dimensions": {
+            "Dashboard": "A1:N28",
+            "Format Comparison": "A1:M17",
+            "Sector Summary": "A1:N32",
+            "Detailed Results": "A1:AF82",
+            "Quality Details": "A1:U3889",
+            "Availability Matrix": "A1:J20",
+            "Methodology": "A1:H37",
+            "Source Data": "A1:BB83",
+        },
+        "formula_count": 275,
+    },
+    _OPENVINO_WORKBOOK_PATHS[1]: {
+        "sheets": (
+            "Executive Summary",
+            "Format Comparison",
+            "Sector Summary",
+            "Detailed Results",
+            "Quality Details",
+            "Availability Matrix",
+            "Missing Attempts",
+            "Methodology",
+            "Source Data",
+        ),
+        "sheet_dimensions": {
+            "Executive Summary": "A1:L29",
+            "Format Comparison": "A1:M14",
+            "Sector Summary": "A1:I185",
+            "Detailed Results": "A1:AJ50",
+            "Quality Details": "A1:U2165",
+            "Availability Matrix": "A1:G14",
+            "Missing Attempts": "A1:K11",
+            "Methodology": "A1:H31",
+            "Source Data": "A1:E16",
+        },
+        "formula_count": 0,
+    },
+}
 _RELEASE_CATALOG_PATHS = (
     "catalog/route-register.csv",
     "catalog/campaign-summary.csv",
@@ -1286,6 +1348,60 @@ def _is_relative_data_entity_id(entity_id: str) -> bool:
     )
 
 
+def write_git_index_release_manifest(
+    repository_root: Path, collection_root: Path
+) -> Path:
+    """Write the top manifest from canonical stage-0 Git blobs, never working bytes."""
+    repository = Path(repository_root).resolve()
+    collection = Path(collection_root).resolve()
+    prefix = collection.relative_to(repository).as_posix()
+    listing = subprocess.run(
+        ["git", "ls-files", "--stage", "-z", "--", prefix],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+    ).stdout
+    entries: dict[str, str] = {}
+    tracked: set[str] = set()
+    for raw in listing.split(b"\0"):
+        if not raw:
+            continue
+        metadata, raw_path = raw.split(b"\t", 1)
+        _mode, object_id, stage = metadata.decode("ascii").split()
+        if stage != "0":
+            raise ValueError(f"unmerged release entry: {raw_path!r}")
+        repository_relative = raw_path.decode("utf-8")
+        relative = Path(repository_relative).relative_to(prefix).as_posix()
+        tracked.add(relative)
+        if relative == "manifest-sha256.txt":
+            continue
+        payload = subprocess.run(
+            ["git", "cat-file", "blob", object_id],
+            cwd=repository,
+            check=True,
+            capture_output=True,
+        ).stdout
+        entries[relative] = hashlib.sha256(payload).hexdigest()
+
+    actual = {
+        path.relative_to(collection).as_posix()
+        for path in collection.rglob("*")
+        if path.is_file()
+    }
+    if actual != tracked:
+        raise ValueError(
+            "release working file set differs from the Git index; "
+            f"missing={sorted(tracked - actual)}, untracked={sorted(actual - tracked)}"
+        )
+    manifest = collection / "manifest-sha256.txt"
+    manifest.write_text(
+        "".join(f"{entries[path]}  {path}\n" for path in sorted(entries)),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return manifest
+
+
 def _release_manifest_issues(collection: Path) -> list[ValidationIssue]:
     manifest = collection / "manifest-sha256.txt"
     errors = validate_sha256_manifest(collection, manifest)
@@ -1418,9 +1534,21 @@ def _release_ro_crate_issues(collection: Path) -> list[ValidationIssue]:
                 )
             )
 
-    for entity_id, entity in entities.items():
+    expected_generated = {
+        path
+        for path in _RELEASE_REPORT_PATHS
+        if path.endswith((".docx", ".pdf"))
+    } | {"manifest-sha256.txt"}
+    for entity_id in sorted(expected_generated):
+        entity = entities.get(entity_id, {})
         if "#generated-artifact" not in _entity_references(entity.get("additionalType")):
-            continue
+            issues.append(
+                _issue(
+                    "generated_artifact_marker_missing",
+                    f"expected generated artifact must retain its marker: {entity_id}",
+                    path,
+                )
+            )
         activities = _entity_references(entity.get("wasGeneratedBy"))
         if len(activities) != 1:
             issues.append(
@@ -1528,6 +1656,21 @@ def validate_release_metadata(root: Path) -> GateResult:
     readiness_path = collection / "validation/release-readiness.json"
     try:
         readiness = json.loads(readiness_path.read_text(encoding="utf-8"))
+        if (
+            readiness.get("valid") is not True
+            or readiness.get("status") != "ready_with_documented_limitations"
+            or readiness.get("release_version")
+            != "unified-final-results-2026-09-01"
+            or readiness.get("basis", {}).get("all_ordered_validation_gates_passed")
+            is not True
+        ):
+            issues.append(
+                _issue(
+                    "release_readiness_invalid",
+                    "release readiness must record the exact passed status, version, and gate result",
+                    readiness_path,
+                )
+            )
         citation = readiness.get("citation", {})
         verified_authors = citation.get("verified_author_metadata_available")
         citation_exists = (collection / "CITATION.cff").is_file()
@@ -1541,7 +1684,7 @@ def validate_release_metadata(root: Path) -> GateResult:
             )
         qa = readiness.get("qa", {})
         pdf_qa = qa.get("pdf_reports", {})
-        expected_pdfs = {path for path in _RELEASE_REPORT_PATHS if path.endswith(".pdf")}
+        expected_pdfs = set(_EXPECTED_PDF_PAGE_COUNTS)
         if set(pdf_qa) != expected_pdfs:
             issues.append(
                 _issue(
@@ -1550,6 +1693,23 @@ def validate_release_metadata(root: Path) -> GateResult:
                     readiness_path,
                 )
             )
+        for relative, expected_pages in _EXPECTED_PDF_PAGE_COUNTS.items():
+            receipt = pdf_qa.get(relative, {})
+            if (
+                receipt.get("page_count") != expected_pages
+                or receipt.get("inspected_pages") != list(range(1, expected_pages + 1))
+                or receipt.get("visual_review") != "passed"
+                or receipt.get("searchable_text_review") != "passed"
+                or receipt.get("blank_page_count") != 0
+                or receipt.get("clipped_text_block_count") != 0
+            ):
+                issues.append(
+                    _issue(
+                        "pdf_qa_invalid",
+                        f"PDF QA is incomplete or disagrees with inspected evidence: {relative}",
+                        readiness_path,
+                    )
+                )
         workbook_qa = qa.get("openvino_workbooks", {})
         if set(workbook_qa) != set(_OPENVINO_WORKBOOK_PATHS):
             issues.append(
@@ -1559,9 +1719,75 @@ def validate_release_metadata(root: Path) -> GateResult:
                     readiness_path,
                 )
             )
+        for relative, expected in _EXPECTED_WORKBOOK_QA.items():
+            receipt = workbook_qa.get(relative, {})
+            if (
+                receipt.get("result") != "passed"
+                or receipt.get("read_only") is not True
+                or receipt.get("data_only") is not False
+                or receipt.get("keep_links") is not True
+                or tuple(receipt.get("sheets", ())) != expected["sheets"]
+                or receipt.get("sheet_dimensions") != expected["sheet_dimensions"]
+                or receipt.get("formula_count") != expected["formula_count"]
+                or receipt.get("missing_sheet_reference_count") != 0
+                or receipt.get("external_formula_reference_count") != 0
+                or receipt.get("formula_error_count") != 0
+            ):
+                issues.append(
+                    _issue(
+                        "workbook_qa_invalid",
+                        f"workbook QA is incomplete or disagrees with inspected evidence: {relative}",
+                        readiness_path,
+                    )
+                )
         limitations.extend(str(item) for item in readiness.get("limitations", ()))
     except (OSError, UnicodeError, json.JSONDecodeError, AttributeError) as error:
         issues.append(_issue("invalid_release_readiness", str(error), readiness_path))
+
+    summary_path = collection / "validation/validation-summary.md"
+    try:
+        summary = summary_path.read_text(encoding="utf-8")
+        expected_overall = (
+            "Overall result for release package `unified-final-results-2026-09-01`: "
+            "**Passed — ready with documented limitations**."
+        )
+        gate_rows = {
+            match.group(1): (
+                match.group(2),
+                int(match.group(3)),
+                int(match.group(4)),
+            )
+            for match in re.finditer(
+                r"^\| `([^`]+)` \| (Passed|Failed) \| (\d+) \| (\d+) \|$",
+                summary,
+                re.MULTILINE,
+            )
+        }
+        expected_gate_rows = {
+            name: ("Passed", 0, 0) for name in GATE_ORDER
+        }
+        expected_gate_rows["derivation"] = ("Passed", 0, 77)
+        expected_gate_rows["release_metadata"] = (
+            "Passed",
+            0,
+            len(readiness.get("limitations", ())),
+        )
+        expected_gate_rows["release_readiness"] = expected_gate_rows[
+            "release_metadata"
+        ]
+        if (
+            expected_overall not in summary
+            or gate_rows != expected_gate_rows
+        ):
+            issues.append(
+                _issue(
+                    "validation_summary_mismatch",
+                    "human-readable summary must agree with the passed structured readiness record",
+                    summary_path,
+                )
+            )
+    except (OSError, UnicodeError) as error:
+        issues.append(_issue("validation_summary_mismatch", str(error), summary_path))
     return GateResult("release_metadata", tuple(issues), tuple(limitations))
 
 
@@ -1733,5 +1959,6 @@ __all__ = [
     "validate_collection",
     "validate_release_metadata",
     "validate_route",
+    "write_git_index_release_manifest",
     "write_validation_receipts",
 ]
