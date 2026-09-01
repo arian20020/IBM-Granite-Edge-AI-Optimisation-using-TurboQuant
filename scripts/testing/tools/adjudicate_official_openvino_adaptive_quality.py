@@ -527,6 +527,7 @@ def _validate_task5_history(
         repo_root
         / "scripts"
         / "testing"
+        / "tools"
         / "collect_openvino_runtime_utilization.ps1"
     )
     sampler_script = _require_lexical_file(

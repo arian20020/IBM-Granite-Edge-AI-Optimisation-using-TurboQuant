@@ -621,7 +621,7 @@ def build_campaign_identity(
         repository / "scripts" / "testing" / "official_openvino"
     )
     controller_source = (
-        repository / "scripts" / "testing" / "measure_official_openvino.py"
+        repository / "scripts" / "testing" / "tools" / "measure_official_openvino.py"
     )
 
     config_fields = (

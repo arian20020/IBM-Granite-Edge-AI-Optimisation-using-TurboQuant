@@ -625,7 +625,13 @@ def _native_task_three_failure_evidence(
     runtime_sources = (
         repository / "scripts" / "testing" / "campaigns" / "openvino"
     )
-    controller_source = repository / "scripts" / "testing" / "measure_official_openvino.py"
+    controller_source = (
+        repository
+        / "scripts"
+        / "testing"
+        / "tools"
+        / "measure_official_openvino.py"
+    )
     if (
         not isinstance(runtime_identity, Mapping)
         or set(runtime_identity)

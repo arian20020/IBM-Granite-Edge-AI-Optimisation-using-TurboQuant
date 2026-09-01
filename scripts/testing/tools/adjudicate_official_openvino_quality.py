@@ -940,6 +940,7 @@ def _validate_guard_record(
             working_root
             / "scripts"
             / "testing"
+            / "tools"
             / "measure_official_openvino.py"
         ).is_file()
     ):

@@ -30,6 +30,22 @@ Commit message: `refactor: separate active and historical testing tools`
   - `scripts/testing/tools/prepare_openvino_turboquant_patch.ps1`
 - During focused verification, the dedicated wrapper regressions still referenced pre-move wrapper paths and one trusted-controller copy helper still created `scripts/testing/` without `scripts/testing/tools/`. Updated those test fixtures so the moved wrappers are exercised from their maintained locations instead of failing on stale paths.
 
+### Round 2 fix record
+
+- A follow-on recovery run on 2026-09-01 surfaced four additional unstaged Task 6 move-closure repairs that were already present in the worktree and required for the active-tool migration to be semantically complete:
+  - `scripts/testing/campaigns/openvino/adaptive_campaign.py`
+  - `scripts/testing/tools/adjudicate_official_openvino_adaptive_quality.py`
+  - `scripts/testing/tools/adjudicate_official_openvino_quality.py`
+  - `scripts/testing/tools/measure_official_openvino.py`
+- Shared root cause: these locations still pointed to pre-move controller or helper paths under `scripts/testing/...` even though the maintained active tools now live under `scripts/testing/tools/...`. The stale literals affected native Task 3 runtime identity validation, Task 5 history validation, governed guard-record validation, and measurement controller identity generation.
+- I inspected the existing coverage before changing tests. No new regression was added because the current integration suite already encodes the maintained `tools/` contracts:
+  - `test_measure_official_openvino_sequence.py::test_resume_rejects_changed_identity_before_launching_more_work`
+  - `test_official_openvino_quality_campaign.py::test_accepted_campaign_recomputes_identity_summary_environment_and_worker_spec`
+  - `test_adjudicate_official_openvino_quality.py::test_governed_adapter_rejects_consistently_rehashed_guard_identity`
+  - `test_adjudicate_official_openvino_adaptive_quality.py::test_build_bundle_rechecks_projected_sources_at_final_task5_boundary`
+  - `test_official_openvino_adaptive_campaign.py::test_task_three_native_clean_ram_record_is_retryable`
+- Because those tests already construct identities and evidence trees using `scripts/testing/tools/...`, they cover the moved-path contracts without needing a duplicate focused regression file.
+
 ### Scope completed
 
 - Moved tracked root-level maintained testing scripts into `scripts/testing/tools/`.
@@ -65,6 +81,11 @@ Round 1 review-fix regressions:
 - RED: `python -m pytest scripts/testing/tests/unit/test_moved_tool_root_resolution.py scripts/testing/tests/unit/test_code_migration_inventory.py scripts/testing/tests/test_official_openvino_patch_identity.py::PatchWorkspaceControllerTests::test_power_shell_entry_points_preserve_cwd_roots_overrides_and_exit -v` -> `5 failed, 3 passed`
 - GREEN: `python -m pytest scripts/testing/tests/unit/test_moved_tool_root_resolution.py scripts/testing/tests/unit/test_code_migration_inventory.py scripts/testing/tests/test_official_openvino_patch_identity.py::PatchWorkspaceControllerTests::test_power_shell_entry_points_preserve_cwd_roots_overrides_and_exit -v` -> `8 passed`
 - Additional moved-wrapper regression sweep: `python -m pytest scripts/testing/tests/test_build_openvino_turboquant_wrapper.py scripts/testing/tests/test_official_openvino_guarded_build.py -k "run_openvino_reference_capability or invoke_guarded_command or wrapper" -v` -> `38 passed, 27 deselected`
+
+Round 2 move-closure verification:
+
+- `python -m pytest scripts/testing/tests/integration/test_measure_official_openvino_sequence.py::test_resume_rejects_changed_identity_before_launching_more_work scripts/testing/tests/integration/test_official_openvino_quality_campaign.py::test_accepted_campaign_recomputes_identity_summary_environment_and_worker_spec scripts/testing/tests/integration/test_adjudicate_official_openvino_quality.py::test_governed_adapter_rejects_consistently_rehashed_guard_identity scripts/testing/tests/integration/test_adjudicate_official_openvino_adaptive_quality.py::test_build_bundle_rechecks_projected_sources_at_final_task5_boundary scripts/testing/tests/integration/test_official_openvino_adaptive_campaign.py::test_task_three_native_clean_ram_record_is_retryable -v` -> `13 passed`
+- No extra semantic snapshot command was applicable here because the repaired behavior is path/identity closure inside existing measurement and adjudication contracts rather than a new results publication flow.
 
 Final verification set on the final file state:
 
