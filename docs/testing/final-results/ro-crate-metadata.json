@@ -1,0 +1,1513 @@
+{
+  "@context": [
+    "https://w3id.org/ro/crate/1.3/context",
+    {
+      "wasGeneratedBy": {
+        "@id": "http://www.w3.org/ns/prov#wasGeneratedBy",
+        "@type": "@id"
+      }
+    }
+  ],
+  "@graph": [
+    {
+      "@id": "#01-upstream-llama-cpp-docx-generation",
+      "@type": "CreateAction",
+      "name": "Generate 01-upstream-llama-cpp DOCX report",
+      "object": [
+        {
+          "@id": "01-upstream-llama-cpp/workbook/source/upstream-llama-cpp-final-report.md"
+        }
+      ],
+      "result": [
+        {
+          "@id": "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx"
+        }
+      ]
+    },
+    {
+      "@id": "#01-upstream-llama-cpp-hardware",
+      "@type": "PropertyValue",
+      "name": "01-upstream-llama-cpp hardware context",
+      "value": "01-upstream-llama-cpp/system/hardware.json",
+      "subjectOf": {
+        "@id": "01-upstream-llama-cpp/system/hardware.json"
+      }
+    },
+    {
+      "@id": "#01-upstream-llama-cpp-pdf-generation",
+      "@type": "CreateAction",
+      "name": "Generate 01-upstream-llama-cpp PDF report",
+      "object": [
+        {
+          "@id": "01-upstream-llama-cpp/workbook/source/upstream-llama-cpp-final-report.md"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx"
+        }
+      ],
+      "result": [
+        {
+          "@id": "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf"
+        }
+      ]
+    },
+    {
+      "@id": "#01-upstream-llama-cpp-repository",
+      "@type": "PropertyValue",
+      "name": "01-upstream-llama-cpp repository context",
+      "value": "01-upstream-llama-cpp/system/repository.json",
+      "subjectOf": {
+        "@id": "01-upstream-llama-cpp/system/repository.json"
+      }
+    },
+    {
+      "@id": "#01-upstream-llama-cpp-software",
+      "@type": "PropertyValue",
+      "name": "01-upstream-llama-cpp software context",
+      "value": "01-upstream-llama-cpp/system/software.json",
+      "subjectOf": {
+        "@id": "01-upstream-llama-cpp/system/software.json"
+      }
+    },
+    {
+      "@id": "#02-atomicbot-turboquant-docx-generation",
+      "@type": "CreateAction",
+      "name": "Generate 02-atomicbot-turboquant DOCX report",
+      "object": [
+        {
+          "@id": "02-atomicbot-turboquant/workbook/source/atomicbot-turboquant-final-report.md"
+        }
+      ],
+      "result": [
+        {
+          "@id": "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.docx"
+        }
+      ]
+    },
+    {
+      "@id": "#02-atomicbot-turboquant-hardware",
+      "@type": "PropertyValue",
+      "name": "02-atomicbot-turboquant hardware context",
+      "value": "02-atomicbot-turboquant/system/hardware.json",
+      "subjectOf": {
+        "@id": "02-atomicbot-turboquant/system/hardware.json"
+      }
+    },
+    {
+      "@id": "#02-atomicbot-turboquant-pdf-generation",
+      "@type": "CreateAction",
+      "name": "Generate 02-atomicbot-turboquant PDF report",
+      "object": [
+        {
+          "@id": "02-atomicbot-turboquant/workbook/source/atomicbot-turboquant-final-report.md"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.docx"
+        }
+      ],
+      "result": [
+        {
+          "@id": "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.pdf"
+        }
+      ]
+    },
+    {
+      "@id": "#02-atomicbot-turboquant-repository",
+      "@type": "PropertyValue",
+      "name": "02-atomicbot-turboquant repository context",
+      "value": "02-atomicbot-turboquant/system/repository.json",
+      "subjectOf": {
+        "@id": "02-atomicbot-turboquant/system/repository.json"
+      }
+    },
+    {
+      "@id": "#02-atomicbot-turboquant-software",
+      "@type": "PropertyValue",
+      "name": "02-atomicbot-turboquant software context",
+      "value": "02-atomicbot-turboquant/system/software.json",
+      "subjectOf": {
+        "@id": "02-atomicbot-turboquant/system/software.json"
+      }
+    },
+    {
+      "@id": "#03-animehacker-tq3-0-docx-generation",
+      "@type": "CreateAction",
+      "name": "Generate 03-animehacker-tq3-0 DOCX report",
+      "object": [
+        {
+          "@id": "03-animehacker-tq3-0/workbook/source/animehacker-tq3-0-final-report.md"
+        }
+      ],
+      "result": [
+        {
+          "@id": "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.docx"
+        }
+      ]
+    },
+    {
+      "@id": "#03-animehacker-tq3-0-hardware",
+      "@type": "PropertyValue",
+      "name": "03-animehacker-tq3-0 hardware context",
+      "value": "03-animehacker-tq3-0/system/hardware.json",
+      "subjectOf": {
+        "@id": "03-animehacker-tq3-0/system/hardware.json"
+      }
+    },
+    {
+      "@id": "#03-animehacker-tq3-0-pdf-generation",
+      "@type": "CreateAction",
+      "name": "Generate 03-animehacker-tq3-0 PDF report",
+      "object": [
+        {
+          "@id": "03-animehacker-tq3-0/workbook/source/animehacker-tq3-0-final-report.md"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.docx"
+        }
+      ],
+      "result": [
+        {
+          "@id": "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.pdf"
+        }
+      ]
+    },
+    {
+      "@id": "#03-animehacker-tq3-0-repository",
+      "@type": "PropertyValue",
+      "name": "03-animehacker-tq3-0 repository context",
+      "value": "03-animehacker-tq3-0/system/repository.json",
+      "subjectOf": {
+        "@id": "03-animehacker-tq3-0/system/repository.json"
+      }
+    },
+    {
+      "@id": "#03-animehacker-tq3-0-software",
+      "@type": "PropertyValue",
+      "name": "03-animehacker-tq3-0 software context",
+      "value": "03-animehacker-tq3-0/system/software.json",
+      "subjectOf": {
+        "@id": "03-animehacker-tq3-0/system/software.json"
+      }
+    },
+    {
+      "@id": "#04-openvino-experimental-fork-docx-generation",
+      "@type": "CreateAction",
+      "name": "Generate 04-openvino-experimental-fork DOCX report",
+      "object": [
+        {
+          "@id": "04-openvino-experimental-fork/workbook/source/openvino-experimental-fork-final-report.md"
+        }
+      ],
+      "result": [
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.docx"
+        }
+      ]
+    },
+    {
+      "@id": "#04-openvino-experimental-fork-hardware",
+      "@type": "PropertyValue",
+      "name": "04-openvino-experimental-fork hardware context",
+      "value": "04-openvino-experimental-fork/system/hardware.json",
+      "subjectOf": {
+        "@id": "04-openvino-experimental-fork/system/hardware.json"
+      }
+    },
+    {
+      "@id": "#04-openvino-experimental-fork-pdf-generation",
+      "@type": "CreateAction",
+      "name": "Generate 04-openvino-experimental-fork PDF report",
+      "object": [
+        {
+          "@id": "04-openvino-experimental-fork/workbook/source/openvino-experimental-fork-final-report.md"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.docx"
+        }
+      ],
+      "result": [
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.pdf"
+        }
+      ]
+    },
+    {
+      "@id": "#04-openvino-experimental-fork-repository",
+      "@type": "PropertyValue",
+      "name": "04-openvino-experimental-fork repository context",
+      "value": "04-openvino-experimental-fork/system/repository.json",
+      "subjectOf": {
+        "@id": "04-openvino-experimental-fork/system/repository.json"
+      }
+    },
+    {
+      "@id": "#04-openvino-experimental-fork-software",
+      "@type": "PropertyValue",
+      "name": "04-openvino-experimental-fork software context",
+      "value": "04-openvino-experimental-fork/system/software.json",
+      "subjectOf": {
+        "@id": "04-openvino-experimental-fork/system/software.json"
+      }
+    },
+    {
+      "@id": "#05-openvino-official-upstream-docx-generation",
+      "@type": "CreateAction",
+      "name": "Generate 05-openvino-official-upstream DOCX report",
+      "object": [
+        {
+          "@id": "05-openvino-official-upstream/workbook/source/openvino-official-upstream-final-report.md"
+        }
+      ],
+      "result": [
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.docx"
+        }
+      ]
+    },
+    {
+      "@id": "#05-openvino-official-upstream-hardware",
+      "@type": "PropertyValue",
+      "name": "05-openvino-official-upstream hardware context",
+      "value": "05-openvino-official-upstream/system/hardware.json",
+      "subjectOf": {
+        "@id": "05-openvino-official-upstream/system/hardware.json"
+      }
+    },
+    {
+      "@id": "#05-openvino-official-upstream-pdf-generation",
+      "@type": "CreateAction",
+      "name": "Generate 05-openvino-official-upstream PDF report",
+      "object": [
+        {
+          "@id": "05-openvino-official-upstream/workbook/source/openvino-official-upstream-final-report.md"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.docx"
+        }
+      ],
+      "result": [
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.pdf"
+        }
+      ]
+    },
+    {
+      "@id": "#05-openvino-official-upstream-repository",
+      "@type": "PropertyValue",
+      "name": "05-openvino-official-upstream repository context",
+      "value": "05-openvino-official-upstream/system/repository.json",
+      "subjectOf": {
+        "@id": "05-openvino-official-upstream/system/repository.json"
+      }
+    },
+    {
+      "@id": "#05-openvino-official-upstream-software",
+      "@type": "PropertyValue",
+      "name": "05-openvino-official-upstream software context",
+      "value": "05-openvino-official-upstream/system/software.json",
+      "subjectOf": {
+        "@id": "05-openvino-official-upstream/system/software.json"
+      }
+    },
+    {
+      "@id": "#06-cross-route-comparison-docx-generation",
+      "@type": "CreateAction",
+      "name": "Generate 06-cross-route-comparison DOCX report",
+      "object": [
+        {
+          "@id": "06-cross-route-comparison/workbook/source/cross-route-comparison-final-report.md"
+        }
+      ],
+      "result": [
+        {
+          "@id": "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.docx"
+        }
+      ]
+    },
+    {
+      "@id": "#06-cross-route-comparison-pdf-generation",
+      "@type": "CreateAction",
+      "name": "Generate 06-cross-route-comparison PDF report",
+      "object": [
+        {
+          "@id": "06-cross-route-comparison/workbook/source/cross-route-comparison-final-report.md"
+        },
+        {
+          "@id": "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.docx"
+        }
+      ],
+      "result": [
+        {
+          "@id": "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.pdf"
+        }
+      ]
+    },
+    {
+      "@id": "#generated-artifact",
+      "@type": "DefinedTerm",
+      "name": "Generated release artifact"
+    },
+    {
+      "@id": "#release-manifest-generation",
+      "@type": "CreateAction",
+      "name": "Hash the complete release file set, excluding the manifest itself",
+      "object": [
+        {
+          "@id": "README.md"
+        },
+        {
+          "@id": "ro-crate-metadata.json"
+        },
+        {
+          "@id": "validation/release-readiness.json"
+        }
+      ],
+      "result": [
+        {
+          "@id": "manifest-sha256.txt"
+        }
+      ]
+    },
+    {
+      "@id": "./",
+      "@type": "Dataset",
+      "name": "Granite + TurboQuant unified testing results",
+      "description": "Evidence-first release containing five normalized route packages and one guarded cross-route comparison.",
+      "datePublished": "2026-09-01",
+      "version": "c154a5461c9d54ae3ad2ccfa141a3a18f564e2a5",
+      "license": {
+        "@id": "LICENSES.md"
+      },
+      "hasPart": [
+        {
+          "@id": "README.md"
+        },
+        {
+          "@id": "CHANGELOG.md"
+        },
+        {
+          "@id": "REPRODUCING.md"
+        },
+        {
+          "@id": "LICENSES.md"
+        },
+        {
+          "@id": "validation/release-readiness.json"
+        },
+        {
+          "@id": "catalog/route-register.csv"
+        },
+        {
+          "@id": "catalog/campaign-summary.csv"
+        },
+        {
+          "@id": "catalog/performance-summary.csv"
+        },
+        {
+          "@id": "catalog/quality-summary.csv"
+        },
+        {
+          "@id": "catalog/failure-summary.csv"
+        },
+        {
+          "@id": "catalog/evidence-manifest.csv"
+        },
+        {
+          "@id": "catalog/claim-evidence-map.csv"
+        },
+        {
+          "@id": "catalog/comparability-matrix.csv"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/route-manifest.json"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/workbook/source/upstream-llama-cpp-final-report.md"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/results/attempts.csv"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/results/measurements.csv"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/results/summary-results.csv"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/system/repository.json"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/system/hardware.json"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/system/software.json"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/route-manifest.json"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/workbook/source/atomicbot-turboquant-final-report.md"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.docx"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.pdf"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/results/attempts.csv"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/results/measurements.csv"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/results/summary-results.csv"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/system/repository.json"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/system/hardware.json"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/system/software.json"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/route-manifest.json"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/workbook/source/animehacker-tq3-0-final-report.md"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.docx"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.pdf"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/results/attempts.csv"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/results/measurements.csv"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/results/summary-results.csv"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/system/repository.json"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/system/hardware.json"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/system/software.json"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/route-manifest.json"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/source/openvino-experimental-fork-final-report.md"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.docx"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.pdf"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/results/attempts.csv"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/results/measurements.csv"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/results/summary-results.csv"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/system/repository.json"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/system/hardware.json"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/system/software.json"
+        },
+        {
+          "@id": "05-openvino-official-upstream/"
+        },
+        {
+          "@id": "05-openvino-official-upstream/route-manifest.json"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/source/openvino-official-upstream-final-report.md"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.docx"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.pdf"
+        },
+        {
+          "@id": "05-openvino-official-upstream/results/attempts.csv"
+        },
+        {
+          "@id": "05-openvino-official-upstream/results/measurements.csv"
+        },
+        {
+          "@id": "05-openvino-official-upstream/results/summary-results.csv"
+        },
+        {
+          "@id": "05-openvino-official-upstream/system/repository.json"
+        },
+        {
+          "@id": "05-openvino-official-upstream/system/hardware.json"
+        },
+        {
+          "@id": "05-openvino-official-upstream/system/software.json"
+        },
+        {
+          "@id": "06-cross-route-comparison/"
+        },
+        {
+          "@id": "06-cross-route-comparison/route-manifest.json"
+        },
+        {
+          "@id": "06-cross-route-comparison/workbook/source/cross-route-comparison-final-report.md"
+        },
+        {
+          "@id": "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.docx"
+        },
+        {
+          "@id": "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.pdf"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
+        },
+        {
+          "@id": "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx"
+        },
+        {
+          "@id": "manifest-sha256.txt"
+        }
+      ]
+    },
+    {
+      "@id": "01-upstream-llama-cpp/",
+      "@type": "Dataset",
+      "name": "01-upstream-llama-cpp",
+      "hasPart": [
+        {
+          "@id": "01-upstream-llama-cpp/route-manifest.json"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/workbook/source/upstream-llama-cpp-final-report.md"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/results/attempts.csv"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/results/measurements.csv"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/results/summary-results.csv"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/system/repository.json"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/system/hardware.json"
+        },
+        {
+          "@id": "01-upstream-llama-cpp/system/software.json"
+        }
+      ]
+    },
+    {
+      "@id": "01-upstream-llama-cpp/results/attempts.csv",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp attempt ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "01-upstream-llama-cpp/results/measurements.csv",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp measurement ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "01-upstream-llama-cpp/results/summary-results.csv",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp summary results",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "01-upstream-llama-cpp/route-manifest.json",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp route manifest",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "01-upstream-llama-cpp/system/hardware.json",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp hardware evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "01-upstream-llama-cpp/system/repository.json",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp repository evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "01-upstream-llama-cpp/system/software.json",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp software evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.docx",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp DOCX report",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#01-upstream-llama-cpp-docx-generation"
+      },
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp PDF report",
+      "encodingFormat": "application/pdf",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#01-upstream-llama-cpp-pdf-generation"
+      },
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "01-upstream-llama-cpp/workbook/source/upstream-llama-cpp-final-report.md",
+      "@type": "File",
+      "name": "01-upstream-llama-cpp canonical report",
+      "encodingFormat": "text/markdown",
+      "isPartOf": {
+        "@id": "01-upstream-llama-cpp/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/",
+      "@type": "Dataset",
+      "name": "02-atomicbot-turboquant",
+      "hasPart": [
+        {
+          "@id": "02-atomicbot-turboquant/route-manifest.json"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/workbook/source/atomicbot-turboquant-final-report.md"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.docx"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.pdf"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/results/attempts.csv"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/results/measurements.csv"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/results/summary-results.csv"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/system/repository.json"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/system/hardware.json"
+        },
+        {
+          "@id": "02-atomicbot-turboquant/system/software.json"
+        }
+      ]
+    },
+    {
+      "@id": "02-atomicbot-turboquant/results/attempts.csv",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant attempt ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/results/measurements.csv",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant measurement ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/results/summary-results.csv",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant summary results",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/route-manifest.json",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant route manifest",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/system/hardware.json",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant hardware evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/system/repository.json",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant repository evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/system/software.json",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant software evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.docx",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant DOCX report",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#02-atomicbot-turboquant-docx-generation"
+      },
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.pdf",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant PDF report",
+      "encodingFormat": "application/pdf",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#02-atomicbot-turboquant-pdf-generation"
+      },
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "02-atomicbot-turboquant/workbook/source/atomicbot-turboquant-final-report.md",
+      "@type": "File",
+      "name": "02-atomicbot-turboquant canonical report",
+      "encodingFormat": "text/markdown",
+      "isPartOf": {
+        "@id": "02-atomicbot-turboquant/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/",
+      "@type": "Dataset",
+      "name": "03-animehacker-tq3-0",
+      "hasPart": [
+        {
+          "@id": "03-animehacker-tq3-0/route-manifest.json"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/workbook/source/animehacker-tq3-0-final-report.md"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.docx"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.pdf"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/results/attempts.csv"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/results/measurements.csv"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/results/summary-results.csv"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/system/repository.json"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/system/hardware.json"
+        },
+        {
+          "@id": "03-animehacker-tq3-0/system/software.json"
+        }
+      ]
+    },
+    {
+      "@id": "03-animehacker-tq3-0/results/attempts.csv",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 attempt ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/results/measurements.csv",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 measurement ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/results/summary-results.csv",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 summary results",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/route-manifest.json",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 route manifest",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/system/hardware.json",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 hardware evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/system/repository.json",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 repository evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/system/software.json",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 software evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.docx",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 DOCX report",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#03-animehacker-tq3-0-docx-generation"
+      },
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.pdf",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 PDF report",
+      "encodingFormat": "application/pdf",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#03-animehacker-tq3-0-pdf-generation"
+      },
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "03-animehacker-tq3-0/workbook/source/animehacker-tq3-0-final-report.md",
+      "@type": "File",
+      "name": "03-animehacker-tq3-0 canonical report",
+      "encodingFormat": "text/markdown",
+      "isPartOf": {
+        "@id": "03-animehacker-tq3-0/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/",
+      "@type": "Dataset",
+      "name": "04-openvino-experimental-fork",
+      "hasPart": [
+        {
+          "@id": "04-openvino-experimental-fork/route-manifest.json"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/source/openvino-experimental-fork-final-report.md"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.docx"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.pdf"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/results/attempts.csv"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/results/measurements.csv"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/results/summary-results.csv"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/system/repository.json"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/system/hardware.json"
+        },
+        {
+          "@id": "04-openvino-experimental-fork/system/software.json"
+        }
+      ]
+    },
+    {
+      "@id": "04-openvino-experimental-fork/results/attempts.csv",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork attempt ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/results/measurements.csv",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork measurement ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
+      "@type": "File",
+      "name": "Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    },
+    {
+      "@id": "04-openvino-experimental-fork/results/summary-results.csv",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork summary results",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/route-manifest.json",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork route manifest",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/system/hardware.json",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork hardware evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/system/repository.json",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork repository evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/system/software.json",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork software evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.docx",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork DOCX report",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#04-openvino-experimental-fork-docx-generation"
+      },
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.pdf",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork PDF report",
+      "encodingFormat": "application/pdf",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#04-openvino-experimental-fork-pdf-generation"
+      },
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "04-openvino-experimental-fork/workbook/source/openvino-experimental-fork-final-report.md",
+      "@type": "File",
+      "name": "04-openvino-experimental-fork canonical report",
+      "encodingFormat": "text/markdown",
+      "isPartOf": {
+        "@id": "04-openvino-experimental-fork/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/",
+      "@type": "Dataset",
+      "name": "05-openvino-official-upstream",
+      "hasPart": [
+        {
+          "@id": "05-openvino-official-upstream/route-manifest.json"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/source/openvino-official-upstream-final-report.md"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.docx"
+        },
+        {
+          "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.pdf"
+        },
+        {
+          "@id": "05-openvino-official-upstream/results/attempts.csv"
+        },
+        {
+          "@id": "05-openvino-official-upstream/results/measurements.csv"
+        },
+        {
+          "@id": "05-openvino-official-upstream/results/summary-results.csv"
+        },
+        {
+          "@id": "05-openvino-official-upstream/system/repository.json"
+        },
+        {
+          "@id": "05-openvino-official-upstream/system/hardware.json"
+        },
+        {
+          "@id": "05-openvino-official-upstream/system/software.json"
+        }
+      ]
+    },
+    {
+      "@id": "05-openvino-official-upstream/results/attempts.csv",
+      "@type": "File",
+      "name": "05-openvino-official-upstream attempt ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/results/measurements.csv",
+      "@type": "File",
+      "name": "05-openvino-official-upstream measurement ledger",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx",
+      "@type": "File",
+      "name": "Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    },
+    {
+      "@id": "05-openvino-official-upstream/results/summary-results.csv",
+      "@type": "File",
+      "name": "05-openvino-official-upstream summary results",
+      "encodingFormat": "text/csv",
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/route-manifest.json",
+      "@type": "File",
+      "name": "05-openvino-official-upstream route manifest",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/system/hardware.json",
+      "@type": "File",
+      "name": "05-openvino-official-upstream hardware evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/system/repository.json",
+      "@type": "File",
+      "name": "05-openvino-official-upstream repository evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/system/software.json",
+      "@type": "File",
+      "name": "05-openvino-official-upstream software evidence",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.docx",
+      "@type": "File",
+      "name": "05-openvino-official-upstream DOCX report",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#05-openvino-official-upstream-docx-generation"
+      },
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.pdf",
+      "@type": "File",
+      "name": "05-openvino-official-upstream PDF report",
+      "encodingFormat": "application/pdf",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#05-openvino-official-upstream-pdf-generation"
+      },
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "05-openvino-official-upstream/workbook/source/openvino-official-upstream-final-report.md",
+      "@type": "File",
+      "name": "05-openvino-official-upstream canonical report",
+      "encodingFormat": "text/markdown",
+      "isPartOf": {
+        "@id": "05-openvino-official-upstream/"
+      }
+    },
+    {
+      "@id": "06-cross-route-comparison/",
+      "@type": "Dataset",
+      "name": "06-cross-route-comparison",
+      "hasPart": [
+        {
+          "@id": "06-cross-route-comparison/route-manifest.json"
+        },
+        {
+          "@id": "06-cross-route-comparison/workbook/source/cross-route-comparison-final-report.md"
+        },
+        {
+          "@id": "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.docx"
+        },
+        {
+          "@id": "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.pdf"
+        }
+      ]
+    },
+    {
+      "@id": "06-cross-route-comparison/route-manifest.json",
+      "@type": "File",
+      "name": "06-cross-route-comparison route manifest",
+      "encodingFormat": "application/json",
+      "isPartOf": {
+        "@id": "06-cross-route-comparison/"
+      }
+    },
+    {
+      "@id": "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.docx",
+      "@type": "File",
+      "name": "06-cross-route-comparison DOCX report",
+      "encodingFormat": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#06-cross-route-comparison-docx-generation"
+      },
+      "isPartOf": {
+        "@id": "06-cross-route-comparison/"
+      }
+    },
+    {
+      "@id": "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.pdf",
+      "@type": "File",
+      "name": "06-cross-route-comparison PDF report",
+      "encodingFormat": "application/pdf",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#06-cross-route-comparison-pdf-generation"
+      },
+      "isPartOf": {
+        "@id": "06-cross-route-comparison/"
+      }
+    },
+    {
+      "@id": "06-cross-route-comparison/workbook/source/cross-route-comparison-final-report.md",
+      "@type": "File",
+      "name": "06-cross-route-comparison canonical report",
+      "encodingFormat": "text/markdown",
+      "isPartOf": {
+        "@id": "06-cross-route-comparison/"
+      }
+    },
+    {
+      "@id": "CHANGELOG.md",
+      "@type": "File",
+      "name": "Release history",
+      "encodingFormat": "text/markdown"
+    },
+    {
+      "@id": "LICENSES.md",
+      "@type": "File",
+      "name": "Licensing, attribution, and citation gap disclosure",
+      "encodingFormat": "text/markdown"
+    },
+    {
+      "@id": "README.md",
+      "@type": "File",
+      "name": "Answer-first release portal",
+      "encodingFormat": "text/markdown"
+    },
+    {
+      "@id": "REPRODUCING.md",
+      "@type": "File",
+      "name": "No-rerun validation and reproduction guide",
+      "encodingFormat": "text/markdown"
+    },
+    {
+      "@id": "catalog/campaign-summary.csv",
+      "@type": "File",
+      "name": "Campaign Summary",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "catalog/claim-evidence-map.csv",
+      "@type": "File",
+      "name": "Claim Evidence Map",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "catalog/comparability-matrix.csv",
+      "@type": "File",
+      "name": "Comparability Matrix",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "catalog/evidence-manifest.csv",
+      "@type": "File",
+      "name": "Evidence Manifest",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "catalog/failure-summary.csv",
+      "@type": "File",
+      "name": "Failure Summary",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "catalog/performance-summary.csv",
+      "@type": "File",
+      "name": "Performance Summary",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "catalog/quality-summary.csv",
+      "@type": "File",
+      "name": "Quality Summary",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "catalog/route-register.csv",
+      "@type": "File",
+      "name": "Route Register",
+      "encodingFormat": "text/csv"
+    },
+    {
+      "@id": "manifest-sha256.txt",
+      "@type": "File",
+      "name": "Complete self-excluding SHA-256 manifest",
+      "encodingFormat": "text/plain",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#release-manifest-generation"
+      }
+    },
+    {
+      "@id": "ro-crate-metadata.json",
+      "@type": "CreativeWork",
+      "about": {
+        "@id": "./"
+      },
+      "conformsTo": {
+        "@id": "https://w3id.org/ro/crate/1.3"
+      }
+    },
+    {
+      "@id": "validation/release-readiness.json",
+      "@type": "File",
+      "name": "Release readiness and QA evidence",
+      "encodingFormat": "application/json"
+    }
+  ]
+}

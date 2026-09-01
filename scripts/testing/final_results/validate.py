@@ -33,6 +33,7 @@ GATE_ORDER = (
     "workbook_parity",
     "pdf_structure",
     "comparability",
+    "release_metadata",
     "release_readiness",
 )
 
@@ -155,6 +156,40 @@ _TASK14_METADATA = (
     "LICENSES.md",
     "ro-crate-metadata.json",
     "manifest-sha256.txt",
+)
+_RELEASE_ROUTES = tuple(_EXPECTED_ROUTE_DIRECTORIES)
+_REPORT_STEMS = {
+    "01-upstream-llama-cpp": "upstream-llama-cpp-final-report",
+    "02-atomicbot-turboquant": "atomicbot-turboquant-final-report",
+    "03-animehacker-tq3-0": "animehacker-tq3-0-final-report",
+    "04-openvino-experimental-fork": "openvino-experimental-fork-final-report",
+    "05-openvino-official-upstream": "openvino-official-upstream-final-report",
+    "06-cross-route-comparison": "cross-route-comparison-final-report",
+}
+_RELEASE_REPORT_PATHS = tuple(
+    f"{route}/workbook/{folder}/{stem}.{suffix}"
+    for route, stem in _REPORT_STEMS.items()
+    for folder, suffix in (
+        ("source", "md"),
+        ("generated", "docx"),
+        ("generated", "pdf"),
+    )
+)
+_OPENVINO_WORKBOOK_PATHS = (
+    "04-openvino-experimental-fork/results/source/"
+    "Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
+    "05-openvino-official-upstream/results/source/"
+    "Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx",
+)
+_RELEASE_CATALOG_PATHS = (
+    "catalog/route-register.csv",
+    "catalog/campaign-summary.csv",
+    "catalog/performance-summary.csv",
+    "catalog/quality-summary.csv",
+    "catalog/failure-summary.csv",
+    "catalog/evidence-manifest.csv",
+    "catalog/claim-evidence-map.csv",
+    "catalog/comparability-matrix.csv",
 )
 
 
@@ -913,6 +948,7 @@ def _route_gates(data: _RouteData) -> list[GateResult]:
         _gate_workbook_parity(data),
         _gate_pdf_structure(data),
         _gate_comparability(data),
+        GateResult("release_metadata"),
     ]
     blocking = [gate.name for gate in gates if not gate.valid]
     release_issues = () if not blocking else (
@@ -1211,6 +1247,324 @@ def _collection_reconciliation_issues(
     return issues
 
 
+def _release_markdown_targets(path: Path) -> set[str]:
+    text = path.read_text(encoding="utf-8")
+    return {
+        target.split("#", 1)[0]
+        for target in re.findall(r"\[[^\]]+\]\(([^)]+)\)", text)
+        if target
+        and not re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", target)
+        and not target.startswith("//")
+    }
+
+
+def _entity_types(entity: Mapping[str, object]) -> set[str]:
+    value = entity.get("@type", ())
+    if isinstance(value, str):
+        return {value}
+    if isinstance(value, Sequence):
+        return {str(item) for item in value}
+    return set()
+
+
+def _entity_references(value: object) -> set[str]:
+    values = value if isinstance(value, list) else [value]
+    return {
+        str(item.get("@id"))
+        for item in values
+        if isinstance(item, Mapping) and item.get("@id")
+    }
+
+
+def _is_relative_data_entity_id(entity_id: str) -> bool:
+    return bool(entity_id) and not (
+        entity_id.startswith(("/", "\\"))
+        or "\\" in entity_id
+        or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", entity_id)
+        or re.match(r"^[A-Za-z]:", entity_id)
+        or ".." in entity_id.split("/")
+    )
+
+
+def _release_manifest_issues(collection: Path) -> list[ValidationIssue]:
+    manifest = collection / "manifest-sha256.txt"
+    errors = validate_sha256_manifest(collection, manifest)
+    issues = [
+        _issue("release_manifest_invalid", error, manifest) for error in errors
+    ]
+    if errors:
+        return issues
+    try:
+        lines = manifest.read_text(encoding="utf-8").splitlines()
+        published = {
+            line.split("  ", 1)[1]
+            for line in lines
+            if re.fullmatch(r"[0-9a-fA-F]{64}  .+", line)
+        }
+        expected = {
+            path.relative_to(collection).as_posix()
+            for path in collection.rglob("*")
+            if path.is_file() and path != manifest
+        }
+    except (OSError, UnicodeError, IndexError) as error:
+        return [_issue("release_manifest_invalid", str(error), manifest)]
+    if "manifest-sha256.txt" in published:
+        issues.append(
+            _issue(
+                "release_manifest_self_included",
+                "the top-level checksum manifest must exclude itself",
+                manifest,
+            )
+        )
+    missing = sorted(expected - published)
+    surplus = sorted(published - expected)
+    if missing or surplus:
+        issues.append(
+            _issue(
+                "release_manifest_file_set_mismatch",
+                f"top-level manifest file set mismatch; missing={missing}, surplus={surplus}",
+                manifest,
+            )
+        )
+    return issues
+
+
+def _release_ro_crate_issues(collection: Path) -> list[ValidationIssue]:
+    path = collection / "ro-crate-metadata.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        context = payload.get("@context", ())
+        contexts = [context] if isinstance(context, str) else list(context)
+        graph = payload.get("@graph")
+        if not isinstance(graph, list):
+            raise ValueError("@graph must be an array")
+        entities = {
+            str(entity["@id"]): entity
+            for entity in graph
+            if isinstance(entity, Mapping) and entity.get("@id")
+        }
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as error:
+        return [_issue("invalid_ro_crate", str(error), path)]
+
+    issues: list[ValidationIssue] = []
+    if not contexts or contexts[0] != "https://w3id.org/ro/crate/1.3/context":
+        issues.append(
+            _issue("ro_crate_version_mismatch", "RO-Crate 1.3 context is required", path)
+        )
+    descriptor = entities.get("ro-crate-metadata.json", {})
+    if (
+        descriptor.get("conformsTo") != {"@id": "https://w3id.org/ro/crate/1.3"}
+        or descriptor.get("about") != {"@id": "./"}
+    ):
+        issues.append(
+            _issue(
+                "invalid_ro_crate_descriptor",
+                "metadata descriptor must identify RO-Crate 1.3 and the root dataset",
+                path,
+            )
+        )
+    if "Dataset" not in _entity_types(entities.get("./", {})):
+        issues.append(_issue("missing_ro_crate_root", "root Dataset entity is missing", path))
+
+    for entity_id, entity in entities.items():
+        if _entity_types(entity) & {"File", "Dataset"} and not _is_relative_data_entity_id(entity_id):
+            issues.append(
+                _issue(
+                    "absolute_ro_crate_data_entity",
+                    f"packaged data entity must use a relative URI: {entity_id}",
+                    path,
+                )
+            )
+
+    expected_files = {
+        *_RELEASE_REPORT_PATHS,
+        *_OPENVINO_WORKBOOK_PATHS,
+        *_RELEASE_CATALOG_PATHS,
+        *(
+            f"{route}/{relative}"
+            for route in _RELEASE_ROUTES[:5]
+            for relative in (
+                "results/attempts.csv",
+                "results/measurements.csv",
+                "results/summary-results.csv",
+            )
+        ),
+    }
+    missing_entities = sorted(expected_files - entities.keys())
+    if missing_entities:
+        issues.append(
+            _issue(
+                "ro_crate_coverage_gap",
+                f"required reports or canonical tables are absent: {missing_entities}",
+                path,
+            )
+        )
+    for route in _RELEASE_ROUTES[:5]:
+        missing_context = [
+            entity_id
+            for entity_id in (
+                f"#{route}-repository",
+                f"#{route}-hardware",
+                f"#{route}-software",
+            )
+            if entity_id not in entities
+        ]
+        if missing_context:
+            issues.append(
+                _issue(
+                    "ro_crate_context_gap",
+                    f"route repository/hardware/software entities are absent: {missing_context}",
+                    path,
+                )
+            )
+
+    for entity_id, entity in entities.items():
+        if "#generated-artifact" not in _entity_references(entity.get("additionalType")):
+            continue
+        activities = _entity_references(entity.get("wasGeneratedBy"))
+        if len(activities) != 1:
+            issues.append(
+                _issue(
+                    "generated_artifact_activity_missing",
+                    f"generated artifact must identify one source activity: {entity_id}",
+                    path,
+                )
+            )
+            continue
+        activity_id = next(iter(activities))
+        activity = entities.get(activity_id, {})
+        if (
+            "CreateAction" not in _entity_types(activity)
+            or entity_id not in _entity_references(activity.get("result"))
+            or not _entity_references(activity.get("object"))
+        ):
+            issues.append(
+                _issue(
+                    "generated_artifact_activity_invalid",
+                    f"source activity does not bind inputs and result for {entity_id}",
+                    path,
+                )
+            )
+    return issues
+
+
+def validate_release_metadata(root: Path) -> GateResult:
+    """Validate the Task 14 portal, metadata, provenance, and release manifest."""
+    collection = Path(root).resolve()
+    present = [name for name in _TASK14_METADATA if (collection / name).is_file()]
+    if not present:
+        return GateResult(
+            "release_metadata",
+            limitations=(
+                "Task 14 collection metadata is pending: " + ", ".join(_TASK14_METADATA),
+            ),
+        )
+    missing = [name for name in _TASK14_METADATA if not (collection / name).is_file()]
+    if missing:
+        return GateResult(
+            "release_metadata",
+            (
+                _issue(
+                    "missing_release_metadata",
+                    "required release metadata is missing: " + ", ".join(missing),
+                    collection,
+                ),
+            ),
+        )
+
+    issues: list[ValidationIssue] = []
+    limitations: list[str] = []
+    try:
+        portal_targets = _release_markdown_targets(collection / "README.md")
+        expected_targets = {
+            "CHANGELOG.md",
+            "REPRODUCING.md",
+            "LICENSES.md",
+            "ro-crate-metadata.json",
+            "manifest-sha256.txt",
+            "validation/release-readiness.json",
+            *_RELEASE_CATALOG_PATHS,
+            *_RELEASE_REPORT_PATHS,
+            *_OPENVINO_WORKBOOK_PATHS,
+            *(f"{route}/route-manifest.json" for route in _RELEASE_ROUTES),
+        }
+        unlinked = sorted(expected_targets - portal_targets)
+        if unlinked:
+            issues.append(
+                _issue(
+                    "portal_link_gap",
+                    f"release portal does not link required routes/reports: {unlinked}",
+                    collection / "README.md",
+                )
+            )
+    except (OSError, UnicodeError) as error:
+        issues.append(_issue("invalid_release_portal", str(error), collection / "README.md"))
+
+    issues.extend(_release_ro_crate_issues(collection))
+    issues.extend(_release_manifest_issues(collection))
+
+    licenses_path = collection / "LICENSES.md"
+    try:
+        licenses = licenses_path.read_text(encoding="utf-8").casefold()
+        required_phrases = (
+            "no repository-level license file",
+            "no license grant",
+            "not verified",
+            "verified author metadata",
+        )
+        if any(phrase not in licenses for phrase in required_phrases) or any(
+            route not in licenses for route in _RELEASE_ROUTES[:5]
+        ):
+            issues.append(
+                _issue(
+                    "licensing_gap_not_explicit",
+                    "LICENSES.md must disclose the repository, route, and citation metadata gaps",
+                    licenses_path,
+                )
+            )
+    except (OSError, UnicodeError) as error:
+        issues.append(_issue("invalid_licenses_metadata", str(error), licenses_path))
+
+    readiness_path = collection / "validation/release-readiness.json"
+    try:
+        readiness = json.loads(readiness_path.read_text(encoding="utf-8"))
+        citation = readiness.get("citation", {})
+        verified_authors = citation.get("verified_author_metadata_available")
+        citation_exists = (collection / "CITATION.cff").is_file()
+        if verified_authors is not False or citation_exists:
+            issues.append(
+                _issue(
+                    "citation_metadata_policy_violation",
+                    "CITATION.cff must be omitted while verified author metadata is unavailable",
+                    collection / "CITATION.cff",
+                )
+            )
+        qa = readiness.get("qa", {})
+        pdf_qa = qa.get("pdf_reports", {})
+        expected_pdfs = {path for path in _RELEASE_REPORT_PATHS if path.endswith(".pdf")}
+        if set(pdf_qa) != expected_pdfs:
+            issues.append(
+                _issue(
+                    "pdf_qa_coverage_gap",
+                    "release readiness must record all six report PDFs",
+                    readiness_path,
+                )
+            )
+        workbook_qa = qa.get("openvino_workbooks", {})
+        if set(workbook_qa) != set(_OPENVINO_WORKBOOK_PATHS):
+            issues.append(
+                _issue(
+                    "workbook_qa_coverage_gap",
+                    "release readiness must record both OpenVINO workbooks",
+                    readiness_path,
+                )
+            )
+        limitations.extend(str(item) for item in readiness.get("limitations", ()))
+    except (OSError, UnicodeError, json.JSONDecodeError, AttributeError) as error:
+        issues.append(_issue("invalid_release_readiness", str(error), readiness_path))
+    return GateResult("release_metadata", tuple(issues), tuple(limitations))
+
+
 def validate_collection(root: Path) -> ValidationReport:
     """Validate every discovered route and collection release boundary read-only."""
     collection = Path(root).resolve()
@@ -1256,6 +1610,9 @@ def validate_collection(root: Path) -> ValidationReport:
 
     gates: list[GateResult] = []
     for gate_name in GATE_ORDER[:-1]:
+        if gate_name == "release_metadata":
+            gates.append(validate_release_metadata(collection))
+            continue
         issues: list[ValidationIssue] = []
         limitations: list[str] = []
         if gate_name == "schema":
@@ -1281,10 +1638,8 @@ def validate_collection(root: Path) -> ValidationReport:
     release_issues = () if not blocking else (
         _issue("release_blocked", f"blocking gates: {', '.join(blocking)}", collection),
     )
-    missing_metadata = [name for name in _TASK14_METADATA if not (collection / name).is_file()]
-    limitations = () if not missing_metadata else (
-        "Task 14 collection metadata is pending: " + ", ".join(missing_metadata),
-    )
+    metadata_gate = next(gate for gate in gates if gate.name == "release_metadata")
+    limitations = metadata_gate.limitations
     gates.append(GateResult("release_readiness", release_issues, limitations))
     return ValidationReport("collection", collection, tuple(gates))
 
@@ -1376,6 +1731,7 @@ __all__ = [
     "ValidationIssue",
     "ValidationReport",
     "validate_collection",
+    "validate_release_metadata",
     "validate_route",
     "write_validation_receipts",
 ]
