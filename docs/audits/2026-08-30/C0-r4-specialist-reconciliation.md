@@ -1,8 +1,8 @@
-# C0 R4 final-candidate reconciliation and E1 rerun dispatch
+# C0 R4 specialist reconciliation and final E1 intake
 
 ## Disposition
 
-C0 accepted the H1 and Q1 R4 returns, completed the required coordinator-owned production wiring, remediated every Critical or Important lifecycle finding, and froze the exact post-Q1 product subject. E1's first return was `CHANGES REQUIRED` because the candidate-controlled closure omitted all 22 R3 identifiers. C0 corrected that evidence defect without changing production, froze replacement evidence candidate `b5d2cd34c57368efb9b122cddf16c2ffa2d3895e` / `a3e4d82095caa9688f30d2463fa5971c788fd33f`, and formally redispatched E1 under a non-circular two-phase acceptance contract. Release acceptance remains pending the complete E1 rerun.
+C0 accepted the H1 and Q1 R4 returns, completed the required coordinator-owned production wiring, remediated every Critical or Important lifecycle finding, and froze the exact post-Q1 product subject. E1's first return was `CHANGES REQUIRED` because the candidate-controlled closure omitted all 22 R3 identifiers. C0 corrected that evidence defect without changing production and froze replacement evidence candidate `b5d2cd34c57368efb9b122cddf16c2ffa2d3895e` / `a3e4d82095caa9688f30d2463fa5971c788fd33f`. The final E1 v2 return is accepted for C0 reconciliation with disposition `BLOCKED BY EXTERNAL ENVIRONMENT`: R3-020 is closed by exact structured missing-prerequisite evidence, R3-022 remains false, and release approval is not granted.
 
 - Frozen historical source: `4748fe04f19afdf6b27c4c12502b84db325e7294` / `fe1fa8fb5fe4de8e7c1d867a83e08375bc1d0c91`
 - Coordinator branch: `integration/ucl-r4-specialist-reconciliation-v1`
@@ -26,8 +26,11 @@ The original entry gate also required `R3-020` and `R3-022`—the current E1 rec
 | --- | --- | --- | --- | --- |
 | H1 | `3be52f0b` / `5f50b480` | `75689afc` / `7b5b4001` | `99294b54` / `e96ce082` | accepted after C0 trust-boundary remediation |
 | Q1 | `218ad08f` / `78c96061` | `8627de71` / `d6022a7e` | `8769ec80` / `b068ca7f` | accepted after C0 lifecycle remediation |
+| E1 v2 | `b5d2cd34` / `a3e4d820` | `d18c2fb2` / `d3655a87` | `ded192b2` / `b87a4e03` | accepted as externally blocked evidence; not release approval |
 
 For Q1, C0 independently verified remote equality of the required validation ref and schema-compatible audit alias, ancestry from the issued base, returned hashes and byte counts, schema validity, privacy, owned paths, arithmetic, and blockers. Q1's four returned commits were integrated as `2cf766d0`, `5df9859a`, `16dca7ed`, and `6cb2addb`.
+
+For E1 v2, C0 independently verified local/tracking/advertised equality at `d18c2fb243da89b1e34f551a57880b2bf626030f`, direct subject/return ancestry, exact implementation and six-artifact scopes, both Draft 2020-12 schemas, all hashes and byte counts, privacy, command arithmetic, and the candidate-bound final evaluator. Intake review found and corrected one Important provenance defect: missing-prerequisite evidence now requires the exact `EXTERNAL-PREREQUISITE-PREFLIGHT` command. The corrected focused harness passed 37/37, the final evaluator passed 1/1, and two independent final reviews found zero remaining Critical or Important findings.
 
 ## C0 post-Q1 reconciliation
 
@@ -58,10 +61,14 @@ The final non-overlapping affected managed matrix is 466 discovered, 466 execute
 | Q1 identity and lifecycle | 51/51 passed |
 | Cross-feature integration | 115/115 passed |
 | Security audit | 12/12 passed, supplementary to the non-overlapping total |
-| Cleanup source/inventory verifier | 3/3 passed; 729/729 at the implementation subject and 731/731 after the two E1 dispatch artifacts are registered |
+| Cleanup source/inventory verifier | 3/3 passed; 767/767 after final E1 lineage and evidence integration |
 | Managed application Debug x64 build | succeeded with 0 warnings and 0 errors using explicit external-stage opt-outs because exact native inputs are absent |
 | WinUI UnitTests project build | succeeded with 13 inherited warnings and 0 errors |
 | Independent C0 wiring re-review | PASS; no remaining Critical or Important finding |
+| E1 v2 focused intake harness | 37/37 passed on exact subject `ded192b2`; 0 failed, 0 skipped |
+| E1 v2 final evaluator | 1/1 passed; `R3-020=true`, `R3-022=false` |
+| E1 v2 build | succeeded with 0 warnings and 0 errors |
+| E1 v2 independent intake/artifact review | PASS; no remaining Critical or Important finding |
 
 `global.json` remained byte-for-byte at its pinned `10.0.301` value. Local managed verification temporarily selected installed SDK `10.0.400`, then restored the file before the implementation commit.
 
@@ -69,12 +76,12 @@ The final non-overlapping affected managed matrix is 466 discovered, 466 execute
 
 - Q1 did not receive the native authorization/lock; no real model/tool, screenshot, package, or performance result is claimed from Q1.
 - Exact native GGUF/OpenVINO stage inputs remain absent. No binary, hash, or stage identity was invented.
-- Windows Application Control blocks freshly generated unsigned apphosts and the packaged WinUI test runner (`0x800711C7`). Policy was not weakened.
+- The final E1 subject executed its managed focused harness. The canonical external block is the absent exact `candidateManifest`; the historical `0x800711C7` event is not promoted to final-subject evidence. Policy was not weakened.
 - The managed application build used explicit external-stage opt-outs and is not signed-package or native acceptance.
 - No signed package, complete native journey, Intel performance gate, screenshot/accessibility gate, or final release approval is claimed.
-- E1 owns independent tests, evidence, and its verbatim verdict only. E1 may not make product fixes; any product correction invalidates its evidence and requires a new frozen base and complete rerun.
+- E1 made test/evidence-only corrections and no product changes. Its externally blocked return does not authorize package, native, UI, visual, accessibility, performance, or release claims.
 - `main` was not modified or pushed.
 
-## Formal E1 rerun dispatch
+## Final E1 intake and continuation point
 
-E1 may begin only from `refs/remotes/origin/integration/ucl-r4-e1-issued-base-v2` after verifying it equals commit `b5d2cd34c57368efb9b122cddf16c2ffa2d3895e` and tree `a3e4d82095caa9688f30d2463fa5971c788fd33f`. The candidate-controlled `C0-r4-E1-rerun-contract.md`, coordinator register, and `C0-r4-E1-rerun-launch-packet.json` are the formal rerun dispatch record. E1 must restart the full matrix, own the test-only verifier correction, and return exactly one allowed master-prompt disposition.
+The E1 v2 lineage and all historical returns are now integrated into this coordinator branch. The canonical final receipt remains `docs/audits/2026-08-30/handoffs/R4-E1.json`; the first-return receipt is preserved as `R4-E1-v1.json`. The next valid continuation is to supply the exact candidate/package/native-stage prerequisites in an authorized environment and execute the still-unclaimed gates. No merge to `main` or release approval is permitted from the present evidence.

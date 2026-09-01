@@ -36,7 +36,7 @@ All rows above are closed on the final product candidate. Independent re-review 
 
 ## R3 closure and acceptance phase split
 
-`C0-R4-ISSUE-CLOSURE-V4` records every identifier from `R3-001` through `R3-022` exactly once. `R3-001` through `R3-019` and `R3-021` are closed preflight findings with executable GREEN evidence. `R3-020` and `R3-022` remain explicitly `PENDING_E1_ACCEPTANCE`; requiring them to pass before E1 could attempt package/native acceptance would be circular and would force fabricated evidence.
+`C0-R4-ISSUE-CLOSURE-V4` records every identifier from `R3-001` through `R3-022` exactly once. `R3-001` through `R3-019` and `R3-021` are closed preflight findings with executable GREEN evidence. E1's final candidate-bound evaluation returns `R3-020=true` from exact structured missing-`candidateManifest` evidence and `R3-022=false` because package, App Control, native, and candidate E2E gates did not execute. The immutable candidate closure remains the preflight input; this post-acceptance result is recorded separately and does not rewrite that candidate.
 
 The closure also records all eight `R4-C0-*` findings exactly once with positive executable evidence. The prior T1 obligation table remains supporting campaign context and is not substituted for the required R3/R4 sets.
 
@@ -47,10 +47,11 @@ The closure also records all eight `R4-C0-*` findings exactly once with positive
 | H1-R4 | ACCEPTED | C0 preserved returned evidence and remediation record |
 | Q1-R4 | ACCEPTED | C0 integrated the return and closed coordinator-owned lifecycle findings |
 | E1-R4-V1 | CHANGES_REQUIRED | first return `dba63fcf` correctly vetoed the incomplete closure; artifacts preserved verbatim |
-| E1-R4-V2 | DISPATCHED | rerun from immutable `integration/ucl-r4-e1-issued-base-v2` under the corrected two-phase contract |
+| E1-R4-V2 | ACCEPTED_BLOCKED_EXTERNAL | final return `d18c2fb2`; 38/38 canonical managed evidence, R3-020 true, R3-022 false, no release approval |
 | NATIVE-AUTH-LOCK | BLOCKED_EXTERNAL | E1 may acquire only the approved shared native lock and exact authorization |
 | NATIVE-GGUF-STAGE | BLOCKED_EXTERNAL | exact pinned stage input is absent; no binary/hash may be invented |
 | NATIVE-OPENVINO-STAGES | BLOCKED_EXTERNAL | exact verified native-stage inputs remain absent |
-| APP-CONTROL | BLOCKED_EXTERNAL | unsigned fresh apphosts and packaged runner are policy-blocked |
-| SIGNED-PACKAGE | PENDING_E1 | E1 records only evidence actually obtainable on its candidate-bound host |
-| VISUAL-PERFORMANCE | PENDING_E1 | E1 claims these gates only if the exact candidate can execute |
+| CANDIDATE-MANIFEST | BLOCKED_EXTERNAL | exact candidate manifest was absent before package/native eligibility |
+| APP-CONTROL | UNEXECUTED | final subject did not reach this gate; historical policy-block evidence is not relabelled |
+| SIGNED-PACKAGE | UNEXECUTED | no package activation or signed-package acceptance is claimed |
+| VISUAL-PERFORMANCE | UNEXECUTED | no visual, accessibility, or performance execution is claimed |

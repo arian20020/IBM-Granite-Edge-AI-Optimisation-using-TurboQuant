@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "reviewerRole": "independent",
+  "reviewedSubjectCommit": "ded192b245e6f220469c4721e2a8cda9435123f1",
+  "reviewedSubjectTree": "b87a4e03b1b3c4eef4d63bf804fc8a0d0734a20d",
+  "disposition": "PASS_NO_REMAINING_CRITICAL_OR_IMPORTANT",
+  "criticalFindings": 0,
+  "importantFindings": 0,
+  "reviewComplete": true
+}

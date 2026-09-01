@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "workerId": "E1",
+  "frozenSourceCommit": "4748fe04f19afdf6b27c4c12502b84db325e7294",
+  "evidenceSubjectCommit": "ded192b245e6f220469c4721e2a8cda9435123f1",
+  "evidenceSubjectTree": "b87a4e03b1b3c4eef4d63bf804fc8a0d0734a20d",
+  "createdAtUtc": "2026-08-31T23:55:28Z",
+  "route": ["shared", "gguf", "openvino"],
+  "evidenceStatus": "blocked",
+  "report": {
+    "path": "docs/audits/2026-08-30/E1-r4-independent-acceptance-v2.md",
+    "sha256": "a56dede1325d959621cc981e79edeb6a16bf5c52b1cb24e0dcc517fa9b5c588f",
+    "bytes": 5647
+  },
+  "inputs": [
+    {"kind":"validated-candidate-base","id":"b5d2cd34c57368efb9b122cddf16c2ffa2d3895e","evidenceGrade":"verified"},
+    {"kind":"coordinator-dispatch","id":"fa4174fa45b66f0e6c71b9127bc603fcdea1607a","evidenceGrade":"verified"},
+    {"kind":"issue-closure","id":"C0-r4-issue-closure.json","sha256":"f047c491a3dd5004ccb85bc1860daeb1d0a3339a92025442cd0c010bca48469d","bytes":6490,"evidenceGrade":"verified"},
+    {"kind":"issue-evidence-catalog","id":"C0-r4-issue-evidence-index-v2.json","sha256":"13dd8e4e103d82dd8449e4b37e46b538725aea67fdeef18d92dd02760f8d488c","bytes":18924,"evidenceGrade":"verified"}
+  ],
+  "outputs": [
+    {"kind":"independent-final-review","id":"E1-r4-independent-final-review-v6.json","sha256":"e0309ccb21cae65dd3b9590dc28fae8822619a8a8112bdb2161855910fe9875d","bytes":335,"evidenceGrade":"verified"},
+    {"kind":"external-block-observation","id":"E1-r4-external-block-observation-v4.json","sha256":"1bc15ec1e3ca5f2f15b1815ff0b3fc98773242fe34f16cc82686c2f0b9551f1b","bytes":466,"evidenceGrade":"verified"}
+  ],
+  "commands": [
+    {"id":"E1-FOCUSED-HARNESS","exitCode":0,"discovered":37,"executed":37,"passed":37,"failed":0,"skipped":0,"disposition":"passed"},
+    {"id":"EXTERNAL-PREREQUISITE-PREFLIGHT","exitCode":1,"discovered":1,"executed":1,"passed":0,"failed":1,"skipped":0,"disposition":"blocked"},
+    {"id":"PACKAGE-ACTIVATION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"SECURITY-APP-CONTROL","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"NATIVE-EXECUTION","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"CANDIDATE-E2E","exitCode":1,"discovered":0,"executed":0,"passed":0,"failed":0,"skipped":0,"disposition":"blocked"},
+    {"id":"E1-POST-ACCEPTANCE-FINAL","exitCode":0,"discovered":1,"executed":1,"passed":1,"failed":0,"skipped":0,"disposition":"passed"}
+  ],
+  "blockers": [
+    "Exact candidate, asset, H1, M1, Q1 and native-executable prerequisites were absent at the final prerequisite check.",
+    "The shared native lock may be acquired only after exact prerequisites exist; package, App Control, native and candidate E2E stages remained ineligible.",
+    "R3-022 remains blocked and unresolved because package, App Control, native and candidate E2E evidence was not executed."
+  ],
+  "nonClaims": [
+    "The rejected return's 0x800711C7 event is historical and is not relabelled as successor-subject evidence; the final focused command passed 37/37.",
+    "No package activation, native GGUF/OpenVINO, real-model, UI, visual, accessibility, performance or release pass is claimed.",
+    "Blocked and unexecuted rows are not counted as passes; no product, machine-security, tested-base or main-branch change was made."
+  ]
+}

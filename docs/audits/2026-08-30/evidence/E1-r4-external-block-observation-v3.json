@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "observer": "E1",
+  "candidateCommit": "b5d2cd34c57368efb9b122cddf16c2ffa2d3895e",
+  "candidateTree": "a3e4d82095caa9688f30d2463fa5971c788fd33f",
+  "implementationSubjectCommit": "fc6790c9920dca0036d5566777ec720164a6723b",
+  "implementationSubjectTree": "995df9e0fef43434867438eece2f7c5dbbb8c973",
+  "kind": "missingPrerequisite",
+  "prerequisite": "candidateManifest",
+  "observedAbsent": true,
+  "observedAtUtc": "2026-08-31T23:29:15Z"
+}
