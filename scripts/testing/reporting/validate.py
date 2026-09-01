@@ -376,6 +376,69 @@ def _issue(code: str, message: str, path: Path | str = "") -> ValidationIssue:
     return ValidationIssue(code, message, str(path))
 
 
+def receipt_valid(
+    payload: Mapping[str, object],
+    *,
+    default_key: str | None = None,
+) -> bool:
+    """Interpret one receipt's boolean status without guessing silently."""
+    if "valid" in payload:
+        value = payload["valid"]
+    elif default_key is not None and default_key in payload:
+        value = payload[default_key]
+    elif isinstance(payload.get("status"), str):
+        normalized = str(payload["status"]).casefold()
+        if normalized in {"valid", "passed"}:
+            return True
+        if normalized in {"invalid", "failed"}:
+            return False
+        raise ValueError("validation receipt status must be recognized")
+    else:
+        raise ValueError("validation receipt must declare a boolean status")
+    if not isinstance(value, bool):
+        raise ValueError("validation receipt status must be boolean")
+    return value
+
+
+def extract_validation_messages(
+    payload: object,
+    field: str,
+) -> tuple[str, ...]:
+    """Collect nested findings or limitations from heterogeneous receipts."""
+    collected: list[str] = []
+
+    def visit(node: object) -> None:
+        if isinstance(node, Mapping):
+            if field in node:
+                collected.extend(_coerce_validation_messages(node[field]))
+            for value in node.values():
+                visit(value)
+        elif isinstance(node, Sequence) and not isinstance(node, (str, bytes, bytearray)):
+            for value in node:
+                visit(value)
+
+    visit(payload)
+    return tuple(dict.fromkeys(collected))
+
+
+def _coerce_validation_messages(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, Mapping):
+        if isinstance(value.get("message"), str):
+            return (str(value["message"]),)
+        messages: list[str] = []
+        for item in value.values():
+            messages.extend(_coerce_validation_messages(item))
+        return tuple(messages)
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        messages: list[str] = []
+        for item in value:
+            messages.extend(_coerce_validation_messages(item))
+        return tuple(messages)
+    return ()
+
+
 def _read_schema(name: str) -> dict[str, object]:
     return json.loads((_schema_root() / _SCHEMA_FILES[name]).read_text(encoding="utf-8"))
 

@@ -68,6 +68,14 @@ def _selected_directories(route: str) -> tuple[str, ...]:
     return (ROUTE_DIRECTORIES[route],)
 
 
+def selected_route_roots(output_root: Path, route: str) -> tuple[Path, ...]:
+    """Return the concrete route roots that a build or validation target covers."""
+    root = Path(output_root).resolve()
+    if route == "all":
+        return tuple(root / name for name in ROUTE_DIRECTORIES.values())
+    return tuple(root / name for name in _selected_directories(route))
+
+
 def _validate_selection(output_root: Path, route: str) -> "ValidationReport":
     from scripts.testing.reporting.validate import (
         ValidationReport,
@@ -79,7 +87,7 @@ def _validate_selection(output_root: Path, route: str) -> "ValidationReport":
     if route == "all":
         return validate_collection(root)
     if route == "openvino":
-        reports = [validate_route(root / name) for name in _selected_directories(route)]
+        reports = [validate_route(path) for path in selected_route_roots(root, route)]
         from scripts.testing.reporting.validate import GateResult
 
         gates = []
@@ -88,7 +96,7 @@ def _validate_selection(output_root: Path, route: str) -> "ValidationReport":
             limitations = tuple(item for report in reports for item in report.gate(gate_name).limitations)
             gates.append(GateResult(str(gate_name), issues, limitations))
         return ValidationReport("selection", root, tuple(gates))
-    return validate_route(root / _selected_directories(route)[0])
+    return validate_route(selected_route_roots(root, route)[0])
 
 
 def _print_report(report: "ValidationReport") -> None:
