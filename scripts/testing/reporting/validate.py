@@ -418,7 +418,7 @@ def extract_validation_messages(
                 visit(value)
 
     visit(payload)
-    return tuple(dict.fromkeys(collected))
+    return tuple(collected)
 
 
 def _coerce_validation_messages(value: object) -> tuple[str, ...]:

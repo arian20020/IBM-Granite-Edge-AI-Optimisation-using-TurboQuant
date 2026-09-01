@@ -40,6 +40,7 @@ _TOP_LEVEL_COMPONENTS = (
     "reproduction",
 )
 _REMOVED_TOP_LEVELS = (
+    "route-manifest.json",
     "workbook",
     "results",
     "quality",
@@ -484,17 +485,18 @@ def validate_layout(route_root: Path) -> tuple[str, ...]:
     """Return deterministic contract violations for a compact route layout."""
     root = Path(route_root).resolve()
     issues: list[str] = []
-    present = {
-        entry.name
-        for entry in root.iterdir()
-        if entry.is_dir() or entry.name == "README.md"
-    } if root.exists() else set()
+    top_level_entries = tuple(sorted(root.iterdir(), key=lambda path: path.name)) if root.exists() else ()
+    present = {entry.name for entry in top_level_entries}
     for required in _TOP_LEVEL_COMPONENTS:
         if required not in present:
             issues.append(f"missing_layout_part:{required}")
-    for removed in _REMOVED_TOP_LEVELS:
-        if (root / removed).exists():
-            issues.append(f"stale_layout_part:{removed}")
+    allowed = set(_TOP_LEVEL_COMPONENTS)
+    stale = set(_REMOVED_TOP_LEVELS)
+    for entry in top_level_entries:
+        if entry.name in stale:
+            issues.append(f"stale_layout_part:{entry.name}")
+        elif entry.name not in allowed:
+            issues.append(f"unexpected_layout_part:{entry.name}")
     validation_json = root / "validation/validation.json"
     validation_md = root / "validation/validation.md"
     if not validation_json.is_file():

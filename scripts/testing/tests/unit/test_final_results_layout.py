@@ -190,6 +190,36 @@ def test_validation_consolidation_preserves_receipts_and_computes_overall_status
     assert any(item["message"] == "manual review" for item in consolidated["limitations"])
 
 
+def test_validation_consolidation_preserves_duplicate_messages(tmp_path):
+    route = _build_old_route(tmp_path)
+    write_json(
+        route / "validation/data-validation.json",
+        {
+            "valid": False,
+            "findings": ["duplicate finding", "duplicate finding"],
+            "limitations": ["duplicate limitation", "duplicate limitation"],
+        },
+    )
+
+    consolidated = consolidate_validation(route)
+
+    finding_messages = [
+        item["message"]
+        for item in consolidated["findings"]
+        if item["check"] == "data"
+    ]
+    limitation_messages = [
+        item["message"]
+        for item in consolidated["limitations"]
+        if item["check"] == "data"
+    ]
+    assert finding_messages == ["duplicate finding", "duplicate finding"]
+    assert limitation_messages == [
+        "duplicate limitation",
+        "duplicate limitation",
+    ]
+
+
 def test_validation_consolidation_accepts_status_only_receipts(tmp_path):
     route = _build_old_route(tmp_path)
     write_json(
@@ -252,6 +282,18 @@ def test_validate_layout_rejects_manifest_self_inclusion(tmp_path):
     issues = validate_layout(migrated)
 
     assert any("manifest_self_inclusion" in issue for issue in issues)
+
+
+def test_validate_layout_rejects_unexpected_root_entries_and_stale_manifest(tmp_path):
+    route = _build_old_route(tmp_path)
+    migrated = _materialize_new_layout(tmp_path, route)
+    write_json(migrated / "route-manifest.json", {"route_id": "upstream-llama-cpp"})
+    _write_text(migrated / "notes/README.md", "# Unexpected\n")
+
+    issues = validate_layout(migrated)
+
+    assert "stale_layout_part:route-manifest.json" in issues
+    assert "unexpected_layout_part:notes" in issues
 
 
 def test_validation_consolidation_rejects_report_disagreement(tmp_path):
