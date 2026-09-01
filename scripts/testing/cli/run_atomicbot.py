@@ -7,9 +7,9 @@ from collections.abc import Sequence
 from . import build_mode_parser, forwarded_args, invoke_legacy_main
 
 
-run_atomicbot_retest_main = "scripts.testing.run_atomicbot_retest:main"
-run_atomicbot_server_metrics_main = "scripts.testing.run_atomicbot_server_metrics:main"
-run_atomicbot_full_quality_main = "scripts.testing.run_atomicbot_full_quality:main"
+run_atomicbot_retest_main = "scripts.testing.tools.run_atomicbot_retest:main"
+run_atomicbot_server_metrics_main = "scripts.testing.tools.run_atomicbot_server_metrics:main"
+run_atomicbot_full_quality_main = "scripts.testing.tools.run_atomicbot_full_quality:main"
 
 MODE_HANDLERS = {
     "retest": "run_atomicbot_retest_main",

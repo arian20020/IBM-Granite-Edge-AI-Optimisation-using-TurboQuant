@@ -12,13 +12,13 @@ from unittest.mock import patch
 
 import pytest
 
-import scripts.testing.adjudicate_official_openvino_quality as adjudicator
-from scripts.testing.adjudicate_official_openvino_quality import (
+import scripts.testing.tools.adjudicate_official_openvino_quality as adjudicator
+from scripts.testing.tools.adjudicate_official_openvino_quality import (
     adjudicate_quality,
     build_blind_scoring_input,
     load_rubric,
 )
-from scripts.testing.run_official_openvino_quality import (
+from scripts.testing.tools.run_official_openvino_quality import (
     QualityConfiguration,
     run_quality_campaign,
 )

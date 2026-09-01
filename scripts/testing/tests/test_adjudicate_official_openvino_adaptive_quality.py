@@ -8,18 +8,18 @@ from unittest.mock import Mock
 
 import pytest
 
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     build_campaign_identity,
     run_measurement_sequence,
 )
-from scripts.testing import adjudicate_official_openvino_adaptive_quality as adaptive_adjudicator
-from scripts.testing.adjudicate_official_openvino_adaptive_quality import (
+from scripts.testing.tools import adjudicate_official_openvino_adaptive_quality as adaptive_adjudicator
+from scripts.testing.tools.adjudicate_official_openvino_adaptive_quality import (
     adjudicate_adaptive_quality,
     build_adaptive_blind_bundle,
     main,
     parse_args,
 )
-from scripts.testing.adjudicate_official_openvino_quality import (
+from scripts.testing.tools.adjudicate_official_openvino_quality import (
     _prompt_controls,
     deterministic_gate,
 )

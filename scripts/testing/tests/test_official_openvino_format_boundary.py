@@ -288,7 +288,7 @@ def test_projection_matrix_loads_in_boundary_order_with_independent_gpu_control(
 def test_executable_specs_pass_real_sequence_projection_and_matrix_reconciliation(
     projected_inputs,
 ):
-    from scripts.testing.measure_official_openvino import (
+    from scripts.testing.tools.measure_official_openvino import (
         _matrix_case,
         _sequence_spec,
         validate_worker_spec_against_matrix_case,
@@ -473,17 +473,17 @@ def test_quality_contract_allow_lists_frozen_v1_and_compact_v2():
 
 
 def test_compact_prompt_contract_rejects_substituted_rendered_root(tmp_path):
-    from scripts.testing.run_official_openvino_quality import load_prompt_contract
+    from scripts.testing.tools.run_official_openvino_quality import load_prompt_contract
 
     with pytest.raises(ValueError, match="rendered root"):
         load_prompt_contract(V2_PROMPT_SET, PROMPT_ROOT / "rendered")
 
 
 def test_v2_is_accepted_by_quality_and_both_adjudicator_prompt_controls():
-    from scripts.testing.adjudicate_official_openvino_adaptive_quality import (
+    from scripts.testing.tools.adjudicate_official_openvino_adaptive_quality import (
         _prompt_controls as adaptive_prompt_controls,
     )
-    from scripts.testing.adjudicate_official_openvino_quality import _prompt_controls
+    from scripts.testing.tools.adjudicate_official_openvino_quality import _prompt_controls
     from scripts.testing.campaigns.openvino.quality import validate_response_record
     from scripts.testing.campaigns.openvino.quality_contracts import (
         load_quality_contract,
@@ -535,7 +535,7 @@ class _FakeGraniteTokenizer:
 
 
 def test_compact_prompt_uses_injected_tokenizer_and_persists_observed_count():
-    from scripts.testing.run_official_openvino_quality import load_prompt_contract
+    from scripts.testing.tools.run_official_openvino_quality import load_prompt_contract
 
     tokenizer = _FakeGraniteTokenizer(357)
     contract = load_prompt_contract(
@@ -548,7 +548,7 @@ def test_compact_prompt_uses_injected_tokenizer_and_persists_observed_count():
 
 
 def test_compact_prompt_rejects_513_tokens_before_generation():
-    from scripts.testing.run_official_openvino_quality import load_prompt_contract
+    from scripts.testing.tools.run_official_openvino_quality import load_prompt_contract
 
     with pytest.raises(ValueError, match="maximum input tokens"):
         load_prompt_contract(
@@ -603,7 +603,7 @@ def _temporary_v2_contract_with_p5_count(tmp_path, monkeypatch, token_count):
 
 
 def test_compact_prompt_accepts_exactly_512_tokens(tmp_path, monkeypatch):
-    from scripts.testing.run_official_openvino_quality import load_prompt_contract
+    from scripts.testing.tools.run_official_openvino_quality import load_prompt_contract
 
     contract = load_prompt_contract(
         _temporary_v2_contract_with_p5_count(tmp_path, monkeypatch, 512),
@@ -614,7 +614,7 @@ def test_compact_prompt_accepts_exactly_512_tokens(tmp_path, monkeypatch):
 
 
 def test_compact_prompt_rejects_observed_count_that_differs_from_signed_manifest():
-    from scripts.testing.run_official_openvino_quality import load_prompt_contract
+    from scripts.testing.tools.run_official_openvino_quality import load_prompt_contract
 
     with pytest.raises(ValueError, match="observed token count"):
         load_prompt_contract(
@@ -625,7 +625,7 @@ def test_compact_prompt_rejects_observed_count_that_differs_from_signed_manifest
 
 
 def test_v1_prompt_contract_keeps_its_prior_shape_without_tokenizer_loading():
-    from scripts.testing.run_official_openvino_quality import load_prompt_contract
+    from scripts.testing.tools.run_official_openvino_quality import load_prompt_contract
 
     def forbidden_tokenizer_loader(path):
         pytest.fail(f"v1 must not load a tokenizer: {path}")
@@ -643,8 +643,8 @@ def test_v1_prompt_contract_keeps_its_prior_shape_without_tokenizer_loading():
 
 
 def test_both_adjudicators_bind_v2_scoring_input_identity_to_registry_hash():
-    from scripts.testing import adjudicate_official_openvino_adaptive_quality as adaptive
-    from scripts.testing import adjudicate_official_openvino_quality as standard
+    from scripts.testing.tools import adjudicate_official_openvino_adaptive_quality as adaptive
+    from scripts.testing.tools import adjudicate_official_openvino_quality as standard
     from scripts.testing.campaigns.openvino.quality_contracts import (
         load_quality_contract,
     )

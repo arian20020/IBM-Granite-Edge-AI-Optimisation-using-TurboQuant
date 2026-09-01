@@ -18,7 +18,7 @@ def case(**overrides):
 
 
 def complete_runtime_summary(test_id="AH-09"):
-    from scripts.testing.run_animehacker_retest import FORMAL_FIELDS
+    from scripts.testing.tools.run_animehacker_retest import FORMAL_FIELDS
 
     sample = {field: 1.0 for field in FORMAL_FIELDS}
     sample.update({"valid": True, "missing": [], "extended_missing": [],
@@ -41,44 +41,44 @@ def complete_runtime_summary(test_id="AH-09"):
 
 class AnimehackerRunnerTests(unittest.TestCase):
     def test_quality_selection_accepts_recovered_rows(self):
-        from scripts.testing.run_animehacker_quality import quality_case_ids
+        from scripts.testing.tools.run_animehacker_quality import quality_case_ids
 
         self.assertIn("AH-09", quality_case_ids())
         self.assertIn("AH-10", quality_case_ids())
 
     def test_recovered_quality_rejects_missing_runtime_summary(self):
-        from scripts.testing.run_animehacker_quality import runtime_summary_is_complete
+        from scripts.testing.tools.run_animehacker_quality import runtime_summary_is_complete
 
         self.assertFalse(runtime_summary_is_complete("AH-09", None))
 
     def test_recovered_quality_rejects_invalid_runtime_summary(self):
-        from scripts.testing.run_animehacker_quality import runtime_summary_is_complete
+        from scripts.testing.tools.run_animehacker_quality import runtime_summary_is_complete
 
         summary = complete_runtime_summary()
         summary["samples"].pop()
         self.assertFalse(runtime_summary_is_complete("AH-09", summary))
 
     def test_recovered_quality_accepts_complete_three_sample_runtime_summary(self):
-        from scripts.testing.run_animehacker_quality import runtime_summary_is_complete
+        from scripts.testing.tools.run_animehacker_quality import runtime_summary_is_complete
 
         self.assertTrue(runtime_summary_is_complete("AH-09", complete_runtime_summary()))
 
     def test_recovered_quality_requires_runtime_summary_file(self):
-        from scripts.testing.run_animehacker_quality import require_recovered_runtime_summaries
+        from scripts.testing.tools.run_animehacker_quality import require_recovered_runtime_summaries
 
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(RuntimeError, "AH-09 requires complete runtime evidence"):
                 require_recovered_runtime_summaries([case(test_id="AH-09")], Path(directory))
 
     def test_large_host_cpu_rows_require_runtime_summary_file(self):
-        from scripts.testing.run_animehacker_quality import require_recovered_runtime_summaries
+        from scripts.testing.tools.run_animehacker_quality import require_recovered_runtime_summaries
 
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(RuntimeError, "AH-06 requires complete runtime evidence"):
                 require_recovered_runtime_summaries([case(test_id="AH-06")], Path(directory))
 
     def test_recovered_quality_preflight_permits_valid_runtime_summary(self):
-        from scripts.testing.run_animehacker_quality import require_recovered_runtime_summaries
+        from scripts.testing.tools.run_animehacker_quality import require_recovered_runtime_summaries
 
         with tempfile.TemporaryDirectory() as directory:
             summary_path = Path(directory) / "AH-10" / "summary.json"
@@ -87,7 +87,7 @@ class AnimehackerRunnerTests(unittest.TestCase):
             require_recovered_runtime_summaries([case(test_id="AH-10")], Path(directory))
 
     def test_existing_quality_rows_do_not_require_runtime_summary(self):
-        from scripts.testing.run_animehacker_quality import require_recovered_runtime_summaries
+        from scripts.testing.tools.run_animehacker_quality import require_recovered_runtime_summaries
 
         with tempfile.TemporaryDirectory() as directory:
             require_recovered_runtime_summaries([case(test_id="AH-01")], Path(directory))
@@ -131,7 +131,7 @@ class AnimehackerRunnerTests(unittest.TestCase):
                       [command[i:i + 2] for i in range(len(command) - 1)])
 
     def test_runtime_environment_distinguishes_tq3_from_non_tq3_sycl(self):
-        from scripts.testing.run_animehacker_retest import runtime_environment
+        from scripts.testing.tools.run_animehacker_retest import runtime_environment
 
         self.assertEqual(
             runtime_environment(case(backend="sycl-partial", cache="tq3_0")),

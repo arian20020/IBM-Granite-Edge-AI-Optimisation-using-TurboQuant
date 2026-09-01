@@ -5,7 +5,7 @@ from pathlib import Path
 
 class AnimehackerSourceAuditTests(unittest.TestCase):
     def test_readme_or_flag_strings_do_not_prove_implementation(self):
-        from scripts.testing.audit_animehacker_source import audit_source
+        from scripts.testing.tools.audit_animehacker_source import audit_source
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -17,7 +17,7 @@ class AnimehackerSourceAuditTests(unittest.TestCase):
             self.assertEqual(result["tq3_0"]["implementation_depth"], "documentation-only")
 
     def test_type_registration_and_cpu_functions_prove_cpu_implementation(self):
-        from scripts.testing.audit_animehacker_source import audit_source
+        from scripts.testing.tools.audit_animehacker_source import audit_source
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -34,7 +34,7 @@ class AnimehackerSourceAuditTests(unittest.TestCase):
             self.assertGreaterEqual(len(result["tq3_0"]["source_evidence"]), 3)
 
     def test_backend_support_requires_tq3_specific_backend_code(self):
-        from scripts.testing.audit_animehacker_source import audit_source
+        from scripts.testing.tools.audit_animehacker_source import audit_source
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -54,7 +54,7 @@ class AnimehackerSourceAuditTests(unittest.TestCase):
             self.assertTrue(result["backends"]["sycl"]["tq3_0_specific"])
 
     def test_qjl_is_not_claimed_from_comments_or_struct_field_names(self):
-        from scripts.testing.audit_animehacker_source import audit_source
+        from scripts.testing.tools.audit_animehacker_source import audit_source
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -67,7 +67,7 @@ class AnimehackerSourceAuditTests(unittest.TestCase):
             self.assertEqual(result["qjl"]["status"], "not-proven")
 
     def test_limitations_report_is_explicit_about_unproven_routes(self):
-        from scripts.testing.audit_animehacker_source import render_limitations
+        from scripts.testing.tools.audit_animehacker_source import render_limitations
 
         audit = {
             "tq3_0": {"implementation_depth": "source-implemented"},

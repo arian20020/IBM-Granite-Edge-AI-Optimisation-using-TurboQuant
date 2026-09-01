@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     CampaignLock,
     MeasurementSequenceFailure,
     _adaptive_record,

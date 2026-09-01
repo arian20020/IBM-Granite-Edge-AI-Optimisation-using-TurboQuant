@@ -104,14 +104,14 @@ class AnimehackerLargeHostTests(unittest.TestCase):
                 write_manifest(run_root, result)
 
     def test_launcher_restricts_selection_to_frozen_incomplete_rows(self):
-        from scripts.testing.run_animehacker_large_host import validate_selection
+        from scripts.testing.tools.run_animehacker_large_host import validate_selection
 
         self.assertEqual(validate_selection(("AH-10", "AH-06")), ("AH-06", "AH-10"))
         with self.assertRaisesRegex(ValueError, "unsupported test ID"):
             validate_selection(("AH-09",))
 
     def test_runtime_command_keeps_guard_and_2048_mib_floor(self):
-        from scripts.testing.run_animehacker_large_host import LargeHostConfig, build_runtime_command
+        from scripts.testing.tools.run_animehacker_large_host import LargeHostConfig, build_runtime_command
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -124,7 +124,7 @@ class AnimehackerLargeHostTests(unittest.TestCase):
         self.assertNotIn("--pilot-only", command)
 
     def test_quality_command_uses_same_runtime_and_run_scoped_quality_roots(self):
-        from scripts.testing.run_animehacker_large_host import LargeHostConfig, build_quality_command
+        from scripts.testing.tools.run_animehacker_large_host import LargeHostConfig, build_quality_command
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -138,7 +138,7 @@ class AnimehackerLargeHostTests(unittest.TestCase):
         self.assertIn(["--only", "AH-06"], pairs)
 
     def test_execute_is_serial_and_stops_after_nonzero_phase(self):
-        from scripts.testing.run_animehacker_large_host import LargeHostConfig, execute
+        from scripts.testing.tools.run_animehacker_large_host import LargeHostConfig, execute
 
         calls = []
 
@@ -155,7 +155,7 @@ class AnimehackerLargeHostTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
 
     def terminal_evidence(self, test_id="AH-06"):
-        from scripts.testing.run_animehacker_retest import FORMAL_FIELDS
+        from scripts.testing.tools.run_animehacker_retest import FORMAL_FIELDS
 
         sample = {field: 1.0 for field in FORMAL_FIELDS}
         sample.update({"valid": True, "missing": [], "extended_missing": [],

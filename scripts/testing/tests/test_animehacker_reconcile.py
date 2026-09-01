@@ -33,7 +33,7 @@ class AnimehackerReconcileTests(unittest.TestCase):
         path.write_text(json.dumps(payload), encoding="utf-8")
 
     def test_rejects_blank_and_literal_na_cells(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_markdown
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_markdown
 
         with self.assertRaisesRegex(ValueError, "blank workbook"):
             validate_markdown("| Field |  |")
@@ -41,13 +41,13 @@ class AnimehackerReconcileTests(unittest.TestCase):
             validate_markdown("| Field | N/A |")
 
     def test_requires_every_controlled_id(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_markdown
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_markdown
 
         with self.assertRaisesRegex(ValueError, "missing test id"):
             validate_markdown("| Field | Filled |")
 
     def test_recovered_ah09_requires_three_samples_and_six_quality_records(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -62,14 +62,14 @@ class AnimehackerReconcileTests(unittest.TestCase):
                 validate_recovery(runtime, quality, adjudication)
 
     def test_ah10_accepts_sourced_schema_v2_memory_gate_without_quality(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
         temporary, runtime, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             result = validate_recovery(runtime, quality, adjudication)
             self.assertEqual(result["AH-10"]["status"], "safety-classified")
 
     def test_rejects_missing_ah09_metric_or_utilization(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
         temporary, runtime, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             self._mutate_json(runtime / "AH-09/summary.json", lambda p: p["aggregate"].pop("ttft_ms"))
@@ -77,7 +77,7 @@ class AnimehackerReconcileTests(unittest.TestCase):
                 validate_recovery(runtime, quality, adjudication)
 
     def test_rejects_wrong_ah09_aggregate_metric(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
         temporary, runtime, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             self._mutate_json(runtime / "AH-09/summary.json", lambda p: p["aggregate"]["ttft_ms"].update(median=9999))
@@ -85,7 +85,7 @@ class AnimehackerReconcileTests(unittest.TestCase):
                 validate_recovery(runtime, quality, adjudication)
 
     def test_rejects_gpu_kv_or_wrong_offload_activation(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
         temporary, runtime, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             self._mutate_json(runtime / "AH-09/summary.json", lambda p: p["activation"][0].update(actual_device="GPU", offloaded_layers=2))
@@ -93,7 +93,7 @@ class AnimehackerReconcileTests(unittest.TestCase):
                 validate_recovery(runtime, quality, adjudication)
 
     def test_rejects_wrong_ah09_quality_mean(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
         temporary, runtime, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             self._mutate_json(adjudication, lambda p: p["AH-09"].update(mean_score=9.0))
@@ -101,14 +101,14 @@ class AnimehackerReconcileTests(unittest.TestCase):
                 validate_recovery(runtime, quality, adjudication)
 
     def test_rejects_workbook_without_committed_ah09_mean(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
         temporary, runtime, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             with self.assertRaisesRegex(ValueError, "workbook does not report AH-09 mean 6.0583"):
                 validate_recovery(runtime, quality, adjudication, workbook.replace("6.0583", "6.0000"))
 
     def test_rejects_successful_non_safety_ah10(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
         temporary, runtime, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             self._mutate_json(runtime / "AH-10/wrapper-execution.json", lambda p: p.update(controller_exit_code=0))
@@ -116,7 +116,7 @@ class AnimehackerReconcileTests(unittest.TestCase):
                 validate_recovery(runtime, quality, adjudication)
 
     def test_rejects_nonzero_ah10_cleanup_process_counts(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
         temporary, runtime, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             self._mutate_json(runtime / "AH-10/post-stop-cleanup.json", lambda p: p.update(llama_process_count=1))
@@ -124,7 +124,7 @@ class AnimehackerReconcileTests(unittest.TestCase):
                 validate_recovery(runtime, quality, adjudication)
 
     def test_rejects_fabricated_ah10_summary_or_quality(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery
         temporary, runtime, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             (runtime / "AH-10/summary.json").write_text("{}", encoding="utf-8")
@@ -133,7 +133,7 @@ class AnimehackerReconcileTests(unittest.TestCase):
                 validate_recovery(runtime, quality, adjudication)
 
     def test_finalizer_refuses_unvalidated_recovery_state(self):
-        from scripts.testing.finalize_animehacker_runtime_state import finalize_state
+        from scripts.testing.tools.finalize_animehacker_runtime_state import finalize_state
         temporary, recovery, quality, adjudication, workbook = self._recovery_fixture()
         with temporary:
             runtime = Path(temporary.name) / "formal-runtime"
@@ -146,17 +146,17 @@ class AnimehackerReconcileTests(unittest.TestCase):
             self.assertFalse((runtime / "state.json").exists())
 
     def test_finalizer_direct_cli_resolves_reconciliation_validator(self):
-        script = self._repo_root() / "scripts/testing/finalize_animehacker_runtime_state.py"
+        script = self._repo_root() / "scripts/testing/tools/finalize_animehacker_runtime_state.py"
         result = subprocess.run([sys.executable, str(script), "--help"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_workbook_requires_recovered_level_zero_backend_and_final_ah10_values(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery_workbook
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery_workbook
         workbook = (self._repo_root() / "docs/testing/workbooks/text-templates/03_animehacker_TQ3_0_Controlled_Retest_Workbook_v1.md").read_text(encoding="utf-8")
         validate_recovery_workbook(workbook)
 
     def test_workbook_rejects_stale_recovered_backend_or_ah10_measurement(self):
-        from scripts.testing.reconcile_animehacker_workbook import validate_recovery_workbook
+        from scripts.testing.tools.reconcile_animehacker_workbook import validate_recovery_workbook
         good = "| AH-08 | SYCL OpenCL |\n| AH-09 | Level Zero `level_zero:0` |\n| AH-10 | Level Zero `level_zero:0` | 8969.625 MiB peak WS | 70.0 MiB KV |"
         validate_recovery_workbook(good)
         with self.assertRaisesRegex(ValueError, "recovered AH-09/AH-10 must use Level Zero"):

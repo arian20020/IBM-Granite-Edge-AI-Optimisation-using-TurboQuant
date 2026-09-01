@@ -7,9 +7,9 @@ from collections.abc import Sequence
 from . import build_mode_parser, forwarded_args, invoke_legacy_main
 
 
-run_animehacker_retest_main = "scripts.testing.run_animehacker_retest:main"
-run_animehacker_quality_main = "scripts.testing.run_animehacker_quality:main"
-run_animehacker_large_host_main = "scripts.testing.run_animehacker_large_host:main"
+run_animehacker_retest_main = "scripts.testing.tools.run_animehacker_retest:main"
+run_animehacker_quality_main = "scripts.testing.tools.run_animehacker_quality:main"
+run_animehacker_large_host_main = "scripts.testing.tools.run_animehacker_large_host:main"
 
 MODE_HANDLERS = {
     "retest": "run_animehacker_retest_main",

@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from scripts.testing.run_atomicbot_full_quality import (
+from scripts.testing.tools.run_atomicbot_full_quality import (
     acquire_runner_lock,
     call_with_deadline,
     completion_is_terminal,

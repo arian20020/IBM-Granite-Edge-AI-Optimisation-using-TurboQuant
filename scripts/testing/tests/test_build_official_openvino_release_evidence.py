@@ -123,7 +123,7 @@ class StaticSectionParsingTests(unittest.TestCase):
         )
 
     def test_static_draft_has_four_concise_nonblank_tables(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             parse_static_sections,
         )
 
@@ -170,7 +170,7 @@ class StaticSectionParsingTests(unittest.TestCase):
             self.assertIn(test_id, sections[4])
 
     def test_static_sections_preserve_the_approved_build_diagnostic_and_control_allocation(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             parse_static_sections,
         )
 
@@ -242,7 +242,7 @@ class StaticSectionParsingTests(unittest.TestCase):
         self.assertIn("not benchmark or quality results", sections[4])
 
     def test_parse_static_sections_returns_only_complete_release_sections(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             parse_static_sections,
         )
 
@@ -258,7 +258,7 @@ class StaticSectionParsingTests(unittest.TestCase):
         )
 
     def test_parse_static_sections_rejects_a_missing_or_duplicate_section(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             parse_static_sections,
         )
 
@@ -284,7 +284,7 @@ class StaticSectionParsingTests(unittest.TestCase):
 
 class ReleaseEvidenceBuildTests(unittest.TestCase):
     def test_build_identity_static_and_full_evidence_contract_is_reproducible(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             build_release_evidence,
         )
 
@@ -485,7 +485,7 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
         )
 
     def test_build_rejects_a_changed_reviewed_source_before_replacing_outputs(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             build_release_evidence,
         )
 
@@ -516,7 +516,7 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
             self.assertFalse((fixture / "release").exists())
 
     def test_build_rejects_quality_spec_bytes_not_bound_by_the_guard(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             _validate_quality_guards,
         )
 
@@ -545,7 +545,7 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
                 _validate_quality_guards(fixture)
 
     def test_every_generated_source_reference_matches_the_source_bytes(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             build_release_evidence,
         )
 
@@ -585,10 +585,10 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
                     self.assertEqual(_sha256(source), reference["sha256"])
 
     def test_generated_release_passes_strict_finalizer_check_only(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             build_release_evidence,
         )
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             finalize_release,
         )
 
@@ -630,7 +630,7 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
             completed = subprocess.run(
                 [
                     sys.executable,
-                    "scripts/testing/build_official_openvino_release_evidence.py",
+                    "scripts/testing/tools/build_official_openvino_release_evidence.py",
                     "--output-root",
                     str(root / "release"),
                     "--release-input",
@@ -649,7 +649,7 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
             self.assertTrue((root / "reconciliation-input.json").is_file())
 
     def test_cli_default_release_evidence_path_is_not_git_ignored(self):
-        from scripts.testing.build_official_openvino_release_evidence import (
+        from scripts.testing.tools.build_official_openvino_release_evidence import (
             _parse_args,
         )
 

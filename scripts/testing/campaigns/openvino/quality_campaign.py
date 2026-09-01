@@ -14,7 +14,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     SEQUENCE_ROLES,
     SEQUENCE_SCHEMA,
     _resumable_attempt,
@@ -39,7 +39,7 @@ from scripts.testing.campaigns.openvino.guarded_build import (
     _inject_bound_input_authority,
     run_guarded_command,
 )
-from scripts.testing.run_official_openvino_quality import (
+from scripts.testing.tools.run_official_openvino_quality import (
     PROMPT_IDS,
     QualityRuntimeIdentity,
     _build_capture_summary,

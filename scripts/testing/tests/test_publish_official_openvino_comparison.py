@@ -16,7 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts.testing.publish_official_openvino_comparison import (
+from scripts.testing.tools.publish_official_openvino_comparison import (
     PUBLICATION_PATHS,
     PublicationInputs,
     build_publication_bundle,
@@ -214,10 +214,10 @@ def fixture_repo(tmp_path: Path) -> tuple[Path, Path]:
     matrix = repo / MATRIX_PATH
     matrix.parent.mkdir(parents=True, exist_ok=True)
     matrix.write_bytes(b"fixture adaptive comparison matrix\n")
-    validator = repo / "scripts/testing/Validate-Workbook-Revision-Control.py"
+    validator = repo / "scripts/testing/tools/Validate-Workbook-Revision-Control.py"
     validator.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(
-        ROOT / "scripts/testing/Validate-Workbook-Revision-Control.py", validator
+        ROOT / "scripts/testing/tools/Validate-Workbook-Revision-Control.py", validator
     )
     release_input = repo / "experiments/synthetic/checkpoint/reconciliation-input.json"
     release_input.parent.mkdir(parents=True, exist_ok=True)
@@ -298,7 +298,7 @@ def publish_fixture(
     monkeypatch: pytest.MonkeyPatch,
     **kwargs,
 ):
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     loaded = publication_inputs(repo, release_input)
     monkeypatch.setattr(publisher, "_load_publication_inputs", lambda path, root: loaded)
@@ -532,7 +532,7 @@ def test_projection_has_five_traceability_rows_twenty_five_configs_and_wr037() -
 
 
 def test_projection_order_comes_from_committed_matrix_contract_not_local_constants() -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     release = complete_release()
     forward = register_rows_from_release(
@@ -977,7 +977,7 @@ def test_display_normalization_rejects_evidence_outside_explicit_repo_root(
 def test_path_loader_calls_task7_loader_once_and_reconciles_same_input(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     repo, release_input = fixture_repo(tmp_path)
     release_input.write_text(
@@ -1062,7 +1062,7 @@ def test_every_replace_failure_rolls_back_exact_bytes_and_removes_new_state(
 def test_rollback_attempts_every_replaced_target_and_aggregates_all_failures(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     repo, release_input = fixture_repo(tmp_path)
     before = hash_destinations(repo, release_input)
@@ -1128,7 +1128,7 @@ def test_rollback_attempts_every_replaced_target_and_aggregates_all_failures(
 def test_generation_or_docx_audit_failure_performs_zero_destination_writes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     for mode in ("generation", "audit"):
         repo, release_input = fixture_repo(tmp_path / mode)
@@ -1184,7 +1184,7 @@ def test_build_refuses_revision_validator_source_outside_explicit_repo_root(
     tmp_path: Path,
 ) -> None:
     repo, release_input = fixture_repo(tmp_path)
-    (repo / "scripts/testing/Validate-Workbook-Revision-Control.py").unlink()
+    (repo / "scripts/testing/tools/Validate-Workbook-Revision-Control.py").unlink()
     with pytest.raises(ValueError, match="missing from the explicit repo_root"):
         build_publication_bundle(
             complete_release(),
@@ -1228,7 +1228,7 @@ def test_post_publish_revision_control_failure_rolls_back_replaced_targets(
 def test_cleanup_failure_surfaces_alongside_primary_observer_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     repo, release_input = fixture_repo(tmp_path)
 
@@ -1338,7 +1338,7 @@ def test_exclusive_publisher_lock_prevents_nested_interleaving(
 def test_destination_containment_is_rechecked_after_link_swap_signal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     repo, release_input = fixture_repo(tmp_path)
     before = hash_destinations(repo, release_input)
@@ -1428,7 +1428,7 @@ def test_published_bundle_validation_rejects_hash_drift_and_unknown_paths(
 def test_published_bundle_reopens_and_hash_binds_matrix_and_task7_input(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     repo, release_input = fixture_repo(tmp_path)
     publish_fixture(repo, release_input, monkeypatch)
@@ -1652,10 +1652,10 @@ def complete_revision_fixture_repo(tmp_path: Path) -> tuple[Path, Path]:
     docx = repo / GENERATED_DOCX
     docx.parent.mkdir(parents=True, exist_ok=True)
     docx.write_bytes(b"previous fixture DOCX bytes")
-    validator = repo / "scripts/testing/Validate-Workbook-Revision-Control.py"
+    validator = repo / "scripts/testing/tools/Validate-Workbook-Revision-Control.py"
     validator.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(
-        ROOT / "scripts/testing/Validate-Workbook-Revision-Control.py", validator
+        ROOT / "scripts/testing/tools/Validate-Workbook-Revision-Control.py", validator
     )
     release_input = repo / "experiments/synthetic/checkpoint/reconciliation-input.json"
     release_input.parent.mkdir(parents=True, exist_ok=True)
@@ -1669,7 +1669,7 @@ def complete_revision_fixture_repo(tmp_path: Path) -> tuple[Path, Path]:
 def test_complete_published_fixture_passes_copied_revision_validator(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     repo, release_input = complete_revision_fixture_repo(tmp_path)
     loaded = publication_inputs(repo, release_input)
@@ -1695,7 +1695,7 @@ def test_complete_published_fixture_passes_copied_revision_validator(
         evidence_commit=EVIDENCE_COMMIT,
     )
     completed = subprocess.run(
-        [sys.executable, str(repo / "scripts/testing/Validate-Workbook-Revision-Control.py")],
+        [sys.executable, str(repo / "scripts/testing/tools/Validate-Workbook-Revision-Control.py")],
         cwd=repo,
         text=True,
         capture_output=True,
@@ -1759,7 +1759,7 @@ def test_real_task7_path_release_publishes_reopens_and_rejects_authority_tamper(
 def test_publisher_cli_requires_explicit_arguments_and_forwards_normal_mode(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     with pytest.raises(SystemExit):
         publisher.parse_args([])
@@ -1802,7 +1802,7 @@ def test_publisher_cli_requires_explicit_arguments_and_forwards_normal_mode(
 def test_publisher_cli_check_only_builds_full_bundle_without_destination_writes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    import scripts.testing.publish_official_openvino_comparison as publisher
+    import scripts.testing.tools.publish_official_openvino_comparison as publisher
 
     repo, release_input = fixture_repo(tmp_path)
     loaded = publication_inputs(repo, release_input)

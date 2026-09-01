@@ -144,7 +144,7 @@ def main() -> int:
         utilization_stop.unlink(missing_ok=True)
         utilization_process = subprocess.Popen([
             "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-            str(ROOT / "scripts/testing/collect_process_utilization.ps1"),
+            str(ROOT / "scripts/testing/tools/collect_process_utilization.ps1"),
             "-ProcessId", str(process.pid), "-OutputPath", str(utilization_path),
             "-ReadyPath", str(utilization_ready), "-StopPath", str(utilization_stop),
         ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)

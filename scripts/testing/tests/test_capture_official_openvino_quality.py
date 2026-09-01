@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.testing.run_official_openvino_quality import (
+from scripts.testing.tools.run_official_openvino_quality import (
     QualityGenerationRequest,
     QualityRuntimeIdentity,
     capture_quality_responses,
@@ -477,7 +477,7 @@ def test_governed_settings_projection_requires_the_exact_worker_contract(
     field,
     wrong,
 ):
-    from scripts.testing.run_official_openvino_quality import (
+    from scripts.testing.tools.run_official_openvino_quality import (
         _map_governed_generation_settings,
     )
 

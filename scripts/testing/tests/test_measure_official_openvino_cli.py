@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     build_worker_environment,
     run_single_measurement,
 )

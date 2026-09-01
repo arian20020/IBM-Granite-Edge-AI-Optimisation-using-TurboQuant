@@ -24,7 +24,7 @@ U8_SPEC = ROOT / "experiments/raw-results/openvino-turboquant/2026-07-30/diagnos
 U8_ATTEMPT = U8_SPEC.parent / "run/attempt.json"
 U4_SPEC = ROOT / "experiments/raw-results/openvino-turboquant/2026-07-30/diagnostics/u4-standard-load-probe-attempt-001/spec.json"
 U4_ATTEMPT = U4_SPEC.parent / "run/attempt.json"
-CLI = ROOT / "scripts/testing/generate_official_openvino_scalar_rejections.py"
+CLI = ROOT / "scripts/testing/tools/generate_official_openvino_scalar_rejections.py"
 SCHEMA = "official-openvino-wb04-scalar-semantic-rejection-evidence/v1"
 RESULT_MARKER = "OPENVINO_WB04_RESULT_JSON="
 EXPECTED_FORMAL_METRICS = [

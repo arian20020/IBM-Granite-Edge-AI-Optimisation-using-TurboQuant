@@ -52,7 +52,7 @@ class AtomicBotRunnerTests(unittest.TestCase):
     def test_cli_dry_run_launches_no_runtime_and_lists_exact_selection(self):
         with tempfile.TemporaryDirectory() as directory:
             marker = Path(directory) / "should-not-exist"
-            command = [sys.executable, str(ROOT / "scripts/testing/run_atomicbot_retest.py"),
+            command = [sys.executable, str(ROOT / "scripts/testing/tools/run_atomicbot_retest.py"),
                        "--matrix", str(MATRIX), "--dry-run", "--only", "AB-01"]
             completed = subprocess.run(command, capture_output=True, text=True, timeout=10,
                                        env={**__import__("os").environ, "ATOMICBOT_TEST_MARKER": str(marker)})
@@ -90,7 +90,7 @@ class AtomicBotRunnerTests(unittest.TestCase):
         self.assertIn("--no-webui", command)
 
     def test_server_metric_resume_reuses_only_valid_measurement(self):
-        from scripts.testing.run_atomicbot_server_metrics import read_valid_measurement
+        from scripts.testing.tools.run_atomicbot_server_metrics import read_valid_measurement
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "measurement.json"

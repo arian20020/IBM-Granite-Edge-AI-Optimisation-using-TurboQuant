@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from scripts.testing.build_official_openvino_adaptive_matrix import (
+from scripts.testing.tools.build_official_openvino_adaptive_matrix import (
     load_adaptive_artifact_inventory,
 )
 

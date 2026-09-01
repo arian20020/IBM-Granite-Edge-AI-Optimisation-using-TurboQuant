@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-import scripts.testing.finalize_official_openvino_comparison_workbook as finalizer
-from scripts.testing.finalize_official_openvino_comparison_workbook import (
+import scripts.testing.tools.finalize_official_openvino_comparison_workbook as finalizer
+from scripts.testing.tools.finalize_official_openvino_comparison_workbook import (
     COMPARISON_SECTION_TITLES,
     finalize_release,
     render_v19_workbook,

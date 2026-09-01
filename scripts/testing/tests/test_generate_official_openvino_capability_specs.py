@@ -30,7 +30,7 @@ def _matrix(path: Path) -> None:
 
 
 def test_generates_four_exact_context_row_bound_specs():
-    from scripts.testing.generate_official_openvino_capability_specs import (
+    from scripts.testing.tools.generate_official_openvino_capability_specs import (
         generate_capability_specs,
     )
 

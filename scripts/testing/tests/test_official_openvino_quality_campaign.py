@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     build_campaign_identity,
     run_measurement_sequence,
 )
@@ -127,7 +127,7 @@ def _legacy_quality_cli_args(tmp_path):
 
 def test_quality_cli_requires_identity_paths_and_exact_ram_floor(tmp_path):
     """Reject a bare campaign root and accept only the fixed RAM floor."""
-    from scripts.testing.run_official_openvino_quality import parse_args
+    from scripts.testing.tools.run_official_openvino_quality import parse_args
 
     with pytest.raises(SystemExit):
         parse_args(["--campaign-root", "campaign"])
@@ -2013,7 +2013,7 @@ def test_governed_capture_concurrent_fresh_publication_has_one_owner(
 def test_quality_cli_parses_every_governed_campaign_input_path(
     tmp_path,
 ):
-    from scripts.testing.run_official_openvino_quality import parse_args
+    from scripts.testing.tools.run_official_openvino_quality import parse_args
 
     args = parse_args(_full_quality_cli_args(tmp_path))
 
@@ -2048,7 +2048,7 @@ def test_quality_cli_rejects_each_missing_campaign_input_path(
     tmp_path,
     missing_option,
 ):
-    from scripts.testing.run_official_openvino_quality import parse_args
+    from scripts.testing.tools.run_official_openvino_quality import parse_args
 
     incomplete = _without_cli_option(
         _full_quality_cli_args(tmp_path),
@@ -2067,7 +2067,7 @@ def test_quality_cli_requires_governed_timeout_and_ram_floor(
     tmp_path,
     missing_option,
 ):
-    from scripts.testing.run_official_openvino_quality import parse_args
+    from scripts.testing.tools.run_official_openvino_quality import parse_args
 
     incomplete = _without_cli_option(
         _full_quality_cli_args(tmp_path),
@@ -2083,7 +2083,7 @@ def test_quality_cli_rejects_any_ram_floor_other_than_2048_mib(
     tmp_path,
     floor,
 ):
-    from scripts.testing.run_official_openvino_quality import parse_args
+    from scripts.testing.tools.run_official_openvino_quality import parse_args
 
     with pytest.raises(SystemExit):
         parse_args(_full_quality_cli_args(tmp_path, floor=floor))
@@ -2094,7 +2094,7 @@ def test_quality_cli_rejects_nonpositive_or_nonfinite_timeout(
     tmp_path,
     timeout,
 ):
-    from scripts.testing.run_official_openvino_quality import parse_args
+    from scripts.testing.tools.run_official_openvino_quality import parse_args
 
     arguments = _full_quality_cli_args(tmp_path)
     timeout_index = arguments.index("--timeout-seconds") + 1
@@ -2128,7 +2128,7 @@ def test_quality_cli_rejects_governed_options_in_legacy_mode(
     option,
     value,
 ):
-    from scripts.testing.run_official_openvino_quality import parse_args
+    from scripts.testing.tools.run_official_openvino_quality import parse_args
 
     arguments = _legacy_quality_cli_args(tmp_path)
     arguments.extend((option, value))
@@ -2138,7 +2138,7 @@ def test_quality_cli_rejects_governed_options_in_legacy_mode(
 
 
 def test_quality_cli_keeps_legacy_manifest_mode_compatible(tmp_path):
-    from scripts.testing.run_official_openvino_quality import parse_args
+    from scripts.testing.tools.run_official_openvino_quality import parse_args
 
     args = parse_args(_legacy_quality_cli_args(tmp_path))
 
@@ -2155,7 +2155,7 @@ def test_quality_cli_governed_mode_dispatches_only_to_capture(
     monkeypatch,
 ):
     import scripts.testing.campaigns.openvino.quality_campaign as campaign
-    import scripts.testing.run_official_openvino_quality as quality_cli
+    import scripts.testing.tools.run_official_openvino_quality as quality_cli
 
     captured = []
 
@@ -2217,7 +2217,7 @@ def test_quality_cli_legacy_main_still_uses_manifest_runner(
     tmp_path,
     monkeypatch,
 ):
-    import scripts.testing.run_official_openvino_quality as quality_cli
+    import scripts.testing.tools.run_official_openvino_quality as quality_cli
 
     configurations = (object(),)
     calls = []

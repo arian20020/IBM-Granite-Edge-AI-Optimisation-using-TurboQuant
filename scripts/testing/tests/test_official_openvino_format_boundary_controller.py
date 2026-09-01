@@ -186,7 +186,7 @@ def test_runtime_reconciliation_rejects_drift_and_incomplete_metrics(
 
 
 def test_quality_reconciliation_reopens_six_prompt_receipts_and_hashes(tmp_path):
-    from scripts.testing.adjudicate_official_openvino_quality import (
+    from scripts.testing.tools.adjudicate_official_openvino_quality import (
         _prompt_controls,
         deterministic_gate,
     )
@@ -635,7 +635,7 @@ def _safe_failure_record(case_id: str, code: str, *, safe: bool = True) -> dict:
 
 
 def _sequence_failure(tmp_path: Path, case_id: str, code: str, *, safe: bool = True):
-    from scripts.testing.measure_official_openvino import (
+    from scripts.testing.tools.measure_official_openvino import (
         MeasurementFailureRecord,
         MeasurementSequenceFailure,
     )
@@ -1368,7 +1368,7 @@ def test_durable_row_output_is_one_canonical_line_per_case(tmp_path, monkeypatch
 
 
 def test_cli_contract_has_projection_modes_and_no_manual_spec_or_recovery():
-    from scripts.testing.run_official_openvino_format_boundary import _parser
+    from scripts.testing.tools.run_official_openvino_format_boundary import _parser
 
     parser = _parser()
     destinations = {action.dest for action in parser._actions}
@@ -1510,7 +1510,7 @@ def test_no_model_preflight_rejects_unsafe_or_mismatched_host(
 
 
 def test_cli_no_argument_defaults_come_from_committed_repository_provenance():
-    from scripts.testing import run_official_openvino_format_boundary as cli
+    from scripts.testing.tools import run_official_openvino_format_boundary as cli
 
     args = cli._parser().parse_args([])
     config = cli._config(args)
@@ -1550,7 +1550,7 @@ def _cli_args(tmp_path: Path, mode: str) -> list[str]:
 def test_cli_preflight_and_status_do_not_launch_and_use_exit_contract(
     tmp_path, monkeypatch, capsys,
 ):
-    from scripts.testing import run_official_openvino_format_boundary as cli
+    from scripts.testing.tools import run_official_openvino_format_boundary as cli
 
     monkeypatch.setattr(
         cli,
@@ -1579,7 +1579,7 @@ def test_cli_preflight_and_status_do_not_launch_and_use_exit_contract(
 def test_cli_execute_returns_zero_or_three_from_persisted_cleanup_state(
     tmp_path, monkeypatch, capsys,
 ):
-    from scripts.testing import run_official_openvino_format_boundary as cli
+    from scripts.testing.tools import run_official_openvino_format_boundary as cli
 
     clean = {
         "global_halt": {"active": False, "reason_code": None},
@@ -1616,7 +1616,7 @@ def test_cli_execute_returns_zero_or_three_from_persisted_cleanup_state(
 
 
 def test_cli_configuration_failure_is_exit_two(tmp_path, capsys):
-    from scripts.testing import run_official_openvino_format_boundary as cli
+    from scripts.testing.tools import run_official_openvino_format_boundary as cli
 
     arguments = _cli_args(tmp_path, "--preflight")
     Path(arguments[arguments.index("--matrix") + 1]).unlink()
@@ -1775,8 +1775,8 @@ def _boundary_record(role: str, spec: dict) -> dict:
 def test_cli_flows_projected_u4_through_real_runtime_and_quality_validators(
     monkeypatch, capsys,
 ):
-    from scripts.testing import run_official_openvino_format_boundary as cli
-    from scripts.testing.measure_official_openvino import (
+    from scripts.testing.tools import run_official_openvino_format_boundary as cli
+    from scripts.testing.tools.measure_official_openvino import (
         run_measurement_sequence as real_sequence,
     )
 

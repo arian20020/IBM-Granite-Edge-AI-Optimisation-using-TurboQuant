@@ -698,8 +698,8 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
 
     def test_power_shell_entry_points_preserve_cwd_roots_overrides_and_exit(self):
         repository_root = Path(__file__).resolve().parents[3]
-        controller = repository_root / "scripts/testing/prepare_openvino_cpu_observer_patch.ps1"
-        legacy = repository_root / "scripts/testing/prepare_openvino_turboquant_patch.ps1"
+        controller = repository_root / "scripts/testing/tools/prepare_openvino_cpu_observer_patch.ps1"
+        legacy = repository_root / "scripts/testing/tools/prepare_openvino_turboquant_patch.ps1"
         fake_dir = self.root / "fake command with spaces"
         fake_dir.mkdir()
         fake = fake_dir / "capture.cmd"
@@ -786,7 +786,7 @@ class PatchWorkspaceControllerTests(unittest.TestCase):
                     "-File",
                     str(
                         alias_root
-                        / "scripts/testing/prepare_openvino_cpu_observer_patch.ps1"
+                        / "scripts/testing/tools/prepare_openvino_cpu_observer_patch.ps1"
                     ),
                     "-PythonCommand",
                     str(fake),

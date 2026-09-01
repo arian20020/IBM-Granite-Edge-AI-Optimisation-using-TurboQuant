@@ -8,8 +8,8 @@ from pathlib import Path
 
 from docx import Document
 
-from scripts.testing import audit_official_openvino_docx as audit_wrapper
-from scripts.testing.finalize_official_openvino_comparison_workbook import (
+from scripts.testing.tools import audit_official_openvino_docx as audit_wrapper
+from scripts.testing.tools.finalize_official_openvino_comparison_workbook import (
     COMPARISON_SECTION_TITLES,
 )
 from scripts.testing.campaigns.openvino.docx_audit import (

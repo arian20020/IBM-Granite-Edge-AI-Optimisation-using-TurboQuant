@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.testing.verify_openvino_turboquant_build import validate_build_manifest
+from scripts.testing.tools.verify_openvino_turboquant_build import validate_build_manifest
 
 
 PATCH = "2" * 40

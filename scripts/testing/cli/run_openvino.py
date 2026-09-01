@@ -7,13 +7,13 @@ from collections.abc import Sequence
 from . import build_mode_parser, forwarded_args, invoke_legacy_main
 
 
-run_official_openvino_retest_main = "scripts.testing.run_official_openvino_retest:main"
-run_official_openvino_quality_main = "scripts.testing.run_official_openvino_quality:main"
-run_openvino_reference_capability_main = "scripts.testing.run_openvino_reference_capability:main"
-run_official_openvino_diagnostics_main = "scripts.testing.run_official_openvino_diagnostics:main"
-run_official_openvino_adaptive_quality_main = "scripts.testing.run_official_openvino_adaptive_quality:main"
-run_official_openvino_adaptive_comparison_main = "scripts.testing.run_official_openvino_adaptive_comparison:main"
-run_official_openvino_format_boundary_main = "scripts.testing.run_official_openvino_format_boundary:main"
+run_official_openvino_retest_main = "scripts.testing.tools.run_official_openvino_retest:main"
+run_official_openvino_quality_main = "scripts.testing.tools.run_official_openvino_quality:main"
+run_openvino_reference_capability_main = "scripts.testing.tools.run_openvino_reference_capability:main"
+run_official_openvino_diagnostics_main = "scripts.testing.tools.run_official_openvino_diagnostics:main"
+run_official_openvino_adaptive_quality_main = "scripts.testing.tools.run_official_openvino_adaptive_quality:main"
+run_official_openvino_adaptive_comparison_main = "scripts.testing.tools.run_official_openvino_adaptive_comparison:main"
+run_official_openvino_format_boundary_main = "scripts.testing.tools.run_official_openvino_format_boundary:main"
 
 MODE_HANDLERS = {
     "retest": "run_official_openvino_retest_main",

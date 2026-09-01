@@ -13,7 +13,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable, Literal, Mapping
 
-from scripts.testing.adjudicate_official_openvino_quality import (
+from scripts.testing.tools.adjudicate_official_openvino_quality import (
     _prompt_controls,
     deterministic_gate,
 )
@@ -35,7 +35,7 @@ from scripts.testing.campaigns.openvino.adaptive_quality import (
 from scripts.testing.campaigns.openvino.quality_campaign import (
     load_accepted_quality_campaign,
 )
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     _adaptive_record,
     _persisted_record,
     build_worker_environment,
@@ -52,7 +52,7 @@ from scripts.testing.campaigns.openvino.runtime_measurement import (
 from scripts.testing.campaigns.openvino.quality_contracts import (
     load_quality_contract,
 )
-from scripts.testing.run_official_openvino_quality import (
+from scripts.testing.tools.run_official_openvino_quality import (
     _load_frozen_rubric,
     load_prompt_contract,
 )

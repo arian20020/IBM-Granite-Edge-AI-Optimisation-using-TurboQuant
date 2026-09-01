@@ -21,7 +21,7 @@ from scripts.testing.campaigns.openvino.matrix import (
 
 ROOT = Path(__file__).resolve().parents[3]
 MATRIX = ROOT / "experiments/manifests/official-openvino/retest-matrix.json"
-CLI = ROOT / "scripts/testing/generate_official_openvino_expected_rejections.py"
+CLI = ROOT / "scripts/testing/tools/generate_official_openvino_expected_rejections.py"
 SCHEMA = "official-openvino-wb04-expected-rejection-evidence/v1"
 EXPECTED_PROBE_IDS = {
     "OV-B11-QJL",

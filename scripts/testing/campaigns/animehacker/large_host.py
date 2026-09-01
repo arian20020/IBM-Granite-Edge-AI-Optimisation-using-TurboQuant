@@ -164,7 +164,7 @@ def write_manifest(run_root: Path, result: PreflightResult) -> Path:
 def validate_terminal_row(test_id: str, runtime_summary: object,
                           quality_records: object, manifest: object,
                           cleanup: object) -> ValidatedRow:
-    from scripts.testing.run_animehacker_retest import FORMAL_FIELDS
+    from scripts.testing.tools.run_animehacker_retest import FORMAL_FIELDS
 
     if test_id not in ALLOWED_TEST_IDS:
         raise ValueError(f"unsupported test ID: {test_id}")

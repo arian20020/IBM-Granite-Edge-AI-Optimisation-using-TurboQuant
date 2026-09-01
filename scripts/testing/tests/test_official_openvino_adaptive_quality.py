@@ -870,7 +870,7 @@ def test_resume_uses_preserved_zero_survivor_proof_after_guard_reopen_race(
     tmp_path,
     monkeypatch,
 ):
-    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.tools import run_official_openvino_adaptive_quality as quality_cli
     from scripts.testing.campaigns.openvino import adaptive_quality
 
     monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
@@ -925,7 +925,7 @@ def test_cleanup_proven_recovery_rejects_terminal_proof_drift(
     field,
     invalid,
 ):
-    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.tools import run_official_openvino_adaptive_quality as quality_cli
     from scripts.testing.campaigns.openvino import adaptive_quality
 
     monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
@@ -957,7 +957,7 @@ def test_cleanup_proven_recovery_rejects_failed_guard_cleanup_proof(
     monkeypatch,
     mode,
 ):
-    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.tools import run_official_openvino_adaptive_quality as quality_cli
     from scripts.testing.campaigns.openvino import adaptive_quality
 
     monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
@@ -996,7 +996,7 @@ def test_cleanup_proven_recovery_rejects_ambiguous_existing_recovery(
     tmp_path,
     monkeypatch,
 ):
-    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.tools import run_official_openvino_adaptive_quality as quality_cli
     from scripts.testing.campaigns.openvino import adaptive_quality
 
     monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
@@ -1015,7 +1015,7 @@ def test_cleanup_proven_recovery_rejects_ambiguous_existing_recovery(
 
 
 def test_failed_cleanup_proven_recovery_is_never_retried(tmp_path, monkeypatch):
-    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.tools import run_official_openvino_adaptive_quality as quality_cli
     from scripts.testing.campaigns.openvino import adaptive_quality
 
     monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 4096 * MIB)
@@ -1260,7 +1260,7 @@ def test_prelaunch_ram_floor_persists_blocked_prompt_evidence(
 
 
 def test_adaptive_quality_cli_campaign_mode_is_mutually_exclusive(tmp_path):
-    from scripts.testing.run_official_openvino_adaptive_quality import main
+    from scripts.testing.tools.run_official_openvino_adaptive_quality import main
 
     with pytest.raises(SystemExit):
         main(
@@ -1374,7 +1374,7 @@ def test_task_four_recovery_object_reopens_exact_native_runtime(tmp_path):
     ).resolve()
     assert reopened.output_root == source.output_root.resolve()
 
-    from scripts.testing.run_official_openvino_adaptive_quality import (
+    from scripts.testing.tools.run_official_openvino_adaptive_quality import (
         _direct_recovery,
     )
 

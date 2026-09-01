@@ -15,15 +15,15 @@ from types import CodeType
 
 import pytest
 
-from scripts.testing import build_official_openvino_boundary_index as boundary_cli
-from scripts.testing import run_official_openvino_adaptive_comparison as campaign_cli
+from scripts.testing.tools import build_official_openvino_boundary_index as boundary_cli
+from scripts.testing.tools import run_official_openvino_adaptive_comparison as campaign_cli
 from scripts.testing.campaigns.openvino import adaptive_campaign as adaptive_controller
 from scripts.testing.campaigns.openvino import runtime_measurement
 from scripts.testing.campaigns.openvino import runtime_process
-from scripts.testing.build_official_openvino_adaptive_matrix import (
+from scripts.testing.tools.build_official_openvino_adaptive_matrix import (
     build_adaptive_comparison_matrix,
 )
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     CampaignLock,
     MeasurementFailureRecord,
     MeasurementSequenceFailure,
@@ -1081,7 +1081,7 @@ def test_resume_rejects_quality_recovery_state_or_self_hash_substitution(
 def test_task_five_state_recovery_is_exact_and_keeps_ladder_order(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from scripts.testing import run_official_openvino_adaptive_quality as quality_cli
+    from scripts.testing.tools import run_official_openvino_adaptive_quality as quality_cli
 
     config = _campaign_inputs(tmp_path)
     _run(config, _FakeRunner([{} for _ in range(5)]))

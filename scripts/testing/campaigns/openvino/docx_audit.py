@@ -12,7 +12,7 @@ from pathlib import Path
 
 from docx import Document
 
-from scripts.testing.finalize_official_openvino_comparison_workbook import (
+from scripts.testing.tools.finalize_official_openvino_comparison_workbook import (
     COMPARISON_SECTION_TITLES,
 )
 from scripts.testing.campaigns.openvino.matrix import COMPARISON_IDS as MATRIX_COMPARISON_IDS

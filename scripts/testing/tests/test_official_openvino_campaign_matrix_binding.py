@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     validate_runtime_record_against_matrix_case,
     validate_worker_spec_against_matrix_case,
 )

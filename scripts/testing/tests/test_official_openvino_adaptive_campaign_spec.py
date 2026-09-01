@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.testing.build_official_openvino_adaptive_matrix import (
+from scripts.testing.tools.build_official_openvino_adaptive_matrix import (
     build_adaptive_comparison_matrix,
 )
 from scripts.testing.campaigns.openvino.adaptive_campaign import (

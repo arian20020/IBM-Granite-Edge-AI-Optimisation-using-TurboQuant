@@ -48,7 +48,7 @@ from scripts.testing.campaigns.openvino.quality_campaign import (
     build_worker_environment,
     load_prompt_contract,
 )
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     RECEIPT_SCHEMA,
     SEQUENCE_ROLES,
     SEQUENCE_SCHEMA,
@@ -62,7 +62,7 @@ from scripts.testing.measure_official_openvino import (
 )
 from scripts.testing.campaigns.openvino.metrics import summarize_samples
 from scripts.testing.campaigns.openvino.runtime_process import measurement_sample
-from scripts.testing.adjudicate_official_openvino_adaptive_quality import (
+from scripts.testing.tools.adjudicate_official_openvino_adaptive_quality import (
     adjudicate_adaptive_quality,
 )
 

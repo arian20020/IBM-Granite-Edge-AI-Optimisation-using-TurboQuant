@@ -24,7 +24,7 @@ class AtomicBotUtilizationTests(unittest.TestCase):
             "cpu_percent": None, "gpu_percent": None})
 
     def test_formal_aggregate_keeps_bounds_and_source_count(self):
-        from scripts.testing.run_atomicbot_server_metrics import aggregate
+        from scripts.testing.tools.run_atomicbot_server_metrics import aggregate
 
         samples = []
         for cpu, gpu, count in ((10, 4, 3), (20, 8, 4), (30, 12, 5)):
@@ -45,7 +45,7 @@ class AtomicBotUtilizationTests(unittest.TestCase):
         self.assertLessEqual(result["gpu_percent"]["peak"], 100)
 
     def test_reconciliation_rejects_missing_gpu_mean(self):
-        from scripts.testing.reconcile_atomicbot_all_utilization import validate_summary
+        from scripts.testing.tools.reconcile_atomicbot_all_utilization import validate_summary
 
         sample = {
             "valid": True, "request_error": None,

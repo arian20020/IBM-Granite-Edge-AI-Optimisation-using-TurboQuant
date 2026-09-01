@@ -617,7 +617,7 @@ def _write_governed_host_resource_terminal(root, case, context, attempt_count=3)
 
 
 def _write_direct_quality_resource_terminal(root, runtime):
-    from scripts.testing.run_official_openvino_quality import (
+    from scripts.testing.tools.run_official_openvino_quality import (
         load_prompt_contract,
     )
 
@@ -1051,7 +1051,7 @@ def _write_device_resource_terminal(root, case):
 
 class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
     def _three_measured_runtime_outcomes(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             index_measurement_summaries,
         )
 
@@ -1069,7 +1069,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             )
 
     def _presentation_runtime_outcomes(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             RuntimeOutcome,
         )
@@ -1196,7 +1196,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         )
 
     def test_v18_selector_admits_only_the_three_hash_bound_measurements(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             select_presentation_measurements,
         )
@@ -1215,7 +1215,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertTrue(all(row.activation["fallback"] is False for row in selected))
 
     def test_v18_section_5_contains_three_compact_aggregate_tables(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             render_section_5,
             validate_section_5,
         )
@@ -1236,7 +1236,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertNotIn("not-produced-by-", section)
 
     def test_v18_section_5_explicitly_records_cpu_no_fallback_and_cleanup(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             render_section_5,
             validate_section_5,
         )
@@ -1257,7 +1257,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     validate_section_5(section.replace(old, new, 1))
 
     def test_v18_incomplete_tests_are_six_compact_reason_bullets(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             render_section_6,
         )
 
@@ -1273,7 +1273,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertNotRegex(section, r"[0-9a-f]{64}")
 
     def test_v18_incomplete_tests_refuse_missing_or_unexpected_non_success_rows(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             RuntimeOutcome,
             render_section_6,
@@ -1315,7 +1315,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             render_section_6(extra, expected_ids)
 
     def test_v18_incomplete_tests_require_all_accepted_presentation_measurements(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             render_section_6,
         )
@@ -1333,7 +1333,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 render_section_6(missing, expected_ids)
 
     def test_v18_quality_boundary_refuses_numeric_or_winner_claims(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             QualityOutcome,
             RuntimeKey,
             render_section_7,
@@ -1382,7 +1382,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             render_section_7({boolean.key: boolean})
 
     def test_v18_decision_has_exact_e1_e3_hash_bound_sources(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             render_section_8,
             validate_section_8,
         )
@@ -1402,7 +1402,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         )
 
     def test_v18_decision_covers_every_reader_facing_boundary(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             render_section_8,
             validate_section_8,
         )
@@ -1446,7 +1446,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     validate_section_8(section.replace(phrase, "omitted", 1))
 
     def test_v18_decision_uses_repo_relative_reconciliation_source(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             render_section_8,
         )
 
@@ -1468,7 +1468,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertNotIn(REPO_ROOT.as_posix(), section)
 
     def test_v18_presentation_validator_requires_canonical_inventory_and_placement(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_presentation_text,
         )
 
@@ -1487,7 +1487,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             validate_presentation_text(misplaced, expected_ids)
 
     def test_presentation_validator_rejects_headings_outside_one_through_eight(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_presentation_text,
         )
 
@@ -1506,7 +1506,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     )
 
     def test_presentation_validator_rejects_noncanonical_pagebreak_count(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_presentation_text,
         )
 
@@ -1521,7 +1521,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     validate_presentation_text(mutated, expected_ids)
 
     def test_presentation_validator_rejects_noncanonical_content_table_count(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_presentation_text,
         )
 
@@ -1545,7 +1545,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     validate_presentation_text(mutated, expected_ids)
 
     def test_presentation_validator_rejects_numeric_score_and_winner_mutations(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_presentation_text,
         )
 
@@ -1564,7 +1564,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     )
 
     def test_measurements_use_composite_runtime_and_sample_keys(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             SampleKey,
             index_measurement_summaries,
@@ -1596,7 +1596,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             )
 
     def test_accepted_measurement_rejects_null_metric_and_wrong_sample_count(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             index_measurement_summaries,
         )
 
@@ -1618,7 +1618,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 index_measurement_summaries([path], [case])
 
     def test_duplicate_composite_summary_requires_explicit_path_selection(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             index_measurement_summaries,
         )
 
@@ -1639,7 +1639,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             )
 
     def test_runtime_precision_must_be_proved_by_every_source_attempt(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             index_measurement_summaries,
         )
 
@@ -1662,7 +1662,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 index_measurement_summaries([path], [case])
 
     def test_runtime_source_requires_canonical_output_validity(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             index_measurement_summaries,
         )
 
@@ -1682,7 +1682,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 index_measurement_summaries([path], [case])
 
     def test_terminal_records_are_explicit_hash_bound_and_never_execution_passes(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_terminal_record,
         )
 
@@ -1728,7 +1728,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 )
 
     def test_direct_host_resource_terminal_requires_three_governed_low_memory_runs(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RESOURCE_BLOCKED_LITERAL,
             validate_terminal_record,
         )
@@ -1769,7 +1769,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 validate_terminal_record(two_attempts, case)
 
     def test_direct_host_resource_terminal_rejects_rehashed_incomplete_attempts(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_terminal_record,
         )
 
@@ -1854,7 +1854,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                         validate_terminal_record(record, case)
 
     def test_direct_host_resource_terminal_binds_exact_context_token_config(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_terminal_record,
         )
 
@@ -1938,7 +1938,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 validate_terminal_record(record, case)
 
     def test_direct_host_resource_terminal_rejects_attempt_only_provenance(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_terminal_record,
         )
 
@@ -1984,7 +1984,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 validate_terminal_record(record, case)
 
     def test_direct_host_resource_terminal_hash_binds_sibling_spec_bytes(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_terminal_record,
         )
 
@@ -2038,7 +2038,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 validate_terminal_record(record, case)
 
     def test_controlled_terminals_require_the_sealed_artifact_spec_inventory(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_terminal_record,
         )
 
@@ -2100,7 +2100,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 records.append(record)
 
             with mock.patch(
-                "scripts.testing.finalize_official_openvino_workbook."
+                "scripts.testing.tools.finalize_official_openvino_workbook."
                 "CONTROLLED_INVENTORY_ROOTS",
                 inventory_roots,
             ):
@@ -2137,7 +2137,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     validate_terminal_record(records[1], cases[1])
 
     def test_device_resource_terminal_requires_exact_corrected_gpu_attempts(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_terminal_record,
         )
 
@@ -2168,15 +2168,15 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 corrected_spec_path,
             ) = _write_device_resource_terminal(root, case)
             with mock.patch(
-                "scripts.testing.finalize_official_openvino_workbook."
+                "scripts.testing.tools.finalize_official_openvino_workbook."
                 "OV06_DEVICE_ATTEMPTS",
                 expected_attempts,
             ), mock.patch(
-                "scripts.testing.finalize_official_openvino_workbook."
+                "scripts.testing.tools.finalize_official_openvino_workbook."
                 "OV06_INITIAL_WORKER_SPEC_SHA256",
                 _sha256(initial_spec_path),
             ), mock.patch(
-                "scripts.testing.finalize_official_openvino_workbook."
+                "scripts.testing.tools.finalize_official_openvino_workbook."
                 "OV06_CORRECTED_WORKER_SPEC_SHA256",
                 _sha256(corrected_spec_path),
             ):
@@ -2189,7 +2189,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     (expected_attempts[-1][0], "0" * 64),
                 )
                 with mock.patch(
-                    "scripts.testing.finalize_official_openvino_workbook."
+                    "scripts.testing.tools.finalize_official_openvino_workbook."
                     "OV06_DEVICE_ATTEMPTS",
                     wrong_attempts,
                 ):
@@ -2209,7 +2209,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     validate_terminal_record(record, case)
 
     def test_resource_envelope_classifies_only_explicit_rows(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             index_measurement_summaries,
             validate_resource_envelope_decision,
@@ -2394,7 +2394,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 )
 
     def test_expected_rejection_requires_exact_non_numeric_literal(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             CANONICAL_MATRIX,
             EXPECTED_REJECTION_LITERAL,
             validate_expected_rejection_record,
@@ -2479,7 +2479,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 validate_expected_rejection_record(wrong, case)
 
     def test_quality_scope_comes_from_matrix_not_a_legacy_id_list(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             index_measurement_summaries,
             reconcile_quality_rows,
@@ -2558,7 +2558,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 )
 
     def test_measured_quality_allows_only_governed_resource_terminals(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             index_measurement_summaries,
             reconcile_quality_rows,
@@ -2735,7 +2735,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 )
 
     def test_quality_resource_blocker_requires_guard_bound_worker_spec(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             index_measurement_summaries,
             reconcile_quality_rows,
@@ -2792,7 +2792,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 )
 
     def test_quality_resource_blocker_hash_binds_exact_worker_spec_bytes(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             index_measurement_summaries,
             reconcile_quality_rows,
@@ -2851,7 +2851,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 )
 
     def test_numeric_quality_scores_are_bound_to_the_hashed_evidence(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             index_measurement_summaries,
             reconcile_quality_rows,
@@ -2959,12 +2959,12 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             key = RuntimeKey(case["test_id"], 512)
             with (
                 mock.patch(
-                    "scripts.testing.finalize_official_openvino_workbook."
+                    "scripts.testing.tools.finalize_official_openvino_workbook."
                     "build_blind_scoring_input",
                     return_value=artifact_payloads["scoring_input"],
                 ),
                 mock.patch(
-                    "scripts.testing.finalize_official_openvino_workbook."
+                    "scripts.testing.tools.finalize_official_openvino_workbook."
                     "adjudicate_quality",
                     return_value=artifact_payloads["adjudication"],
                 ),
@@ -2986,7 +2986,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     )
 
     def test_static_section_body_is_hash_and_content_bound(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_static_section_body,
         )
 
@@ -3026,7 +3026,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                 validate_static_section_body(1, changed)
 
     def test_static_section_content_rejects_allocation_and_fact_mutations(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             validate_static_section_content,
         )
 
@@ -3071,7 +3071,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
                     validate_static_section_content(number, mutated)
 
     def test_final_section_replacement_uses_end_of_file_boundary(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             _replace_section_body,
         )
 
@@ -3098,7 +3098,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertEqual(template.count("[[PAGEBREAK]]"), 2)
 
     def test_static_and_dynamic_section_replacement_preserves_pagebreaks(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             _replace_section_body,
         )
 
@@ -3117,7 +3117,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
         self.assertIn("quality\n\n[[PAGEBREAK]]\n\n# 8.", rendered)
 
     def test_section_11_is_replaced_atomically_with_six_tables(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             RuntimeKey,
             index_measurement_summaries,
             render_section_11,
@@ -3168,7 +3168,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             validate_section_11(result.split("# 12.", 1)[0])
 
     def test_final_write_is_fail_closed(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             write_validated_workbook,
         )
 
@@ -3190,7 +3190,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             self.assertEqual(destination.read_text(encoding="utf-8"), "ORIGINAL\n")
 
     def test_full_canonical_manifest_refuses_incomplete_release_without_writing(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             CANONICAL_MATRIX,
             CANONICAL_MATRIX_SHA256,
             finalize_release,
@@ -3236,7 +3236,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
             )
 
     def test_release_identity_is_strictly_controlled_and_rendered(self):
-        from scripts.testing.finalize_official_openvino_workbook import (
+        from scripts.testing.tools.finalize_official_openvino_workbook import (
             apply_release_identity,
         )
 
@@ -3267,7 +3267,7 @@ class OfficialOpenVINOWorkbookFinalizerTests(unittest.TestCase):
 
     def test_direct_cli_help_is_available(self):
         root = Path(__file__).resolve().parents[3]
-        script = root / "scripts/testing/finalize_official_openvino_workbook.py"
+        script = root / "scripts/testing/tools/finalize_official_openvino_workbook.py"
         result = subprocess.run(
             [sys.executable, str(script), "--help"],
             capture_output=True,

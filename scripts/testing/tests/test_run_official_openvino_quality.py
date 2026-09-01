@@ -9,7 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.testing.run_official_openvino_quality import (
+from scripts.testing.tools.run_official_openvino_quality import (
     QualityConfiguration,
     atomic_write_json,
     load_prompt_contract,
@@ -217,7 +217,7 @@ class OfficialOpenVINOQualityRunnerTests(unittest.TestCase):
             return real_link(source, destination)
 
         with patch(
-            "scripts.testing.run_official_openvino_quality.os.link",
+            "scripts.testing.tools.run_official_openvino_quality.os.link",
             side_effect=racing_link,
         ):
             with self.assertRaises(FileExistsError):

@@ -26,10 +26,10 @@ from scripts.testing.campaigns.openvino.adaptive_quality import (
 from scripts.testing.campaigns.openvino.matrix import load_adaptive_comparison_matrix
 from scripts.testing.tests.test_measure_official_openvino_sequence import _record
 from scripts.testing.tests.test_official_openvino_adaptive_campaign import _build_matrix
-from scripts.testing.measure_official_openvino import run_measurement_sequence
+from scripts.testing.tools.measure_official_openvino import run_measurement_sequence
 from scripts.testing.campaigns.openvino.metrics import summarize_samples
 from scripts.testing.campaigns.openvino.runtime_process import measurement_sample
-from scripts.testing.adjudicate_official_openvino_adaptive_quality import (
+from scripts.testing.tools.adjudicate_official_openvino_adaptive_quality import (
     adjudicate_adaptive_quality,
     build_adaptive_blind_bundle,
 )
@@ -996,7 +996,7 @@ def test_release_evidence_cli_writes_hash_bound_input_and_capture_index(tmp_path
     completed = subprocess.run(
         [
             sys.executable,
-            "scripts/testing/build_official_openvino_comparison_release_evidence.py",
+            "scripts/testing/tools/build_official_openvino_comparison_release_evidence.py",
             "--matrix",
             str(matrix),
             "--campaign-state",
@@ -1944,7 +1944,7 @@ def test_cli_required_mode_does_not_publish_partial_outputs(tmp_path: Path) -> N
     completed = subprocess.run(
         [
             sys.executable,
-            "scripts/testing/build_official_openvino_comparison_release_evidence.py",
+            "scripts/testing/tools/build_official_openvino_comparison_release_evidence.py",
             "--matrix",
             release_input["matrix"]["path"],
             "--campaign-state",
@@ -2227,7 +2227,7 @@ def test_closed_campaign_rejects_ov13_artifact_terminal_after_512(tmp_path: Path
 def test_cli_existing_destinations_are_never_overwritten(
     tmp_path: Path,
 ) -> None:
-    import scripts.testing.build_official_openvino_comparison_release_evidence as cli
+    import scripts.testing.tools.build_official_openvino_comparison_release_evidence as cli
 
     output = tmp_path / "release.json"
     captures = tmp_path / "captures.json"
@@ -2249,7 +2249,7 @@ def test_cli_existing_destinations_are_never_overwritten(
 def test_cli_second_publication_failure_leaves_only_private_capture_index(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import scripts.testing.build_official_openvino_comparison_release_evidence as cli
+    import scripts.testing.tools.build_official_openvino_comparison_release_evidence as cli
 
     output = tmp_path / "release.json"
     captures = tmp_path / "captures.json"

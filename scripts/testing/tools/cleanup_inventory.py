@@ -31,6 +31,25 @@ ALLOWED_ACTIONS = frozenset(
     }
 )
 
+ROOT_SCRIPT_DESTINATIONS = {
+    "scripts/testing/build_final_results.py": "scripts/testing/cli/build_results.py",
+    "scripts/testing/Export-Final-Results-Pdf.ps1": "scripts/testing/cli/export_report.ps1",
+    "scripts/testing/measure_llama_run.py": "scripts/testing/campaigns/llama_cpp/measure_run.py",
+    "scripts/testing/measure_llama_server.py": "scripts/testing/campaigns/llama_cpp/measure_server.py",
+    "scripts/testing/parse_llama_measurement.py": "scripts/testing/campaigns/llama_cpp/parse_measurement.py",
+}
+
+ROOT_SCRIPT_ARCHIVE = {
+    "scripts/testing/measure_animehacker_server.py": (
+        "archive/testing-code/2026-09-01/measure_animehacker_server.py",
+        "thin compatibility wrapper superseded by the shared llama.cpp collector module",
+    ),
+    "scripts/testing/Run-Animehacker-LargeHost.ps1": (
+        "archive/testing-code/2026-09-01/Run-Animehacker-LargeHost.ps1",
+        "PowerShell convenience shim superseded by the supported animehacker CLI mode",
+    ),
+}
+
 
 @dataclass(frozen=True, slots=True)
 class InventoryRecord:
@@ -223,6 +242,15 @@ def _classification(
         ".md",
         ".txt",
     }:
+        if path in ROOT_SCRIPT_ARCHIVE:
+            destination, reason = ROOT_SCRIPT_ARCHIVE[path]
+            return "archive_code", destination, reason
+        if path in ROOT_SCRIPT_DESTINATIONS:
+            return (
+                "move_active",
+                ROOT_SCRIPT_DESTINATIONS[path],
+                "active testing code or command dependency",
+            )
         if path.startswith("scripts/testing/final_results/"):
             destination = path.replace(
                 "scripts/testing/final_results/",

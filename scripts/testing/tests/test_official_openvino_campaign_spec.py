@@ -10,7 +10,7 @@ import scripts.testing.campaigns.openvino.campaign_spec as campaign_spec_module
 from scripts.testing.campaigns.openvino.campaign_spec import (
     generate_formal_u8_granite3b_specs,
 )
-from scripts.testing.measure_official_openvino import (
+from scripts.testing.tools.measure_official_openvino import (
     SEQUENCE_ROLES,
     _role_spec,
     _sequence_spec,
@@ -19,7 +19,7 @@ from scripts.testing.measure_official_openvino import (
 
 ROOT = Path(__file__).resolve().parents[3]
 MATRIX = ROOT / "experiments/manifests/official-openvino/retest-matrix.json"
-SCRIPT = ROOT / "scripts/testing/generate_official_openvino_specs.py"
+SCRIPT = ROOT / "scripts/testing/tools/generate_official_openvino_specs.py"
 
 
 def _clean_inputs(tmp_path: Path) -> tuple[Path, Path, Path]:
