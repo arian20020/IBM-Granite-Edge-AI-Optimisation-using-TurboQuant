@@ -17,6 +17,7 @@ from typing import Iterable, Mapping, Sequence
 from .csvio import write_csv, write_json
 from .docx_renderer import render_docx
 from .evidence import validate_sha256_manifest
+from .layout import render_validation_markdown
 from .markdown_renderer import render_markdown
 from .models import RouteBundle, Status
 from .openvino_report import SECTION_ORDER, regenerate_route_manifest
@@ -1084,7 +1085,7 @@ def build_cross_route_report(bundles: Sequence[RouteBundle]) -> Report:
                 ("Report", "Guarded cross-route comparison"),
                 ("Route ID", "cross-route-comparison"),
                 ("Revision", "R1"),
-                ("Canonical source", "workbook/source/cross-route-comparison-final-report.md"),
+                ("Canonical source", "reports/cross-route-comparison-report.md"),
             )),
         )),
         ReportSection(SECTION_ORDER[1], (
@@ -1152,14 +1153,14 @@ def build_cross_route_report(bundles: Sequence[RouteBundle]) -> Report:
             )),
         )),
         ReportSection(SECTION_ORDER[11], (
-            ReportParagraph("No universal best repository, universal best route, or combined quality/performance score is produced. Route extrema remain route-local observations."),
+            ReportParagraph("No universal best repository, universal best route, or combined score across quality and performance is produced. Route extrema remain route-local observations."),
             ReportNote("A direct protocol classification permits matched-row comparison only; it does not establish causal superiority or deployment safety."),
         )),
         ReportSection(SECTION_ORDER[12], (
             ReportParagraph("Regeneration consumes the five existing normalized RouteBundle objects and does not rerun benchmarks."),
             _table("RE-01", "Reproduction outputs", ("Item", "Repository-relative path"), (
-                ("Canonical report", "docs/testing/final-results/06-cross-route-comparison/workbook/source/cross-route-comparison-final-report.md"),
-                ("Comparability matrix", "docs/testing/final-results/06-cross-route-comparison/results/comparability-matrix.csv"),
+                ("Canonical report", "docs/testing/final-results/06-cross-route-comparison/reports/cross-route-comparison-report.md"),
+                ("Comparability matrix", "docs/testing/final-results/06-cross-route-comparison/data/comparability-matrix.csv"),
                 ("Collection catalogs", "docs/testing/final-results/catalog/"),
             )),
         )),
@@ -1188,6 +1189,50 @@ def build_cross_route_report(bundles: Sequence[RouteBundle]) -> Report:
 def _write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text if text.endswith("\n") else f"{text}\n", encoding="utf-8", newline="\n")
+
+
+def _write_compact_validation(
+    route: Path,
+    checks: Mapping[str, Mapping[str, object]],
+    *,
+    findings: Sequence[Mapping[str, str]] = (),
+    limitations: Sequence[Mapping[str, str]] = (),
+) -> dict[str, object]:
+    normalized = {name: dict(receipt) for name, receipt in checks.items()}
+    for receipt in normalized.values():
+        if "valid" not in receipt and "matches" in receipt:
+            receipt["valid"] = bool(receipt["matches"])
+    valid = all(bool(receipt.get("valid")) for receipt in normalized.values())
+    payload: dict[str, object] = {
+        "route_id": "cross-route-comparison",
+        "valid": valid,
+        "status": "passed" if valid else "failed",
+        "checks": normalized,
+        "findings": [dict(item) for item in findings],
+        "limitations": [dict(item) for item in limitations],
+    }
+    write_json(route / "validation/validation.json", payload)
+    _write_text(
+        route / "validation/validation.md", render_validation_markdown(payload)
+    )
+    return payload
+
+
+def _update_compact_validation(
+    route: Path, updates: Mapping[str, Mapping[str, object]]
+) -> dict[str, object]:
+    path = route / "validation/validation.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    checks = payload.get("checks")
+    if not isinstance(checks, dict):
+        raise ValueError(f"invalid compact validation receipt: {path}")
+    checks.update({name: dict(receipt) for name, receipt in updates.items()})
+    return _write_compact_validation(
+        route,
+        checks,
+        findings=payload.get("findings", ()),
+        limitations=payload.get("limitations", ()),
+    )
 
 
 def _fieldnames(rows: Sequence[Mapping[str, object]], fallback: Sequence[str]) -> tuple[str, ...]:
@@ -1219,9 +1264,9 @@ def write_cross_route_package(
         write_csv(catalog_root / name, rows, _fieldnames(rows, fallbacks.get(name, ("route_id",))))
     comparison_rows = catalogs["comparability-matrix.csv"]
     status_rows = catalogs["campaign-summary.csv"]
-    write_csv(route / "results/comparability-matrix.csv", comparison_rows, _fieldnames(comparison_rows, ("left_route_id", "right_route_id", "metric", "classification")))
-    write_csv(route / "results/route-status-summary.csv", status_rows, _fieldnames(status_rows, ("route_id", "status")))
-    write_json(route / "route-manifest.json", {
+    write_csv(route / "data/comparability-matrix.csv", comparison_rows, _fieldnames(comparison_rows, ("left_route_id", "right_route_id", "metric", "classification")))
+    write_csv(route / "data/route-status-summary.csv", status_rows, _fieldnames(status_rows, ("route_id", "status")))
+    write_json(route / "data/route.json", {
         "route_id": report.route_id,
         "revision": report.revision,
         "generated_date": report.generated_date.isoformat(),
@@ -1232,24 +1277,25 @@ def write_cross_route_package(
         "universal_ranking_permitted": False,
     })
     cross_route_validation = build_cross_route_validation(report, catalogs, bundles)
-    write_json(route / "validation/cross-route-validation.json", cross_route_validation)
     _write_text(route / "README.md", "# Guarded cross-route comparison\n\nThis route preserves complete status accounting and publishes protocol-gated comparisons without a universal repository score.")
-    _write_text(route / "protocol/comparability-policy.md", "# Comparability policy\n\nThroughput requires compatible model, input length, output length, backend class, repetition treatment, and metric definition. Quality additionally requires identical prompt set, prompt-suite identity, rubric, scoring version, denominator, and aggregation. Missing required metadata is not comparable; incompatible complete methods are descriptive only.")
+    _write_text(route / "reproduction/protocol/comparability-policy.md", "# Comparability policy\n\nThroughput requires compatible model, input length, output length, backend class, repetition treatment, and metric definition. Quality additionally requires identical prompt set, prompt-suite identity, rubric, scoring version, denominator, and aggregation. Missing required metadata is not comparable; incompatible complete methods are descriptive only.")
     _write_text(route / "reproduction/README.md", "# Reproduction\n\nRegeneration normalizes the existing five RouteBundle objects; it does not rerun inference.")
     _write_text(route / "reproduction/commands.md", "# Commands\n\nUse `write_cross_route_package` to render Markdown/DOCX and catalogs, export only the owned DOCX through `scripts/testing/cli/export_report.ps1`, then use `finalize_cross_route_package`.\n")
     _write_text(route / "evidence/claim-evidence-map.csv", "claim_id,claim_boundary\nCROSS-BOUNDARY-001,No universal ranking; source evidence remains in five route packages\n")
-    markdown = route / "workbook/source/cross-route-comparison-final-report.md"
-    docx = route / "workbook/generated/cross-route-comparison-final-report.docx"
+    markdown = route / "reports/cross-route-comparison-report.md"
+    docx = route / "reports/cross-route-comparison-report.docx"
     render_markdown(report, markdown)
     render_docx(report, docx)
     parity = compare_markdown_docx(markdown, docx)
-    write_json(route / "validation/workbook-parity.json", parity)
-    write_json(route / "validation/visual-validation.json", {"valid": False, "status": "Pending owned Word PDF export and automated rendering checks"})
-    write_json(route / "validation/manual-visual-qa.json", {"valid": False, "status": "Pending manual full-page visual QA"})
-    write_json(route / "validation/integrity-validation.json", {"valid": False, "status": "Pending final PDF and manifest regeneration"})
-    _write_text(
-        route / "validation/validation-report.md",
-        "# Validation report\n\nDerived cross-route validation and Markdown/DOCX semantic parity passed. Automated PDF rendering and structural checks are pending owned Word export. Manual full-page visual QA is recorded separately when performed.",
+    _write_compact_validation(
+        route,
+        {
+            "cross_route": cross_route_validation,
+            "workbook_parity": parity,
+            "visual": {"valid": False, "status": "Pending owned Word PDF export and automated rendering checks"},
+            "manual_visual_qa": {"valid": False, "status": "Pending manual full-page visual QA"},
+            "integrity": {"valid": False, "status": "Pending final PDF and manifest regeneration"},
+        },
     )
     if not parity["matches"] or not cross_route_validation["valid"]:
         raise ValueError("cross-route data/report validation failed")
@@ -1271,7 +1317,7 @@ def finalize_cross_route_package(repo_root: Path, *, output_root: Path | None = 
     root = Path(repo_root).resolve(strict=True)
     output = (Path(output_root) if output_root else root / "docs/testing/final-results").resolve()
     route = output / "06-cross-route-comparison"
-    pdf = route / "workbook/generated/cross-route-comparison-final-report.pdf"
+    pdf = route / "reports/cross-route-comparison-report.pdf"
     if not pdf.is_file() or not pdf.read_bytes().startswith(b"%PDF-"):
         raise ValueError("Word-exported cross-route PDF is missing or malformed")
     reader = PdfReader(pdf)
@@ -1314,19 +1360,14 @@ def finalize_cross_route_package(repo_root: Path, *, output_root: Path | None = 
     }
     if not valid:
         raise ValueError(f"cross-route PDF structural validation failed: {checks}")
-    write_json(route / "validation/visual-validation.json", receipt)
     from .evidence import hash_file
-    write_json(route / "validation/integrity-validation.json", {
+    integrity = {
         "valid": True,
         "pdf_sha256": hash_file(pdf),
         "pdf_size_bytes": pdf.stat().st_size,
-    })
-    manual_path = route / "validation/manual-visual-qa.json"
-    manual = json.loads(manual_path.read_text(encoding="utf-8")) if manual_path.is_file() else {"valid": False}
-    _write_text(
-        route / "validation/validation-report.md",
-        "# Validation report\n\nDerived cross-route data/report validation and Markdown/DOCX semantic parity: Passed.\n\nAutomated PDF rendering and structural checks: Passed.\n\nManual full-page visual QA: "
-        + ("Passed." if manual.get("valid") else "Pending."),
+    }
+    _update_compact_validation(
+        route, {"visual": receipt, "integrity": integrity}
     )
     manifest = regenerate_route_manifest(root, route)
     errors = validate_sha256_manifest(root, manifest)
@@ -1348,7 +1389,7 @@ def record_cross_route_manual_visual_qa(
     root = Path(repo_root).resolve(strict=True)
     output = (Path(output_root) if output_root else root / "docs/testing/final-results").resolve()
     route = output / "06-cross-route-comparison"
-    pdf = route / "workbook/generated/cross-route-comparison-final-report.pdf"
+    pdf = route / "reports/cross-route-comparison-report.pdf"
     if not pdf.is_file():
         raise ValueError("cross-route PDF is missing")
     page_count = len(PdfReader(pdf).pages)
@@ -1365,15 +1406,7 @@ def record_cross_route_manual_visual_qa(
         "findings": findings.strip(),
         "temporary_page_images_committed": False,
     }
-    write_json(route / "validation/manual-visual-qa.json", receipt)
-    automated_path = route / "validation/visual-validation.json"
-    automated = json.loads(automated_path.read_text(encoding="utf-8")) if automated_path.is_file() else {"valid": False}
-    _write_text(
-        route / "validation/validation-report.md",
-        "# Validation report\n\nDerived cross-route data/report validation and Markdown/DOCX semantic parity: Passed.\n\nAutomated PDF rendering and structural checks: "
-        + ("Passed." if automated.get("valid") else "Pending.")
-        + "\n\nManual full-page visual QA: Passed.",
-    )
+    _update_compact_validation(route, {"manual_visual_qa": receipt})
     manifest = regenerate_route_manifest(root, route)
     errors = validate_sha256_manifest(root, manifest)
     if errors:

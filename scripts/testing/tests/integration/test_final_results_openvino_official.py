@@ -194,42 +194,40 @@ def test_official_generation_writes_common_route_and_copies_only_primary_workboo
     bundle = write_official_route(REPO_ROOT)
 
     expected = {
-        "route-manifest.json",
-        "protocol/intended-test-matrix.csv",
-        "system/repository.json",
-        "system/hardware.json",
-        "system/software.json",
-        "system/model-artifacts.csv",
-        "results/attempts.csv",
-        "results/measurements.csv",
-        "results/summary-results.csv",
-        "results/availability-matrix.csv",
-        f"results/source/{V2_WORKBOOK.name}",
-        "quality/prompt-suite.csv",
-        "quality/scores.csv",
-        "quality/outputs-index.csv",
-        "failures/failure-register.csv",
+        "README.md",
+        "data/route.json",
+        "reproduction/protocol/intended-test-matrix.csv",
+        "reproduction/system/repository.json",
+        "reproduction/system/hardware.json",
+        "reproduction/system/software.json",
+        "reproduction/system/model-artifacts.csv",
+        "data/attempts.csv",
+        "data/measurements.csv",
+        "data/summaries.csv",
+        "data/availability-matrix.csv",
+        f"evidence/source/{V2_WORKBOOK.name}",
+        "reproduction/quality/prompt-suite.csv",
+        "data/quality.csv",
+        "reproduction/quality/outputs-index.csv",
+        "data/failures.csv",
         "evidence/evidence-index.csv",
         "evidence/source-locations.csv",
         "evidence/claim-evidence-map.csv",
         "evidence/manifest-sha256.txt",
         "reproduction/README.md",
-        "validation/coverage-validation.json",
-        "validation/data-validation.json",
-        "validation/integrity-validation.json",
-        "validation/validation-report.md",
-        "validation/workbook-parity.json",
-        "workbook/source/openvino-official-upstream-final-report.md",
-        "workbook/generated/openvino-official-upstream-final-report.docx",
-        "workbook/generated/openvino-official-upstream-final-report.pdf",
-        "workbook/generated/openvino-official-upstream-portable-results.xlsx",
-        "workbook/generated/portable-workbook-provenance.json",
+        "validation/validation.json",
+        "validation/validation.md",
+        "reports/openvino-official-upstream-report.md",
+        "reports/openvino-official-upstream-report.docx",
+        "reports/openvino-official-upstream-report.pdf",
+        "reports/openvino-official-upstream-results.xlsx",
+        "reports/openvino-official-upstream-results-provenance.json",
     }
     actual = {path.relative_to(ROUTE).as_posix() for path in ROUTE.rglob("*") if path.is_file()}
     assert actual == expected
-    copied = ROUTE / "results/source" / V2_WORKBOOK.name
+    copied = ROUTE / "evidence/source" / V2_WORKBOOK.name
     assert copied.read_bytes() == (REPO_ROOT / V2_WORKBOOK).read_bytes()
-    assert not (ROUTE / "results/source" / V1_WORKBOOK.name).exists()
+    assert not (ROUTE / "evidence/source" / V1_WORKBOOK.name).exists()
     assert any(
         item.role == "indexed-prior-workbook"
         and item.relative_path == V1_WORKBOOK.as_posix()
@@ -240,8 +238,9 @@ def test_official_generation_writes_common_route_and_copies_only_primary_workboo
     assert primary.relative_path == V2_WORKBOOK.as_posix()
     assert primary.sha256 == "1d5fc2893e0c7f412140b3fa1a26c4a0c18e3c65ecfa356e80549dc4cd10aff7"
 
-    coverage = json.loads((ROUTE / "validation/coverage-validation.json").read_text())
-    data = json.loads((ROUTE / "validation/data-validation.json").read_text())
+    validation = json.loads((ROUTE / "validation/validation.json").read_text())
+    coverage = validation["checks"]["coverage"]
+    data = validation["checks"]["data"]
     assert coverage["valid"] is True
     assert data["valid"] is True
     assert all(check["passed"] for check in coverage["checks"].values())
@@ -444,8 +443,8 @@ def test_official_validation_rejects_synchronized_prompt_identity_mapping():
         )
         for item in bundle.quality
     )
-    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
-    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    prompts = _rows(ROUTE / "reproduction/quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "reproduction/quality/outputs-index.csv")
     for row in prompts:
         row["prompt_id"] = remap.get(row["prompt_id"], row["prompt_id"])
     for row in outputs:
@@ -545,28 +544,28 @@ def test_official_validation_rejects_each_published_entity_type_mutation():
     )
     assert data["checks"]["summary_entities"]["passed"] is False
 
-    prompt_rows = _rows(ROUTE / "quality/prompt-suite.csv")
+    prompt_rows = _rows(ROUTE / "reproduction/quality/prompt-suite.csv")
     prompt_rows[0]["domain"] = "fabricated-domain"
     _, data = build_official_validation_receipts(
         REPO_ROOT, bundle, prompt_rows=prompt_rows
     )
     assert data["checks"]["prompt_entities"]["passed"] is False
 
-    output_rows = _rows(ROUTE / "quality/outputs-index.csv")
+    output_rows = _rows(ROUTE / "reproduction/quality/outputs-index.csv")
     output_rows[0]["output_sha256"] = "0" * 64
     _, data = build_official_validation_receipts(
         REPO_ROOT, bundle, output_rows=output_rows
     )
     assert data["checks"]["output_entities"]["passed"] is False
 
-    availability_rows = _rows(ROUTE / "results/availability-matrix.csv")
+    availability_rows = _rows(ROUTE / "data/availability-matrix.csv")
     availability_rows[0]["reason"] = "fabricated reason"
     _, data = build_official_validation_receipts(
         REPO_ROOT, bundle, availability_rows=availability_rows
     )
     assert data["checks"]["availability_entities"]["passed"] is False
 
-    artifact_rows = _rows(ROUTE / "system/model-artifacts.csv")
+    artifact_rows = _rows(ROUTE / "reproduction/system/model-artifacts.csv")
     artifact_rows[0]["executed_case_count"] = "999"
     _, data = build_official_validation_receipts(
         REPO_ROOT, bundle, model_artifact_rows=artifact_rows

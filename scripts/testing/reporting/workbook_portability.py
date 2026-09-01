@@ -40,32 +40,32 @@ _PORTABLE_WORKBOOKS = (
         "route": "04-openvino-experimental-fork",
         "activity_id": "#experimental-openvino-portable-workbook-generation",
         "source": (
-            "results/source/"
+            "evidence/source/"
             "Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
         ),
         "output": (
-            "workbook/generated/"
-            "openvino-experimental-fork-portable-results.xlsx"
+            "reports/"
+            "openvino-experimental-fork-results.xlsx"
         ),
         "receipt": (
-            "workbook/generated/"
-            "portable-workbook-provenance.json"
+            "reports/"
+            "openvino-experimental-fork-results-provenance.json"
         ),
     },
     {
         "route": "05-openvino-official-upstream",
         "activity_id": "#official-openvino-portable-workbook-generation",
         "source": (
-            "results/source/"
+            "evidence/source/"
             "Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx"
         ),
         "output": (
-            "workbook/generated/"
-            "openvino-official-upstream-portable-results.xlsx"
+            "reports/"
+            "openvino-official-upstream-results.xlsx"
         ),
         "receipt": (
-            "workbook/generated/"
-            "portable-workbook-provenance.json"
+            "reports/"
+            "openvino-official-upstream-results-provenance.json"
         ),
     },
 )

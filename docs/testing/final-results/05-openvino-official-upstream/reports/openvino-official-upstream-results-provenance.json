@@ -1,0 +1,114 @@
+{
+  "activity_id": "#official-openvino-portable-workbook-generation",
+  "cached_formula_value_count": 0,
+  "formula_count": 0,
+  "formulas_preserved": true,
+  "machine_absolute_path_count": 0,
+  "openpyxl_version": "3.1.5",
+  "output_path": "docs/testing/final-results/05-openvino-official-upstream/reports/openvino-official-upstream-results.xlsx",
+  "output_role": "primary portable workbook derivative",
+  "output_sha256": "1407c2bdf9fc27d01b665bf82a24ce56a5708898416fc94aabb563d7f384bed2",
+  "output_size_bytes": 431183,
+  "receipt_path": "docs/testing/final-results/05-openvino-official-upstream/reports/openvino-official-upstream-results-provenance.json",
+  "replacement_count": 15,
+  "replacements": [
+    {
+      "cell": "M6",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M7",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M9",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M10",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M12",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M13",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M15",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M16",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M18",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M19",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M21",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M24",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M27",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M30",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "M33",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    }
+  ],
+  "sanitizer": "scripts/testing/reporting/workbook_portability.py",
+  "schema_version": "1.0.0",
+  "scientific_values_preserved": true,
+  "sheet_structure_preserved": true,
+  "source_path": "docs/testing/final-results/05-openvino-official-upstream/evidence/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx",
+  "source_role": "immutable evidence-only nonportable workbook",
+  "source_sha256": "1d5fc2893e0c7f412140b3fa1a26c4a0c18e3c65ecfa356e80549dc4cd10aff7",
+  "source_size_bytes": 431513
+}

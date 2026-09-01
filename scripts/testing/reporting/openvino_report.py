@@ -475,7 +475,7 @@ def build_openvino_report(bundle: RouteBundle) -> Report:
                         ("Campaign ID", bundle.campaign_id),
                         ("Source date", source_date.isoformat()),
                         ("Report revision", "R1"),
-                        ("Canonical content", f"workbook/source/{bundle.route_id}-final-report.md"),
+                        ("Canonical content", f"reports/{bundle.route_id}-report.md"),
                     ),
                 ),
                 ReportParagraph(authority_note),
@@ -732,11 +732,11 @@ def build_openvino_report(bundle: RouteBundle) -> Report:
                     "Reproduction inputs and outputs",
                     ("Item", "Repository-relative location"),
                     (
-                        ("Canonical attempts", f"{route_root}/results/attempts.csv"),
-                        ("Canonical measurements", f"{route_root}/results/measurements.csv"),
-                        ("Canonical quality", f"{route_root}/quality/scores.csv"),
+                        ("Canonical attempts", f"{route_root}/data/attempts.csv"),
+                        ("Canonical measurements", f"{route_root}/data/measurements.csv"),
+                        ("Canonical quality", f"{route_root}/data/quality.csv"),
                         ("Evidence index", f"{route_root}/evidence/evidence-index.csv"),
-                        ("Source workbook", f"{route_root}/results/source/"),
+                        ("Source workbook", f"{route_root}/evidence/source/"),
                     ),
                 ),
             ),
@@ -805,7 +805,10 @@ def regenerate_route_manifest(repo_root: Path, route: Path) -> Path:
         errors = validate_sha256_manifest(root, temporary)
         if errors:
             raise ValueError(f"replacement checksum manifest is invalid: {errors}")
-        os.replace(temporary, manifest)
+        if manifest.is_file() and manifest.read_bytes() == temporary.read_bytes():
+            temporary.unlink()
+        else:
+            os.replace(temporary, manifest)
     finally:
         temporary.unlink(missing_ok=True)
     final_errors = validate_sha256_manifest(root, manifest)

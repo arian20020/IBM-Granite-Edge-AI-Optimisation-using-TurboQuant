@@ -175,31 +175,34 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     output_bundle = write_experimental_route(REPO_ROOT)
     assert output_bundle == bundle
     required_files = {
-        "route-manifest.json",
-        "protocol/intended-test-matrix.csv",
-        "system/repository.json",
-        "system/hardware.json",
-        "system/software.json",
-        "system/model-artifacts.csv",
-        "results/attempts.csv",
-        "results/measurements.csv",
-        "results/summary-results.csv",
-        "results/availability-matrix.csv",
-        "results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
-        "quality/prompt-suite.csv",
-        "quality/scores.csv",
-        "quality/outputs-index.csv",
+        "README.md",
+        "data/route.json",
+        "reproduction/protocol/intended-test-matrix.csv",
+        "reproduction/system/repository.json",
+        "reproduction/system/hardware.json",
+        "reproduction/system/software.json",
+        "reproduction/system/model-artifacts.csv",
+        "data/attempts.csv",
+        "data/measurements.csv",
+        "data/summaries.csv",
+        "data/availability-matrix.csv",
+        "evidence/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
+        "reproduction/quality/prompt-suite.csv",
+        "data/quality.csv",
+        "reproduction/quality/outputs-index.csv",
         "reproduction/README.md",
-        "failures/failure-register.csv",
+        "data/failures.csv",
         "evidence/evidence-index.csv",
         "evidence/source-locations.csv",
         "evidence/claim-evidence-map.csv",
         "evidence/manifest-sha256.txt",
-        "validation/coverage-validation.json",
-        "validation/data-validation.json",
-        "validation/integrity-validation.json",
-        "workbook/generated/openvino-experimental-fork-portable-results.xlsx",
-        "workbook/generated/portable-workbook-provenance.json",
+        "validation/validation.json",
+        "validation/validation.md",
+        "reports/openvino-experimental-fork-report.md",
+        "reports/openvino-experimental-fork-report.docx",
+        "reports/openvino-experimental-fork-report.pdf",
+        "reports/openvino-experimental-fork-results.xlsx",
+        "reports/openvino-experimental-fork-results-provenance.json",
     }
     assert required_files <= {
         path.relative_to(ROUTE).as_posix()
@@ -209,7 +212,7 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
 
     copied_workbook = (
         ROUTE
-        / "results/source"
+        / "evidence/source"
         / "Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
     )
     assert copied_workbook.read_bytes() == SOURCE_WORKBOOK.read_bytes()
@@ -219,11 +222,11 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
 
     schemas = REPO_ROOT / "docs/testing/final-results/standards/schemas"
     canonical_outputs = (
-        ("results/attempts.csv", "attempts.schema.json"),
-        ("results/measurements.csv", "measurements.schema.json"),
-        ("results/summary-results.csv", "results.schema.json"),
-        ("quality/scores.csv", "quality.schema.json"),
-        ("failures/failure-register.csv", "failures.schema.json"),
+        ("data/attempts.csv", "attempts.schema.json"),
+        ("data/measurements.csv", "measurements.schema.json"),
+        ("data/summaries.csv", "results.schema.json"),
+        ("data/quality.csv", "quality.schema.json"),
+        ("data/failures.csv", "failures.schema.json"),
         ("evidence/evidence-index.csv", "evidence.schema.json"),
     )
     for relative_path, schema_name in canonical_outputs:
@@ -242,12 +245,12 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     ):
         assert all(validate_json(record.to_row(), schemas / schema_name) == [] for record in records)
 
-    generated_attempts = _rows(ROUTE / "results/attempts.csv")
-    generated_measurements = _rows(ROUTE / "results/measurements.csv")
-    generated_scores = _rows(ROUTE / "quality/scores.csv")
-    generated_outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    generated_attempts = _rows(ROUTE / "data/attempts.csv")
+    generated_measurements = _rows(ROUTE / "data/measurements.csv")
+    generated_scores = _rows(ROUTE / "data/quality.csv")
+    generated_outputs = _rows(ROUTE / "reproduction/quality/outputs-index.csv")
     generated_evidence = _rows(ROUTE / "evidence/evidence-index.csv")
-    generated_availability = _rows(ROUTE / "results/availability-matrix.csv")
+    generated_availability = _rows(ROUTE / "data/availability-matrix.csv")
     unavailable_output_rows = [
         row for row in generated_availability if row["test_case_id"] in unavailable_cases
     ]
@@ -305,7 +308,7 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
                 assert float(score["score"]) == float(criterion["points_awarded"])
                 assert float(score["maximum_score"]) == float(criterion["weight"])
 
-    coverage = json.loads((ROUTE / "validation/coverage-validation.json").read_text(encoding="utf-8"))
+    coverage = json.loads((ROUTE / "validation/validation.json").read_text(encoding="utf-8"))["checks"]["coverage"]
     assert coverage["valid"] is True
     assert set(coverage["checks"]) == {
         "artifact_unavailable_count",
@@ -327,8 +330,8 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     }
 
     data_validation = json.loads(
-        (ROUTE / "validation/data-validation.json").read_text(encoding="utf-8")
-    )
+        (ROUTE / "validation/validation.json").read_text(encoding="utf-8")
+    )["checks"]["data"]
     assert data_validation["valid"] is True
     assert set(data_validation["checks"]) == {
         "attempt_identifier_uniqueness",
@@ -487,8 +490,8 @@ def test_validation_receipts_reject_duplicate_stable_record_ids(
 
 def test_validation_receipts_reject_duplicate_output_ids():
     bundle = build_experimental_bundle(REPO_ROOT)
-    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
-    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    prompts = _rows(ROUTE / "reproduction/quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "reproduction/quality/outputs-index.csv")
     outputs[1]["output_id"] = outputs[0]["output_id"]
 
     _, data = build_experimental_validation_receipts(
@@ -569,8 +572,8 @@ def test_validation_receipts_require_quality_prompt_to_exist_in_prompt_suite():
 
 def test_validation_receipts_reject_count_preserving_published_prompt_identity_swap():
     bundle = build_experimental_bundle(REPO_ROOT)
-    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
-    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    prompts = _rows(ROUTE / "reproduction/quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "reproduction/quality/outputs-index.csv")
     first_id, second_id = prompts[0]["prompt_id"], prompts[1]["prompt_id"]
     prompts[0]["prompt_id"], prompts[1]["prompt_id"] = second_id, first_id
     for row in outputs:
@@ -598,8 +601,8 @@ def test_validation_receipts_reject_count_preserving_published_prompt_identity_s
 
 def test_validation_receipts_reject_noncanonical_output_identity():
     bundle = build_experimental_bundle(REPO_ROOT)
-    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
-    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    prompts = _rows(ROUTE / "reproduction/quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "reproduction/quality/outputs-index.csv")
     outputs[0]["output_id"] = "wrong-output"
 
     _, data = build_experimental_validation_receipts(
@@ -754,8 +757,8 @@ def test_validation_receipts_reject_evidence_full_entity_mutation(mutation):
 
 def test_validation_receipts_compare_published_availability_and_model_artifacts():
     bundle = build_experimental_bundle(REPO_ROOT)
-    availability = _rows(ROUTE / "results/availability-matrix.csv")
-    artifacts = _rows(ROUTE / "system/model-artifacts.csv")
+    availability = _rows(ROUTE / "data/availability-matrix.csv")
+    artifacts = _rows(ROUTE / "reproduction/system/model-artifacts.csv")
     availability[0]["reason"] = "fabricated availability reason"
     artifacts[0]["reason"] = "fabricated artifact reason"
 
@@ -894,8 +897,8 @@ def test_validation_receipts_reject_failure_linked_to_another_case_attempt():
 
 def test_validation_receipts_reject_output_with_prompt_input_evidence_role():
     bundle = build_experimental_bundle(REPO_ROOT)
-    prompts = _rows(ROUTE / "quality/prompt-suite.csv")
-    outputs = _rows(ROUTE / "quality/outputs-index.csv")
+    prompts = _rows(ROUTE / "reproduction/quality/prompt-suite.csv")
+    outputs = _rows(ROUTE / "reproduction/quality/outputs-index.csv")
     prompt_evidence = next(
         evidence for evidence in bundle.evidence if evidence.role == "quality-prompt-input"
     )

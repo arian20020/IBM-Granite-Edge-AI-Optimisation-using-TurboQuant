@@ -16,7 +16,6 @@ from .evidence import (
     build_evidence_record,
     hash_file,
     validate_sha256_manifest,
-    write_sha256_manifest,
 )
 from .models import (
     AttemptRecord,
@@ -28,6 +27,8 @@ from .models import (
     Status,
     SummaryRecord,
 )
+from .layout import render_validation_markdown
+from .openvino_report import regenerate_route_manifest
 
 
 _EXPERIMENTAL_ROUTE_ID = "openvino-experimental-fork"
@@ -1785,6 +1786,47 @@ def _csv_rows(records: Iterable[object]) -> list[dict[str, object]]:
     return rows
 
 
+def _write_compact_validation(
+    route: Path,
+    route_id: str,
+    updates: Mapping[str, Mapping[str, object]],
+) -> dict[str, object]:
+    """Update named compact validation checks without losing prior evidence."""
+    path = route / "validation/validation.json"
+    existing: Mapping[str, object] = {}
+    if path.is_file():
+        loaded = _read_json(path)
+        if not isinstance(loaded, Mapping):
+            raise ValueError(f"invalid compact validation receipt: {path}")
+        existing = loaded
+    prior_checks = existing.get("checks", {})
+    if not isinstance(prior_checks, Mapping):
+        raise ValueError(f"invalid compact validation checks: {path}")
+    checks = {name: dict(receipt) for name, receipt in prior_checks.items()}
+    checks.update({name: dict(receipt) for name, receipt in updates.items()})
+    for receipt in checks.values():
+        if "valid" not in receipt and "matches" in receipt:
+            receipt["valid"] = bool(receipt["matches"])
+    valid = all(bool(receipt.get("valid")) for receipt in checks.values())
+    payload: dict[str, object] = {
+        "route_id": route_id,
+        "valid": valid,
+        "status": "passed" if valid else "failed",
+        "checks": checks,
+        "findings": list(existing.get("findings", ())),
+        "limitations": list(existing.get("limitations", ())),
+    }
+    write_json(path, payload)
+    summary = route / "validation/validation.md"
+    summary.parent.mkdir(parents=True, exist_ok=True)
+    summary.write_text(
+        render_validation_markdown(payload).rstrip() + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return payload
+
+
 def _copy_exact(source: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, destination)
@@ -3221,7 +3263,7 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
     route = root / _EXPERIMENTAL_ROUTE_RELATIVE
     bundle = build_experimental_bundle(root)
 
-    write_json(route / "route-manifest.json", bundle.to_row())
+    write_json(route / "data/route.json", bundle.to_row())
     intended_rows = [
         {
             "test_case_id": item.test_case_id,
@@ -3233,16 +3275,16 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         for item in bundle.attempts
     ]
     write_csv(
-        route / "protocol/intended-test-matrix.csv",
+        route / "reproduction/protocol/intended-test-matrix.csv",
         intended_rows,
         ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "intended"),
     )
-    write_json(route / "system/repository.json", bundle.repository)
-    write_json(route / "system/hardware.json", bundle.hardware)
-    write_json(route / "system/software.json", bundle.software)
+    write_json(route / "reproduction/system/repository.json", bundle.repository)
+    write_json(route / "reproduction/system/hardware.json", bundle.hardware)
+    write_json(route / "reproduction/system/software.json", bundle.software)
     model_artifacts = _model_artifact_rows(root)
     write_csv(
-        route / "system/model-artifacts.csv",
+        route / "reproduction/system/model-artifacts.csv",
         model_artifacts,
         (
             "model_id",
@@ -3256,20 +3298,20 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         ),
     )
 
-    write_csv(route / "results/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
+    write_csv(route / "data/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
     write_csv(
-        route / "results/measurements.csv",
+        route / "data/measurements.csv",
         _csv_rows(bundle.measurements),
         _MEASUREMENT_FIELDS,
     )
     write_csv(
-        route / "results/summary-results.csv",
+        route / "data/summaries.csv",
         _csv_rows(bundle.summaries),
         _SUMMARY_FIELDS,
     )
     availability_rows = _availability_rows(bundle)
     write_csv(
-        route / "results/availability-matrix.csv",
+        route / "data/availability-matrix.csv",
         availability_rows,
         (
             "test_case_id",
@@ -3282,12 +3324,12 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         ),
     )
     source_workbook = root / _EXPERIMENTAL_WORKBOOK_RELATIVE
-    copied_workbook = route / "results/source" / source_workbook.name
+    copied_workbook = route / "evidence/source" / source_workbook.name
     _copy_exact(source_workbook, copied_workbook)
 
     prompt_rows, output_rows = _prompt_and_output_rows(root, bundle)
     write_csv(
-        route / "quality/prompt-suite.csv",
+        route / "reproduction/quality/prompt-suite.csv",
         prompt_rows,
         (
             "prompt_suite_id",
@@ -3299,9 +3341,9 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
             "sha256",
         ),
     )
-    write_csv(route / "quality/scores.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
+    write_csv(route / "data/quality.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
     write_csv(
-        route / "quality/outputs-index.csv",
+        route / "reproduction/quality/outputs-index.csv",
         output_rows,
         (
             "output_id",
@@ -3318,7 +3360,7 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         ),
     )
     write_csv(
-        route / "failures/failure-register.csv",
+        route / "data/failures.csv",
         _csv_rows(bundle.failures),
         _FAILURE_FIELDS,
     )
@@ -3412,9 +3454,9 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         "The adapter only normalizes existing evidence; it does not rerun inference. "
         "Do not replace unavailable observations with zero, infer missing hardware, "
         "or copy values from another campaign. A source conflict stops generation.\n\n"
-        "The source XLSX is retained byte-identically under `../results/source/` as "
+        "The source XLSX is retained byte-identically under `../evidence/source/` as "
         "evidence-only/nonportable. The primary handoff is "
-        "`../workbook/generated/openvino-experimental-fork-portable-results.xlsx`; "
+        "`../reports/openvino-experimental-fork-results.xlsx`; "
         "its adjacent provenance receipt records the 55 absolute-path replacements "
         "and source/output hashes. The 275 formulas have no cached results and may "
         "appear blank in non-calculating readers until Excel recalculation.\n\n"
@@ -3436,24 +3478,34 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         availability_rows=availability_rows,
         model_artifact_rows=model_artifacts,
     )
-    write_json(route / "validation/coverage-validation.json", coverage_validation)
-    write_json(route / "validation/data-validation.json", data_validation)
     if not coverage_validation["valid"] or not data_validation["valid"]:
         raise ValueError("generated fv6 validation receipts contain failed checks")
 
     manifest = route / "evidence/manifest-sha256.txt"
-    write_json(
-        route / "validation/integrity-validation.json",
+    _write_compact_validation(
+        route,
+        _EXPERIMENTAL_ROUTE_ID,
         {
+            "coverage": coverage_validation,
+            "data": data_validation,
+            "integrity": {
+                "valid": True,
             "manifest": manifest.relative_to(root).as_posix(),
             "status": "valid",
             "workbook_copy_sha256": hash_file(copied_workbook),
+            },
         },
     )
-    files_before_manifest = sorted(
-        path for path in route.rglob("*") if path.is_file() and path != manifest
+    readme = route / "README.md"
+    readme.write_text(
+        "# Experimental OpenVINO fork final results\n\n"
+        "Canonical Markdown: `reports/openvino-experimental-fork-report.md`. "
+        "The DOCX, PDF, and portable XLSX are derivatives. The byte-identical "
+        "nonportable source XLSX remains evidence-only under `evidence/source/`.\n",
+        encoding="utf-8",
+        newline="\n",
     )
-    write_sha256_manifest(root, files_before_manifest, manifest)
+    regenerate_route_manifest(root, route)
     errors = validate_sha256_manifest(root, manifest)
     if errors:
         raise ValueError(f"generated fv6 integrity manifest is invalid: {errors}")
@@ -4268,7 +4320,7 @@ def write_official_route(repo_root: Path) -> RouteBundle:
     route = root / _OFFICIAL_ROUTE_RELATIVE
     bundle = build_official_bundle(root)
 
-    write_json(route / "route-manifest.json", bundle.to_row())
+    write_json(route / "data/route.json", bundle.to_row())
     intended_rows = [
         {
             "test_case_id": item.test_case_id,
@@ -4280,16 +4332,16 @@ def write_official_route(repo_root: Path) -> RouteBundle:
         for item in bundle.attempts
     ]
     write_csv(
-        route / "protocol/intended-test-matrix.csv",
+        route / "reproduction/protocol/intended-test-matrix.csv",
         intended_rows,
         ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "intended"),
     )
-    write_json(route / "system/repository.json", bundle.repository)
-    write_json(route / "system/hardware.json", bundle.hardware)
-    write_json(route / "system/software.json", bundle.software)
+    write_json(route / "reproduction/system/repository.json", bundle.repository)
+    write_json(route / "reproduction/system/hardware.json", bundle.hardware)
+    write_json(route / "reproduction/system/software.json", bundle.software)
     model_artifacts = _official_model_artifact_rows(root)
     write_csv(
-        route / "system/model-artifacts.csv",
+        route / "reproduction/system/model-artifacts.csv",
         model_artifacts,
         (
             "model_id",
@@ -4302,20 +4354,20 @@ def write_official_route(repo_root: Path) -> RouteBundle:
             "reason",
         ),
     )
-    write_csv(route / "results/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
+    write_csv(route / "data/attempts.csv", _csv_rows(bundle.attempts), _ATTEMPT_FIELDS)
     write_csv(
-        route / "results/measurements.csv",
+        route / "data/measurements.csv",
         _csv_rows(bundle.measurements),
         _MEASUREMENT_FIELDS,
     )
     write_csv(
-        route / "results/summary-results.csv",
+        route / "data/summaries.csv",
         _csv_rows(bundle.summaries),
         _SUMMARY_FIELDS,
     )
     availability_rows = _availability_rows(bundle)
     write_csv(
-        route / "results/availability-matrix.csv",
+        route / "data/availability-matrix.csv",
         availability_rows,
         (
             "test_case_id",
@@ -4328,12 +4380,12 @@ def write_official_route(repo_root: Path) -> RouteBundle:
         ),
     )
     source_workbook = root / _OFFICIAL_V2_WORKBOOK_RELATIVE
-    copied_workbook = route / "results/source" / source_workbook.name
+    copied_workbook = route / "evidence/source" / source_workbook.name
     _copy_exact(source_workbook, copied_workbook)
 
     prompt_rows, output_rows = _official_prompt_and_output_rows(root, bundle)
     write_csv(
-        route / "quality/prompt-suite.csv",
+        route / "reproduction/quality/prompt-suite.csv",
         prompt_rows,
         (
             "prompt_suite_id",
@@ -4345,9 +4397,9 @@ def write_official_route(repo_root: Path) -> RouteBundle:
             "sha256",
         ),
     )
-    write_csv(route / "quality/scores.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
+    write_csv(route / "data/quality.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
     write_csv(
-        route / "quality/outputs-index.csv",
+        route / "reproduction/quality/outputs-index.csv",
         output_rows,
         (
             "output_id",
@@ -4364,7 +4416,7 @@ def write_official_route(repo_root: Path) -> RouteBundle:
         ),
     )
     write_csv(
-        route / "failures/failure-register.csv",
+        route / "data/failures.csv",
         _csv_rows(bundle.failures),
         _FAILURE_FIELDS,
     )
@@ -4442,10 +4494,10 @@ def write_official_route(repo_root: Path) -> RouteBundle:
         "## Authority boundary\n\n"
         f"- `{detailed.relative_path}` ({detailed.sha256}) is authoritative for all 45 final statuses.\n"
         f"- `{quality.relative_path}` ({quality.sha256}) and the indexed fv1 raw results supply observations only for the 15 fv2-passed cases.\n"
-        f"- `{primary.relative_path}` ({primary.sha256}) is the revised workbook copied byte-identically into `../results/source/` as evidence-only/nonportable.\n"
+        f"- `{primary.relative_path}` ({primary.sha256}) is the revised workbook copied byte-identically into `../evidence/source/` as evidence-only/nonportable.\n"
         f"- `{prior.relative_path}` ({prior.sha256}) is indexed as prior evidence and is not duplicated.\n\n"
-        "The primary handoff is `../workbook/generated/"
-        "openvino-official-upstream-portable-results.xlsx`; its adjacent provenance "
+        "The primary handoff is `../reports/"
+        "openvino-official-upstream-results.xlsx`; its adjacent provenance "
         "receipt records the 15 absolute-path replacements and source/output hashes. "
         "The adapter does not rerun inference. It rejects missing passed evidence, any "
         "published metric on a non-passed fv2 row, source conflicts, and missing final "
@@ -4464,24 +4516,34 @@ def write_official_route(repo_root: Path) -> RouteBundle:
         model_artifact_rows=model_artifacts,
         source_location_rows=source_location_rows,
     )
-    write_json(route / "validation/coverage-validation.json", coverage)
-    write_json(route / "validation/data-validation.json", data)
     if not coverage["valid"] or not data["valid"]:
         raise ValueError("generated official validation receipts contain failed checks")
     manifest = route / "evidence/manifest-sha256.txt"
-    write_json(
-        route / "validation/integrity-validation.json",
+    _write_compact_validation(
+        route,
+        _OFFICIAL_ROUTE_ID,
         {
+            "coverage": coverage,
+            "data": data,
+            "integrity": {
+                "valid": True,
             "manifest": manifest.relative_to(root).as_posix(),
             "status": "valid",
             "workbook_copy_sha256": hash_file(copied_workbook),
             "indexed_prior_workbook_sha256": prior.sha256,
+            },
         },
     )
-    files_before_manifest = sorted(
-        path for path in route.rglob("*") if path.is_file() and path != manifest
+    readme = route / "README.md"
+    readme.write_text(
+        "# Official OpenVINO upstream final results\n\n"
+        "Canonical Markdown: `reports/openvino-official-upstream-report.md`. "
+        "The DOCX, PDF, and portable XLSX are derivatives. The byte-identical "
+        "nonportable source XLSX remains evidence-only under `evidence/source/`.\n",
+        encoding="utf-8",
+        newline="\n",
     )
-    write_sha256_manifest(root, files_before_manifest, manifest)
+    regenerate_route_manifest(root, route)
     errors = validate_sha256_manifest(root, manifest)
     if errors:
         raise ValueError(f"generated official integrity manifest is invalid: {errors}")

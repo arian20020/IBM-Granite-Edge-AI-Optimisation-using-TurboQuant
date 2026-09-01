@@ -26,16 +26,16 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 WORKBOOK_CASES = (
     {
         "source": (
-            "04-openvino-experimental-fork/results/source/"
+            "04-openvino-experimental-fork/evidence/source/"
             "Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
         ),
         "portable": (
-            "04-openvino-experimental-fork/workbook/generated/"
-            "openvino-experimental-fork-portable-results.xlsx"
+            "04-openvino-experimental-fork/reports/"
+            "openvino-experimental-fork-results.xlsx"
         ),
         "receipt": (
-            "04-openvino-experimental-fork/workbook/generated/"
-            "portable-workbook-provenance.json"
+            "04-openvino-experimental-fork/reports/"
+            "openvino-experimental-fork-results-provenance.json"
         ),
         "sheets": (
             "Dashboard",
@@ -62,16 +62,16 @@ WORKBOOK_CASES = (
     },
     {
         "source": (
-            "05-openvino-official-upstream/results/source/"
+            "05-openvino-official-upstream/evidence/source/"
             "Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx"
         ),
         "portable": (
-            "05-openvino-official-upstream/workbook/generated/"
-            "openvino-official-upstream-portable-results.xlsx"
+            "05-openvino-official-upstream/reports/"
+            "openvino-official-upstream-results.xlsx"
         ),
         "receipt": (
-            "05-openvino-official-upstream/workbook/generated/"
-            "portable-workbook-provenance.json"
+            "05-openvino-official-upstream/reports/"
+            "openvino-official-upstream-results-provenance.json"
         ),
         "sheets": (
             "Executive Summary",
@@ -270,6 +270,6 @@ def test_route_writer_publishes_only_the_selected_openvino_derivative(tmp_path: 
     assert (route / Path(str(case["receipt"])).relative_to(route.name)).is_file()
     assert not (
         tmp_path
-        / "docs/testing/final-results/05-openvino-official-upstream/workbook/generated/"
-        "openvino-official-upstream-portable-results.xlsx"
+        / "docs/testing/final-results/05-openvino-official-upstream/reports/"
+        "openvino-official-upstream-results.xlsx"
     ).exists()

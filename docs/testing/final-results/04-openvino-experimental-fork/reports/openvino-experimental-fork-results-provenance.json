@@ -1,0 +1,354 @@
+{
+  "activity_id": "#experimental-openvino-portable-workbook-generation",
+  "cached_formula_value_count": 0,
+  "formula_count": 275,
+  "formulas_preserved": true,
+  "machine_absolute_path_count": 0,
+  "openpyxl_version": "3.1.5",
+  "output_path": "docs/testing/final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-results.xlsx",
+  "output_role": "primary portable workbook derivative",
+  "output_sha256": "9366cf98ea043f64fa7618329cce5deb20052ffd88860ff28262dc107baa514a",
+  "output_size_bytes": 659115,
+  "receipt_path": "docs/testing/final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-results-provenance.json",
+  "replacement_count": 55,
+  "replacements": [
+    {
+      "cell": "K2",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K3",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K5",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K6",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K8",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K9",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K11",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K12",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K14",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K15",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K17",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K18",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K20",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K21",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K23",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K24",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K26",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K27",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K29",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K32",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K35",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K38",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K41",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K44",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K47",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K50",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "K53",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Detailed Results"
+    },
+    {
+      "cell": "B36",
+      "kind": "value",
+      "portable_value": "experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6",
+      "sheet": "Methodology"
+    },
+    {
+      "cell": "K3",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K4",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K6",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K7",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K9",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K10",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K12",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K13",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K15",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K16",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K18",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K19",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K21",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K22",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K24",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K25",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K27",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int4-cw-ov-ea0231a",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K28",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-3b-int8-ov-f858c9e",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K30",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K33",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K36",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K39",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K42",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K45",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K48",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K51",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Source Data"
+    },
+    {
+      "cell": "K54",
+      "kind": "value",
+      "portable_value": "external/models/openvino/granite-4.1-8b-int4-cw-ov-d84b1d1",
+      "sheet": "Source Data"
+    }
+  ],
+  "sanitizer": "scripts/testing/reporting/workbook_portability.py",
+  "schema_version": "1.0.0",
+  "scientific_values_preserved": true,
+  "sheet_structure_preserved": true,
+  "source_path": "docs/testing/final-results/04-openvino-experimental-fork/evidence/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
+  "source_role": "immutable evidence-only nonportable workbook",
+  "source_sha256": "09820a5b19edb11efd7640f1d9a13802b82fb464ab6e14622998d2565c5aca83",
+  "source_size_bytes": 663856
+}

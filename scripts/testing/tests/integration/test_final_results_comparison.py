@@ -828,13 +828,13 @@ def test_package_writer_creates_portable_parity_valid_artifacts_and_catalogs(tmp
 
     assert report.route_id == "cross-route-comparison"
     expected = (
-        route / "route-manifest.json",
-        route / "results/comparability-matrix.csv",
-        route / "results/route-status-summary.csv",
-        route / "workbook/source/cross-route-comparison-final-report.md",
-        route / "workbook/generated/cross-route-comparison-final-report.docx",
-        route / "validation/workbook-parity.json",
-        route / "validation/integrity-validation.json",
+        route / "data/route.json",
+        route / "data/comparability-matrix.csv",
+        route / "data/route-status-summary.csv",
+        route / "reports/cross-route-comparison-report.md",
+        route / "reports/cross-route-comparison-report.docx",
+        route / "validation/validation.json",
+        route / "validation/validation.md",
         route / "evidence/manifest-sha256.txt",
         output / "catalog/route-register.csv",
         output / "catalog/campaign-summary.csv",
@@ -846,7 +846,7 @@ def test_package_writer_creates_portable_parity_valid_artifacts_and_catalogs(tmp
         output / "catalog/comparability-matrix.csv",
     )
     assert all(path.is_file() for path in expected)
-    assert json.loads((route / "validation/workbook-parity.json").read_text())["matches"] is True
+    assert json.loads((route / "validation/validation.json").read_text())["checks"]["workbook_parity"]["matches"] is True
     manifest_lines = (route / "evidence/manifest-sha256.txt").read_text(encoding="utf-8").splitlines()
     assert len(manifest_lines) == len([path for path in route.rglob("*") if path.is_file()]) - 1
     with (output / "catalog/campaign-summary.csv").open(encoding="utf-8", newline="") as handle:
@@ -866,13 +866,19 @@ def test_pdf_finalizer_reports_only_automated_checks_and_manual_qa_is_separate(t
     from scripts.testing.reporting.comparison import (
         finalize_cross_route_package,
         record_cross_route_manual_visual_qa,
+        write_cross_route_package,
     )
     output = tmp_path / "docs/testing/final-results"
     route = output / "06-cross-route-comparison"
-    pdf_path = route / "workbook/generated/cross-route-comparison-final-report.pdf"
-    pdf_path.parent.mkdir(parents=True)
+    write_cross_route_package(
+        tmp_path,
+        (_bundle("left"), _bundle("right", prompt_suite="different-suite")),
+        output_root=output,
+    )
+    pdf_path = route / "reports/cross-route-comparison-report.pdf"
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(
-        REPOSITORY_ROOT / "docs/testing/final-results/06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.pdf",
+        REPOSITORY_ROOT / "docs/testing/final-results/06-cross-route-comparison/reports/cross-route-comparison-report.pdf",
         pdf_path,
     )
 
@@ -883,9 +889,9 @@ def test_pdf_finalizer_reports_only_automated_checks_and_manual_qa_is_separate(t
     assert automated["manual_visual_qa_performed"] is False
     assert "inspected_pages" not in automated
     assert "inspected" not in json.dumps(automated).casefold()
-    report = (route / "validation/validation-report.md").read_text(encoding="utf-8")
-    assert "Automated PDF rendering and structural checks: Passed" in report
-    assert "Manual full-page visual QA: Pending" in report
+    validation = json.loads((route / "validation/validation.json").read_text(encoding="utf-8"))
+    assert validation["checks"]["visual"]["valid"] is True
+    assert validation["checks"]["manual_visual_qa"]["valid"] is False
 
     with pytest.raises(ValueError, match="all PDF pages"):
         record_cross_route_manual_visual_qa(tmp_path, tuple(range(1, page_count)), "Incomplete", output_root=output)
@@ -898,4 +904,6 @@ def test_pdf_finalizer_reports_only_automated_checks_and_manual_qa_is_separate(t
     )
     assert manual["valid"] is True
     assert manual["inspected_pages"] == list(range(1, page_count + 1))
-    assert "Manual full-page visual QA: Passed" in (route / "validation/validation-report.md").read_text(encoding="utf-8")
+    validation = json.loads((route / "validation/validation.json").read_text(encoding="utf-8"))
+    assert validation["valid"] is True
+    assert validation["checks"]["manual_visual_qa"]["valid"] is True
