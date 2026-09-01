@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.animehacker.large_host import ALLOWED_TEST_IDS, validate_terminal_row
+from scripts.testing.campaigns.animehacker.large_host import ALLOWED_TEST_IDS, validate_terminal_row
 
 
 def read_json(path: Path):

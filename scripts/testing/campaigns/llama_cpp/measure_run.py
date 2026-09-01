@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parent.parent
+REPO_ROOT = SCRIPT_DIR.parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
@@ -26,7 +26,9 @@ from scripts.testing.official_openvino.owned_process_guard import (  # noqa: E40
     working_set_bytes,
 )
 
-from parse_llama_measurement import summarize_measurement  # noqa: E402
+from scripts.testing.campaigns.llama_cpp.parse_measurement import (  # noqa: E402
+    summarize_measurement,
+)
 
 
 def parse_args() -> argparse.Namespace:

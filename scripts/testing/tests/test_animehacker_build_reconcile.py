@@ -5,7 +5,7 @@ from pathlib import Path
 
 class AnimehackerBuildReconcileTests(unittest.TestCase):
     def test_ctest_summary_requires_zero_failed_tests(self):
-        from scripts.testing.animehacker.build_reconcile import parse_ctest_summary
+        from scripts.testing.campaigns.animehacker.build_reconcile import parse_ctest_summary
 
         passed = parse_ctest_summary("100% tests passed, 0 tests failed out of 42")
         self.assertEqual(passed, {"total": 42, "failed": 0, "passed": 42})
@@ -15,7 +15,7 @@ class AnimehackerBuildReconcileTests(unittest.TestCase):
             parse_ctest_summary("98% tests passed, 1 tests failed out of 42")
 
     def test_required_binaries_must_exist_and_are_hashed(self):
-        from scripts.testing.animehacker.build_reconcile import inventory_binaries
+        from scripts.testing.campaigns.animehacker.build_reconcile import inventory_binaries
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

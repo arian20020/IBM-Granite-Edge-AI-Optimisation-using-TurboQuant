@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.animehacker.large_host import (
+from scripts.testing.campaigns.animehacker.large_host import (
     ALLOWED_TEST_IDS,
     BLOCKING_PROCESS_NAMES,
     HostInputs,

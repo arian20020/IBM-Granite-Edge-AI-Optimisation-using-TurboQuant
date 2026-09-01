@@ -23,8 +23,8 @@ if str(ROOT) not in sys.path:
 if str(ROOT / "scripts" / "testing") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts" / "testing"))
 
-from scripts.testing.atomicbot.matrix import load_matrix
-from scripts.testing.measure_llama_run import available_ram_bytes
+from scripts.testing.campaigns.atomicbot.matrix import load_matrix
+from scripts.testing.campaigns.llama_cpp.measure_run import available_ram_bytes
 from scripts.testing.run_atomicbot_quality_retest import render_prompt, request, wait_ready
 
 

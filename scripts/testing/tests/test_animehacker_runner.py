@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.testing.animehacker.matrix import TestCase
+from scripts.testing.campaigns.animehacker.matrix import TestCase
 
 
 def case(**overrides):
@@ -93,7 +93,7 @@ class AnimehackerRunnerTests(unittest.TestCase):
             require_recovered_runtime_summaries([case(test_id="AH-01")], Path(directory))
 
     def test_command_has_exact_cache_backend_and_safety_flags(self):
-        from scripts.testing.animehacker.runner import build_server_command
+        from scripts.testing.campaigns.animehacker.runner import build_server_command
 
         command = build_server_command(case(cache="tq3_0"), Path("server.exe"), Path("model.gguf"), 19001)
         self.assertIn(["-ctk", "tq3_0"], [command[i:i + 2] for i in range(len(command) - 1)])
@@ -102,7 +102,7 @@ class AnimehackerRunnerTests(unittest.TestCase):
         self.assertIn("--offline", command)
 
     def test_selection_resumes_only_reconciled_rows(self):
-        from scripts.testing.animehacker.runner import select_cases
+        from scripts.testing.campaigns.animehacker.runner import select_cases
 
         cases = [case(test_id="AH-01"), case(test_id="AH-02")]
         state = {"attempts": {"AH-01": {"status": "complete", "reconciled": True}}}
@@ -111,7 +111,7 @@ class AnimehackerRunnerTests(unittest.TestCase):
             select_cases(cases, only={"AH-99"})
 
     def test_tq_sycl_uses_proven_level_zero_partial_offload_flags(self):
-        from scripts.testing.animehacker.runner import build_server_command
+        from scripts.testing.campaigns.animehacker.runner import build_server_command
 
         command = build_server_command(case(backend="sycl-partial", cache="tq3_0"),
                                        Path("server.exe"), Path("model.gguf"), 19003)
@@ -123,7 +123,7 @@ class AnimehackerRunnerTests(unittest.TestCase):
         self.assertNotIn(["-fa", "off"], pairs)
 
     def test_non_tq_sycl_retains_forced_flash_attention_off(self):
-        from scripts.testing.animehacker.runner import build_server_command
+        from scripts.testing.campaigns.animehacker.runner import build_server_command
 
         command = build_server_command(case(backend="sycl-partial", cache="f16"),
                                        Path("server.exe"), Path("model.gguf"), 19002)
@@ -144,7 +144,7 @@ class AnimehackerRunnerTests(unittest.TestCase):
         self.assertEqual(runtime_environment(case()), {})
 
     def test_tq_sycl_runtime_prompt_uses_granite_role_tokens(self):
-        from scripts.testing.animehacker.runner import format_runtime_prompt
+        from scripts.testing.campaigns.animehacker.runner import format_runtime_prompt
 
         item = case(backend="sycl-partial", cache="tq3_0")
         self.assertEqual(
@@ -154,12 +154,12 @@ class AnimehackerRunnerTests(unittest.TestCase):
         )
 
     def test_cpu_runtime_prompt_is_unchanged(self):
-        from scripts.testing.animehacker.runner import format_runtime_prompt
+        from scripts.testing.campaigns.animehacker.runner import format_runtime_prompt
 
         self.assertEqual(format_runtime_prompt(case(), "Question"), "Question")
 
     def test_unique_run_ids_survive_interrupted_attempts(self):
-        from scripts.testing.animehacker.runner import next_run_id
+        from scripts.testing.campaigns.animehacker.runner import next_run_id
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

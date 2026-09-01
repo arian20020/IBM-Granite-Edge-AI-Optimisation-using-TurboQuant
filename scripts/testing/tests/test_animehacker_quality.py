@@ -3,7 +3,7 @@ import unittest
 
 class AnimehackerQualityTests(unittest.TestCase):
     def test_precision_label_does_not_change_score(self):
-        from scripts.testing.atomicbot.quality import score_response
+        from scripts.testing.campaigns.atomicbot.quality import score_response
 
         decision = {"dimensions": {
             "correctness_and_grounding": 6, "instruction_and_format_adherence": 6,
@@ -15,7 +15,7 @@ class AnimehackerQualityTests(unittest.TestCase):
         self.assertEqual(a.final_score, b.final_score)
 
     def test_structural_failure_caps_score_harshly(self):
-        from scripts.testing.atomicbot.quality import score_response
+        from scripts.testing.campaigns.atomicbot.quality import score_response
 
         decision = {"dimensions": {
             "correctness_and_grounding": 9, "instruction_and_format_adherence": 9,

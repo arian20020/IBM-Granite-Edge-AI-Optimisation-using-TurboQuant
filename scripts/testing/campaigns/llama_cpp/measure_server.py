@@ -13,14 +13,20 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from measure_llama_run import available_ram_bytes, process_tree_memory_bytes
-from parse_llama_measurement import summarize_measurement
-from atomicbot.utilization import read_utilization_samples, summarize_utilization
-from atomicbot.metrics import parse_runtime_metrics
+from scripts.testing.campaigns.atomicbot.metrics import parse_runtime_metrics
+from scripts.testing.campaigns.atomicbot.utilization import (
+    read_utilization_samples,
+    summarize_utilization,
+)
+from scripts.testing.campaigns.llama_cpp.measure_run import (
+    available_ram_bytes,
+    process_tree_memory_bytes,
+)
+from scripts.testing.campaigns.llama_cpp.parse_measurement import summarize_measurement
 
 
 def parse_args() -> argparse.Namespace:
@@ -138,7 +144,7 @@ def main() -> int:
         utilization_stop.unlink(missing_ok=True)
         utilization_process = subprocess.Popen([
             "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-            str(Path(__file__).with_name("collect_process_utilization.ps1")),
+            str(ROOT / "scripts/testing/collect_process_utilization.ps1"),
             "-ProcessId", str(process.pid), "-OutputPath", str(utilization_path),
             "-ReadyPath", str(utilization_ready), "-StopPath", str(utilization_stop),
         ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)

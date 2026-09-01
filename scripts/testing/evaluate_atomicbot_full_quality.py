@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.atomicbot.matrix import load_matrix
-from scripts.testing.atomicbot.quality import score_response
+from scripts.testing.campaigns.atomicbot.matrix import load_matrix
+from scripts.testing.campaigns.atomicbot.quality import score_response
 
 
 def arguments() -> argparse.Namespace:

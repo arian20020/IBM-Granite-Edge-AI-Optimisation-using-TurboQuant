@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 class AtomicBotMetricTests(unittest.TestCase):
     def test_parses_compact_atomicbot_timing(self):
-        from scripts.testing.atomicbot.metrics import parse_runtime_metrics
+        from scripts.testing.campaigns.atomicbot.metrics import parse_runtime_metrics
 
         text = (ROOT / "scripts/testing/tests/fixtures/atomicbot_compact_timing.txt").read_text()
         result = parse_runtime_metrics([
@@ -32,7 +32,7 @@ class AtomicBotMetricTests(unittest.TestCase):
         self.assertTrue(result.valid)
 
     def test_ambiguous_timing_invalidates_sample(self):
-        from scripts.testing.atomicbot.metrics import parse_runtime_metrics
+        from scripts.testing.campaigns.atomicbot.metrics import parse_runtime_metrics
 
         result = parse_runtime_metrics([
             {"kind": "stderr", "text": "[ Prompt: 20 t/s | Generation: 8 t/s ]"},
@@ -47,7 +47,7 @@ class AtomicBotMetricTests(unittest.TestCase):
         self.assertIn("ambiguous_timing", result.errors)
 
     def test_aggregate_reports_median_and_range(self):
-        from scripts.testing.atomicbot.metrics import RuntimeMetrics, aggregate_samples
+        from scripts.testing.campaigns.atomicbot.metrics import RuntimeMetrics, aggregate_samples
 
         def sample(value):
             return RuntimeMetrics(value, value, value, value, value, value, value,
@@ -57,14 +57,14 @@ class AtomicBotMetricTests(unittest.TestCase):
         self.assertEqual(aggregate["peak_ram_mb"]["median"], 20)
 
     def test_gpu_memory_is_explicitly_unavailable_without_collector(self):
-        from scripts.testing.atomicbot.metrics import parse_runtime_metrics
+        from scripts.testing.campaigns.atomicbot.metrics import parse_runtime_metrics
 
         result = parse_runtime_metrics([])
         self.assertEqual(result.gpu_dedicated_mb.status, "N/A")
         self.assertEqual(result.gpu_shared_mb.reason, "collector-unavailable")
 
     def test_memory_gate_checks_physical_and_commit_headroom(self):
-        from scripts.testing.atomicbot.safety import evaluate_memory_gate
+        from scripts.testing.campaigns.atomicbot.safety import evaluate_memory_gate
 
         passed = evaluate_memory_gate(4, 10, 9, 2)
         self.assertTrue(passed.allowed)
@@ -76,7 +76,7 @@ class AtomicBotMetricTests(unittest.TestCase):
         self.assertEqual(commit.reason, "insufficient-commit-headroom")
 
     def test_server_collector_labels_working_set_private_and_available_ram(self):
-        collector = ROOT / "scripts/testing/measure_llama_server.py"
+        collector = ROOT / "scripts/testing/campaigns/llama_cpp/measure_server.py"
         fake_server = ROOT / "scripts/testing/tests/fixtures/fake_llama_server.py"
         with tempfile.TemporaryDirectory() as directory:
             completed = subprocess.run(
@@ -95,7 +95,7 @@ class AtomicBotMetricTests(unittest.TestCase):
             self.assertGreater(memory["available_ram_bytes"], 0)
 
     def test_server_collector_timestamps_token_with_empty_decoded_content(self):
-        collector = ROOT / "scripts/testing/measure_llama_server.py"
+        collector = ROOT / "scripts/testing/campaigns/llama_cpp/measure_server.py"
         fake_server = ROOT / "scripts/testing/tests/fixtures/fake_llama_server.py"
         with tempfile.TemporaryDirectory() as directory:
             completed = subprocess.run(

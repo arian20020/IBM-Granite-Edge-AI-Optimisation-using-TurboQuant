@@ -5,7 +5,7 @@ from pathlib import Path
 
 class AtomicBotUtilizationTests(unittest.TestCase):
     def test_summary_reports_mean_median_peak_and_count(self):
-        from scripts.testing.atomicbot.utilization import summarize_utilization
+        from scripts.testing.campaigns.atomicbot.utilization import summarize_utilization
 
         summary = summarize_utilization([
             {"cpu_percent": 10, "gpu_percent": 5},
@@ -18,7 +18,7 @@ class AtomicBotUtilizationTests(unittest.TestCase):
             "mean": 30.0, "median": 15.0, "peak": 70.0, "sample_count": 3})
 
     def test_summary_does_not_invent_missing_samples(self):
-        from scripts.testing.atomicbot.utilization import summarize_utilization
+        from scripts.testing.campaigns.atomicbot.utilization import summarize_utilization
 
         self.assertEqual(summarize_utilization([]), {
             "cpu_percent": None, "gpu_percent": None})
@@ -58,7 +58,7 @@ class AtomicBotUtilizationTests(unittest.TestCase):
             validate_summary({"test_id": "AB-X", "samples": [sample, sample, sample]})
 
     def test_reader_ignores_invalid_rows(self):
-        from scripts.testing.atomicbot.utilization import read_utilization_samples
+        from scripts.testing.campaigns.atomicbot.utilization import read_utilization_samples
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "samples.csv"
@@ -71,7 +71,7 @@ class AtomicBotUtilizationTests(unittest.TestCase):
                 "gpu_percent": 44.25, "gpu_engine_count": 2}])
 
     def test_reader_captures_gpu_memory_when_collector_supplies_it(self):
-        from scripts.testing.atomicbot.utilization import read_utilization_samples
+        from scripts.testing.campaigns.atomicbot.utilization import read_utilization_samples
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "samples.csv"

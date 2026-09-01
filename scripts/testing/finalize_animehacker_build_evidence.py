@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.animehacker.build_reconcile import inventory_binaries, parse_ctest_summary
+from scripts.testing.campaigns.animehacker.build_reconcile import inventory_binaries, parse_ctest_summary
 
 
 BINARIES = ("llama-cli.exe", "llama-server.exe", "llama-bench.exe",

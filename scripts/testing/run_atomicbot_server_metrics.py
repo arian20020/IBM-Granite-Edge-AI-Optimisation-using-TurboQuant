@@ -14,9 +14,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.atomicbot.matrix import load_matrix
-from scripts.testing.atomicbot.runner import build_server_command
-from scripts.testing.atomicbot.state import checkpoint
+from scripts.testing.campaigns.atomicbot.matrix import load_matrix
+from scripts.testing.campaigns.atomicbot.runner import build_server_command
+from scripts.testing.campaigns.atomicbot.state import checkpoint
 
 
 def parse_args() -> argparse.Namespace:
@@ -82,7 +82,7 @@ def main() -> int:
     cases = [case for case in load_matrix(args.matrix)
              if case.backend != "build" and (case.guard == "none" or args.include_guarded)
              and (not selected or case.test_id in selected)]
-    collector = ROOT / "scripts/testing/measure_llama_server.py"
+    collector = ROOT / "scripts/testing/campaigns/llama_cpp/measure_server.py"
     state = {"revision": 1, "rows": {case.test_id: "pending" for case in cases}}
     for case_index, case in enumerate(cases):
         case_root = args.output_root / case.test_id

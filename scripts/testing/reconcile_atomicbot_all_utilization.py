@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.atomicbot.matrix import load_matrix
+from scripts.testing.campaigns.atomicbot.matrix import load_matrix
 
 
 REL_RAW = Path("experiments/raw-results/atomicbot-turboquant/2026-07-17/all-row-utilization-v1")

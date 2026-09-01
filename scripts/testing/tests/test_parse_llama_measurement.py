@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[3]
-MODULE_PATH = ROOT / "scripts" / "testing" / "parse_llama_measurement.py"
+MODULE_PATH = ROOT / "scripts/testing/campaigns/llama_cpp/parse_measurement.py"
 
 
 def load_module():
@@ -102,7 +102,7 @@ class MeasurementParserTests(unittest.TestCase):
             )
 
     def test_launcher_captures_real_memory_kv_and_first_byte(self):
-        launcher = ROOT / "scripts" / "testing" / "measure_llama_run.py"
+        launcher = ROOT / "scripts/testing/campaigns/llama_cpp/measure_run.py"
         fixture = (
             ROOT
             / "scripts"
@@ -143,7 +143,7 @@ class MeasurementParserTests(unittest.TestCase):
             )
 
     def test_launcher_can_measure_first_non_whitespace_byte_after_marker(self):
-        launcher = ROOT / "scripts" / "testing" / "measure_llama_run.py"
+        launcher = ROOT / "scripts/testing/campaigns/llama_cpp/measure_run.py"
         with tempfile.TemporaryDirectory() as output_dir:
             marker = Path(output_dir) / "marker.txt"
             marker.write_text("PROMPT", encoding="utf-8")
@@ -158,7 +158,7 @@ class MeasurementParserTests(unittest.TestCase):
             self.assertGreaterEqual(summary["ttft_ms"], 250)
 
     def test_launcher_accepts_utf8_bom_environment_json(self):
-        launcher = ROOT / "scripts" / "testing" / "measure_llama_run.py"
+        launcher = ROOT / "scripts/testing/campaigns/llama_cpp/measure_run.py"
         with tempfile.TemporaryDirectory() as output_dir:
             environment = Path(output_dir) / "environment.json"
             environment.write_text('{"MEASUREMENT_FIXTURE": "present"}', encoding="utf-8-sig")
@@ -171,7 +171,7 @@ class MeasurementParserTests(unittest.TestCase):
             self.assertEqual((Path(output_dir) / "stdout.txt").read_text().strip(), "present")
 
     def test_server_collector_measures_request_to_first_token(self):
-        collector = ROOT / "scripts" / "testing" / "measure_llama_server.py"
+        collector = ROOT / "scripts/testing/campaigns/llama_cpp/measure_server.py"
         fake_server = ROOT / "scripts" / "testing" / "tests" / "fixtures" / "fake_llama_server.py"
         with tempfile.TemporaryDirectory() as output_dir:
             completed = subprocess.run(
@@ -190,7 +190,7 @@ class MeasurementParserTests(unittest.TestCase):
     def test_process_tree_snapshot_contains_current_process(self):
         import os
         sys.path.insert(0, str(ROOT / "scripts" / "testing"))
-        from measure_llama_run import process_tree_pids
+        from scripts.testing.campaigns.llama_cpp.measure_run import process_tree_pids
         self.assertIn(os.getpid(), process_tree_pids(os.getpid()))
 
 

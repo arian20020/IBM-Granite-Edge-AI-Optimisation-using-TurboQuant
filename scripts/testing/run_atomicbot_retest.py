@@ -13,9 +13,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.atomicbot.matrix import load_matrix
-from scripts.testing.atomicbot.runner import select_cases
-from scripts.testing.atomicbot.state import load_state
+from scripts.testing.campaigns.atomicbot.matrix import load_matrix
+from scripts.testing.campaigns.atomicbot.runner import select_cases
+from scripts.testing.campaigns.atomicbot.state import load_state
 
 
 def parse_args() -> argparse.Namespace:

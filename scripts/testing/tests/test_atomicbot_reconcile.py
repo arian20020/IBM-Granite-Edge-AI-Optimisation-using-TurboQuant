@@ -5,7 +5,7 @@ from pathlib import Path
 
 class AtomicBotReconcileTests(unittest.TestCase):
     def test_every_required_field_needs_value_status_and_source(self):
-        from scripts.testing.atomicbot.reconcile import reconcile_workbook
+        from scripts.testing.campaigns.atomicbot.reconcile import reconcile_workbook
 
         with tempfile.TemporaryDirectory() as directory:
             template = Path(directory) / "workbook.md"
@@ -18,7 +18,7 @@ class AtomicBotReconcileTests(unittest.TestCase):
             self.assertEqual(report.checked_fields, 1)
 
     def test_blank_placeholder_and_sourceless_measurement_fail(self):
-        from scripts.testing.atomicbot.reconcile import reconcile_workbook
+        from scripts.testing.campaigns.atomicbot.reconcile import reconcile_workbook
 
         with tempfile.TemporaryDirectory() as directory:
             template = Path(directory) / "workbook.md"
@@ -31,7 +31,7 @@ class AtomicBotReconcileTests(unittest.TestCase):
                 self.assertFalse(report.valid)
 
     def test_allowed_nonmeasurement_status_requires_reason_and_evidence(self):
-        from scripts.testing.atomicbot.reconcile import reconcile_workbook
+        from scripts.testing.campaigns.atomicbot.reconcile import reconcile_workbook
 
         with tempfile.TemporaryDirectory() as directory:
             template = Path(directory) / "workbook.md"

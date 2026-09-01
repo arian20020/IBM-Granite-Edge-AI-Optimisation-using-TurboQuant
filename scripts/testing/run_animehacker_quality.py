@@ -18,8 +18,8 @@ if str(ROOT) not in sys.path:
 if str(ROOT / "scripts" / "testing") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts" / "testing"))
 
-from scripts.testing.animehacker.matrix import load_matrix
-from scripts.testing.animehacker.runner import build_server_command
+from scripts.testing.campaigns.animehacker.matrix import load_matrix
+from scripts.testing.campaigns.animehacker.runner import build_server_command
 from scripts.testing.run_animehacker_retest import FORMAL_FIELDS
 from scripts.testing.run_atomicbot_full_quality import acquire_runner_lock, call_with_deadline
 from scripts.testing.run_atomicbot_quality_retest import render_prompt, request, wait_ready

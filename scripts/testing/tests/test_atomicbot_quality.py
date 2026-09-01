@@ -6,7 +6,7 @@ from pathlib import Path
 
 class AtomicBotQualityTests(unittest.TestCase):
     def test_score_depends_on_evidence_not_format_label(self):
-        from scripts.testing.atomicbot.quality import score_response
+        from scripts.testing.campaigns.atomicbot.quality import score_response
 
         adjudication = {"dimensions": {
             "correctness_and_grounding": 8,
@@ -21,7 +21,7 @@ class AtomicBotQualityTests(unittest.TestCase):
         self.assertEqual(first.final_score, 8.0)
 
     def test_deterministic_failure_and_critical_cap_are_enforced(self):
-        from scripts.testing.atomicbot.quality import score_response
+        from scripts.testing.campaigns.atomicbot.quality import score_response
 
         adjudication = {"dimensions": {
             "correctness_and_grounding": 10,
@@ -36,7 +36,7 @@ class AtomicBotQualityTests(unittest.TestCase):
         self.assertFalse(result.deterministic_pass)
 
     def test_perplexity_fixture_requires_matching_hash(self):
-        from scripts.testing.atomicbot.quality import run_perplexity_gate
+        from scripts.testing.campaigns.atomicbot.quality import run_perplexity_gate
 
         self.assertFalse(run_perplexity_gate(None, None).allowed)
         with tempfile.TemporaryDirectory() as directory:

@@ -7,7 +7,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from scripts.testing.atomicbot.matrix import TestCase
+from scripts.testing.campaigns.atomicbot.matrix import TestCase
 
 
 def build_server_command(case: TestCase, server: Path, model: Path, port: int) -> list[str]:

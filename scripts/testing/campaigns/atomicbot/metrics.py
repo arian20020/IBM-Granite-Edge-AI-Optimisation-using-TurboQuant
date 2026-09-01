@@ -6,7 +6,10 @@ import re
 import statistics
 from dataclasses import dataclass
 
-from scripts.testing.parse_llama_measurement import LLAMA_KV_GROUP_RE, KV_SIZE_RE
+from scripts.testing.campaigns.llama_cpp.parse_measurement import (
+    KV_SIZE_RE,
+    LLAMA_KV_GROUP_RE,
+)
 
 
 MIB = 1024 * 1024

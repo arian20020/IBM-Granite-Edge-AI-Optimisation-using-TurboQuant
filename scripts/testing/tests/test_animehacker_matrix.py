@@ -36,7 +36,7 @@ RUNTIME_METRICS = {
 
 class AnimehackerMatrixTests(unittest.TestCase):
     def test_manifest_contains_every_controlled_workbook_case_once(self):
-        from scripts.testing.animehacker.matrix import load_matrix
+        from scripts.testing.campaigns.animehacker.matrix import load_matrix
 
         cases = load_matrix(MATRIX_PATH)
         ids = [case.test_id for case in cases]
@@ -45,14 +45,14 @@ class AnimehackerMatrixTests(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
 
     def test_duplicate_ids_are_rejected(self):
-        from scripts.testing.animehacker.matrix import load_matrix
+        from scripts.testing.campaigns.animehacker.matrix import load_matrix
 
         payload = json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
         payload["cases"].append(payload["cases"][0])
         self._assert_invalid(payload, "duplicate test_id")
 
     def test_unknown_backend_status_and_guard_are_rejected(self):
-        from scripts.testing.animehacker.matrix import load_matrix
+        from scripts.testing.campaigns.animehacker.matrix import load_matrix
 
         payload = json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
         for field, value, message in (
@@ -66,7 +66,7 @@ class AnimehackerMatrixTests(unittest.TestCase):
                 self._assert_invalid(changed, message)
 
     def test_all_8b_runtime_rows_are_memory_guarded(self):
-        from scripts.testing.animehacker.matrix import load_matrix
+        from scripts.testing.campaigns.animehacker.matrix import load_matrix
 
         guarded = {
             case.test_id
@@ -76,7 +76,7 @@ class AnimehackerMatrixTests(unittest.TestCase):
         self.assertEqual(guarded, {"AH-06", "AH-07", "AH-10"})
 
     def test_runtime_rows_require_complete_measurements_and_quality(self):
-        from scripts.testing.animehacker.matrix import load_matrix
+        from scripts.testing.campaigns.animehacker.matrix import load_matrix
 
         runtime = [case for case in load_matrix(MATRIX_PATH) if case.phase == "runtime"]
         self.assertEqual(len(runtime), 10)
@@ -88,7 +88,7 @@ class AnimehackerMatrixTests(unittest.TestCase):
                 self.assertTrue(case.excluded_warmup)
 
     def test_tq3_rows_require_runtime_activation_proof(self):
-        from scripts.testing.animehacker.matrix import load_matrix
+        from scripts.testing.campaigns.animehacker.matrix import load_matrix
 
         tq3 = [case for case in load_matrix(MATRIX_PATH) if case.format == "TQ3_0"]
         self.assertGreater(len(tq3), 0)
@@ -97,14 +97,14 @@ class AnimehackerMatrixTests(unittest.TestCase):
                 self.assertEqual(case.activation_requirement, "runtime-or-binary-source-linked")
 
     def test_controlled_gpu_rows_use_sycl_partial(self):
-        from scripts.testing.animehacker.matrix import load_matrix
+        from scripts.testing.campaigns.animehacker.matrix import load_matrix
 
         cases = {case.test_id: case for case in load_matrix(MATRIX_PATH)}
         for test_id in ("AH-08", "AH-09", "AH-10"):
             self.assertEqual(cases[test_id].backend, "sycl-partial")
 
     def test_checkpoint_replaces_state_atomically_and_rejects_unknown_status(self):
-        from scripts.testing.animehacker.state import checkpoint, load_state
+        from scripts.testing.campaigns.animehacker.state import checkpoint, load_state
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "state.json"
@@ -119,7 +119,7 @@ class AnimehackerMatrixTests(unittest.TestCase):
                 checkpoint(path, {"revision": 3, "rows": {"AH-01": "probably"}})
 
     def _assert_invalid(self, payload: dict, message: str) -> None:
-        from scripts.testing.animehacker.matrix import load_matrix
+        from scripts.testing.campaigns.animehacker.matrix import load_matrix
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "matrix.json"

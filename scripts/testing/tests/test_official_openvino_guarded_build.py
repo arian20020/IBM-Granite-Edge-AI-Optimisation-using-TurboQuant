@@ -2500,7 +2500,7 @@ def test_guard_primitives_have_one_owner_and_legacy_modules_reexport():
     capability_path = (
         ROOT / "scripts" / "testing" / "run_openvino_reference_capability.py"
     )
-    measurement_path = ROOT / "scripts" / "testing" / "measure_llama_run.py"
+    measurement_path = ROOT / "scripts/testing/campaigns/llama_cpp/measure_run.py"
     sources = {
         path: path.read_text(encoding="utf-8")
         for path in (guard_path, capability_path, measurement_path)

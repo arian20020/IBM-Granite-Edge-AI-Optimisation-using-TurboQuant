@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.testing.animehacker.matrix import TestCase
+from scripts.testing.campaigns.animehacker.matrix import TestCase
 
 
 def build_server_command(case: TestCase, server: Path, model: Path, port: int) -> list[str]:

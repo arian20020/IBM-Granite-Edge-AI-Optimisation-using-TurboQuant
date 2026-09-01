@@ -12,8 +12,8 @@ MATRIX = ROOT / "experiments/manifests/atomicbot-turboquant/retest-matrix.json"
 
 class AtomicBotRunnerTests(unittest.TestCase):
     def test_select_cases_supports_only_from_and_skip(self):
-        from scripts.testing.atomicbot.matrix import load_matrix
-        from scripts.testing.atomicbot.runner import select_cases
+        from scripts.testing.campaigns.atomicbot.matrix import load_matrix
+        from scripts.testing.campaigns.atomicbot.runner import select_cases
 
         cases = load_matrix(MATRIX)
         self.assertEqual([case.test_id for case in select_cases(cases, only={"AB-02"})], ["AB-02"])
@@ -21,8 +21,8 @@ class AtomicBotRunnerTests(unittest.TestCase):
         self.assertEqual([case.test_id for case in selected], ["AB-14", "AB-15M"])
 
     def test_resume_skips_only_reconciled_complete_rows(self):
-        from scripts.testing.atomicbot.matrix import load_matrix
-        from scripts.testing.atomicbot.runner import select_cases
+        from scripts.testing.campaigns.atomicbot.matrix import load_matrix
+        from scripts.testing.campaigns.atomicbot.runner import select_cases
 
         cases = load_matrix(MATRIX)
         state = {"attempts": {
@@ -34,7 +34,7 @@ class AtomicBotRunnerTests(unittest.TestCase):
         self.assertIn("AB-02", ids)
 
     def test_run_ids_increment_without_collision(self):
-        from scripts.testing.atomicbot.runner import next_run_id
+        from scripts.testing.campaigns.atomicbot.runner import next_run_id
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -42,7 +42,7 @@ class AtomicBotRunnerTests(unittest.TestCase):
             self.assertEqual(next_run_id("AB-01", "20260716", root), "AB-01-20260716-R0002")
 
     def test_completed_attempt_requires_replace_flag(self):
-        from scripts.testing.atomicbot.runner import ensure_replace_allowed
+        from scripts.testing.campaigns.atomicbot.runner import ensure_replace_allowed
 
         completed = {"status": "complete", "reconciled": True}
         with self.assertRaisesRegex(ValueError, "replace-attempt"):
@@ -62,7 +62,7 @@ class AtomicBotRunnerTests(unittest.TestCase):
             self.assertFalse(marker.exists())
 
     def test_timed_command_kills_process_tree(self):
-        from scripts.testing.atomicbot.runner import run_timed_command
+        from scripts.testing.campaigns.atomicbot.runner import run_timed_command
 
         fixture = ROOT / "scripts/testing/tests/fixtures/fake_atomicbot_runtime.py"
         with tempfile.TemporaryDirectory() as directory:
@@ -75,8 +75,8 @@ class AtomicBotRunnerTests(unittest.TestCase):
             self.assertTrue((Path(directory) / "command.json").exists())
 
     def test_server_command_uses_case_cache_context_and_backend(self):
-        from scripts.testing.atomicbot.matrix import TestCase
-        from scripts.testing.atomicbot.runner import build_server_command
+        from scripts.testing.campaigns.atomicbot.matrix import TestCase
+        from scripts.testing.campaigns.atomicbot.runner import build_server_command
 
         case = TestCase("AB-12", "granite-4.1-3b", "MODEL", "turbo3",
                         "vulkan-partial", 4096, "none", "turbo3", False,

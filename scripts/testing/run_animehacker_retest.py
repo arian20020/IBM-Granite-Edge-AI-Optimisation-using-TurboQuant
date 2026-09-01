@@ -14,10 +14,10 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.testing.animehacker.activation import classify_activation
-from scripts.testing.animehacker.matrix import TestCase, load_matrix
-from scripts.testing.animehacker.runner import build_server_command, format_runtime_prompt, select_cases
-from scripts.testing.animehacker.state import checkpoint
+from scripts.testing.campaigns.animehacker.activation import classify_activation
+from scripts.testing.campaigns.animehacker.matrix import TestCase, load_matrix
+from scripts.testing.campaigns.animehacker.runner import build_server_command, format_runtime_prompt, select_cases
+from scripts.testing.campaigns.animehacker.state import checkpoint
 
 
 FORMAL_FIELDS = ("peak_working_set_mb", "peak_private_bytes_mb", "available_ram_min_mb",

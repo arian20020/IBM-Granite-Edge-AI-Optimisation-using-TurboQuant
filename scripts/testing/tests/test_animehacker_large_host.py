@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.testing.animehacker.large_host import (
+from scripts.testing.campaigns.animehacker.large_host import (
     HostInputs,
     allocate_run_root,
     preflight,
@@ -183,14 +183,14 @@ class AnimehackerLargeHostTests(unittest.TestCase):
         return runtime, quality, manifest, cleanup
 
     def test_terminal_validator_accepts_complete_measurement_and_quality(self):
-        from scripts.testing.animehacker.large_host import validate_terminal_row
+        from scripts.testing.campaigns.animehacker.large_host import validate_terminal_row
 
         validated = validate_terminal_row("AH-06", *self.terminal_evidence())
         self.assertEqual(validated.test_id, "AH-06")
         self.assertEqual(validated.quality_mean, 6.0)
 
     def test_terminal_validator_rejects_every_required_evidence_family(self):
-        from scripts.testing.animehacker.large_host import validate_terminal_row
+        from scripts.testing.campaigns.animehacker.large_host import validate_terminal_row
 
         mutations = []
         runtime, quality, manifest, cleanup = self.terminal_evidence()

@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.testing.adjudicate_atomicbot_quality import p1, p2, p3, p4, p5, p6
-from scripts.testing.atomicbot.quality import score_response
+from scripts.testing.campaigns.atomicbot.quality import score_response
 
 
 FUNCTIONS = {"P1": p1, "P2": p2, "P3": p3, "P4": p4}

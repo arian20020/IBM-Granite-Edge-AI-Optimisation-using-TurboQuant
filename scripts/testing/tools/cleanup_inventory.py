@@ -229,6 +229,24 @@ def _classification(
                 "scripts/testing/reporting/",
                 1,
             )
+        elif path.startswith("scripts/testing/atomicbot/"):
+            destination = path.replace(
+                "scripts/testing/atomicbot/",
+                "scripts/testing/campaigns/atomicbot/",
+                1,
+            )
+        elif path.startswith("scripts/testing/animehacker/"):
+            destination = path.replace(
+                "scripts/testing/animehacker/",
+                "scripts/testing/campaigns/animehacker/",
+                1,
+            )
+        elif path == "scripts/testing/measure_llama_run.py":
+            destination = "scripts/testing/campaigns/llama_cpp/measure_run.py"
+        elif path == "scripts/testing/measure_llama_server.py":
+            destination = "scripts/testing/campaigns/llama_cpp/measure_server.py"
+        elif path == "scripts/testing/parse_llama_measurement.py":
+            destination = "scripts/testing/campaigns/llama_cpp/parse_measurement.py"
         else:
             destination = (
                 f"scripts/testing/tools/{posix.name}"
