@@ -643,7 +643,11 @@ def test_precausal_timeout_preserves_worker_for_cooperative_cleanup_and_preexist
             assert cleanup["word_exited"] is False
             assert int(pre_existing["pid"]) in _word_process_ids()
             assert _process_exists(worker_pid) is True
-            assert _wait_for_process_exit(worker_pid, timeout_seconds=30)
+            # The test deliberately withholds the causal containment receipt for
+            # 40 seconds. Give that exact worker a slightly larger bounded window
+            # to finish cooperative cleanup after the parent safely declines to
+            # terminate any pre-receipt Word PID.
+            assert _wait_for_process_exit(worker_pid, timeout_seconds=45)
             worker_cleanup = json.loads(
                 (operation_directory / "worker-cleanup.json").read_text(encoding="utf-8")
             )
@@ -750,6 +754,41 @@ def test_cleanup_failure_receipt_is_not_treated_as_success(tmp_path):
     assert cleanup["word_exited"] is True
     assert cleanup["attempts"]["application_quit"]["attempted"] is True
     assert cleanup["attempts"]["application_quit"]["succeeded"] is False
+    assert _wait_for_word_process_ids(baseline) == baseline
+
+
+@pytest.mark.skipif(sys.platform != "win32" or WORD_EXE is None, reason="Microsoft Word is required")
+def test_cleanup_observation_can_verify_causal_exit_after_previous_five_second_limit(tmp_path):
+    docx = tmp_path / "report.docx"
+    pdf = tmp_path / "report.pdf"
+    operation_directory = tmp_path / "delayed-cleanup-observation"
+    _renderer()(_pdf_report(), docx)
+    baseline = _word_process_ids()
+
+    started = time.monotonic()
+    result = _invoke_export(
+        docx,
+        pdf,
+        60,
+        "-TestCleanupFailure",
+        "-TestMinimumCleanupObservationSeconds",
+        "6",
+        "-TestOperationDirectoryPath",
+        str(operation_directory),
+    )
+    elapsed = time.monotonic() - started
+
+    assert result.returncode != 0
+    assert "cleanup verification failed" in (result.stdout + result.stderr).casefold()
+    cleanup = json.loads(
+        (operation_directory / "worker-cleanup.json").read_text(encoding="utf-8")
+    )
+    assert cleanup["cleanup_observation_timeout_seconds"] == 15
+    assert cleanup["minimum_cleanup_observation_seconds"] == 6
+    assert cleanup["cleanup_observation_elapsed_ms"] >= 6000
+    assert cleanup["word_exited"] is True
+    assert cleanup["cleanup_succeeded"] is False
+    assert 6 <= elapsed < 30
     assert _wait_for_word_process_ids(baseline) == baseline
 
 

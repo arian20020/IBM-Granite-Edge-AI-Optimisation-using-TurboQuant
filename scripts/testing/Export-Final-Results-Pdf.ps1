@@ -51,6 +51,10 @@ param(
     [switch]$TestCleanupFailure,
 
     [Parameter(DontShow = $true)]
+    [ValidateRange(0, 14)]
+    [int]$TestMinimumCleanupObservationSeconds = 0,
+
+    [Parameter(DontShow = $true)]
     [switch]$TestForceKillWaitResultFailure,
 
     [Parameter(DontShow = $true)]
@@ -399,6 +403,7 @@ function Invoke-WordPdfExport {
         [AllowEmptyString()][string]$WordActivatedPath,
         [Parameter(Mandatory = $true)][bool]$ForceAttributionFailure,
         [Parameter(Mandatory = $true)][bool]$InjectCleanupFailure,
+        [Parameter(Mandatory = $true)][int]$MinimumCleanupObservationSeconds,
         [Parameter(Mandatory = $true)][bool]$CloseIdentityWindowBeforeExport
     )
 
@@ -579,13 +584,28 @@ function Invoke-WordPdfExport {
         [System.GC]::Collect()
         [System.GC]::WaitForPendingFinalizers()
         $wordExited = $false
+        $cleanupObservationTimeoutSeconds = 15
+        $cleanupObservationStarted = [datetime]::UtcNow
+        $identityGoneObserved = $false
         if ($null -ne $identity) {
-            $exitDeadline = [datetime]::UtcNow.AddSeconds(5)
+            $exitDeadline = $cleanupObservationStarted.AddSeconds(
+                $cleanupObservationTimeoutSeconds
+            )
             do {
-                $wordExited = Test-ProcessIdentityGone -Identity $identity
+                if (-not $identityGoneObserved) {
+                    $identityGoneObserved = Test-ProcessIdentityGone -Identity $identity
+                }
+                $minimumObservationReached = (
+                    ([datetime]::UtcNow - $cleanupObservationStarted).TotalSeconds -ge
+                    $MinimumCleanupObservationSeconds
+                )
+                $wordExited = ($identityGoneObserved -and $minimumObservationReached)
                 if (-not $wordExited) { Start-Sleep -Milliseconds 50 }
             } while (-not $wordExited -and [datetime]::UtcNow -lt $exitDeadline)
         }
+        $cleanupObservationElapsedMs = [int64][Math]::Round(
+            ([datetime]::UtcNow - $cleanupObservationStarted).TotalMilliseconds
+        )
         $attemptsSucceeded = $true
         foreach ($attempt in $attempts.Values) {
             if ($attempt.attempted -and -not $attempt.succeeded) {
@@ -597,6 +617,9 @@ function Invoke-WordPdfExport {
             attempts = $attempts
             word_exited = $wordExited
             worker_exited = $false
+            cleanup_observation_timeout_seconds = $cleanupObservationTimeoutSeconds
+            minimum_cleanup_observation_seconds = $MinimumCleanupObservationSeconds
+            cleanup_observation_elapsed_ms = $cleanupObservationElapsedMs
             cleanup_succeeded = ($wordExited -and $attemptsSucceeded)
         }
         Write-JsonReceipt -Value $cleanup -Path $CleanupAcknowledgementPath
@@ -773,6 +796,7 @@ if ($Worker) {
             -WordActivatedPath $TestWordActivatedPath `
             -ForceAttributionFailure $TestAttributionFailure.IsPresent `
             -InjectCleanupFailure $TestCleanupFailure.IsPresent `
+            -MinimumCleanupObservationSeconds $TestMinimumCleanupObservationSeconds `
             -CloseIdentityWindowBeforeExport $TestCloseIdentityWindowBeforeExport.IsPresent
         exit 0
     }
@@ -837,7 +861,8 @@ try {
         "-WorkerErrorPath " + (ConvertTo-SingleQuotedLiteral -Value $workerError),
         "-TestExportDelaySeconds $TestExportDelaySeconds",
         "-TestPreReceiptDelaySeconds $TestPreReceiptDelaySeconds",
-        "-TestPreCausalReceiptDelaySeconds $TestPreCausalReceiptDelaySeconds"
+        "-TestPreCausalReceiptDelaySeconds $TestPreCausalReceiptDelaySeconds",
+        "-TestMinimumCleanupObservationSeconds $TestMinimumCleanupObservationSeconds"
     )
     if ($TestAttributionFailure) {
         $commandParts += "-TestAttributionFailure"

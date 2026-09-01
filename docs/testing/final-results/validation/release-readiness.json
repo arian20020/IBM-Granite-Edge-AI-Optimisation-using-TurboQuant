@@ -1,0 +1,15 @@
+{
+  "gates": [
+    {
+      "issues": [],
+      "limitations": [
+        "Task 14 collection metadata is pending: README.md, CHANGELOG.md, REPRODUCING.md, LICENSES.md, ro-crate-metadata.json, manifest-sha256.txt"
+      ],
+      "name": "release_readiness",
+      "valid": true
+    }
+  ],
+  "root": ".",
+  "scope": "collection",
+  "valid": true
+}

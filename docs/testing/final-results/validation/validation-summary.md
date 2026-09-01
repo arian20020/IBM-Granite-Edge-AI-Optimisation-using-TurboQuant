@@ -1,0 +1,106 @@
+# Unified final-results validation summary
+
+Overall result: **Passed**
+
+| Gate | Result | Blocking findings | Limitations |
+| --- | --- | ---: | ---: |
+| `schema` | Passed | 0 | 0 |
+| `ids` | Passed | 0 | 0 |
+| `coverage` | Passed | 0 | 0 |
+| `derivation` | Passed | 0 | 77 |
+| `status_failure_consistency` | Passed | 0 | 0 |
+| `availability` | Passed | 0 | 0 |
+| `paths_hashes` | Passed | 0 | 1 |
+| `claim_coverage` | Passed | 0 | 0 |
+| `workbook_parity` | Passed | 0 | 0 |
+| `pdf_structure` | Passed | 0 | 0 |
+| `comparability` | Passed | 0 | 0 |
+| `release_readiness` | Passed | 0 | 1 |
+
+## derivation
+
+- Limitation: 01-upstream-llama-cpp: UL-01--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-02--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-03--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-04--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-05--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-06--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-07--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-08--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-09--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-10--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-11--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-12--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 01-upstream-llama-cpp: UL-13--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-01--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-01--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-01--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-02--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-02--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-02--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-03--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-03--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-03--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-04--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-04--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-04--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-05--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-05--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-05--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-06--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-06--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-06--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-07--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-07--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-07--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-08F--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-08F--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-08F--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-08Q--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-08Q--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-08Q--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-09--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-09--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-09--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-10--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-10--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-10--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-11--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-11--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-11--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-12--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-12--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-12--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-13--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-13--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-13--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-14--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-14--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-14--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-15--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-15--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-15--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-15M--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-15M--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-15M--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-KV3-F16-4K--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-KV3-F16-4K--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-KV3-F16-4K--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-KV8-F16-4K--cpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-KV8-F16-4K--gpu_mean_percent: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 02-atomicbot-turboquant: AB-KV8-F16-4K--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 03-animehacker-tq3-0: AH-01--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 03-animehacker-tq3-0: AH-02--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 03-animehacker-tq3-0: AH-03--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 03-animehacker-tq3-0: AH-04--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 03-animehacker-tq3-0: AH-05--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 03-animehacker-tq3-0: AH-08--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+- Limitation: 03-animehacker-tq3-0: AH-09--kv_cache_allocated_bytes: aggregation cannot be independently recomputed from canonical measurement columns
+
+## paths_hashes
+
+- Limitation: 03-animehacker-tq3-0: manifest-sha256.txt: manifest: CRLF line endings are not canonical; entries and hashes were still validated
+
+## release_readiness
+
+- Limitation: Task 14 collection metadata is pending: README.md, CHANGELOG.md, REPRODUCING.md, LICENSES.md, ro-crate-metadata.json, manifest-sha256.txt

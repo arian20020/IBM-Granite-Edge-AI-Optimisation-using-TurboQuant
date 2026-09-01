@@ -1,0 +1,13 @@
+{
+  "gates": [
+    {
+      "issues": [],
+      "limitations": [],
+      "name": "comparability",
+      "valid": true
+    }
+  ],
+  "root": ".",
+  "scope": "collection",
+  "valid": true
+}

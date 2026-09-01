@@ -1,0 +1,33 @@
+{
+  "gates": [
+    {
+      "issues": [],
+      "limitations": [
+        "03-animehacker-tq3-0: manifest-sha256.txt: manifest: CRLF line endings are not canonical; entries and hashes were still validated"
+      ],
+      "name": "paths_hashes",
+      "valid": true
+    },
+    {
+      "issues": [],
+      "limitations": [],
+      "name": "claim_coverage",
+      "valid": true
+    },
+    {
+      "issues": [],
+      "limitations": [],
+      "name": "workbook_parity",
+      "valid": true
+    },
+    {
+      "issues": [],
+      "limitations": [],
+      "name": "pdf_structure",
+      "valid": true
+    }
+  ],
+  "root": ".",
+  "scope": "collection",
+  "valid": true
+}
