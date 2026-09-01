@@ -62,9 +62,9 @@
       }
     },
     "finalIntegrationPublication": {
-      "subjectCommit": null,
-      "subjectTree": null,
-      "publicationState": "PENDING_C0_INTEGRATION_COMMIT",
+      "subjectCommit": "90097f618d6165d68a56e41754c6b290bdc81c06",
+      "subjectTree": "c4f7aa0fbafe533249536da38e7a776335ff6e74",
+      "publicationState": "COMMITTED_C0_INTEGRATION",
       "report": {
         "path": "docs/audits/2026-08-30/C0-r4-specialist-reconciliation.md",
         "sha256": "6e6eae4a474916af7d8db4a8b586a2642e0343dea7f990927c81ba7cd42f3a80",
@@ -373,7 +373,7 @@
       },
       "nativeDisposition": "blocked-missing-candidate-manifest",
       "c0IntakeDecision": "ACCEPTED_FOR_RECONCILIATION_BLOCKED_BY_EXTERNAL_ENVIRONMENT",
-      "integratedCommit": null,
+      "integratedCommit": "90097f618d6165d68a56e41754c6b290bdc81c06",
       "supersededCandidate": {
         "ref": "refs/remotes/origin/integration/ucl-r4-e1-issued-base-v1",
         "commit": "429298d3328a62d4fcf2f5f3f12821342be4a23c",
