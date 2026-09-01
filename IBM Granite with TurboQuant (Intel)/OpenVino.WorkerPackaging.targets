@@ -4,6 +4,7 @@
     <OpenVinoOfficialWorkerPackageRelativeDirectory>OpenVino\Official\Worker</OpenVinoOfficialWorkerPackageRelativeDirectory>
     <_OpenVinoRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_OpenVinoRepositoryRoot>
     <_OpenVinoWorkerManifestVerifier>$(_OpenVinoRepositoryRoot)\scripts\openvino\Test-OpenVinoOfficialWorkerManifest.ps1</_OpenVinoWorkerManifestVerifier>
+    <_OpenVinoManifestDigestVerifier>$(_OpenVinoRepositoryRoot)\scripts\verification\Test-FileSha256.ps1</_OpenVinoManifestDigestVerifier>
     <_OpenVinoPowerShell>$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe</_OpenVinoPowerShell>
   </PropertyGroup>
 
@@ -31,7 +32,7 @@
     <Exec
       Command="&quot;$(_OpenVinoPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoWorkerManifestVerifier)&quot; -StageDirectory &quot;$(_OpenVinoOfficialWorkerStage)&quot;" />
     <Exec
-      Command="&quot;$(_OpenVinoPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command &quot;$actual=(Get-FileHash -LiteralPath '$(_OpenVinoOfficialWorkerManifest)' -Algorithm SHA256).Hash.ToLowerInvariant(); if ($actual -cne '$(OpenVinoOfficialWorkerManifestSha256)') { Write-Output 'worker_manifest_digest_mismatch'; exit 1 }; Write-Output 'worker_manifest_digest_valid'&quot;" />
+      Command="&quot;$(_OpenVinoPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoManifestDigestVerifier)&quot; -Path &quot;$(_OpenVinoOfficialWorkerManifest)&quot; -ExpectedSha256 &quot;$(OpenVinoOfficialWorkerManifestSha256)&quot; -SuccessMessage worker_manifest_digest_valid -FailureMessage worker_manifest_digest_mismatch" />
 
     <ItemGroup>
       <_OpenVinoOfficialWorkerFile Include="$(_OpenVinoOfficialWorkerStage)\OpenVinoOfficial.Worker.exe">

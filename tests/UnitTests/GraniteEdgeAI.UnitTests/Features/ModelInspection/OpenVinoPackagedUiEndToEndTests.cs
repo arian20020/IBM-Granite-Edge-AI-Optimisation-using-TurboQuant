@@ -155,6 +155,18 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         await Require(page.CurrentOpenVinoInspectionTask)
             .WaitAsync(TimeSpan.FromSeconds(30));
         Assert.AreEqual(
+            Visibility.Collapsed,
+            ((Border)page.FindName("PromptSurface")).Visibility);
+        InspectionActionCard action = (InspectionActionCard)page.FindName(
+            "InspectionActionCardControl");
+        Assert.AreEqual("Check hardware fit",
+            action.Presentation.PrimaryAction.Text);
+        Assert.IsTrue(action.Presentation.PrimaryAction.IsEnabled);
+        Assert.IsNull(page.CurrentPromptSurfaceState);
+
+        Assert.IsTrue(await page.ActivateOpenVinoChatAsync(
+            CancellationToken.None));
+        Assert.AreEqual(
             Visibility.Visible,
             ((Border)page.FindName("PromptSurface")).Visibility);
         Assert.AreEqual(
@@ -217,6 +229,9 @@ public sealed class OpenVinoPackagedUiEndToEndTests
         await Require(page.CurrentOpenVinoInspectionTask)
             .WaitAsync(TimeSpan.FromSeconds(30));
         TextBlock response = (TextBlock)page.FindName("PromptResponseText");
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            ((Border)page.FindName("PromptSurface")).Visibility);
         Assert.IsFalse(((Button)page.FindName("PromptSendButton")).IsEnabled);
         Assert.IsFalse(response.Text.Contains(package, StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(response.Text.Contains(workerRoot, StringComparison.OrdinalIgnoreCase));

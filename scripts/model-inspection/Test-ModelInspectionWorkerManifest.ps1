@@ -12,6 +12,24 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function Get-Sha256Hex {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return [System.BitConverter]::ToString(
+            $sha256.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+        $stream.Dispose()
+    }
+}
+
 function Test-IsWithinDirectory {
     param(
         [Parameter(Mandatory = $true)]
@@ -274,9 +292,7 @@ foreach ($relativePath in $manifestPaths) {
         throw 'A worker file length does not match the detached manifest.'
     }
 
-    $actualHash = (Get-FileHash `
-        -LiteralPath $fullPath `
-        -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualHash = Get-Sha256Hex -Path $fullPath
     $after = [System.IO.FileInfo]::new($fullPath)
     if ($after.Length -ne $before.Length -or
         $actualHash -cne $entry.sha256) {

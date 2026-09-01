@@ -4,6 +4,7 @@
     <OpenVinoConverterPackageRelativeDirectory>OpenVino\Converter\Worker</OpenVinoConverterPackageRelativeDirectory>
     <_OpenVinoConverterRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_OpenVinoConverterRepositoryRoot>
     <_OpenVinoConverterManifestVerifier>$(_OpenVinoConverterRepositoryRoot)\scripts\openvino\Test-OpenVinoConverterWorkerManifest.ps1</_OpenVinoConverterManifestVerifier>
+    <_OpenVinoConverterDigestVerifier>$(_OpenVinoConverterRepositoryRoot)\scripts\verification\Test-FileSha256.ps1</_OpenVinoConverterDigestVerifier>
     <_OpenVinoConverterPowerShell>$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe</_OpenVinoConverterPowerShell>
   </PropertyGroup>
 
@@ -31,7 +32,7 @@
     <Exec
       Command="&quot;$(_OpenVinoConverterPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoConverterManifestVerifier)&quot; -StageDirectory &quot;$(_OpenVinoConverterStage)&quot;" />
     <Exec
-      Command="&quot;$(_OpenVinoConverterPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command &quot;$actual=(Get-FileHash -LiteralPath '$(_OpenVinoConverterManifest)' -Algorithm SHA256).Hash.ToLowerInvariant(); if ($actual -cne '$(OpenVinoConverterManifestSha256)') { Write-Output 'converter_manifest_digest_mismatch'; exit 1 }; Write-Output 'converter_manifest_digest_valid'&quot;" />
+      Command="&quot;$(_OpenVinoConverterPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoConverterDigestVerifier)&quot; -Path &quot;$(_OpenVinoConverterManifest)&quot; -ExpectedSha256 &quot;$(OpenVinoConverterManifestSha256)&quot; -SuccessMessage converter_manifest_digest_valid -FailureMessage converter_manifest_digest_mismatch" />
 
     <ItemGroup>
       <_OpenVinoConverterFile Include="$(_OpenVinoConverterStage)\**\*" />

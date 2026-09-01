@@ -70,6 +70,7 @@ public sealed partial class ModelInspectionPage
         OpenVinoInspectionRequestedEventArgs request,
         string directoryPath)
     {
+        ApplyOpenVinoInspectingPresentation(request.DisplayName);
         OpenVinoRouteService service;
         try
         {
@@ -80,17 +81,17 @@ public sealed partial class ModelInspectionPage
         }
         catch (Exception)
         {
-            ApplyOpenVinoFailurePresentation(
+            ApplyOpenVinoInspectionFailurePresentation(
                 "runtime_load_failed",
                 "The verified OpenVINO worker is unavailable.",
                 "Repair or reinstall the app, then retry.");
+            OpenVinoRequest = null;
             CurrentOpenVinoInspectionTask = Task.CompletedTask;
             return;
         }
         CancellationTokenSource cancellation = new();
         _openVinoCancellation = cancellation;
         long lifetime = checked(++_openVinoLifetime);
-        ApplyOpenVinoInspectingPresentation(request.DisplayName);
         CurrentOpenVinoInspectionTask = InspectAndStartOpenVinoAsync(
             service,
             request,
@@ -108,6 +109,7 @@ public sealed partial class ModelInspectionPage
     {
         OpenVinoRouteHandoffLease? handoffLease = null;
         OpenVinoConversionOffer? conversionOffer = null;
+        OpenVinoConversionOffer? retainedConversionOffer = null;
         try
         {
             OpenVinoRouteInspectionResult result = await Task.Run(
@@ -115,33 +117,32 @@ public sealed partial class ModelInspectionPage
                 cancellationToken);
             handoffLease = result.HandoffLease;
             conversionOffer = result.ConversionOffer;
-            if (!IsCurrentOpenVinoLifetime(lifetime))
-            {
-                return;
-            }
-
             if (result.Outcome == OpenVinoRouteInspectionOutcome.ConversionRequired &&
                 conversionOffer is not null)
             {
+                if (!IsCurrentOpenVinoLifetime(lifetime))
+                {
+                    return;
+                }
                 _conversionOffer?.Dispose();
                 _conversionOffer = conversionOffer;
+                retainedConversionOffer = conversionOffer;
                 _openVinoConversionSourceRequest = request;
                 conversionOffer = null;
-                ApplyOpenVinoNonReadyPresentation(result);
-                return;
             }
 
-            if (result.Outcome is not (
-                    OpenVinoRouteInspectionOutcome.Ready or
-                    OpenVinoRouteInspectionOutcome.ReadyWithWarnings) ||
-                handoffLease is null)
+            if (!TryApplyOpenVinoInspectionResult(lifetime, result) &&
+                retainedConversionOffer is not null &&
+                ReferenceEquals(
+                    Interlocked.CompareExchange(
+                        ref _conversionOffer,
+                        null,
+                        retainedConversionOffer),
+                    retainedConversionOffer))
             {
-                ApplyOpenVinoNonReadyPresentation(result);
-                return;
+                retainedConversionOffer.Dispose();
+                _openVinoConversionSourceRequest = null;
             }
-
-            PrepareOpenVinoHardwareHandoff(result);
-            ApplyOpenVinoReadyPresentation(result);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -205,6 +206,36 @@ public sealed partial class ModelInspectionPage
         PromptCapabilitySummary.Text = string.Empty;
         PromptExecutionEvidenceText.Text = string.Empty;
         PromptBuildEvidenceText.Text = string.Empty;
+    }
+
+    private bool TryApplyOpenVinoInspectionResult(
+        long lifetime,
+        OpenVinoRouteInspectionResult result)
+    {
+        if (!IsCurrentOpenVinoLifetime(lifetime))
+        {
+            return false;
+        }
+
+        if (result.Outcome is OpenVinoRouteInspectionOutcome.Ready or
+            OpenVinoRouteInspectionOutcome.ReadyWithWarnings)
+        {
+            if (result.HandoffLease is null)
+            {
+                ApplyOpenVinoInspectionFailurePresentation(
+                    "runtime_protocol_failed",
+                    "The verified OpenVINO worker returned an incomplete result.",
+                    "Repair or reinstall the app, then retry.");
+                return true;
+            }
+
+            PrepareOpenVinoHardwareHandoff(result);
+            ApplyOpenVinoReadyPresentation(result);
+            return true;
+        }
+
+        ApplyOpenVinoNonReadyPresentation(result);
+        return true;
     }
 
     private void ApplyOpenVinoReadyPresentation(
@@ -925,6 +956,39 @@ public sealed partial class ModelInspectionPage
         SetPromptSurfaceVisible(true);
         ApplyPromptSurfaceState(_promptPresenter.State);
         PromptInput.Focus(FocusState.Programmatic);
+    }
+
+    private void ApplyOpenVinoInspectionFailurePresentation(
+        string supportCode,
+        string message,
+        string recovery)
+    {
+        InspectionOutcomeCardControl.Presentation = new InspectionOutcomePresentation
+        {
+            Kind = InspectionOutcomePresentationKind.OperationalFailure,
+            Tone = InspectionOutcomeTone.Error,
+            GlyphKind = InspectionStatusGlyphKind.Error,
+            Title = "Model inspection could not start",
+            Message = message,
+            AutomationName = $"OpenVINO inspection failed. {message}"
+        };
+        InspectionContentCardControl.Presentation = new InspectionContentCardPresentation
+        {
+            Mode = InspectionContentCardMode.OperationalFailure,
+            SectionTitle = "OpenVINO inspection unavailable",
+            SupportingText = recovery,
+            SupportingTextVisibility = Visibility.Visible,
+            DiagnosticCode = supportCode,
+            DiagnosticCodeVisibility = Visibility.Visible,
+            DiagnosticStatus = InspectionContentStatus.Error
+        };
+        ApplyChooseAnotherAction("Model inspection could not start");
+        SetPromptSurfaceVisible(false);
+        SetPromptControlsEnabled(send: false, stop: false, cancel: false);
+        PromptCapabilitySummary.Text = string.Empty;
+        PromptExecutionEvidenceText.Text = string.Empty;
+        PromptBuildEvidenceText.Text = string.Empty;
+        PromptResponseText.Text = string.Empty;
     }
 
     private void ApplyPromptEvent(long lifetime, PromptEvent promptEvent)

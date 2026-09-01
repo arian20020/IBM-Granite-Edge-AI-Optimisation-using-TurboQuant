@@ -157,18 +157,211 @@
 
         <Border
             x:Name="FolderAcceptedView"
-            Padding="24"
+            Height="260"
+            Padding="32,18,32,16"
             HorizontalAlignment="Stretch"
-            Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-            BorderBrush="{ThemeResource SystemControlForegroundBaseMediumBrush}"
-            BorderThickness="1"
-            CornerRadius="20"
+            VerticalAlignment="Top"
+            Background="#FBFCFE"
+            BorderBrush="#C9D7E8"
+            BorderThickness="1.5"
+            CornerRadius="22"
             Visibility="Collapsed">
-            <StackPanel Spacing="6">
-                <TextBlock FontSize="18" FontWeight="SemiBold" Text="Model folder selected" />
-                <TextBlock x:Name="FolderAcceptedNameTextBlock" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-                <TextBlock Text="The folder is ready for model inspection." TextWrapping="Wrap" />
-            </StackPanel>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="112" />
+                    <RowDefinition Height="1" />
+                    <RowDefinition Height="79" />
+                    <RowDefinition Height="34" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="72" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="40" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border
+                        Grid.Column="0"
+                        Width="72"
+                        Height="72"
+                        Margin="0,8,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Background="#E5EFFF"
+                        CornerRadius="18">
+
+                        <Viewbox
+                            Width="48"
+                            Height="48"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                            <Grid Width="48" Height="48">
+                                <Path
+                                    Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
+                                    Stroke="#2563EB"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="2" />
+                                <TextBlock
+                                    Margin="0,22,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="7"
+                                    FontWeight="Bold"
+                                    Foreground="#2563EB"
+                                    Text="OV"
+                                    TextAlignment="Center" />
+                            </Grid>
+                        </Viewbox>
+                    </Border>
+
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="26,4,20,0"
+                        VerticalAlignment="Top"
+                        Spacing="3">
+                        <TextBlock
+                            x:Name="FolderAcceptedNameTextBlock"
+                            HorizontalAlignment="Stretch"
+                            FontSize="22"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="#7A8495"
+                            Text="Selected local model package"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+                        <Border
+                            Height="26"
+                            MinWidth="76"
+                            Margin="0,4,0,0"
+                            Padding="10,0"
+                            HorizontalAlignment="Left"
+                            Background="#E7EFFF"
+                            CornerRadius="13">
+                            <TextBlock
+                                x:Name="FolderAcceptedFormatTextBlock"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="11"
+                                FontWeight="SemiBold"
+                                Foreground="#2563EB"
+                                Text="OpenVINO" />
+                        </Border>
+                    </StackPanel>
+
+                    <Button
+                        x:Name="RemoveFolderAcceptedModelButton"
+                        Grid.Column="2"
+                        Width="40"
+                        Height="40"
+                        MinWidth="40"
+                        MinHeight="40"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.AutomationId="RemoveFolderAcceptedModelButton"
+                        AutomationProperties.Name="Remove selected OpenVINO model"
+                        Background="#FFFFFF"
+                        BorderBrush="#FFC2C2"
+                        BorderThickness="1"
+                        Click="CancelScanButton_Click"
+                        CornerRadius="11"
+                        UseSystemFocusVisuals="True">
+                        <FontIcon
+                            FontSize="18"
+                            Foreground="#FF2D2D"
+                            Glyph="&#xE74D;" />
+
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
+                            <SolidColorBrush x:Key="ButtonForeground" Color="#FF2D2D" />
+                            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#FFC2C2" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FFF7F7" />
+                            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#DC2626" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#FCA5A5" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FEE2E2" />
+                            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#B91C1C" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#F87171" />
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+
+                <Rectangle
+                    Grid.Row="1"
+                    HorizontalAlignment="Stretch"
+                    Fill="#E5E7EB" />
+
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*" />
+                        <ColumnDefinition Width="1*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel
+                        Grid.Column="0"
+                        Margin="0,10,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="PACKAGE TYPE" />
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            Text="OpenVINO GenAI" />
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Column="1"
+                        Margin="0,10,0,0"
+                        VerticalAlignment="Top"
+                        Spacing="8">
+                        <TextBlock
+                            FontSize="11"
+                            FontWeight="SemiBold"
+                            Foreground="#6B7280"
+                            Text="NEXT STEP" />
+                        <TextBlock
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            Foreground="#111827"
+                            Text="Model inspection" />
+                    </StackPanel>
+                </Grid>
+
+                <Border
+                    Grid.Row="3"
+                    Height="34"
+                    HorizontalAlignment="Stretch"
+                    Background="#ECFDF5"
+                    CornerRadius="17">
+                    <StackPanel
+                        Margin="12,0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="9">
+                        <FontIcon
+                            FontSize="15"
+                            Foreground="#059669"
+                            Glyph="&#xE73E;" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Foreground="#047857"
+                            Text="Model folder ready · Continue to model inspection"
+                            TextWrapping="NoWrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Border>
 
         <!--  STATE 2: GGUF QUICK SCAN IN PROGRESS  -->

@@ -4,6 +4,7 @@
     <OpenVinoTurboQuantWorkerPackageRelativeDirectory>OpenVino\TurboQuant\Worker</OpenVinoTurboQuantWorkerPackageRelativeDirectory>
     <_OpenVinoTurboQuantRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_OpenVinoTurboQuantRepositoryRoot>
     <_OpenVinoTurboQuantManifestVerifier>$(_OpenVinoTurboQuantRepositoryRoot)\scripts\openvino\Test-OpenVinoTurboQuantWorkerManifest.ps1</_OpenVinoTurboQuantManifestVerifier>
+    <_OpenVinoTurboQuantDigestVerifier>$(_OpenVinoTurboQuantRepositoryRoot)\scripts\verification\Test-FileSha256.ps1</_OpenVinoTurboQuantDigestVerifier>
     <_OpenVinoTurboQuantPowerShell>$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe</_OpenVinoTurboQuantPowerShell>
   </PropertyGroup>
 
@@ -31,7 +32,7 @@
     <Exec
       Command="&quot;$(_OpenVinoTurboQuantPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoTurboQuantManifestVerifier)&quot; -StageDirectory &quot;$(_OpenVinoTurboQuantWorkerStage)&quot;" />
     <Exec
-      Command="&quot;$(_OpenVinoTurboQuantPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command &quot;$actual=(Get-FileHash -LiteralPath '$(_OpenVinoTurboQuantWorkerManifest)' -Algorithm SHA256).Hash.ToLowerInvariant(); if ($actual -cne '$(OpenVinoTurboQuantWorkerManifestSha256)') { Write-Output 'turboquant_manifest_digest_mismatch'; exit 1 }; Write-Output 'turboquant_manifest_digest_valid'&quot;" />
+      Command="&quot;$(_OpenVinoTurboQuantPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoTurboQuantDigestVerifier)&quot; -Path &quot;$(_OpenVinoTurboQuantWorkerManifest)&quot; -ExpectedSha256 &quot;$(OpenVinoTurboQuantWorkerManifestSha256)&quot; -SuccessMessage turboquant_manifest_digest_valid -FailureMessage turboquant_manifest_digest_mismatch" />
 
     <ItemGroup>
       <_OpenVinoTurboQuantWorkerFile Include="$(_OpenVinoTurboQuantWorkerStage)\**\*" />

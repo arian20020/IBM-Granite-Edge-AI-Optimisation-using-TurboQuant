@@ -12,6 +12,21 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function Get-Sha256Hex {
+    param([Parameter(Mandatory)][string] $Path)
+
+    $stream = [IO.File]::OpenRead($Path)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return [BitConverter]::ToString(
+            $sha256.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+        $stream.Dispose()
+    }
+}
+
 $probeRoot = [IO.Path]::GetFullPath($ProbeDirectory)
 $manifestFullPath = [IO.Path]::GetFullPath($ManifestPath)
 $executableName = 'GraniteEdgeAI.HardwareInspection.LlamaCppProbe.exe'
@@ -40,7 +55,7 @@ $manifest = [ordered]@{
     toolId = 'granite-edge-hardware-llamacpp-probe'
     version = '0.27.0-cpu-win-x64'
     executable = $executableName
-    executableSha256 = (Get-FileHash -LiteralPath $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    executableSha256 = Get-Sha256Hex -Path $executablePath
     members = $members
     machine = 'Amd64'
     disposition = 'AcceptedForFunctionalEvaluation'

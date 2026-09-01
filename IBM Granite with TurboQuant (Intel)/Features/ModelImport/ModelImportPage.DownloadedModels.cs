@@ -55,12 +55,6 @@ public sealed partial class ModelImportPage
         }
     }
 
-    private async void FindDownloadedModelsButton_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new DownloadedModelConsentDialog { XamlRoot = Content.XamlRoot };
-        await FindDownloadedModelsAsync(await dialog.RequestConsentAsync());
-    }
-
     private void CancelDownloadedModelSearch()
     {
         CancellationTokenSource? previous = Interlocked.Exchange(

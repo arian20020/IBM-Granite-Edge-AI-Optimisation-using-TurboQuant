@@ -7,6 +7,21 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Get-Sha256Hex {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $stream = [IO.File]::OpenRead($Path)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return [BitConverter]::ToString(
+            $sha256.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+        $stream.Dispose()
+    }
+}
+
 function Stop-Invalid {
     [Console]::Out.WriteLine('worker_manifest_invalid')
     exit 1
@@ -178,7 +193,7 @@ try {
         $file = Get-Item -LiteralPath $path
         if (($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
             -not (Test-NoAlternateStreams $path) -or $file.Length -ne [Int64]$entry.length -or
-            (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$entry.sha256) {
+            (Get-Sha256Hex -Path $path) -cne [string]$entry.sha256) {
             Stop-Invalid
         }
         $first = [IO.File]::ReadAllBytes($path)
