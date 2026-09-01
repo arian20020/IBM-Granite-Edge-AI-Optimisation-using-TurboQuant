@@ -22,7 +22,73 @@ public sealed class OpenVinoWorkerClientTests
 
         CollectionAssert.AreEquivalent(
             BoundaryMethods,
-            boundary.GetMethods().Select(static method => method.Name).ToArray());
+            boundary.GetMethods()
+                .Select(static method => method.Name)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray());
+    }
+
+    [TestMethod]
+    public void InspectionProgressIsForwardedOnlyAfterRunIdentityAndOrderValidation()
+    {
+        Guid runId = Guid.NewGuid();
+        OpenVinoConversationValidator validator = new();
+        validator.Accept(new HelloEvent(
+            OpenVinoProtocol.OfficialProtocolId,
+            BuildEvidence()));
+        validator.Accept(new StartInspectionCommand(
+            runId,
+            Path.GetFullPath("package"),
+            new string('a', 64),
+            new string('b', 64),
+            1));
+        List<InspectionProgressEvent> observed = [];
+        InlineProgress<InspectionProgressEvent> progress = new(observed.Add);
+
+        Assert.IsFalse(OpenVinoWorkerClient.TryAcceptInspectionEvent(
+            new InspectionStartedEvent(Guid.NewGuid()),
+            validator,
+            runId,
+            progress,
+            out _));
+        Assert.IsTrue(OpenVinoWorkerClient.TryAcceptInspectionEvent(
+            new InspectionStartedEvent(runId),
+            validator,
+            runId,
+            progress,
+            out _));
+        Assert.IsFalse(OpenVinoWorkerClient.TryAcceptInspectionEvent(
+            new InspectionProgressEvent(
+                Guid.NewGuid(),
+                OpenVinoInspectionStage.ManifestVerified),
+            validator,
+            runId,
+            progress,
+            out _));
+
+        foreach (OpenVinoInspectionStage stage in
+            Enum.GetValues<OpenVinoInspectionStage>())
+        {
+            Assert.IsTrue(OpenVinoWorkerClient.TryAcceptInspectionEvent(
+                new InspectionProgressEvent(runId, stage),
+                validator,
+                runId,
+                progress,
+                out _));
+        }
+
+        CollectionAssert.AreEqual(
+            Enum.GetValues<OpenVinoInspectionStage>(),
+            observed.Select(static item => item.Stage).ToArray());
+        Assert.ThrowsExactly<OpenVinoProtocolException>(() =>
+            OpenVinoWorkerClient.TryAcceptInspectionEvent(
+                new HelloEvent(
+                    OpenVinoProtocol.OfficialProtocolId,
+                    BuildEvidence()),
+                validator,
+                runId,
+                progress,
+                out _));
     }
 
     [TestMethod]
@@ -144,6 +210,11 @@ public sealed class OpenVinoWorkerClientTests
         "genai-test-build",
         "tokenizers-test-build",
         new string('1', 64));
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
 
     private static Dictionary<string, OpenVinoWorkerBinaryMachine> Amd64Policy(
         string executable) => new Dictionary<string, OpenVinoWorkerBinaryMachine>(

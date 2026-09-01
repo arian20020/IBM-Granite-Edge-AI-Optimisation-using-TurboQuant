@@ -51,8 +51,14 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         _environmentProvider = environmentProvider;
     }
 
+    public Task<IOpenVinoEvent> InspectAsync(
+        StartInspectionCommand command,
+        CancellationToken cancellationToken) =>
+        InspectAsync(command, progress: null, cancellationToken);
+
     public async Task<IOpenVinoEvent> InspectAsync(
         StartInspectionCommand command,
+        IProgress<InspectionProgressEvent>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -97,6 +103,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                     processExit,
                     validator,
                     command.InspectionRunId,
+                    progress,
                     operationDeadline,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -352,6 +359,7 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
         Task processExit,
         OpenVinoConversationValidator validator,
         Guid inspectionRunId,
+        IProgress<InspectionProgressEvent>? progress,
         DateTimeOffset deadline,
         CancellationToken cancellationToken)
     {
@@ -369,20 +377,57 @@ public sealed class OpenVinoWorkerClient : IOpenVinoWorkerClient
                     remaining,
                     cancellationToken)
                 .ConfigureAwait(false);
-            if (@event is InspectionCompletedEvent completed &&
-                completed.InspectionRunId != inspectionRunId ||
-                @event is InspectionFailedEvent failed &&
-                failed.InspectionRunId != inspectionRunId)
+            if (!TryAcceptInspectionEvent(
+                    @event,
+                    validator,
+                    inspectionRunId,
+                    progress,
+                    out IOpenVinoEvent? terminal))
             {
                 continue;
             }
 
-            validator.Accept(@event);
-            if (@event is InspectionCompletedEvent or InspectionFailedEvent)
+            if (terminal is not null)
             {
-                return @event;
+                return terminal;
             }
         }
+    }
+
+    internal static bool TryAcceptInspectionEvent(
+        IOpenVinoEvent @event,
+        OpenVinoConversationValidator validator,
+        Guid inspectionRunId,
+        IProgress<InspectionProgressEvent>? progress,
+        out IOpenVinoEvent? terminal)
+    {
+        ArgumentNullException.ThrowIfNull(@event);
+        ArgumentNullException.ThrowIfNull(validator);
+        terminal = null;
+        Guid? eventRunId = @event switch
+        {
+            InspectionStartedEvent started => started.InspectionRunId,
+            InspectionProgressEvent update => update.InspectionRunId,
+            InspectionCompletedEvent completed => completed.InspectionRunId,
+            InspectionFailedEvent failed => failed.InspectionRunId,
+            _ => null
+        };
+        if (eventRunId.HasValue && eventRunId.Value != inspectionRunId)
+        {
+            return false;
+        }
+
+        validator.Accept(@event);
+        if (@event is InspectionProgressEvent progressEvent)
+        {
+            progress?.Report(progressEvent);
+        }
+        else if (@event is InspectionCompletedEvent or InspectionFailedEvent)
+        {
+            terminal = @event;
+        }
+
+        return true;
     }
 
     private static async Task WriteWithDeadlineAsync(

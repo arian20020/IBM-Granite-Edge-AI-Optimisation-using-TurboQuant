@@ -95,9 +95,18 @@ public sealed class OpenVinoStaticPackageInspector
         this.snapshotter = snapshotter ?? throw new ArgumentNullException(nameof(snapshotter));
     }
 
-    public OpenVinoStaticPackageInspectionResult Inspect(string packageRoot)
+    public OpenVinoStaticPackageInspectionResult Inspect(string packageRoot) =>
+        Inspect(packageRoot, CancellationToken.None, progress: null);
+
+    public OpenVinoStaticPackageInspectionResult Inspect(
+        string packageRoot,
+        CancellationToken cancellationToken,
+        IProgress<double>? progress)
     {
-        OpenVinoPackageSnapshotCapture capture = snapshotter.Capture(packageRoot);
+        OpenVinoPackageSnapshotCapture capture = snapshotter.Capture(
+            packageRoot,
+            cancellationToken,
+            progress);
         if (capture.Snapshot is null)
         {
             return RejectSnapshotFailure(capture.Failure);
@@ -785,16 +794,31 @@ public sealed class OpenVinoStaticPackageInspector
             (RequiredString(tokenizer, "eos_token"), RequireNonNegativeToken(config, "eos_token_id")),
             (RequiredString(tokenizer, "pad_token"), RequireNonNegativeToken(config, "pad_token_id"))
         ];
-        if (requiredFacts.Select(static fact => fact.Token).Distinct(StringComparer.Ordinal).Count() != 3 ||
-            requiredFacts.Select(static fact => fact.Identifier).Distinct().Count() != 3)
+        bool tokenMapsToMultipleIdentifiers = requiredFacts
+            .GroupBy(static fact => fact.Token, StringComparer.Ordinal)
+            .Any(static group => group
+                .Select(static fact => fact.Identifier)
+                .Distinct()
+                .Skip(1)
+                .Any());
+        bool identifierMapsToMultipleTokens = requiredFacts
+            .GroupBy(static fact => fact.Identifier)
+            .Any(static group => group
+                .Select(static fact => fact.Token)
+                .Distinct(StringComparer.Ordinal)
+                .Skip(1)
+                .Any());
+        if (tokenMapsToMultipleIdentifiers || identifierMapsToMultipleTokens)
         {
             return false;
         }
 
-        Dictionary<string, long> requiredTokens = requiredFacts.ToDictionary(
-            static fact => fact.Token,
-            static fact => fact.Identifier,
-            StringComparer.Ordinal);
+        Dictionary<string, long> requiredTokens = requiredFacts
+            .GroupBy(static fact => fact.Token, StringComparer.Ordinal)
+            .ToDictionary(
+                static group => group.Key,
+                static group => group.First().Identifier,
+                StringComparer.Ordinal);
 
         Dictionary<string, long>?[] vocabularyCandidates = [optional.Vocabulary, optional.TokenizerVocabulary];
         Dictionary<string, long>[] vocabularies = vocabularyCandidates

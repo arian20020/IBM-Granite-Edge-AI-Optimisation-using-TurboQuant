@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -84,8 +85,15 @@ internal sealed class OpenVinoPackageSnapshotter
     }
 
     [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The instance boundary permits operation-scoped snapshotter composition.")]
-    public OpenVinoPackageSnapshotCapture Capture(string packageRoot)
+    public OpenVinoPackageSnapshotCapture Capture(string packageRoot) =>
+        Capture(packageRoot, CancellationToken.None, hashProgress: null);
+
+    public OpenVinoPackageSnapshotCapture Capture(
+        string packageRoot,
+        CancellationToken cancellationToken,
+        IProgress<double>? hashProgress)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(packageRoot))
         {
             return Failed(OpenVinoSnapshotFailure.RootMissing);
@@ -136,6 +144,7 @@ internal sealed class OpenVinoPackageSnapshotter
             }
 
             TopologyCapture discovery = DiscoverTopology(root, rootFinalPath, repeatCapture: false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (discovery.Failure != OpenVinoSnapshotFailure.None)
             {
                 return Failed(discovery.Failure);
@@ -149,6 +158,7 @@ internal sealed class OpenVinoPackageSnapshotter
 
             foreach (DiscoveredItem item in discovery.Items.OrderBy(static item => item.RelativeName, StringComparer.Ordinal))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 observer(OpenVinoPackageCaptureStage.BeforeAcquireFile, item.RelativeName);
                 SafeFileHandle handle = OpenPath(
                     item.FullPath,
@@ -237,8 +247,31 @@ internal sealed class OpenVinoPackageSnapshotter
             }
 
             List<OpenVinoPackageSnapshotEntry> entries = [];
+            double totalHashBytes = acquired.Sum(static item =>
+                (double)item.Identity.Length) * 2d;
+            double completedHashBytes = 0d;
+            int lastReportedPercentage = 0;
+            hashProgress?.Report(0d);
+            void ReportHashedBytes(int bytesRead)
+            {
+                completedHashBytes += bytesRead;
+                int percentage = totalHashBytes <= 0d
+                    ? 100
+                    : Math.Min(
+                        100,
+                        (int)Math.Floor(completedHashBytes * 100d / totalHashBytes));
+                if (percentage > lastReportedPercentage)
+                {
+                    lastReportedPercentage = percentage;
+                    hashProgress?.Report(percentage / 100d);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             foreach (AcquiredEntry item in acquired)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 OpenVinoSnapshotFailure contentFailure = ValidateLengthAndMagic(item);
                 if (contentFailure != OpenVinoSnapshotFailure.None)
                 {
@@ -246,9 +279,15 @@ internal sealed class OpenVinoPackageSnapshotter
                     return Failed(contentFailure);
                 }
 
-                string firstDigest = Hash(item.Stream);
+                string firstDigest = Hash(
+                    item.Stream,
+                    ReportHashedBytes,
+                    cancellationToken);
                 FileIdentity afterFirstHash = GetIdentity(item.Stream.SafeFileHandle);
-                string secondDigest = Hash(item.Stream);
+                string secondDigest = Hash(
+                    item.Stream,
+                    ReportHashedBytes,
+                    cancellationToken);
                 FileIdentity afterSecondHash = GetIdentity(item.Stream.SafeFileHandle);
                 if (!item.Identity.SameObjectAndContentMetadata(afterFirstHash) ||
                     !item.Identity.SameObjectAndContentMetadata(afterSecondHash) ||
@@ -268,6 +307,10 @@ internal sealed class OpenVinoPackageSnapshotter
             }
 
             acquired.Clear();
+            if (lastReportedPercentage < 100)
+            {
+                hashProgress?.Report(1d);
+            }
             observer(OpenVinoPackageCaptureStage.AfterHashesCompleted, null);
             validation = ValidateCurrentTopology(root, rootFinalPath, rootIdentity, rootHandle, discovery.Items, entries);
             if (validation != OpenVinoSnapshotFailure.None)
@@ -294,6 +337,11 @@ internal sealed class OpenVinoPackageSnapshotter
         {
             DisposeEntries(acquired);
             return Failed(OpenVinoSnapshotFailure.Changed);
+        }
+        catch (OperationCanceledException)
+        {
+            DisposeEntries(acquired);
+            throw;
         }
         finally
         {
@@ -626,13 +674,39 @@ internal sealed class OpenVinoPackageSnapshotter
         }
     }
 
-    private static string Hash(FileStream stream)
+    private static string Hash(
+        FileStream stream,
+        Action<int> reportBytesRead,
+        CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(reportBytesRead);
         stream.Position = 0;
-        using SHA256 algorithm = SHA256.Create();
-        byte[] hash = algorithm.ComputeHash(stream);
-        stream.Position = 0;
-        return Convert.ToHexString(hash).ToLowerInvariant();
+        using IncrementalHash algorithm = IncrementalHash.CreateHash(
+            HashAlgorithmName.SHA256);
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(1024 * 1024);
+        try
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                algorithm.AppendData(buffer, 0, bytesRead);
+                reportBytesRead(bytesRead);
+            }
+
+            return Convert.ToHexString(algorithm.GetHashAndReset())
+                .ToLowerInvariant();
+        }
+        finally
+        {
+            stream.Position = 0;
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     private static SafeFileHandle OpenPath(string path, uint access, uint share, uint flags) =>

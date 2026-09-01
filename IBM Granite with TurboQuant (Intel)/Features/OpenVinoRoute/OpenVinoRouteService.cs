@@ -7,6 +7,9 @@ using GraniteEdgeAI.OpenVino.WorkerClient;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
+using ModelInspectionProgress = GraniteEdgeAI.Features.ModelInspection.Contracts.ModelInspectionProgress;
+using ModelInspectionStage = GraniteEdgeAI.Features.ModelInspection.Contracts.ModelInspectionStage;
+using ModelInspectionStageStatus = GraniteEdgeAI.Features.ModelInspection.Contracts.ModelInspectionStageStatus;
 using SharedProjection = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionProjectionV2;
 using ModelInspectionHandoffV2 = GraniteEdgeAI.ModelInspection.Contracts.ModelInspectionHandoffV2;
 
@@ -185,9 +188,42 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
 
     public async Task<OpenVinoRouteInspectionResult> InspectAsync(
         string packageDirectory,
+        CancellationToken cancellationToken) =>
+        await InspectAsync(
+            packageDirectory,
+            progress: null,
+            cancellationToken).ConfigureAwait(false);
+
+    internal async Task<OpenVinoRouteInspectionResult> InspectAsync(
+        string packageDirectory,
+        IProgress<ModelInspectionProgress>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packageDirectory);
+        ModelInspectionStage currentStage = ModelInspectionStage.CheckModelPackage;
+        void Report(
+            ModelInspectionStage stage,
+            ModelInspectionStageStatus status,
+            int completed,
+            double? fraction,
+            string message)
+        {
+            currentStage = stage;
+            progress?.Report(new ModelInspectionProgress(
+                stage,
+                status,
+                completed,
+                totalStageCount: 5,
+                fraction,
+                message));
+        }
+
+        Report(
+            ModelInspectionStage.CheckModelPackage,
+            ModelInspectionStageStatus.Active,
+            completed: 0,
+            fraction: 0d,
+            "Checking the OpenVINO package and its integrity.");
         OpenVinoRouteStateMachine stateMachine = new();
         Guid operationId = stateMachine.Snapshot.Identity.OperationId;
         if (!stateMachine.TryBeginInspection(operationId))
@@ -195,8 +231,37 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             throw new InvalidOperationException("The inspection could not start.");
         }
 
-        OpenVinoStaticPackageInspectionResult staticResult =
-            staticInspector.Inspect(packageDirectory);
+        OpenVinoStaticPackageInspectionResult staticResult;
+        try
+        {
+            staticResult = staticInspector.Inspect(
+                packageDirectory,
+                cancellationToken,
+                new InlineProgress<double>(fraction => Report(
+                    ModelInspectionStage.CheckModelPackage,
+                    ModelInspectionStageStatus.Active,
+                    completed: 0,
+                    fraction,
+                    "Checking the OpenVINO package and its integrity.")));
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            Report(
+                ModelInspectionStage.CheckModelPackage,
+                ModelInspectionStageStatus.Cancelled,
+                completed: 0,
+                fraction: null,
+                "Model inspection was cancelled.");
+            OpenVinoSupportCode code = OpenVinoSupportCode.OperationCancelled;
+            OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(code);
+            stateMachine.TryCompleteInspection(operationId, outcome);
+            return new OpenVinoRouteInspectionResult(
+                outcome,
+                HandoffLease: null,
+                OpenVinoPromptAdapter.MapFailure(code),
+                Configuration: null);
+        }
         if (staticResult.Status !=
                 OpenVinoStaticInspectionStatus.NativeValidationRequired ||
             staticResult.Evidence is null)
@@ -217,6 +282,12 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                     new OpenVinoConversionOffer(sourceResult, packageDirectory));
             }
             sourceResult.Dispose();
+            Report(
+                currentStage,
+                ModelInspectionStageStatus.Failed,
+                completed: (int)currentStage - 1,
+                fraction: null,
+                "The OpenVINO package could not be validated.");
             OpenVinoSupportCode code = staticResult.SupportCode ??
                 OpenVinoSupportCode.PackageInconsistentResource;
             OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(code);
@@ -228,11 +299,80 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                 Configuration: null);
         }
 
+        Report(
+            ModelInspectionStage.CheckModelPackage,
+            ModelInspectionStageStatus.Completed,
+            completed: 1,
+            fraction: 1d,
+            "The OpenVINO package is complete and unchanged.");
+        Report(
+            ModelInspectionStage.ReadModelConfiguration,
+            ModelInspectionStageStatus.Active,
+            completed: 1,
+            fraction: null,
+            "Reading the model configuration.");
         OpenVinoStaticPackageEvidence evidence = staticResult.Evidence;
         Guid inspectionRunId = Guid.NewGuid();
         IOpenVinoEvent terminal;
         try
         {
+            IProgress<InspectionProgressEvent> nativeProgress =
+                new InlineProgress<InspectionProgressEvent>(update =>
+                {
+                    switch (update.Stage)
+                    {
+                        case OpenVinoInspectionStage.ManifestVerified:
+                            Report(
+                                ModelInspectionStage.ReadModelConfiguration,
+                                ModelInspectionStageStatus.Completed,
+                                completed: 2,
+                                fraction: 1d,
+                                "The model configuration is valid.");
+                            Report(
+                                ModelInspectionStage.ValidateTokenizerAndChatSetup,
+                                ModelInspectionStageStatus.Active,
+                                completed: 2,
+                                fraction: 0d,
+                                "Validating the tokenizer and chat setup.");
+                            break;
+                        case OpenVinoInspectionStage.MainModelParsed:
+                            Report(
+                                ModelInspectionStage.ValidateTokenizerAndChatSetup,
+                                ModelInspectionStageStatus.Active,
+                                completed: 2,
+                                fraction: 0.5d,
+                                "The model graph is readable; checking tokenizer resources.");
+                            break;
+                        case OpenVinoInspectionStage.TokenizerParsed:
+                            Report(
+                                ModelInspectionStage.ValidateTokenizerAndChatSetup,
+                                ModelInspectionStageStatus.Completed,
+                                completed: 3,
+                                fraction: 1d,
+                                "The tokenizer and chat setup are valid.");
+                            Report(
+                                ModelInspectionStage.ValidateModelStructure,
+                                ModelInspectionStageStatus.Active,
+                                completed: 3,
+                                fraction: null,
+                                "Validating the model structure.");
+                            break;
+                        case OpenVinoInspectionStage.DetokenizerParsed:
+                            Report(
+                                ModelInspectionStage.ValidateModelStructure,
+                                ModelInspectionStageStatus.Completed,
+                                completed: 4,
+                                fraction: 1d,
+                                "The model structure is valid.");
+                            Report(
+                                ModelInspectionStage.ConfirmCoreRuntimeCompatibility,
+                                ModelInspectionStageStatus.Active,
+                                completed: 4,
+                                fraction: null,
+                                "Confirming core OpenVINO runtime compatibility.");
+                            break;
+                    }
+                });
             terminal = await workerClient.InspectAsync(
                 new StartInspectionCommand(
                     inspectionRunId,
@@ -240,10 +380,17 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
                     evidence.PackageManifestDigest,
                     evidence.ModelSha256,
                     evidence.ModelLengthBytes),
+                nativeProgress,
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OpenVinoWorkerClientException failure)
         {
+            Report(
+                currentStage,
+                ModelInspectionStageStatus.Failed,
+                completed: (int)currentStage - 1,
+                fraction: null,
+                "The local OpenVINO runtime inspection could not continue.");
             OpenVinoRouteInspectionOutcome outcome =
                 InspectionOutcome(failure.SupportCode);
             stateMachine.TryCompleteInspection(operationId, outcome);
@@ -256,6 +403,12 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
         {
+            Report(
+                currentStage,
+                ModelInspectionStageStatus.Cancelled,
+                completed: (int)currentStage - 1,
+                fraction: null,
+                "Model inspection was cancelled.");
             OpenVinoSupportCode code = OpenVinoSupportCode.OperationCancelled;
             OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(code);
             stateMachine.TryCompleteInspection(operationId, outcome);
@@ -268,6 +421,12 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
 
         if (terminal is InspectionFailedEvent failed)
         {
+            Report(
+                currentStage,
+                ModelInspectionStageStatus.Failed,
+                completed: (int)currentStage - 1,
+                fraction: null,
+                "The local OpenVINO runtime rejected the package.");
             OpenVinoRouteInspectionOutcome outcome =
                 InspectionOutcome(failed.SupportCode);
             stateMachine.TryCompleteInspection(operationId, outcome);
@@ -296,6 +455,12 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             ValidateCompletedEvidence(completed, inspectionRunId, evidence);
         if (completedEvidenceFailure is OpenVinoSupportCode failureCode)
         {
+            Report(
+                currentStage,
+                ModelInspectionStageStatus.Failed,
+                completed: (int)currentStage - 1,
+                fraction: null,
+                "The OpenVINO inspection evidence did not match the selected package.");
             OpenVinoRouteInspectionOutcome outcome = InspectionOutcome(failureCode);
             stateMachine.TryCompleteInspection(operationId, outcome);
             return new OpenVinoRouteInspectionResult(
@@ -330,6 +495,13 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
             throw new InvalidOperationException(
                 "The inspection result became stale before publication.");
         }
+
+        Report(
+            ModelInspectionStage.ConfirmCoreRuntimeCompatibility,
+            ModelInspectionStageStatus.Completed,
+            completed: 5,
+            fraction: 1d,
+            "The OpenVINO package is ready for hardware inspection.");
 
         OpenVinoRouteHandoffLease lease = new(
             handoff,
@@ -551,5 +723,10 @@ public sealed class OpenVinoRouteService : IPromptRouteAdapter
         projection.ModelSource.ModelLengthBytes == handoff.ModelLengthBytes &&
         projection.ModelInspectionResult.ModelLengthBytes == handoff.ModelLengthBytes &&
         projection.ModelInspectionHandoff.ModelLengthBytes == handoff.ModelLengthBytes;
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
 
 }

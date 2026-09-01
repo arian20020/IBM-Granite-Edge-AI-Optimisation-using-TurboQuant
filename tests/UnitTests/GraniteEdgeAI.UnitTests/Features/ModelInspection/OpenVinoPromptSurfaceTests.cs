@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Controls;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.Prompting;
@@ -162,6 +163,94 @@ public sealed class OpenVinoPromptSurfaceTests
             content.Presentation.Mode);
         Assert.AreEqual(Visibility.Collapsed,
             ((Border)page.FindName("PromptSurface")).Visibility);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void OpenVinoProgressUpdatesTheSharedRowsAndIgnoresStaleCallbacks()
+    {
+        ModelInspectionPage page = new();
+        MethodInfo inspecting = RequirePrivateMethod(
+            "ApplyOpenVinoInspectingPresentation");
+        MethodInfo applyProgress = RequirePrivateMethod(
+            "ApplyOpenVinoProgress");
+        FieldInfo lifetime = RequirePrivateField("_openVinoLifetime");
+        FieldInfo cancellation = RequirePrivateField("_openVinoCancellation");
+        using CancellationTokenSource cancellationSource = new();
+        lifetime.SetValue(page, 4L);
+        cancellation.SetValue(page, cancellationSource);
+        inspecting.Invoke(page, new object[] { "granite-openvino" });
+
+        applyProgress.Invoke(page, new object[]
+        {
+            4L,
+            new ModelInspectionProgress(
+                ModelInspectionStage.ValidateTokenizerAndChatSetup,
+                ModelInspectionStageStatus.Active,
+                completedStageCount: 2,
+                totalStageCount: 5,
+                stageFraction: 0.5d,
+                "Validating tokenizer resources.")
+        });
+
+        InspectionContentCard content = Assert.IsInstanceOfType<InspectionContentCard>(
+            page.FindName("InspectionContentCardControl"));
+        Assert.AreEqual("2 of 5 checks complete",
+            content.Presentation.ProgressRows.ProgressSummary);
+        Assert.AreEqual(InspectionContentStatus.Passed,
+            content.Presentation.ProgressRows.Items[0].Status);
+        Assert.AreEqual(InspectionContentStatus.Passed,
+            content.Presentation.ProgressRows.Items[1].Status);
+        Assert.AreEqual(InspectionContentStatus.Active,
+            content.Presentation.ProgressRows.Items[2].Status);
+        Assert.AreEqual(0.5d,
+            content.Presentation.ProgressRows.Items[2].StageFraction);
+
+        applyProgress.Invoke(page, new object[]
+        {
+            3L,
+            new ModelInspectionProgress(
+                ModelInspectionStage.ConfirmCoreRuntimeCompatibility,
+                ModelInspectionStageStatus.Completed,
+                completedStageCount: 5,
+                totalStageCount: 5,
+                stageFraction: 1d,
+                "Stale completion.")
+        });
+
+        Assert.AreEqual("2 of 5 checks complete",
+            content.Presentation.ProgressRows.ProgressSummary);
+        Assert.AreEqual(InspectionContentStatus.Waiting,
+            content.Presentation.ProgressRows.Items[4].Status);
+
+        MethodInfo applyResult = RequirePrivateMethod(
+            "TryApplyOpenVinoInspectionResult");
+        Assert.AreEqual(true, applyResult.Invoke(page, new object[]
+        {
+            4L,
+            new OpenVinoRouteInspectionResult(
+                OpenVinoRouteInspectionOutcome.Cancelled,
+                HandoffLease: null,
+                Failure: null,
+                Configuration: null)
+        }));
+        Assert.IsNull(RequirePrivateField("_openVinoProgressRows").GetValue(page),
+            "A terminal result must retire the progress owner so late callbacks cannot replace the result UI.");
+
+        applyProgress.Invoke(page, new object[]
+        {
+            4L,
+            new ModelInspectionProgress(
+                ModelInspectionStage.ConfirmCoreRuntimeCompatibility,
+                ModelInspectionStageStatus.Completed,
+                completedStageCount: 5,
+                totalStageCount: 5,
+                stageFraction: 1d,
+                "Late completion.")
+        });
+        Assert.AreEqual(
+            InspectionContentCardMode.Cancelled,
+            content.Presentation.Mode);
     }
 
     private static bool InvokePromptSendKey(

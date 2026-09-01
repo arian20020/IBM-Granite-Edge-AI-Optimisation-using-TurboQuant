@@ -35,6 +35,12 @@
              Link="Production\Conversion\%(Filename)%(Extension)" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\*.cs"
              Link="Production\Optimization\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionContractValidation.cs"
+             Link="Production\ModelInspection\Contracts\ModelInspectionContractValidation.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionEnums.cs"
+             Link="Production\ModelInspection\Contracts\ModelInspectionEnums.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionProgress.cs"
+             Link="Production\ModelInspection\Contracts\ModelInspectionProgress.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\ExportDestinationGuard.cs"
              Link="Production\Storage\ExportDestinationGuard.cs" />
     <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\StagedSourceSnapshot.cs"

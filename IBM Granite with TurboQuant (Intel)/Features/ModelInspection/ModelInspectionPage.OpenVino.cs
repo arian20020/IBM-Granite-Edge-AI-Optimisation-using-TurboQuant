@@ -1,5 +1,7 @@
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelInspection.Models;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
+using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
@@ -40,6 +42,8 @@ public sealed partial class ModelInspectionPage
     private readonly object _navigationRetirementLock = new();
     private Task? _navigationRetirementTask;
     private long _openVinoLifetime;
+    private long _openVinoProgressRevision;
+    private InspectionProgressRows? _openVinoProgressRows;
     private int _requestedOpenVinoNewTokens =
         OpenVinoRouteCapability.DefaultRequestedNewTokens;
 
@@ -70,6 +74,9 @@ public sealed partial class ModelInspectionPage
         OpenVinoInspectionRequestedEventArgs request,
         string directoryPath)
     {
+        CancellationTokenSource cancellation = new();
+        _openVinoCancellation = cancellation;
+        long lifetime = checked(++_openVinoLifetime);
         ApplyOpenVinoInspectingPresentation(request.DisplayName);
         OpenVinoRouteService service;
         try
@@ -81,6 +88,15 @@ public sealed partial class ModelInspectionPage
         }
         catch (Exception)
         {
+            if (ReferenceEquals(
+                Interlocked.CompareExchange(
+                    ref _openVinoCancellation,
+                    null,
+                    cancellation),
+                cancellation))
+            {
+                cancellation.Dispose();
+            }
             ApplyOpenVinoInspectionFailurePresentation(
                 "runtime_load_failed",
                 "The verified OpenVINO worker is unavailable.",
@@ -89,9 +105,6 @@ public sealed partial class ModelInspectionPage
             CurrentOpenVinoInspectionTask = Task.CompletedTask;
             return;
         }
-        CancellationTokenSource cancellation = new();
-        _openVinoCancellation = cancellation;
-        long lifetime = checked(++_openVinoLifetime);
         CurrentOpenVinoInspectionTask = InspectAndStartOpenVinoAsync(
             service,
             request,
@@ -112,8 +125,14 @@ public sealed partial class ModelInspectionPage
         OpenVinoConversionOffer? retainedConversionOffer = null;
         try
         {
+            IProgress<ModelInspectionProgress> progress =
+                new Progress<ModelInspectionProgress>(update =>
+                    ApplyOpenVinoProgress(lifetime, update));
             OpenVinoRouteInspectionResult result = await Task.Run(
-                () => service.InspectAsync(directoryPath, cancellationToken),
+                () => service.InspectAsync(
+                    directoryPath,
+                    progress,
+                    cancellationToken),
                 cancellationToken);
             handoffLease = result.HandoffLease;
             conversionOffer = result.ConversionOffer;
@@ -164,6 +183,12 @@ public sealed partial class ModelInspectionPage
 
     private void ApplyOpenVinoInspectingPresentation(string displayName)
     {
+        InspectionProgressRows progressRows = new();
+        progressRows.Reset(new ModelInspectionRenderKey(
+            _openVinoLifetime,
+            presentationRevision: 0));
+        _openVinoProgressRows = progressRows;
+        _openVinoProgressRevision = 0;
         InspectionModelCardControl.Presentation = new InspectionModelCardPresentation
         {
             DisplayMode = InspectionModelCardMode.Compact,
@@ -174,17 +199,15 @@ public sealed partial class ModelInspectionPage
             OverviewFormatBadgeText = "OpenVINO",
             FormatName = "OpenVINO GenAI IR"
         };
-        InspectionContentCardControl.Presentation = new InspectionContentCardPresentation
-        {
-            Mode = InspectionContentCardMode.Progress,
-            SectionTitle = "Checking OpenVINO package",
-            Startup = new InspectionStartupPresentation
-            {
-                Visibility = Visibility.Visible,
-                Summary = "Starting secure local inspection",
-                AutomationName = "Checking OpenVINO package. Starting secure local inspection."
-            }
-        };
+        InspectionContentCardControl.Presentation =
+            InitialInspectionProgressPresentationFactory.Create(
+                progressRows,
+                new InspectionStartupPresentation
+                {
+                    Visibility = Visibility.Visible,
+                    Summary = "Starting secure local inspection",
+                    AutomationName = "Checking OpenVINO package. Starting secure local inspection."
+                });
         InspectionActionCardControl.Presentation = new InspectionActionCardPresentation
         {
             Mode = InspectionActionCardMode.Inspecting,
@@ -208,6 +231,29 @@ public sealed partial class ModelInspectionPage
         PromptBuildEvidenceText.Text = string.Empty;
     }
 
+    private void ApplyOpenVinoProgress(
+        long lifetime,
+        ModelInspectionProgress progress)
+    {
+        ArgumentNullException.ThrowIfNull(progress);
+        if (!IsCurrentOpenVinoLifetime(lifetime) ||
+            _openVinoProgressRows is not InspectionProgressRows rows)
+        {
+            return;
+        }
+
+        long revision = checked(++_openVinoProgressRevision);
+        ModelInspectionRenderKey ownerKey = new(lifetime, revision);
+        InspectionProgressRowsUpdate update =
+            InspectionProgressPresentationFactory.Create(progress, ownerKey);
+        InspectionProgressRowsApplyResult changes = rows.Apply(update);
+        if (!changes.IsEmpty)
+        {
+            InspectionContentCardControl.AnnounceProgress(
+                $"{rows.ProgressSummary}. {progress.UserMessage}");
+        }
+    }
+
     private bool TryApplyOpenVinoInspectionResult(
         long lifetime,
         OpenVinoRouteInspectionResult result)
@@ -216,6 +262,8 @@ public sealed partial class ModelInspectionPage
         {
             return false;
         }
+
+        _openVinoProgressRows = null;
 
         if (result.Outcome is OpenVinoRouteInspectionOutcome.Ready or
             OpenVinoRouteInspectionOutcome.ReadyWithWarnings)
@@ -1237,6 +1285,8 @@ public sealed partial class ModelInspectionPage
             _openVinoDirectoryPath = null;
             _openVinoHardwareHandoff = null;
             _openVinoConfiguration = null;
+            _openVinoProgressRows = null;
+            _openVinoProgressRevision = 0;
             Interlocked.Exchange(ref _conversionOffer, null)?.Dispose();
             checked
             {

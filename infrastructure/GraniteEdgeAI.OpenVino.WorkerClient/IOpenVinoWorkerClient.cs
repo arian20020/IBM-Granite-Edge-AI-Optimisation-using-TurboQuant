@@ -9,6 +9,12 @@ public interface IOpenVinoWorkerClient
         StartInspectionCommand command,
         CancellationToken cancellationToken);
 
+    Task<IOpenVinoEvent> InspectAsync(
+        StartInspectionCommand command,
+        IProgress<InspectionProgressEvent>? progress,
+        CancellationToken cancellationToken) =>
+        InspectAsync(command, cancellationToken);
+
     Task<OpenVinoConversation> StartSessionAsync(
         StartSessionCommand command,
         CancellationToken cancellationToken);

@@ -3,6 +3,7 @@ using System.Text;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Conversion;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
+using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.Prompting;
 using GraniteEdgeAI.OpenVino.Contracts;
 using GraniteEdgeAI.OpenVino.WorkerClient;
@@ -13,6 +14,42 @@ namespace GraniteEdgeAI.OpenVino.Tests;
 [TestClass]
 public sealed class OpenVinoRouteServiceTests
 {
+    [TestMethod]
+    public async Task OpenVinoInspectionPublishesTheSharedFiveStageProgressLifecycle()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        ProgressWorkerClient worker = new();
+        OpenVinoRouteService service = Service(worker);
+        List<ModelInspectionProgress> observed = [];
+
+        OpenVinoRouteInspectionResult result = await service.InspectAsync(
+            package.Root,
+            new InlineProgress<ModelInspectionProgress>(observed.Add),
+            CancellationToken.None);
+
+        Assert.IsTrue(result.Outcome is OpenVinoRouteInspectionOutcome.Ready or
+            OpenVinoRouteInspectionOutcome.ReadyWithWarnings);
+        Assert.IsTrue(observed.Count > 10);
+        Assert.AreEqual(ModelInspectionStage.CheckModelPackage, observed[0].Stage);
+        Assert.AreEqual(ModelInspectionStageStatus.Active, observed[0].StageStatus);
+        Assert.AreEqual(0, observed[0].CompletedStageCount);
+        Assert.IsTrue(observed.Any(static update =>
+            update.Stage == ModelInspectionStage.CheckModelPackage &&
+            update.StageStatus == ModelInspectionStageStatus.Active &&
+            update.StageFraction is > 0d and < 1d));
+        Assert.IsTrue(observed.Any(static update =>
+            update.Stage == ModelInspectionStage.ValidateTokenizerAndChatSetup &&
+            update.StageStatus == ModelInspectionStageStatus.Completed));
+        ModelInspectionProgress terminal = observed[^1];
+        Assert.AreEqual(
+            ModelInspectionStage.ConfirmCoreRuntimeCompatibility,
+            terminal.Stage);
+        Assert.AreEqual(ModelInspectionStageStatus.Completed, terminal.StageStatus);
+        Assert.AreEqual(5, terminal.CompletedStageCount);
+        Assert.AreEqual(5, terminal.TotalStageCount);
+        Assert.AreEqual(1, worker.InspectCount);
+    }
+
     [TestMethod]
     public async Task ReadyPackageProducesSchemaV2HandoffAndPathFreeCpuEvidence()
     {
@@ -580,7 +617,7 @@ public sealed class OpenVinoRouteServiceTests
             "OpenVinoInspectionPresentationPolicy.Create(result)");
     }
 
-    private static OpenVinoRouteService Service(FakeWorkerClient worker) => new(
+    private static OpenVinoRouteService Service(IOpenVinoWorkerClient worker) => new(
         new OpenVinoStaticPackageInspector(),
         new OpenVinoInspectionHandoffFactory(),
         worker,
@@ -637,6 +674,51 @@ public sealed class OpenVinoRouteServiceTests
             StartSessionCommand command,
             CancellationToken cancellationToken) =>
             throw new AssertFailedException("session start is not part of inspection");
+    }
+
+    private sealed class ProgressWorkerClient : IOpenVinoWorkerClient
+    {
+        internal int InspectCount { get; private set; }
+
+        public Task<IOpenVinoEvent> InspectAsync(
+            StartInspectionCommand command,
+            CancellationToken cancellationToken) =>
+            throw new AssertFailedException(
+                "The progress-aware inspection overload must be used.");
+
+        public Task<IOpenVinoEvent> InspectAsync(
+            StartInspectionCommand command,
+            IProgress<InspectionProgressEvent>? progress,
+            CancellationToken cancellationToken)
+        {
+            InspectCount++;
+            foreach (OpenVinoInspectionStage stage in Enum.GetValues<OpenVinoInspectionStage>())
+            {
+                progress?.Report(new InspectionProgressEvent(
+                    command.InspectionRunId,
+                    stage));
+            }
+
+            return Task.FromResult<IOpenVinoEvent>(new InspectionCompletedEvent(
+                command.InspectionRunId,
+                command.PackageManifestDigest,
+                command.ModelSha256,
+                command.ModelLengthBytes,
+                true,
+                true,
+                true,
+                BuildEvidence()));
+        }
+
+        public Task<OpenVinoConversation> StartSessionAsync(
+            StartSessionCommand command,
+            CancellationToken cancellationToken) =>
+            throw new AssertFailedException("session start is not part of inspection");
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 
     private sealed class UnusedChannelFactory : IOpenVinoPromptChannelFactory

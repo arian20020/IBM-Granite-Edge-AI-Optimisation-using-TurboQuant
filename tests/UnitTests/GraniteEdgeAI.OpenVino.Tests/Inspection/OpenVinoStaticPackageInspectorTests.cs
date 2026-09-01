@@ -73,6 +73,51 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
+    public void SnapshotHashingReportsMonotonicProgressAcrossBothIntegrityPasses()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        List<double> observed = [];
+        var progress = new InlineProgress<double>(observed.Add);
+
+        using OpenVinoPackageSnapshot snapshot = new OpenVinoPackageSnapshotter()
+            .Capture(package.Root, CancellationToken.None, progress)
+            .Snapshot!;
+
+        Assert.IsNotNull(snapshot);
+        Assert.IsGreaterThan(2, observed.Count);
+        Assert.AreEqual(0d, observed[0]);
+        Assert.AreEqual(1d, observed[^1]);
+        for (int index = 1; index < observed.Count; index++)
+        {
+            Assert.IsGreaterThanOrEqualTo(observed[index - 1], observed[index]);
+        }
+    }
+
+    [TestMethod]
+    public void SnapshotHashingHonoursCancellationReportedDuringTheFirstIntegrityPass()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        using CancellationTokenSource cancellation = new();
+        List<double> observed = [];
+        var progress = new InlineProgress<double>(fraction =>
+        {
+            observed.Add(fraction);
+            if (fraction > 0d)
+            {
+                cancellation.Cancel();
+            }
+        });
+
+        Assert.ThrowsExactly<OperationCanceledException>(() =>
+            new OpenVinoPackageSnapshotter().Capture(
+                package.Root,
+                cancellation.Token,
+                progress));
+        Assert.IsTrue(observed.Any(static fraction => fraction > 0d));
+        Assert.IsFalse(observed.Contains(1d));
+    }
+
+    [TestMethod]
     [MalformedCase("missing-required", OpenVinoSupportCode.PackageMissingResource)]
     public void MissingRequiredResourceUsesTheFixedPathFreeCode()
     {
@@ -745,6 +790,24 @@ public sealed class OpenVinoStaticPackageInspectorTests
     }
 
     [TestMethod]
+    public void MatchingBosAndEosAliasIsAcceptedForGranitePackages()
+    {
+        using TemporaryPackage package = TemporaryPackage.CopyFixture();
+        package.SetJson("config.json", "bos_token_id", JsonValue.Create(2));
+        package.SetJson("generation_config.json", "bos_token_id", JsonValue.Create(2));
+        package.SetJson("tokenizer_config.json", "bos_token", JsonValue.Create("<|eos|>"));
+
+        OpenVinoStaticPackageInspectionResult result = Inspect(package);
+
+        Assert.AreEqual(
+            OpenVinoStaticInspectionStatus.NativeValidationRequired,
+            result.Status,
+            "A Granite tokenizer may intentionally use the same exact token and identifier for BOS and EOS.");
+        Assert.IsNull(result.SupportCode);
+        Assert.IsNotNull(result.Evidence);
+    }
+
+    [TestMethod]
     [DataRow("missing")]
     [DataRow("unresolved")]
     [DataRow("special-map-mismatch")]
@@ -1176,6 +1239,11 @@ public sealed class OpenVinoStaticPackageInspectorTests
             }
         }
 
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
     }
 }
 
