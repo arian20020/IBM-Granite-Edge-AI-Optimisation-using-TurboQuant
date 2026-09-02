@@ -1,5 +1,0 @@
-{
-  "optimisation": "TurboQuant",
-  "memory_effect": "low",
-  "verification": "minimal"
-}

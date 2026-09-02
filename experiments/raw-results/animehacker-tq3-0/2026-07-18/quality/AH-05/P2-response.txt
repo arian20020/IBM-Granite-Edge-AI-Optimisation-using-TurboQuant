@@ -1,3 +1,0 @@
-BENEFIT: Improved performance due to reduced data transfer.  
-LIMITATION: Potential loss of precision if not all data is accurately compressed.  
-CHECK: Verification check ensures the compression algorithm is correctly applied.

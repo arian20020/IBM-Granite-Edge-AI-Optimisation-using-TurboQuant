@@ -1,5 +1,0 @@
-- Reduces model size for offline use.
-- Saves memory on limited laptops.
-- Enables faster inference without external data.
-- May reduce accuracy due to quantisation.
-- Ensure model performance meets requirements.

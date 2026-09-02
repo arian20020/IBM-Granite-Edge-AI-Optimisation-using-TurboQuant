@@ -15,7 +15,7 @@
       "historical_failure_attempt_count": 11,
       "missing_value_display": "Not collected",
       "rejected_runtime_summary_count": 2,
-      "status_authority": "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+      "status_authority": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/reconciliation.json",
       "unresolved_failure_count": 0,
       "valid": true
     },
@@ -639,49 +639,49 @@
             [
               "animehacker-34ab10f0a8210699f64b",
               "reconciliation",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/reconciliation.json",
               "02f6dea288f1b704747ec07b0adacd2644990e645eb7fa45ff32fa71098ebc15"
             ],
             [
               "animehacker-d0a6c059ef53abfb592a",
               "raw-evidence",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/state.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/state.json",
               "25bd4e668fe6f443ec338f82d8e6db8cbb5e75dc44a10c200a52ce32003b4cbf"
             ],
             [
               "animehacker-79e759f5588cae2c50d5",
               "raw-evidence",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/state.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime-recovery/state.json",
               "6bfd0e30352e587ef1036bdee4ea5fd474cd530c50c882412e3e9cef877d9cea"
             ],
             [
               "animehacker-e73b2f1205e6c7f8d4d3",
               "reconciliation",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/reconciliation-final.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-cpu/reconciliation-final.json",
               "4347b7dd353001b35bb13d5d1c304e970cae533c10b4102dd918e46731d6c28b"
             ],
             [
               "animehacker-9088849e3d9565254d7d",
               "reconciliation",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json",
               "b60e97f3855bda1ec0e4d9858e40d7f3c21f669735940aa6788c8c1446b01241"
             ],
             [
               "animehacker-44a8d70b058f1c5cac52",
               "reconciliation",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-vulkan/reconciliation.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-vulkan/reconciliation.json",
               "57871c024dc5c425692ec436974ac397088a6c43192448719e13b61cbadfddda"
             ],
             [
               "animehacker-6517f74c71a0537eb162",
               "quality-evidence",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/adjudication.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/adjudication.json",
               "5123c0fd2016159fb2b48ea2bedfa039af30798112d18b6f52fe914322fe521b"
             ],
             [
               "animehacker-c1863347fee0fae7618f",
               "raw-evidence",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/quality-adjudications.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality-recovery/quality-adjudications.json",
               "4fb179143e2867023d264c5b5d73cbfe3fa5901c81338a78f5e8d41b3cdc37d9"
             ],
             [
@@ -1226,49 +1226,49 @@
             [
               "animehacker-34ab10f0a8210699f64b",
               "reconciliation",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/reconciliation.json",
               "02f6dea288f1b704747ec07b0adacd2644990e645eb7fa45ff32fa71098ebc15"
             ],
             [
               "animehacker-d0a6c059ef53abfb592a",
               "raw-evidence",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/state.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/state.json",
               "25bd4e668fe6f443ec338f82d8e6db8cbb5e75dc44a10c200a52ce32003b4cbf"
             ],
             [
               "animehacker-79e759f5588cae2c50d5",
               "raw-evidence",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/state.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime-recovery/state.json",
               "6bfd0e30352e587ef1036bdee4ea5fd474cd530c50c882412e3e9cef877d9cea"
             ],
             [
               "animehacker-e73b2f1205e6c7f8d4d3",
               "reconciliation",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/reconciliation-final.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-cpu/reconciliation-final.json",
               "4347b7dd353001b35bb13d5d1c304e970cae533c10b4102dd918e46731d6c28b"
             ],
             [
               "animehacker-9088849e3d9565254d7d",
               "reconciliation",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json",
               "b60e97f3855bda1ec0e4d9858e40d7f3c21f669735940aa6788c8c1446b01241"
             ],
             [
               "animehacker-44a8d70b058f1c5cac52",
               "reconciliation",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-vulkan/reconciliation.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-vulkan/reconciliation.json",
               "57871c024dc5c425692ec436974ac397088a6c43192448719e13b61cbadfddda"
             ],
             [
               "animehacker-6517f74c71a0537eb162",
               "quality-evidence",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/adjudication.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/adjudication.json",
               "5123c0fd2016159fb2b48ea2bedfa039af30798112d18b6f52fe914322fe521b"
             ],
             [
               "animehacker-c1863347fee0fae7618f",
               "raw-evidence",
-              "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/quality-adjudications.json",
+              "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality-recovery/quality-adjudications.json",
               "4fb179143e2867023d264c5b5d73cbfe3fa5901c81338a78f5e8d41b3cdc37d9"
             ],
             [

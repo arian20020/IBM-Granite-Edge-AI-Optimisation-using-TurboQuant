@@ -1,3 +1,0 @@
-BENEFIT: Improved data compression efficiency  
-LIMITATION: Potential loss of data accuracy due to compression  
-CHECK: Ensure that the compressed data can be accurately decompressed without loss of critical information.

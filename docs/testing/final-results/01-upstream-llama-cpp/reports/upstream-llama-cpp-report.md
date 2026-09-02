@@ -1029,7 +1029,7 @@ Every admitted source has a repository-relative path, byte count, and verified S
 | upstream-llama-cpp-2c104a7f446f | performance-register | 2c104a7f446f7360d7a366b1eeaba887f4a719a087e07f82b51602aa6202b58d | 49207 | docs/testing/Performance-Measurement-Register.csv |
 | upstream-llama-cpp-380883e79205 | revision-register | 380883e7920541ed2b59889a40fad29626b5b0e3b9d06fdfbfe280ee1e945f64 | 19453 | docs/testing/Workbook-Revision-Register.csv |
 | upstream-llama-cpp-3a280ff9538d | quality-scoring | 3a280ff9538d934ad9eea92255a9f25e104a41723ee51e8d3e02433681e78a1d | 2250 | experiments/granite_turboquant_intel/processed-results/upstream-llama-cpp/quality-scoring-2026-07-15.md |
-| upstream-llama-cpp-40a64f36600f | raw-results-placeholder | 40a64f36600f574e5fde6a6c01debb4a545c725d19efdbdf03b5e81e9e1f9ca8 | 1099 | experiments/raw-results/upstream-llama-cpp/README.md |
+| upstream-llama-cpp-40a64f36600f | raw-results-placeholder | 40a64f36600f574e5fde6a6c01debb4a545c725d19efdbdf03b5e81e9e1f9ca8 | 1099 | experiments/raw-results/retained/upstream-llama-cpp/README.md |
 | upstream-llama-cpp-9ba512818e81 | quality-prompts | 9ba512818e81e0ba8da3ddc89cf040dd3b779d1edc41db23d3a896d778de807f | 4621 | experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json |
 | upstream-llama-cpp-a36016f66e02 | quality-rubric | a36016f66e02c9e28f0938cf81335dc4b522e9f92b7d9bad3031f90b7ef91d90 | 2214 | experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json |
 | upstream-llama-cpp-b9f424464ca0 | historical-deviation-evidence | b9f424464ca06b75caba88242738b17dca057fb0447e288fe9cec37565252751 | 1009 | experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B06/UL-B06-R002/repository-test-failure-analysis.md |

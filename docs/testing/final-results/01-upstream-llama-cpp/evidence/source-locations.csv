@@ -649,7 +649,7 @@ upstream-llama-cpp-27c47275b8fc,docs/testing/workbooks/text-templates/01_Upstrea
 upstream-llama-cpp-2c104a7f446f,docs/testing/Performance-Measurement-Register.csv,source
 upstream-llama-cpp-380883e79205,docs/testing/Workbook-Revision-Register.csv,source
 upstream-llama-cpp-3a280ff9538d,experiments/granite_turboquant_intel/processed-results/upstream-llama-cpp/quality-scoring-2026-07-15.md,source
-upstream-llama-cpp-40a64f36600f,experiments/raw-results/upstream-llama-cpp/README.md,source
+upstream-llama-cpp-40a64f36600f,experiments/raw-results/retained/upstream-llama-cpp/README.md,source
 upstream-llama-cpp-9ba512818e81,experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json,source
 upstream-llama-cpp-a36016f66e02,experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json,source
 upstream-llama-cpp-b9f424464ca0,experiments/granite_turboquant_intel/notes/upstream-llama-cpp/UL-B06/UL-B06-R002/repository-test-failure-analysis.md,source

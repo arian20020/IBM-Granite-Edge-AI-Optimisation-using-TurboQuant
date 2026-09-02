@@ -55,7 +55,7 @@
       {
         "Code": "REPRO",
         "Description": "Two quantization tests segfaulted on TQ3_0 and then one failed its numeric gate",
-        "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/test-capability-guard.patch`; `ctest-final.log`",
+        "Evidence": "`experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-cpu/test-capability-guard.patch`; `ctest-final.log`",
         "Failure ID": "AH-F03",
         "Likely cause": "Generic tests called absent optional vec-dot trait; new 3-bit type omitted from existing 3-bit RMSE category",
         "Next action": "Added test-only capability guards and mapped TQ3_0 to unchanged 0.0040 3-bit limit; full suite passed 40/40",
@@ -135,7 +135,7 @@
       {
         "Code": "QUAL",
         "Description": "First 16K long-context attempt reached the 900-second absolute deadline",
-        "Evidence": "`experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P5-timeout-900.json`; `P5.json`",
+        "Evidence": "`experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-04/P5-timeout-900.json`; `P5.json`",
         "Failure ID": "AH-F10",
         "Likely cause": "Q8_0 CPU prefill exceeded the initial bounded deadline",
         "Next action": "Preserved empty-response hash and reran P5 only with a 1,800-second ceiling; completed in 1,024.6 seconds",
@@ -599,7 +599,7 @@
         "output_sha256": "fa10e50e47508ef769f9c313854ac5d477f82f077f76b9a3bbc7d9aad4d52d81",
         "prompt_id": "P1",
         "score": 9.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P1.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-01/P1.json",
         "test_case_id": "AH-01"
       },
       {
@@ -616,7 +616,7 @@
         "output_sha256": "92b28886903cb6547a1d62be3d387a84960a717450a993f49d52e12c438a2073",
         "prompt_id": "P2",
         "score": 8.35,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P2.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-01/P2.json",
         "test_case_id": "AH-01"
       },
       {
@@ -635,7 +635,7 @@
         "output_sha256": "c6611f831b1b3eb7ff9a45a8722d69663e0b090871b8da442f8d4d9bfefacb7e",
         "prompt_id": "P3",
         "score": 2.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P3.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-01/P3.json",
         "test_case_id": "AH-01"
       },
       {
@@ -654,7 +654,7 @@
         "output_sha256": "74872879565dccda7eb1979559c63f60bab5d31f013ffe3ef6211f531e08791c",
         "prompt_id": "P4",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P4.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-01/P4.json",
         "test_case_id": "AH-01"
       },
       {
@@ -673,7 +673,7 @@
         "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
         "prompt_id": "P5",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P5.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-01/P5.json",
         "test_case_id": "AH-01"
       },
       {
@@ -690,7 +690,7 @@
         "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
         "prompt_id": "P6",
         "score": 10.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-01/P6.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-01/P6.json",
         "test_case_id": "AH-01"
       },
       {
@@ -709,7 +709,7 @@
         "output_sha256": "99c6c198e151bf875427e98e622bfb3effe1c939ef32fe50a55e453d2612e2c7",
         "prompt_id": "P1",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P1.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-02/P1.json",
         "test_case_id": "AH-02"
       },
       {
@@ -728,7 +728,7 @@
         "output_sha256": "56ac5e02e077e841455d0392e2e8da06dd2f4d3d3fed9d70c1cca40886a546a7",
         "prompt_id": "P2",
         "score": 0.65,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P2.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-02/P2.json",
         "test_case_id": "AH-02"
       },
       {
@@ -747,7 +747,7 @@
         "output_sha256": "b976670371782e99c60d513cdee2c45525361337240dd88f3ea5208e173040ba",
         "prompt_id": "P3",
         "score": 2.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P3.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-02/P3.json",
         "test_case_id": "AH-02"
       },
       {
@@ -766,7 +766,7 @@
         "output_sha256": "a651c48faa6895b7daf141a023f1eb925ea72dc22f0eec02f1c5c70951be9fe9",
         "prompt_id": "P4",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P4.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-02/P4.json",
         "test_case_id": "AH-02"
       },
       {
@@ -785,7 +785,7 @@
         "output_sha256": "5b20ff2dc4bc40523e7bd7db5ddb11f71a87a8aac8a1a14d437a471679fe2c3a",
         "prompt_id": "P5",
         "score": 1.3,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P5.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-02/P5.json",
         "test_case_id": "AH-02"
       },
       {
@@ -802,7 +802,7 @@
         "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
         "prompt_id": "P6",
         "score": 10.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-02/P6.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-02/P6.json",
         "test_case_id": "AH-02"
       },
       {
@@ -821,7 +821,7 @@
         "output_sha256": "72e791e70ddbf3f47966fc243de1548fbb511bbe916825daefb1c7ed15f3c357",
         "prompt_id": "P1",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P1.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-03/P1.json",
         "test_case_id": "AH-03"
       },
       {
@@ -838,7 +838,7 @@
         "output_sha256": "2c5e6f21ffe07347dbaefa9e6a1cc230e8c4931f66cab9d70aa5b55a87cc97a8",
         "prompt_id": "P2",
         "score": 8.35,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P2.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-03/P2.json",
         "test_case_id": "AH-03"
       },
       {
@@ -857,7 +857,7 @@
         "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
         "prompt_id": "P3",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P3.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-03/P3.json",
         "test_case_id": "AH-03"
       },
       {
@@ -874,7 +874,7 @@
         "output_sha256": "e6ec8021677c176a31a77c590dd48b691e90c27fab47d604fb0d5942fadc484b",
         "prompt_id": "P4",
         "score": 10.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P4.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-03/P4.json",
         "test_case_id": "AH-03"
       },
       {
@@ -891,7 +891,7 @@
         "output_sha256": "cf80581b2f196eb506645b15c514770c506fd47cbc6e53775a0dac00976d2884",
         "prompt_id": "P5",
         "score": 10.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P5.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-03/P5.json",
         "test_case_id": "AH-03"
       },
       {
@@ -910,7 +910,7 @@
         "output_sha256": "a388f562e286fdf28986f9253579f4d096446e01dd0c771996a51ff11b390fa2",
         "prompt_id": "P6",
         "score": 2.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-03/P6.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-03/P6.json",
         "test_case_id": "AH-03"
       },
       {
@@ -929,7 +929,7 @@
         "output_sha256": "1d411d18e9ec1df14fecb2ec4852e53efd68944619ed06a0bca316ae70543457",
         "prompt_id": "P1",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P1.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-04/P1.json",
         "test_case_id": "AH-04"
       },
       {
@@ -946,7 +946,7 @@
         "output_sha256": "7b8ee69a4e8c9c2cafcabc6092e4dda9357b6910eb8d5b40cb6675f0802321ef",
         "prompt_id": "P2",
         "score": 8.35,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P2.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-04/P2.json",
         "test_case_id": "AH-04"
       },
       {
@@ -965,7 +965,7 @@
         "output_sha256": "2c6b89bf79ab7f0cef73c7d42079981299c75a07eb8d0ce75917ab94dba7a8af",
         "prompt_id": "P3",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P3.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-04/P3.json",
         "test_case_id": "AH-04"
       },
       {
@@ -982,7 +982,7 @@
         "output_sha256": "cd222f54800f87fa6113ba224d8ca148adf59829cfc90b7b1670cd5e89c794bd",
         "prompt_id": "P4",
         "score": 10.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P4.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-04/P4.json",
         "test_case_id": "AH-04"
       },
       {
@@ -1001,7 +1001,7 @@
         "output_sha256": "2cfc153d462bdd96d9fdfea9c0a810a883167c0469df46dc1c029966483e652d",
         "prompt_id": "P5",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P5.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-04/P5.json",
         "test_case_id": "AH-04"
       },
       {
@@ -1018,7 +1018,7 @@
         "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
         "prompt_id": "P6",
         "score": 10.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-04/P6.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-04/P6.json",
         "test_case_id": "AH-04"
       },
       {
@@ -1037,7 +1037,7 @@
         "output_sha256": "8cdd767c2eac895b22b165bcf9ec41569f8d52765baff90d15c6bdaefc6e2eed",
         "prompt_id": "P1",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P1.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-05/P1.json",
         "test_case_id": "AH-05"
       },
       {
@@ -1054,7 +1054,7 @@
         "output_sha256": "a4a501d9bbc1078e2074d6d543c7259a2c23264e372668e2d2dcc2eec7a5f2ff",
         "prompt_id": "P2",
         "score": 8.35,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P2.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-05/P2.json",
         "test_case_id": "AH-05"
       },
       {
@@ -1073,7 +1073,7 @@
         "output_sha256": "623f6c6517cb6be9dcb5bd012188948e22b7ec6c0155d1a951e3e11b176aabe9",
         "prompt_id": "P3",
         "score": 2.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P3.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-05/P3.json",
         "test_case_id": "AH-05"
       },
       {
@@ -1092,7 +1092,7 @@
         "output_sha256": "8a4b186cdf2c570223ac54e7ebfac86a64334a651463e82cf153fef333dbc6c8",
         "prompt_id": "P4",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P4.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-05/P4.json",
         "test_case_id": "AH-05"
       },
       {
@@ -1111,7 +1111,7 @@
         "output_sha256": "d8d73ad6cd1cd330d061bb290a3d33e5a9fa52bdeeb2ef7c7c4df6d5de98fbc7",
         "prompt_id": "P5",
         "score": 1.3,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P5.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-05/P5.json",
         "test_case_id": "AH-05"
       },
       {
@@ -1130,7 +1130,7 @@
         "output_sha256": "20863259f1eb84987de07856a89815ed6b4a8afe9826c8e8250e2b70e7e81867",
         "prompt_id": "P6",
         "score": 0.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-05/P6.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-05/P6.json",
         "test_case_id": "AH-05"
       },
       {
@@ -1149,7 +1149,7 @@
         "output_sha256": "72e791e70ddbf3f47966fc243de1548fbb511bbe916825daefb1c7ed15f3c357",
         "prompt_id": "P1",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P1.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-08/P1.json",
         "test_case_id": "AH-08"
       },
       {
@@ -1166,7 +1166,7 @@
         "output_sha256": "9d38fea4266beafe34c80e2d7c70754398aaad1d05e5eec9d10b995f109b1ee3",
         "prompt_id": "P2",
         "score": 8.35,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P2.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-08/P2.json",
         "test_case_id": "AH-08"
       },
       {
@@ -1185,7 +1185,7 @@
         "output_sha256": "c69fa34422f44f4b6c31287af87b3e4ccb0a501d7df0f87db9542abab9a3c38d",
         "prompt_id": "P3",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P3.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-08/P3.json",
         "test_case_id": "AH-08"
       },
       {
@@ -1202,7 +1202,7 @@
         "output_sha256": "22c0878c9956fd63b9b7aae990555274a38bbdba8aa6d699da6bf69d13002c9e",
         "prompt_id": "P4",
         "score": 10.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P4.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-08/P4.json",
         "test_case_id": "AH-08"
       },
       {
@@ -1221,7 +1221,7 @@
         "output_sha256": "1329b1fde6262a88469f5fbd1f340cf7acb58f313e0e45bb9286b7f0427a2929",
         "prompt_id": "P5",
         "score": 1.3,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P5.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-08/P5.json",
         "test_case_id": "AH-08"
       },
       {
@@ -1238,7 +1238,7 @@
         "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
         "prompt_id": "P6",
         "score": 10.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/AH-08/P6.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/AH-08/P6.json",
         "test_case_id": "AH-08"
       },
       {
@@ -1257,7 +1257,7 @@
         "output_sha256": "5301df6d2025c9d86efbf01602c1979dae8b8d6d7c6102db38d1cb429f07e2c9",
         "prompt_id": "P1",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P1.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P1.json",
         "test_case_id": "AH-09"
       },
       {
@@ -1274,7 +1274,7 @@
         "output_sha256": "0ddac73d955e51ab4e2af46db74551ae917e8f8ac17f23a3e447adbad0332b85",
         "prompt_id": "P2",
         "score": 8.35,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P2.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P2.json",
         "test_case_id": "AH-09"
       },
       {
@@ -1291,7 +1291,7 @@
         "output_sha256": "70bc9a0c03802c4a71ed664d39b072b6cd1e6018689ff70cc4efff631e9e5c98",
         "prompt_id": "P3",
         "score": 8.7,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P3.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P3.json",
         "test_case_id": "AH-09"
       },
       {
@@ -1310,7 +1310,7 @@
         "output_sha256": "8b808310880d35799378cdc1cec3262a72ddca960cef9d6de21972f66c1c6e85",
         "prompt_id": "P4",
         "score": 4.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P4.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P4.json",
         "test_case_id": "AH-09"
       },
       {
@@ -1329,7 +1329,7 @@
         "output_sha256": "824f2908f1a04296801a3f2c86103f2bc8eca36c7935bb93b0ce5eb085d23aec",
         "prompt_id": "P5",
         "score": 1.3,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P5.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P5.json",
         "test_case_id": "AH-09"
       },
       {
@@ -1346,7 +1346,7 @@
         "output_sha256": "215dbcb32c4f1a1d61eedf623ed4800482e0c68b651e464352bdc4dee733871e",
         "prompt_id": "P6",
         "score": 10.0,
-        "source_relative": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P6.json",
+        "source_relative": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality-recovery/AH-09/P6.json",
         "test_case_id": "AH-09"
       }
     ],
@@ -3467,37 +3467,37 @@
       },
       {
         "evidence_id": "animehacker-34ab10f0a8210699f64b",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/reconciliation.json",
         "role": "source-authority",
         "sha256": "02f6dea288f1b704747ec07b0adacd2644990e645eb7fa45ff32fa71098ebc15"
       },
       {
         "evidence_id": "animehacker-e73b2f1205e6c7f8d4d3",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-cpu/reconciliation-final.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-cpu/reconciliation-final.json",
         "role": "source-authority",
         "sha256": "4347b7dd353001b35bb13d5d1c304e970cae533c10b4102dd918e46731d6c28b"
       },
       {
         "evidence_id": "animehacker-9088849e3d9565254d7d",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-sycl/reconciliation.json",
         "role": "source-authority",
         "sha256": "b60e97f3855bda1ec0e4d9858e40d7f3c21f669735940aa6788c8c1446b01241"
       },
       {
         "evidence_id": "animehacker-44a8d70b058f1c5cac52",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/build-vulkan/reconciliation.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/build-vulkan/reconciliation.json",
         "role": "source-authority",
         "sha256": "57871c024dc5c425692ec436974ac397088a6c43192448719e13b61cbadfddda"
       },
       {
         "evidence_id": "animehacker-6517f74c71a0537eb162",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality/adjudication.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality/adjudication.json",
         "role": "source-authority",
         "sha256": "5123c0fd2016159fb2b48ea2bedfa039af30798112d18b6f52fe914322fe521b"
       },
       {
         "evidence_id": "animehacker-c1863347fee0fae7618f",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/quality-recovery/quality-adjudications.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/quality-recovery/quality-adjudications.json",
         "role": "source-authority",
         "sha256": "4fb179143e2867023d264c5b5d73cbfe3fa5901c81338a78f5e8d41b3cdc37d9"
       },
@@ -3521,211 +3521,211 @@
       },
       {
         "evidence_id": "animehacker-d0a6c059ef53abfb592a",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/state.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/state.json",
         "role": "source-authority",
         "sha256": "25bd4e668fe6f443ec338f82d8e6db8cbb5e75dc44a10c200a52ce32003b4cbf"
       },
       {
         "evidence_id": "animehacker-79e759f5588cae2c50d5",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/state.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime-recovery/state.json",
         "role": "source-authority",
         "sha256": "6bfd0e30352e587ef1036bdee4ea5fd474cd530c50c882412e3e9cef877d9cea"
       },
       {
         "evidence_id": "animehacker-061aa6eb673b5d346338",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/acquisition/repository.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/acquisition/repository.json",
         "role": "source-authority",
         "sha256": "fca040fc9fed9dcc45af8c6adbdaa297de2c7854813478f58f9e4a74958e2b64"
       },
       {
         "evidence_id": "animehacker-161b128b90a01ee0e4d5",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-09-rejected-flash-env-only/summary.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-09-rejected-flash-env-only/summary.json",
         "role": "source-authority",
         "sha256": "65f7f2c93acdca1564e3e5e2831fed942087ac382f34ebaf02f234dd2d76b9f3"
       },
       {
         "evidence_id": "animehacker-57d0c768549edab36e5f",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-06/pilot-emergency-stop-2048/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-06/pilot-emergency-stop-2048/measurement.json",
         "role": "source-authority",
         "sha256": "c8cdd49e6fb58b78d7eddc0662d03209776f731d32b40c4616f4ecbb0a13f148"
       },
       {
         "evidence_id": "animehacker-cd9e81def3ebb64f18ec",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-07/pilot/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-07/pilot/measurement.json",
         "role": "source-authority",
         "sha256": "982c400d1595c085f740489a35270baea9f101d4618273305f4d458175a22358"
       },
       {
         "evidence_id": "animehacker-993c82e73a1b79e1b4ee",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-10/pilot/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-10/pilot/measurement.json",
         "role": "source-authority",
         "sha256": "97c05b25918a3f369889353165cead9cf057c96e0233034b93bc779fc3736f5c"
       },
       {
         "evidence_id": "animehacker-2c8711c6ef06a0aae448",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-01/summary.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-01/summary.json",
         "role": "formal-runtime-summary",
         "sha256": "350209734d19cd68c577ea29a8d23ba77eb325490fa2b5b72c9efbf6dce11fca"
       },
       {
         "evidence_id": "animehacker-7be5a350bf466da3eaaf",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-02/summary.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-02/summary.json",
         "role": "formal-runtime-summary",
         "sha256": "64620e979c389a9e01db23a957af57cd3710fc59eefe44ced690386a741ef7e7"
       },
       {
         "evidence_id": "animehacker-ff5d663228531b9bb284",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-03/summary.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-03/summary.json",
         "role": "formal-runtime-summary",
         "sha256": "1aeca53d8eeb9c4a7a8511d7e158a66e21bed54ae548cb154ecb72fd92d8d3c8"
       },
       {
         "evidence_id": "animehacker-f57e698215bd476a2ed4",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-04/summary.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-04/summary.json",
         "role": "formal-runtime-summary",
         "sha256": "55730afbd1061d12a9a8edad8ab6e0dbca7f5a014a7fb11c9f5c541b5529a73a"
       },
       {
         "evidence_id": "animehacker-2fdd99f74f84583010bc",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-05/summary.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-05/summary.json",
         "role": "formal-runtime-summary",
         "sha256": "d10f2cf15d1cb9dd0f3a6fbbbc70f6fd868c2861806b0d9d93bb84f18027087d"
       },
       {
         "evidence_id": "animehacker-9718cbe662f09c02b2f6",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/summary.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-08/summary.json",
         "role": "formal-runtime-summary",
         "sha256": "fe1bf99fc5de64ecba8aef596362b1fef43e77c6e2074ef7320409ff1e853277"
       },
       {
         "evidence_id": "animehacker-7fa35879b72853a189cc",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/summary.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/summary.json",
         "role": "formal-runtime-summary",
         "sha256": "ce70725382f957501398a0425997c7a8d20909033dcfe909da69c87f95375928"
       },
       {
         "evidence_id": "animehacker-4aa8f98c974e998e1399",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-01/sample-1/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-01/sample-1/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "ef54e107b624967499f1b6ce001ae1d4d2396d65833186cff56b23b3b60490a7"
       },
       {
         "evidence_id": "animehacker-5683b4717c7cfc33b6c0",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-01/sample-2/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-01/sample-2/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "fa3589cdb8784fb0c97150b869132aa2e618c7b4618434ae8aa2494158587fdb"
       },
       {
         "evidence_id": "animehacker-2ef6f5ce59734b8854a2",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-01/sample-3/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-01/sample-3/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "c266390c6f87c2a862ae3ecdf12171f1e9111a54717eef98259301ff9b07fbe2"
       },
       {
         "evidence_id": "animehacker-00a62adfff844adaba6b",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-02/sample-1/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-02/sample-1/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "8c64e15e1b0996a7f10fa3b261d1cac629ecec4212a946e9dfd20a5dfa66b4b6"
       },
       {
         "evidence_id": "animehacker-f3ade4da4ceb41168a3c",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-02/sample-2/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-02/sample-2/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "a2e61cf2b3b9ca7a46ed19e7586bec72fb759e98125e9a41332288745e23b220"
       },
       {
         "evidence_id": "animehacker-f49146a6eb4f727ce88a",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-02/sample-3/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-02/sample-3/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "f67794c1c4c99ec2896738e153717fe7233780ec90af557823e2b6f73010aa29"
       },
       {
         "evidence_id": "animehacker-de11a998480c09ab2693",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-03/sample-1/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-03/sample-1/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "f6bda79102045f36d49dfda9d1806d43ac395345ce1f18a8536b1ae229d79b32"
       },
       {
         "evidence_id": "animehacker-24d1d054808b4d5e8d92",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-03/sample-2/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-03/sample-2/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "3dd89bea2ef6dff0164c367cbe16f96989509b5ca0a0cb47ae19ceff43a01eb4"
       },
       {
         "evidence_id": "animehacker-40a5f35a78f7b237254f",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-03/sample-3/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-03/sample-3/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "bbde43906bd65eea56693fda6049905ab4f7d7feb2967be3bd8cc9c9b87a5cad"
       },
       {
         "evidence_id": "animehacker-e41c8f839eebccf071ec",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-04/sample-1/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-04/sample-1/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "73055d73aa5f635829803b35fbbf01a31f50d9efbc15142ec7c94b0f1746e040"
       },
       {
         "evidence_id": "animehacker-63fb6de330a89f70f936",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-04/sample-2/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-04/sample-2/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "eb5581e5ec45f1c8da62911b0ba439bf7d1efb3bcd4c763d3940685e006b2623"
       },
       {
         "evidence_id": "animehacker-5cdb66c658307b63e23b",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-04/sample-3/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-04/sample-3/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "b3e33c68ce126128232cec921a387c30982d2f817f6e345e555ba2478544a995"
       },
       {
         "evidence_id": "animehacker-0ea6305b728ecc39deec",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-05/sample-1/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-05/sample-1/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "e88c83031bc6f9fe04200df58c7b4d85bb429fd26a2babaafbf0647b658c1a71"
       },
       {
         "evidence_id": "animehacker-5e9a947b1f3e22b76ff4",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-05/sample-2/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-05/sample-2/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "52bc0c48abffeac20af32a93511588e57496d4d802d394252128b8d16b329df3"
       },
       {
         "evidence_id": "animehacker-3b0258fbdbad431379fc",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-05/sample-3/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-05/sample-3/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "9122e16916d10926cf257b2173e6e08250a3adb9297e229595122f2cf54fd493"
       },
       {
         "evidence_id": "animehacker-666cb58832ba5444ade4",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/sample-1/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-08/sample-1/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "13a2e401e89eca723284c54a2a6b2ae69aac7cd1233574e6abb8b0c3f227ab75"
       },
       {
         "evidence_id": "animehacker-33c8270568af46aac7f5",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/sample-2/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-08/sample-2/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "2dbbd4df45432d9991d3ee36d2ee61919c20381da9a21f00fd33f6639075b532"
       },
       {
         "evidence_id": "animehacker-688f9a346215fffb9acb",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/AH-08/sample-3/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime/AH-08/sample-3/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "2400caa62574a2f825026d01de665b6c263bdbe1ad3560e09e82c764f0753949"
       },
       {
         "evidence_id": "animehacker-d90f96a6cadd555ff5d9",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/sample-1/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/sample-1/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "35dce082d33298bebbee85f1b25cbee4cc90b00af2d82735370e676f479c61da"
       },
       {
         "evidence_id": "animehacker-102fcb716f6653e9f210",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/sample-2/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/sample-2/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "abab1bcb0bf4221f78ae7d39610d3e30ab1ae4bbac99891a721fa5da5db9185c"
       },
       {
         "evidence_id": "animehacker-884ffc5e78cb3f6a697c",
-        "relative_path": "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/sample-3/measurement.json",
+        "relative_path": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime-recovery/AH-09/sample-3/measurement.json",
         "role": "formal-runtime-measurement",
         "sha256": "e4227bd4cb3c761bb64569c4428ca01ad4cab47359dd0fc94af070f83316dfcf"
       }
@@ -3746,7 +3746,7 @@
       },
       "vulkan_tq3_runtime_classification": "not proven by source audit; not a controlled TQ3 route"
     },
-    "status_authority": "experiments/raw-results/animehacker-tq3-0/2026-07-18/reconciliation.json",
+    "status_authority": "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/reconciliation.json",
     "unresolved_failure_count": 0,
     "workbook_revision": "1.5"
   },

@@ -1,6 +1,23 @@
 ﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
 # Immutable Raw Results
 
+The active, version-controlled evidence library is rooted at `retained/<route>/`.
+The five canonical route names are `upstream-llama-cpp`,
+`atomicbot-turboquant`, `animehacker-tq3-0`,
+`openvino-experimental-fork`, and `openvino-official-upstream`.
+
+`evidence-manifest.csv` binds every Task 1 `retain_active` or `move_active`
+raw-evidence source to exactly one retained path, byte size, SHA-256, stable
+evidence IDs, and terminal outcome metadata. `failure-records/` indexes the
+unique artifacts that support failed, blocked, or artifact-unavailable
+outcomes. Historical archive candidates are deliberately excluded from both
+the retained tree and its manifest.
+
+Only paths changed during this migration. Captured bytes, evidence IDs,
+outcome meanings, and source labels that describe scientific provenance remain
+unchanged. Use `docs/testing/cleanup/PATH-MIGRATION.csv` to translate a legacy
+raw-evidence path to its canonical retained location.
+
 ## Purpose
 
 Unedited stdout, stderr, logs, system measurements, manifests and screenshots from formal experiments.
@@ -28,4 +45,3 @@ None assigned
 ## Source
 
 Repository evidence structure
-

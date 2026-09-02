@@ -1,5 +1,0 @@
-- KV-cache quantisation reduces memory footprint, enabling offline local language models on laptops.
-- It allows offline operation without internet, perfect for memory-limited environments.
-- Benefits: Faster inference, lower latency, and reduced data storage needs.
-- Limitations: Reduced accuracy due to quantisation, potential loss of nuanced language nuances.
-- Check: Ensure quantisation does not degrade model performance beyond acceptable thresholds.
