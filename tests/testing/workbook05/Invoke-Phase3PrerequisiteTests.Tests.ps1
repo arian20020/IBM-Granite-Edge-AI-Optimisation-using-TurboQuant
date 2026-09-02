@@ -53,6 +53,24 @@ function Write-FixtureFile {
     [IO.File]::WriteAllText($Path, $Content, [Text.UTF8Encoding]::new($false))
 }
 
+function Get-FixtureSha256 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $Stream = [IO.File]::OpenRead($Path)
+    try {
+        $Sha256 = [Security.Cryptography.SHA256]::Create()
+        try {
+            return ([BitConverter]::ToString($Sha256.ComputeHash($Stream))).Replace('-', '')
+        }
+        finally {
+            $Sha256.Dispose()
+        }
+    }
+    finally {
+        $Stream.Dispose()
+    }
+}
+
 try {
     New-Item -ItemType Directory -Path $RuntimeInstall -Force | Out-Null
     New-Item -ItemType Directory -Path $GenAIInstall -Force | Out-Null
@@ -87,7 +105,7 @@ try {
     if ($Proof.status -ne 'Passed') {
         throw "The valid fixture produced an unexpected status: $($Proof.status)"
     }
-    $OriginalOutputHash = (Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash
+    $OriginalOutputHash = Get-FixtureSha256 -Path $OutputPath
 
     [IO.File]::WriteAllText($RuntimeDecision, '{}', [Text.UTF8Encoding]::new($false))
     $FailedAsExpected = $false
@@ -108,7 +126,7 @@ try {
     if (-not $FailedAsExpected) {
         throw 'The corrupted Runtime decision did not fail prerequisite verification.'
     }
-    $PermanentOutputHash = (Get-FileHash -LiteralPath $OutputPath -Algorithm SHA256).Hash
+    $PermanentOutputHash = Get-FixtureSha256 -Path $OutputPath
     if ($PermanentOutputHash -ne $OriginalOutputHash) {
         throw 'The existing prerequisite proof changed after a failed verification.'
     }
