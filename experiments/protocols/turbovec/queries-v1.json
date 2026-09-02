@@ -1,0 +1,726 @@
+{
+  "schema_version": "1.0",
+  "queries": [
+    {
+      "query_id": "Q-001",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-001 item 1?",
+      "expected_answer_fact": "Project Aurora education unit 1 uses code A100 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-002",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-001 item 2?",
+      "expected_answer_fact": "Project Aurora education unit 1 uses code B101 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-003",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-002 item 1?",
+      "expected_answer_fact": "Project Aurora healthcare administration unit 2 uses code B105 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-004",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-002 item 2?",
+      "expected_answer_fact": "Project Aurora healthcare administration unit 2 uses code C106 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-005",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-003 item 1?",
+      "expected_answer_fact": "Project Aurora computing unit 3 uses code C110 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-006",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-003 item 2?",
+      "expected_answer_fact": "Project Aurora computing unit 3 uses code D111 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-007",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-004 item 1?",
+      "expected_answer_fact": "Project Aurora energy unit 4 uses code D115 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-008",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-004 item 2?",
+      "expected_answer_fact": "Project Aurora energy unit 4 uses code E116 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-009",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-005 item 1?",
+      "expected_answer_fact": "Project Aurora transport unit 5 uses code E120 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-010",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-005 item 2?",
+      "expected_answer_fact": "Project Aurora transport unit 5 uses code F121 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-011",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-006 item 1?",
+      "expected_answer_fact": "Project Aurora environment unit 6 uses code F125 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-012",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-006 item 2?",
+      "expected_answer_fact": "Project Aurora environment unit 6 uses code G126 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-013",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-007 item 1?",
+      "expected_answer_fact": "Project Aurora local government unit 7 uses code G130 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-014",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-007 item 2?",
+      "expected_answer_fact": "Project Aurora local government unit 7 uses code H131 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-015",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-008 item 1?",
+      "expected_answer_fact": "Project Aurora research methods unit 8 uses code H135 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-016",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-008 item 2?",
+      "expected_answer_fact": "Project Aurora research methods unit 8 uses code I136 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-017",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-009 item 1?",
+      "expected_answer_fact": "Project Aurora accessibility unit 9 uses code I140 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-018",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-009 item 2?",
+      "expected_answer_fact": "Project Aurora accessibility unit 9 uses code J141 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-019",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-010 item 1?",
+      "expected_answer_fact": "Project Aurora information security unit 10 uses code J145 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-020",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-010 item 2?",
+      "expected_answer_fact": "Project Aurora information security unit 10 uses code K146 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-021",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-011 item 1?",
+      "expected_answer_fact": "Project Aurora education unit 11 uses code K150 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-022",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-011 item 2?",
+      "expected_answer_fact": "Project Aurora education unit 11 uses code L151 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-023",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-012 item 1?",
+      "expected_answer_fact": "Project Aurora healthcare administration unit 12 uses code L155 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-024",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-012 item 2?",
+      "expected_answer_fact": "Project Aurora healthcare administration unit 12 uses code M156 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-025",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-013 item 1?",
+      "expected_answer_fact": "Project Aurora computing unit 13 uses code M160 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-026",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-013 item 2?",
+      "expected_answer_fact": "Project Aurora computing unit 13 uses code N161 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-027",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-014 item 1?",
+      "expected_answer_fact": "Project Aurora energy unit 14 uses code N165 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-028",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-014 item 2?",
+      "expected_answer_fact": "Project Aurora energy unit 14 uses code O166 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-029",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-015 item 1?",
+      "expected_answer_fact": "Project Aurora transport unit 15 uses code O170 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-030",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-015 item 2?",
+      "expected_answer_fact": "Project Aurora transport unit 15 uses code P171 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-031",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-016 item 1?",
+      "expected_answer_fact": "Project Aurora environment unit 16 uses code P175 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-032",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-016 item 2?",
+      "expected_answer_fact": "Project Aurora environment unit 16 uses code Q176 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-033",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-017 item 1?",
+      "expected_answer_fact": "Project Aurora local government unit 17 uses code Q180 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-034",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-017 item 2?",
+      "expected_answer_fact": "Project Aurora local government unit 17 uses code R181 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-035",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-018 item 1?",
+      "expected_answer_fact": "Project Aurora research methods unit 18 uses code R185 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-036",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-018 item 2?",
+      "expected_answer_fact": "Project Aurora research methods unit 18 uses code S186 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-037",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-019 item 1?",
+      "expected_answer_fact": "Project Aurora accessibility unit 19 uses code S190 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-038",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-019 item 2?",
+      "expected_answer_fact": "Project Aurora accessibility unit 19 uses code T191 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-039",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-020 item 1?",
+      "expected_answer_fact": "Project Aurora information security unit 20 uses code T195 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-040",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-020 item 2?",
+      "expected_answer_fact": "Project Aurora information security unit 20 uses code U196 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-041",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-021 item 1?",
+      "expected_answer_fact": "Project Aurora education unit 21 uses code U200 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-042",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-021 item 2?",
+      "expected_answer_fact": "Project Aurora education unit 21 uses code V201 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-043",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-022 item 1?",
+      "expected_answer_fact": "Project Aurora healthcare administration unit 22 uses code V205 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-044",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-022 item 2?",
+      "expected_answer_fact": "Project Aurora healthcare administration unit 22 uses code W206 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-045",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-023 item 1?",
+      "expected_answer_fact": "Project Aurora computing unit 23 uses code W210 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-046",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-023 item 2?",
+      "expected_answer_fact": "Project Aurora computing unit 23 uses code X211 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-047",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-024 item 1?",
+      "expected_answer_fact": "Project Aurora energy unit 24 uses code X215 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-048",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-024 item 2?",
+      "expected_answer_fact": "Project Aurora energy unit 24 uses code Y216 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-049",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-025 item 1?",
+      "expected_answer_fact": "Project Aurora transport unit 25 uses code Y220 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-050",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-025 item 2?",
+      "expected_answer_fact": "Project Aurora transport unit 25 uses code Z221 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-051",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-026 item 1?",
+      "expected_answer_fact": "Project Aurora environment unit 26 uses code Z225 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-052",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-026 item 2?",
+      "expected_answer_fact": "Project Aurora environment unit 26 uses code A226 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-053",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-027 item 1?",
+      "expected_answer_fact": "Project Aurora local government unit 27 uses code A230 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-054",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-027 item 2?",
+      "expected_answer_fact": "Project Aurora local government unit 27 uses code B231 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-055",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-028 item 1?",
+      "expected_answer_fact": "Project Aurora research methods unit 28 uses code B235 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-056",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-028 item 2?",
+      "expected_answer_fact": "Project Aurora research methods unit 28 uses code C236 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-057",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-029 item 1?",
+      "expected_answer_fact": "Project Aurora accessibility unit 29 uses code C240 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-058",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-029 item 2?",
+      "expected_answer_fact": "Project Aurora accessibility unit 29 uses code D241 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-059",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-030 item 1?",
+      "expected_answer_fact": "Project Aurora information security unit 30 uses code D245 and a review interval of 2 weeks."
+    },
+    {
+      "query_id": "Q-060",
+      "kind": "direct",
+      "text": "Which code and review interval are recorded for DOC-030 item 2?",
+      "expected_answer_fact": "Project Aurora information security unit 30 uses code E246 and a review interval of 3 weeks."
+    },
+    {
+      "query_id": "Q-061",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-001.",
+      "expected_answer_fact": "Project Aurora education unit 1 uses code C102 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-062",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-002.",
+      "expected_answer_fact": "Project Aurora healthcare administration unit 2 uses code D107 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-063",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-003.",
+      "expected_answer_fact": "Project Aurora computing unit 3 uses code E112 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-064",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-004.",
+      "expected_answer_fact": "Project Aurora energy unit 4 uses code F117 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-065",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-005.",
+      "expected_answer_fact": "Project Aurora transport unit 5 uses code G122 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-066",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-006.",
+      "expected_answer_fact": "Project Aurora environment unit 6 uses code H127 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-067",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-007.",
+      "expected_answer_fact": "Project Aurora local government unit 7 uses code I132 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-068",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-008.",
+      "expected_answer_fact": "Project Aurora research methods unit 8 uses code J137 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-069",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-009.",
+      "expected_answer_fact": "Project Aurora accessibility unit 9 uses code K142 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-070",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-010.",
+      "expected_answer_fact": "Project Aurora information security unit 10 uses code L147 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-071",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-011.",
+      "expected_answer_fact": "Project Aurora education unit 11 uses code M152 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-072",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-012.",
+      "expected_answer_fact": "Project Aurora healthcare administration unit 12 uses code N157 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-073",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-013.",
+      "expected_answer_fact": "Project Aurora computing unit 13 uses code O162 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-074",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-014.",
+      "expected_answer_fact": "Project Aurora energy unit 14 uses code P167 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-075",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-015.",
+      "expected_answer_fact": "Project Aurora transport unit 15 uses code Q172 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-076",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-016.",
+      "expected_answer_fact": "Project Aurora environment unit 16 uses code R177 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-077",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-017.",
+      "expected_answer_fact": "Project Aurora local government unit 17 uses code S182 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-078",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-018.",
+      "expected_answer_fact": "Project Aurora research methods unit 18 uses code T187 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-079",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-019.",
+      "expected_answer_fact": "Project Aurora accessibility unit 19 uses code U192 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-080",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-020.",
+      "expected_answer_fact": "Project Aurora information security unit 20 uses code V197 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-081",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-021.",
+      "expected_answer_fact": "Project Aurora education unit 21 uses code W202 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-082",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-022.",
+      "expected_answer_fact": "Project Aurora healthcare administration unit 22 uses code X207 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-083",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-023.",
+      "expected_answer_fact": "Project Aurora computing unit 23 uses code Y212 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-084",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-024.",
+      "expected_answer_fact": "Project Aurora energy unit 24 uses code Z217 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-085",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-025.",
+      "expected_answer_fact": "Project Aurora transport unit 25 uses code A222 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-086",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-026.",
+      "expected_answer_fact": "Project Aurora environment unit 26 uses code B227 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-087",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-027.",
+      "expected_answer_fact": "Project Aurora local government unit 27 uses code C232 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-088",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-028.",
+      "expected_answer_fact": "Project Aurora research methods unit 28 uses code D237 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-089",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-029.",
+      "expected_answer_fact": "Project Aurora accessibility unit 29 uses code E242 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-090",
+      "kind": "terminology",
+      "text": "Find the Aurora schedule terminology for DOC-030.",
+      "expected_answer_fact": "Project Aurora information security unit 30 uses code F247 and a review interval of 4 weeks."
+    },
+    {
+      "query_id": "Q-091",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-001 and DOC-002.",
+      "expected_answer_fact": "Project Aurora education unit 1 uses code D103 and a review interval of 5 weeks. Project Aurora healthcare administration unit 2 uses code E108 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-092",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-003 and DOC-004.",
+      "expected_answer_fact": "Project Aurora computing unit 3 uses code F113 and a review interval of 5 weeks. Project Aurora energy unit 4 uses code G118 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-093",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-005 and DOC-006.",
+      "expected_answer_fact": "Project Aurora transport unit 5 uses code H123 and a review interval of 5 weeks. Project Aurora environment unit 6 uses code I128 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-094",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-007 and DOC-008.",
+      "expected_answer_fact": "Project Aurora local government unit 7 uses code J133 and a review interval of 5 weeks. Project Aurora research methods unit 8 uses code K138 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-095",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-009 and DOC-010.",
+      "expected_answer_fact": "Project Aurora accessibility unit 9 uses code L143 and a review interval of 5 weeks. Project Aurora information security unit 10 uses code M148 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-096",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-011 and DOC-012.",
+      "expected_answer_fact": "Project Aurora education unit 11 uses code N153 and a review interval of 5 weeks. Project Aurora healthcare administration unit 12 uses code O158 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-097",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-013 and DOC-014.",
+      "expected_answer_fact": "Project Aurora computing unit 13 uses code P163 and a review interval of 5 weeks. Project Aurora energy unit 14 uses code Q168 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-098",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-015 and DOC-016.",
+      "expected_answer_fact": "Project Aurora transport unit 15 uses code R173 and a review interval of 5 weeks. Project Aurora environment unit 16 uses code S178 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-099",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-017 and DOC-018.",
+      "expected_answer_fact": "Project Aurora local government unit 17 uses code T183 and a review interval of 5 weeks. Project Aurora research methods unit 18 uses code U188 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-100",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-019 and DOC-020.",
+      "expected_answer_fact": "Project Aurora accessibility unit 19 uses code V193 and a review interval of 5 weeks. Project Aurora information security unit 20 uses code W198 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-101",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-021 and DOC-022.",
+      "expected_answer_fact": "Project Aurora education unit 21 uses code X203 and a review interval of 5 weeks. Project Aurora healthcare administration unit 22 uses code Y208 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-102",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-023 and DOC-024.",
+      "expected_answer_fact": "Project Aurora computing unit 23 uses code Z213 and a review interval of 5 weeks. Project Aurora energy unit 24 uses code A218 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-103",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-025 and DOC-026.",
+      "expected_answer_fact": "Project Aurora transport unit 25 uses code B223 and a review interval of 5 weeks. Project Aurora environment unit 26 uses code C228 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-104",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-027 and DOC-028.",
+      "expected_answer_fact": "Project Aurora local government unit 27 uses code D233 and a review interval of 5 weeks. Project Aurora research methods unit 28 uses code E238 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-105",
+      "kind": "multi_detail",
+      "text": "Compare the recorded schedules for DOC-029 and DOC-030.",
+      "expected_answer_fact": "Project Aurora accessibility unit 29 uses code F243 and a review interval of 5 weeks. Project Aurora information security unit 30 uses code G248 and a review interval of 5 weeks."
+    },
+    {
+      "query_id": "Q-106",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 1?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-107",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 2?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-108",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 3?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-109",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 4?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-110",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 5?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-111",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 6?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-112",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 7?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-113",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 8?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-114",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 9?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-115",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 10?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-116",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 11?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-117",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 12?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-118",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 13?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-119",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 14?",
+      "expected_answer_fact": null
+    },
+    {
+      "query_id": "Q-120",
+      "kind": "negative",
+      "text": "What is the lunar orchard allocation for zone 15?",
+      "expected_answer_fact": null
+    }
+  ],
+  "canonical_sha256": "bd3905cb6875635fdfa70922b2bd3674c02f61dfe338c24a55d8b74f5c2ebab1"
+}
