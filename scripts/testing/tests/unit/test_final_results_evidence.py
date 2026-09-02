@@ -85,8 +85,14 @@ def test_resolve_repository_path_prefers_existing_path_and_rejects_escape(tmp_pa
     legacy = tmp_path / "legacy/evidence.json"
     legacy.parent.mkdir(parents=True)
     legacy.write_text("legacy", encoding="utf-8")
+    retained = tmp_path / "retained/route/evidence.json"
+    retained.parent.mkdir(parents=True)
+    retained.write_text("retained authority", encoding="utf-8")
 
     assert resolve_repository_path(tmp_path, "legacy/evidence.json") == legacy.resolve()
+    assert resolve_repository_path(
+        tmp_path, "legacy/evidence.json", prefer_migrated=True
+    ) == retained.resolve()
     with pytest.raises(ValueError, match="POSIX"):
         resolve_repository_path(tmp_path, "../outside.json")
 

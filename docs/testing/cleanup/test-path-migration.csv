@@ -85,3 +85,11 @@ scripts/testing/tests/unit/test_moved_tool_root_resolution.py,scripts/testing/te
 scripts/testing/tests/unit/test_openvino_campaign_import_boundary.py,scripts/testing/tests/unit/test_openvino_campaign_import_boundary.py,unit
 scripts/testing/tests/unit/test_reporting_import_boundary.py,scripts/testing/tests/unit/test_reporting_import_boundary.py,unit
 scripts/testing/tests/unit/test_test_path_migration.py,scripts/testing/tests/unit/test_test_path_migration.py,unit
+scripts/testing/tests/acceptance/test_cleanup_finalization.py,scripts/testing/tests/acceptance/test_cleanup_finalization.py,acceptance
+scripts/testing/tests/acceptance/test_cleanup_removal_receipt.py,scripts/testing/tests/acceptance/test_cleanup_removal_receipt.py,acceptance
+scripts/testing/tests/acceptance/test_llama_route_layout_migration.py,scripts/testing/tests/acceptance/test_llama_route_layout_migration.py,acceptance
+scripts/testing/tests/acceptance/test_openvino_route_layout_migration.py,scripts/testing/tests/acceptance/test_openvino_route_layout_migration.py,acceptance
+scripts/testing/tests/integration/test_retained_evidence_migration.py,scripts/testing/tests/integration/test_retained_evidence_migration.py,integration
+scripts/testing/tests/unit/test_archive_transaction.py,scripts/testing/tests/unit/test_archive_transaction.py,unit
+scripts/testing/tests/unit/test_final_results_layout.py,scripts/testing/tests/unit/test_final_results_layout.py,unit
+scripts/testing/tests/unit/test_release_reproduction_contract.py,scripts/testing/tests/unit/test_release_reproduction_contract.py,unit

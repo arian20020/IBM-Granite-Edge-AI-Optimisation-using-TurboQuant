@@ -16,6 +16,10 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.testing.reporting.models import Status
+from scripts.testing.reporting.evidence import (
+    repo_relative,
+    resolve_repository_path,
+)
 import scripts.testing.reporting.openvino_adapter as openvino_adapter
 from scripts.testing.reporting.openvino_adapter import (
     build_official_bundle,
@@ -40,6 +44,14 @@ V2_WORKBOOK = Path(
 ROUTE = REPO_ROOT / "docs/testing/final-results/05-openvino-official-upstream"
 
 
+def _canonical_source_path(repo_root: Path, relative: Path) -> Path:
+    return resolve_repository_path(repo_root, relative, prefer_migrated=True)
+
+
+def _canonical_relative(repo_root: Path, relative: Path) -> str:
+    return repo_relative(repo_root, _canonical_source_path(repo_root, relative))
+
+
 def _rows(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))
@@ -56,12 +68,20 @@ def _isolated_official_repo(tmp_path: Path) -> Path:
     native_repo = (tmp_path / "repo").resolve()
     repo = Path(f"\\\\?\\{native_repo}") if os.name == "nt" else native_repo
     (repo / FV1.parent).mkdir(parents=True)
-    shutil.copytree(REPO_ROOT / FV1, repo / FV1)
-    shutil.copytree(REPO_ROOT / FV2, repo / FV2)
+    shutil.copytree(_canonical_source_path(REPO_ROOT, FV1), repo / FV1)
+    shutil.copytree(_canonical_source_path(REPO_ROOT, FV2), repo / FV2)
+    for relative in (
+        FV2 / "source-models.json",
+        FV2 / "guarded-retry-001/source-models.json",
+        FV2 / "guarded-retry-002/source-models.json",
+    ):
+        target = repo / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(_canonical_source_path(REPO_ROOT, relative), target)
     for relative in (V1_WORKBOOK, V2_WORKBOOK):
         target = repo / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(REPO_ROOT / relative, target)
+        shutil.copyfile(_canonical_source_path(REPO_ROOT, relative), target)
     return repo
 
 
@@ -160,7 +180,9 @@ def test_official_bundle_publishes_source_derived_identities_and_lineage():
     ]
     assert [item.run_id for item in measurements] == [f"{case_id}--benchmark"] * 3
     assert [item.repetition_id for item in measurements] == ["001", "002", "003"]
-    raw = json.loads((REPO_ROOT / FV1 / "raw" / f"{case_id}.json").read_text())
+    raw = json.loads(
+        _canonical_source_path(REPO_ROOT, FV1 / "raw" / f"{case_id}.json").read_text()
+    )
     assert [item.latency_ms for item in measurements] == [
         float(run["result"]["ttft_ms"]) for run in raw["benchmark_runs"]
     ]
@@ -256,9 +278,10 @@ def test_official_generation_writes_common_route_and_copies_only_primary_workboo
 def test_official_evidence_inventory_covers_logs_aliases_and_preflight_inputs():
     bundle = write_official_route(REPO_ROOT)
     by_path = {item.relative_path: item for item in bundle.evidence}
-    conversion_path = (
-        FV2 / "guarded-retry-002/attempts/granite-3b__fp16/conversion.log"
-    ).as_posix()
+    conversion_path = _canonical_relative(
+        REPO_ROOT,
+        FV2 / "guarded-retry-002/attempts/granite-3b__fp16/conversion.log",
+    )
     conversion = by_path[conversion_path]
     assert conversion.role == "conversion-log"
     assert conversion.sha256 == "36d15156288619f17c972b5f0af9bc5380fe363cab90a8356feac4e5ca579d65"
@@ -269,10 +292,14 @@ def test_official_evidence_inventory_covers_logs_aliases_and_preflight_inputs():
     )
 
     preflight_paths = {
-        (FV1 / "preflight/inputs/314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3.txt").as_posix():
-        "314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3",
-        (FV1 / "preflight/inputs/ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0.txt").as_posix():
-        "ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0",
+        _canonical_relative(
+            REPO_ROOT,
+            FV1 / "preflight/inputs/314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3.txt",
+        ): "314ad142957febe390cc7223b4deb1d1b21c187f84f6e7257a23fe46c27fcae3",
+        _canonical_relative(
+            REPO_ROOT,
+            FV1 / "preflight/inputs/ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0.txt",
+        ): "ca101275d196803be37cb8fae1b81f1a7b2db733b7c1629293aae61465b2b3a0",
     }
     preflight_ids = []
     for path, digest in preflight_paths.items():
@@ -283,10 +310,11 @@ def test_official_evidence_inventory_covers_logs_aliases_and_preflight_inputs():
     receipt = next(item for item in bundle.evidence if item.role == "source-preflight")
     assert set(receipt.input_evidence_ids) == set(preflight_ids)
 
-    benchmark_path = (
+    benchmark_path = _canonical_relative(
+        REPO_ROOT,
         FV1
-        / "inputs/f2b9e8f0f10053f3a04e1532ecd1e66d026ba1f37e7cde636bc2b5e2748c301c.txt"
-    ).as_posix()
+        / "inputs/f2b9e8f0f10053f3a04e1532ecd1e66d026ba1f37e7cde636bc2b5e2748c301c.txt",
+    )
     benchmark = by_path[benchmark_path]
     assert benchmark.role == "benchmark-prompt-input"
     assert benchmark.sha256 == benchmark_path.rsplit("/", 1)[-1].removesuffix(".txt")
@@ -295,9 +323,13 @@ def test_official_evidence_inventory_covers_logs_aliases_and_preflight_inputs():
     assert all(benchmark.evidence_id in item.input_evidence_ids for item in raw_records)
 
     source_model_paths = {
-        (FV2 / "source-models.json").as_posix(),
-        (FV2 / "guarded-retry-001/source-models.json").as_posix(),
-        (FV2 / "guarded-retry-002/source-models.json").as_posix(),
+        _canonical_relative(REPO_ROOT, FV2 / "source-models.json"),
+        _canonical_relative(
+            REPO_ROOT, FV2 / "guarded-retry-001/source-models.json"
+        ),
+        _canonical_relative(
+            REPO_ROOT, FV2 / "guarded-retry-002/source-models.json"
+        ),
     }
     locations = _rows(ROUTE / "evidence/source-locations.csv")
     aliases = [

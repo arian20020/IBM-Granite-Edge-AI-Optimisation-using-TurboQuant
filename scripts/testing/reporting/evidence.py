@@ -83,16 +83,23 @@ def _path_migrations(
     return migrations
 
 
-def resolve_repository_path(repo_root: Path, relative_path: str | Path) -> Path:
+def resolve_repository_path(
+    repo_root: Path,
+    relative_path: str | Path,
+    *,
+    prefer_migrated: bool = False,
+) -> Path:
     """Resolve a live repository path through the exact cleanup ledger.
 
-    Frozen registers retain their historical path strings. Existing paths win,
-    while a missing legacy path is translated only by an exact ledger row.
+    Frozen registers retain their historical path strings. Existing files win
+    by default, while a missing legacy path is translated by the ledger. Set
+    ``prefer_migrated`` when the cleanup ledger defines the canonical authority
+    even if a historical duplicate still exists.
     """
     root = Path(repo_root).resolve(strict=True)
     relative = _portable_relative(Path(relative_path).as_posix())
     _, direct = _resolved_contained_path(root, root / relative)
-    if direct.exists() and not direct.is_dir():
+    if direct.exists() and not direct.is_dir() and not prefer_migrated:
         return direct
 
     ledger = root / "docs/testing/cleanup/PATH-MIGRATION.csv"

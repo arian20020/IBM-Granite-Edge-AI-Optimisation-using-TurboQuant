@@ -1,5 +1,30 @@
 # Release history
 
+## 2026-09-02 — Cleanup finalization and clean-archive validation
+
+- Proved byte-for-byte equality between the frozen baseline and final semantic
+  snapshots: 169 outcomes (81 passed, 6 failed, 28 blocked, and 54
+  artifact-unavailable), 1,846 distinct cited evidence paths, six report parity
+  pairs, six PDFs, and 202 PDF pages.
+- Reconciled the frozen 5,057-path, 1,977,743,410-byte recovery inventory to the
+  verified 1,529-path, 18,265,409-byte removal transaction and the retained
+  3,528-path, 1,959,478,001-byte snapshot.
+- Verified 1,128 archived historical paths byte-for-byte, limited the remaining
+  401 removals to regenerable Python bytecode caches, and confirmed every
+  selected source path is absent.
+- Rendered and inspected all 202 PDF pages with PyMuPDF, opened both portable
+  XLSX derivatives read-only with openpyxl, and reconfirmed zero machine-specific
+  absolute paths in the portable workbooks.
+- Validated an untouched short-path Git archive without evidence hydration and
+  recorded all 13 ordered release gates in the cleanup receipt.
+- Refreshed collection validation, release readiness, RO-Crate provenance, and
+  the canonical staged-blob manifest after the final path set settled.
+
+No benchmark, inference, quality adjudication, Microsoft Word export, evidence
+regeneration, or source-evidence mutation was performed. The scientific release
+version remains `unified-final-results-2026-09-01-v2`; finalization records
+cleanup version `testing-results-cleanup-2026-09-02-v1`.
+
 ## 2026-09-02 — Compact publication layout cleanup
 
 - Recorded cleanup version `testing-results-cleanup-2026-09-02-v1` for the path-only and metadata refresh of release package `unified-final-results-2026-09-01-v2`.

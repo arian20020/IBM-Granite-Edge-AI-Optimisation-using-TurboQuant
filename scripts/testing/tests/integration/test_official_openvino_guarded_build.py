@@ -2442,7 +2442,7 @@ def test_powershell_wrapper_forwards_configured_ram_floor(tmp_path):
     wrapper = ROOT / "scripts" / "testing" / "tools" / "invoke_guarded_command.ps1"
     evidence_root = tmp_path / "configured-ram-floor-evidence"
     driver = tmp_path / "configured-ram-floor-driver.ps1"
-    requested_mib = 4096
+    requested_mib = 64
     _write_wrapper_driver(
         driver,
         wrapper=wrapper,

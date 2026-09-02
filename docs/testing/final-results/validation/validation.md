@@ -1,0 +1,28 @@
+# Cleanup finalization validation
+
+Release `unified-final-results-2026-09-01-v2`
+
+Cleanup `testing-results-cleanup-2026-09-02-v1`
+
+Overall result: **Passed**.
+
+Every stable invariant already reconciles: the baseline and final semantic
+snapshots are byte-identical; all 169 outcomes (81 passed, 6 failed, 28 blocked,
+54 artifact-unavailable) and 1,846 distinct cited evidence paths remain; all
+six Markdown/DOCX pairs match; all 202 PDF pages render and have been visually
+inspected; and both portable XLSX files open read-only with zero
+machine-absolute paths.
+
+The 5,057-path, 1,977,743,410-byte frozen inventory reconciles exactly through
+the verified removal of 1,529 paths and 18,265,409 bytes to 3,528 paths and
+1,959,478,001 bytes. The external archive contains and verifies 1,128 paths;
+the other 401 removals are receipt-bound regenerable Python bytecode caches.
+
+The settled staged Git tree was archived untouched, extracted at a short path,
+and validated without evidence hydration. All 13 ordered release gates exited
+zero with no blocking findings. The machine receipt for the immutable tree and
+archive identity is
+[`../../cleanup/clean-archive-validation.json`](../../cleanup/clean-archive-validation.json).
+
+No benchmark, inference, quality adjudication, Microsoft Word export, evidence
+regeneration, or source-evidence mutation was performed.

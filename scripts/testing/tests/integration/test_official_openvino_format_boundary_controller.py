@@ -185,7 +185,10 @@ def test_runtime_reconciliation_rejects_drift_and_incomplete_metrics(
         reconcile_runtime_evidence(source)
 
 
-def test_quality_reconciliation_reopens_six_prompt_receipts_and_hashes(tmp_path):
+def test_quality_reconciliation_reopens_six_prompt_receipts_and_hashes(
+    tmp_path, monkeypatch,
+):
+    from scripts.testing.campaigns.openvino import adaptive_quality
     from scripts.testing.tools.adjudicate_official_openvino_quality import (
         _prompt_controls,
         deterministic_gate,
@@ -194,6 +197,7 @@ def test_quality_reconciliation_reopens_six_prompt_receipts_and_hashes(tmp_path)
         reconcile_quality_evidence,
     )
 
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 8 * 1024**3)
     source = _adaptive_input(tmp_path)
     capture_isolated_quality_campaign(
         source,
@@ -272,12 +276,14 @@ def test_quality_reconciliation_reopens_six_prompt_receipts_and_hashes(tmp_path)
     ),
 )
 def test_quality_reconciliation_rejects_gaps_hash_or_cleanup_drift(
-    tmp_path, mutation,
+    tmp_path, mutation, monkeypatch,
 ):
+    from scripts.testing.campaigns.openvino import adaptive_quality
     from scripts.testing.campaigns.openvino.format_boundary import (
         reconcile_quality_evidence,
     )
 
+    monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 8 * 1024**3)
     source = _adaptive_input(tmp_path)
     capture_isolated_quality_campaign(
         source,
@@ -1775,6 +1781,7 @@ def _boundary_record(role: str, spec: dict) -> dict:
 def test_cli_flows_projected_u4_through_real_runtime_and_quality_validators(
     monkeypatch, capsys,
 ):
+    from scripts.testing.campaigns.openvino import adaptive_quality
     from scripts.testing.tools import run_official_openvino_format_boundary as cli
     from scripts.testing.tools.measure_official_openvino import (
         run_measurement_sequence as real_sequence,
@@ -1807,6 +1814,7 @@ def test_cli_flows_projected_u4_through_real_runtime_and_quality_validators(
         monkeypatch.setattr(cli, "run_measurement_sequence", sequence)
         monkeypatch.setattr(cli, "capture_isolated_quality_campaign", quality)
         monkeypatch.setattr(cli, "available_ram_bytes", lambda: 8 * 1024**3)
+        monkeypatch.setattr(adaptive_quality, "available_ram_bytes", lambda: 8 * 1024**3)
         monkeypatch.setattr(
             cli,
             "run_boundary_preflight",

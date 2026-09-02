@@ -394,6 +394,27 @@
       "name": "Immutable evidence-only nonportable source workbook"
     },
     {
+      "@id": "#testing-results-cleanup-finalization",
+      "@type": "CreateAction",
+      "name": "Reconcile cleanup semantics and validate the self-contained release archive",
+      "object": [
+        {
+          "@id": "validation/release-readiness.json"
+        },
+        {
+          "@id": "manifest-sha256.txt"
+        }
+      ],
+      "result": [
+        {
+          "@id": "validation/validation.json"
+        },
+        {
+          "@id": "validation/validation.md"
+        }
+      ]
+    },
+    {
       "@id": "#release-manifest-generation",
       "@type": "CreateAction",
       "name": "Hash the complete release file set, excluding the manifest itself",
@@ -406,6 +427,12 @@
         },
         {
           "@id": "validation/release-readiness.json"
+        },
+        {
+          "@id": "validation/validation.json"
+        },
+        {
+          "@id": "validation/validation.md"
         }
       ],
       "result": [
@@ -450,6 +477,12 @@
         },
         {
           "@id": "validation/release-readiness.json"
+        },
+        {
+          "@id": "validation/validation.json"
+        },
+        {
+          "@id": "validation/validation.md"
         },
         {
           "@id": "catalog/route-register.csv"
@@ -1689,6 +1722,34 @@
       "@type": "File",
       "name": "Release readiness and QA evidence",
       "encodingFormat": "application/json"
+    },
+    {
+      "@id": "validation/validation.json",
+      "@type": "File",
+      "name": "Cleanup finalization machine receipt",
+      "encodingFormat": "application/json",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#testing-results-cleanup-finalization"
+      }
+    },
+    {
+      "@id": "validation/validation.md",
+      "@type": "File",
+      "name": "Cleanup finalization human-readable receipt",
+      "encodingFormat": "text/markdown",
+      "additionalType": [
+        {
+          "@id": "#generated-artifact"
+        }
+      ],
+      "wasGeneratedBy": {
+        "@id": "#testing-results-cleanup-finalization"
+      }
     }
   ]
 }

@@ -1,0 +1,176 @@
+{
+  "schema": "testing-cleanup-clean-archive-validation/v1",
+  "valid": true,
+  "cleanup_version": "testing-results-cleanup-2026-09-02-v1",
+  "release_version": "unified-final-results-2026-09-01-v2",
+  "base_commit": "26d08591837ae8c6238686797b7e735e8738cb0d",
+  "validated_tree": "70d7f6458e5ec746e8a50d624e6d68227b931a9e",
+  "release_subtree": "990b8e7e67728979380bd0799ad74d3fc253aa70",
+  "validated_scope": "Every path in validated_tree; the subsequently added receipt path listed in excluded_paths is intentionally outside this non-self-referential scope.",
+  "excluded_paths": [
+    "docs/testing/cleanup/clean-archive-validation.json"
+  ],
+  "archive": {
+    "source": "plain git archive of validated_tree using the tree's committed attributes (no line-ending override)",
+    "format": "tar",
+    "canonical_mtime": "2026-09-02T00:00:00Z",
+    "size_bytes": 162283520,
+    "sha256": "63d1d915f75389d103c5a25c88416fbd81a349cca9dc1dc10a5219d92dab50c5",
+    "file_member_count": 4856,
+    "member_count": 6357,
+    "file_payload_bytes": 157773309,
+    "repeated_archive_sha256_equal": true,
+    "short_path_validation": true,
+    "disposable_extraction_root": "C:\\T15V8\\x",
+    "evidence_hydration_performed": false,
+    "published_evidence_source_count": 1846,
+    "missing_published_evidence_source_count": 0,
+    "frozen_byte_member_count": 21,
+    "frozen_byte_member_examples": [
+      {
+        "path": "docs/testing/cleanup/archive-plan.csv",
+        "size_bytes": 679690,
+        "sha256": "9f35b438a11b36d64e959e062fd4791944bfbb2d7105f3c3fad7f393bbe42ef0"
+      },
+      {
+        "path": "docs/testing/cleanup/file-inventory.csv",
+        "size_bytes": 2087652,
+        "sha256": "dea150021b7b0a482966bba6694bb52b8ca3650d0c7561c80108ccd276535766"
+      },
+      {
+        "path": "docs/testing/Quality-Evaluation-Register.csv",
+        "size_bytes": 93992,
+        "sha256": "4d8e327caf025090b61c917152ba3f656209376e2365b11c40eeaf0c3236797c"
+      },
+      {
+        "path": "experiments/granite_turboquant_intel/prompts/rendered-v2/P1.txt",
+        "size_bytes": 307,
+        "sha256": "16adbafc129f513b5e4ee5f6ad85afafb12dc74a7bb8db8ce27e33186beecc77"
+      },
+      {
+        "path": "experiments/granite_turboquant_intel/prompts/fixtures/P5-compact-context-v2.txt",
+        "size_bytes": 1611,
+        "sha256": "ae3290b37cc1126f48301dc8f722775eeb279a90caabd3ea96622af7287e68a3"
+      },
+      {
+        "path": "experiments/manifests/official-openvino/retest-matrix.json",
+        "size_bytes": 44488,
+        "sha256": "7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42"
+      },
+      {
+        "path": "scripts/testing/tests/unit/test_cleanup_semantics.py",
+        "size_bytes": 3391,
+        "sha256": "b9fd5d478267f0e77d8e3c871daf792e0ab4346ffa0654531ee2da86d4940179"
+      }
+    ]
+  },
+  "validation": {
+    "command": [
+      "py",
+      "-3",
+      "-B",
+      "-m",
+      "scripts.testing.cli.validate_results",
+      "--route",
+      "all",
+      "--output-root",
+      "docs/testing/final-results"
+    ],
+    "exit_code": 0,
+    "gate_count": 13,
+    "gates": [
+      {
+        "name": "schema",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "ids",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "coverage",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "derivation",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 77
+      },
+      {
+        "name": "status_failure_consistency",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "availability",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "paths_hashes",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "claim_coverage",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "workbook_parity",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "pdf_structure",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "comparability",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 0
+      },
+      {
+        "name": "release_metadata",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 6
+      },
+      {
+        "name": "release_readiness",
+        "valid": true,
+        "result_code": 0,
+        "blocking_finding_count": 0,
+        "limitation_count": 6
+      }
+    ]
+  },
+  "receipt_payload_sha256": "25df29a4abca90e8514323cfcbfe47d8e22418a1fb7f1f4d363420dd51dd76ca"
+}

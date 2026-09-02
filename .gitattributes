@@ -16,11 +16,18 @@ docs/testing/final-results/**/*.xlsx -text
 # BEGIN UNIFIED FINAL RESULTS FROZEN SOURCE ADMISSION
 # Preserve the exact published bytes admitted by the final-results evidence
 # indexes. These files are immutable evidence, not line-normalized source code.
+docs/testing/cleanup/archive-plan.csv -text whitespace=-blank-at-eol,-blank-at-eof
+docs/testing/cleanup/file-inventory.csv -text whitespace=-blank-at-eol,-blank-at-eof
 docs/testing/Evidence-Index.csv -text whitespace=-blank-at-eol,-blank-at-eof
 docs/testing/Failure-Register.csv -text whitespace=-blank-at-eol,-blank-at-eof
 docs/testing/Performance-Measurement-Register.csv -text whitespace=-blank-at-eol,-blank-at-eof
+docs/testing/Quality-Evaluation-Register.csv -text whitespace=-blank-at-eol,-blank-at-eof
 docs/testing/Test-Run-Register.csv -text whitespace=-blank-at-eol,-blank-at-eof
 docs/testing/Workbook-Revision-Register.csv -text whitespace=-blank-at-eol,-blank-at-eof
+experiments/granite_turboquant_intel/prompts/fixtures/** -text whitespace=-blank-at-eol,-blank-at-eof
+experiments/granite_turboquant_intel/prompts/rendered/** -text whitespace=-blank-at-eol,-blank-at-eof
+experiments/granite_turboquant_intel/prompts/rendered-v2/** -text whitespace=-blank-at-eol,-blank-at-eof
+experiments/manifests/official-openvino/retest-matrix.json -text whitespace=-blank-at-eol,-blank-at-eof
 experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6/** -text whitespace=-blank-at-eol,-blank-at-eof
 experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/** -text whitespace=-blank-at-eol,-blank-at-eof
 experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/** -text whitespace=-blank-at-eol,-blank-at-eof
@@ -29,6 +36,7 @@ experiments/raw-results/retained/shared/failure-records/README.md -text whitespa
 outputs/openvino-experimental-fork-results/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx -text
 outputs/openvino-official-upstream-results/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30.xlsx -text
 outputs/openvino-official-upstream-results/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx -text
+scripts/testing/tests/unit/test_cleanup_semantics.py -text whitespace=-blank-at-eol,-blank-at-eof
 # END UNIFIED FINAL RESULTS FROZEN SOURCE ADMISSION
 # BEGIN IXN CONTROLLED EXPERIMENT EVIDENCE
 # Machine-generated evidence is immutable. Do not normalize line endings.

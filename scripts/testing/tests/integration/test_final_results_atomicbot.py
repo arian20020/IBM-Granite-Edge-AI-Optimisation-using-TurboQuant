@@ -56,7 +56,9 @@ def _copy_sources(tmp_path: Path) -> Path:
         "docs/testing/Quality-Evaluation-Register.csv",
         "docs/testing/Failure-Register.csv",
         "docs/testing/Evidence-Index.csv",
+        "docs/testing/cleanup/PATH-MIGRATION.csv",
         "experiments/raw-results/atomicbot-turboquant",
+        "experiments/raw-results/retained/atomicbot-turboquant",
         "experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json",
         "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
     ):
@@ -119,8 +121,19 @@ def test_quality_summary_prompt_hash_relationship_is_recomputed(tmp_path: Path):
         build_atomicbot_bundle(root)
 
 
-def test_quality_dimensions_caps_contract_register_and_means_reconcile():
-    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+def test_quality_dimensions_caps_contract_register_and_means_reconcile(
+    tmp_path: Path,
+):
+    root = _copy_sources(tmp_path)
+    relative = Path("2026-07-17/quality-all-rows/AB-01/P1.json")
+    legacy = root / "experiments/raw-results/atomicbot-turboquant" / relative
+    retained = (
+        root / "experiments/raw-results/retained/atomicbot-turboquant" / relative
+    )
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(retained, legacy)
+
+    bundle = build_atomicbot_bundle(root)
     audit = bundle.repository["source_reconciliation"]
     contract = bundle.repository["quality_contract"]
 
@@ -129,6 +142,12 @@ def test_quality_dimensions_caps_contract_register_and_means_reconcile():
     assert audit["quality_weighted_scores_recomputed"] == 114
     assert audit["quality_means_recomputed"] == 19
     assert audit["quality_authority_hashes_authenticated"] == 3
+    assert all(
+        row["relative_path"].startswith(
+            "experiments/raw-results/retained/atomicbot-turboquant/"
+        )
+        for row in bundle.repository["quality_adjudications"]
+    )
     assert contract["prompt_set_id"] == "GTQ-PROMPTS-v1"
     assert contract["rubric_id"] == "GTQ-QUALITY-RUBRIC-v1"
     assert contract["dimension_weights"] == {

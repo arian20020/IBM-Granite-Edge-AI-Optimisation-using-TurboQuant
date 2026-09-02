@@ -143,11 +143,11 @@ COLLECTION_CSV_TABLES = (
     ("catalog/claim-evidence-map.csv", "catalog_content_mismatch"),
     ("catalog/comparability-matrix.csv", "catalog_content_mismatch"),
     (
-        "06-cross-route-comparison/results/route-status-summary.csv",
+        "06-cross-route-comparison/data/route-status-summary.csv",
         "cross_route_result_mismatch",
     ),
     (
-        "06-cross-route-comparison/results/comparability-matrix.csv",
+        "06-cross-route-comparison/data/comparability-matrix.csv",
         "cross_route_result_mismatch",
     ),
 )
@@ -231,7 +231,7 @@ def _write_route(collection: Path, directory: str, route_id: str) -> Path:
         "input_evidence_ids": "[]",
     }
     write_json(
-        route / "route-manifest.json",
+        route / "data/route.json",
         {
             "route_id": route_id,
             "campaign_id": campaign_id,
@@ -247,15 +247,15 @@ def _write_route(collection: Path, directory: str, route_id: str) -> Path:
         },
     )
     write_csv(
-        route / "protocol/intended-test-matrix.csv",
+        route / "reproduction/protocol/intended-test-matrix.csv",
         ({"test_case_id": attempt["test_case_id"], "intended": True},),
         ("test_case_id", "intended"),
     )
-    write_csv(route / "results/attempts.csv", (attempt,), ATTEMPT_FIELDS)
-    write_csv(route / "results/measurements.csv", measurements, MEASUREMENT_FIELDS)
-    write_csv(route / "results/summary-results.csv", (summary,), SUMMARY_FIELDS)
+    write_csv(route / "data/attempts.csv", (attempt,), ATTEMPT_FIELDS)
+    write_csv(route / "data/measurements.csv", measurements, MEASUREMENT_FIELDS)
+    write_csv(route / "data/summaries.csv", (summary,), SUMMARY_FIELDS)
     write_csv(
-        route / "results/availability-matrix.csv",
+        route / "data/availability-matrix.csv",
         (
             {
                 "test_case_id": attempt["test_case_id"],
@@ -276,7 +276,7 @@ def _write_route(collection: Path, directory: str, route_id: str) -> Path:
         ),
     )
     write_csv(
-        route / "quality/scores.csv",
+        route / "data/quality.csv",
         (
             {
                 "route_id": route_id,
@@ -295,7 +295,7 @@ def _write_route(collection: Path, directory: str, route_id: str) -> Path:
         ),
         QUALITY_FIELDS,
     )
-    write_csv(route / "failures/failure-register.csv", (), FAILURE_FIELDS)
+    write_csv(route / "data/failures.csv", (), FAILURE_FIELDS)
     write_csv(route / "evidence/evidence-index.csv", (evidence,), EVIDENCE_FIELDS)
     write_csv(
         route / "evidence/claim-evidence-map.csv",
@@ -320,21 +320,21 @@ def _write_route(collection: Path, directory: str, route_id: str) -> Path:
             ),
         ),
     )
-    render_markdown(report, route / "workbook/source/final-report.md")
-    render_docx(report, route / "workbook/generated/final-report.docx")
-    _write_pdf(route / "workbook/generated/final-report.pdf", f"{route_id} report")
-    write_json(route / "validation/workbook-parity.json", {"matches": True})
+    render_markdown(report, route / "reports/final-report.md")
+    render_docx(report, route / "reports/final-report.docx")
+    _write_pdf(route / "reports/final-report.pdf", f"{route_id} report")
+    write_json(route / "validation/relationship-validation.json", {"matches": True})
     write_json(route / "validation/visual-validation.json", {"valid": True})
     write_json(route / "validation/integrity-validation.json", {"valid": True})
     return route
 
 
 def _fixture_bundle(route: Path) -> RouteBundle:
-    manifest = json.loads((route / "route-manifest.json").read_text(encoding="utf-8"))
-    attempts, _ = _rows(route / "results/attempts.csv")
-    measurements, _ = _rows(route / "results/measurements.csv")
-    summaries, _ = _rows(route / "results/summary-results.csv")
-    quality, _ = _rows(route / "quality/scores.csv")
+    manifest = json.loads((route / "data/route.json").read_text(encoding="utf-8"))
+    attempts, _ = _rows(route / "data/attempts.csv")
+    measurements, _ = _rows(route / "data/measurements.csv")
+    summaries, _ = _rows(route / "data/summaries.csv")
+    quality, _ = _rows(route / "data/quality.csv")
     evidence, _ = _rows(route / "evidence/evidence-index.csv")
     return RouteBundle(
         route_id=manifest["route_id"],
@@ -430,7 +430,7 @@ def _write_cross_route(
 ) -> Path:
     route = collection / "06-cross-route-comparison"
     write_json(
-        route / "route-manifest.json",
+        route / "data/route.json",
         {
             "route_id": "cross-route-comparison",
             "revision": "R1",
@@ -454,25 +454,37 @@ def _write_cross_route(
             ),
         ),
     )
-    render_markdown(report, route / "workbook/source/final-report.md")
-    render_docx(report, route / "workbook/generated/final-report.docx")
-    _write_pdf(route / "workbook/generated/final-report.pdf", "Cross-route report")
-    write_json(route / "validation/workbook-parity.json", {"matches": True})
+    render_markdown(report, route / "reports/final-report.md")
+    render_docx(report, route / "reports/final-report.docx")
+    _write_pdf(route / "reports/final-report.pdf", "Cross-route report")
+    write_json(route / "validation/relationship-validation.json", {"matches": True})
     write_json(route / "validation/visual-validation.json", {"valid": True})
     write_json(route / "validation/integrity-validation.json", {"valid": True})
     write_json(
         route / "validation/cross-route-validation.json",
         {"valid": True, "universal_ranking_present": False},
     )
+    write_json(
+        route / "validation/validation.json",
+        {
+            "valid": True,
+            "checks": {
+                "cross_route": {
+                    "valid": True,
+                    "universal_ranking_present": False,
+                }
+            },
+        },
+    )
     comparison = catalogs["comparability-matrix.csv"]
     campaigns = catalogs["campaign-summary.csv"]
     write_csv(
-        route / "results/comparability-matrix.csv",
+        route / "data/comparability-matrix.csv",
         comparison,
         tuple(comparison[0]),
     )
     write_csv(
-        route / "results/route-status-summary.csv",
+        route / "data/route-status-summary.csv",
         campaigns,
         tuple(campaigns[0]),
     )
@@ -523,7 +535,7 @@ def test_valid_miniature_collection_passes_gates_in_release_order(tmp_path):
 
 def test_validation_catches_duplicate_ids(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    path = alpha / "results/measurements.csv"
+    path = alpha / "data/measurements.csv"
     rows, fields = _rows(path)
     rows[1]["measurement_id"] = rows[0]["measurement_id"]
     write_csv(path, rows, fields)
@@ -535,7 +547,7 @@ def test_validation_catches_duplicate_ids(tmp_path):
 
 def test_validation_catches_missing_intended_attempt(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    path = alpha / "protocol/intended-test-matrix.csv"
+    path = alpha / "reproduction/protocol/intended-test-matrix.csv"
     rows, fields = _rows(path)
     rows.append({"test_case_id": "upstream-llama-cpp-case-2", "intended": "true"})
     write_csv(path, rows, fields)
@@ -547,7 +559,7 @@ def test_validation_catches_missing_intended_attempt(tmp_path):
 
 def test_validation_catches_incorrect_median(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    path = alpha / "results/summary-results.csv"
+    path = alpha / "data/summaries.csv"
     rows, fields = _rows(path)
     rows[0]["value"] = "21"
     write_csv(path, rows, fields)
@@ -559,7 +571,7 @@ def test_validation_catches_incorrect_median(tmp_path):
 
 def test_validation_fails_closed_for_renamed_supported_aggregation(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    path = alpha / "results/summary-results.csv"
+    path = alpha / "data/summaries.csv"
     rows, fields = _rows(path)
     rows[0]["value"] = "999"
     rows[0]["aggregation"] = "renamed latency reduction"
@@ -573,7 +585,7 @@ def test_validation_fails_closed_for_renamed_supported_aggregation(tmp_path):
 
 def test_derivation_allowlist_is_closed_to_exact_approved_summary_ids(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    path = alpha / "results/summary-results.csv"
+    path = alpha / "data/summaries.csv"
     rows, fields = _rows(path)
     rows[0].update(
         {
@@ -599,8 +611,8 @@ def test_derivation_allowlist_is_closed_to_exact_approved_summary_ids(tmp_path):
 @pytest.mark.parametrize(
     ("relative_path", "id_field"),
     (
-        ("results/measurements.csv", "measurement_id"),
-        ("quality/scores.csv", "quality_id"),
+            ("data/measurements.csv", "measurement_id"),
+            ("data/quality.csv", "quality_id"),
     ),
 )
 def test_validation_catches_nonexistent_source_evidence_id(
@@ -625,7 +637,7 @@ def test_validation_catches_nonexistent_source_evidence_id(
 
 def test_validation_catches_attempt_evidence_reference(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    path = alpha / "results/attempts.csv"
+    path = alpha / "data/attempts.csv"
     rows, fields = _rows(path)
     rows[0]["evidence_ids"] = json.dumps(["does-not-exist"])
     write_csv(path, rows, fields)
@@ -637,10 +649,10 @@ def test_validation_catches_attempt_evidence_reference(tmp_path):
 
 def test_validation_catches_failure_evidence_and_same_case_relationships(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    attempts, _ = _rows(alpha / "results/attempts.csv")
+    attempts, _ = _rows(alpha / "data/attempts.csv")
     attempt = attempts[0]
     write_csv(
-        alpha / "failures/failure-register.csv",
+        alpha / "data/failures.csv",
         (
             {
                 "route_id": attempt["route_id"],
@@ -667,14 +679,14 @@ def test_validation_catches_failure_evidence_and_same_case_relationships(tmp_pat
 
 def test_validation_catches_row_route_campaign_and_summary_case_relationships(tmp_path):
     _, alpha, beta, _ = _collection(tmp_path)
-    beta_attempts, _ = _rows(beta / "results/attempts.csv")
-    measurement_path = alpha / "results/measurements.csv"
+    beta_attempts, _ = _rows(beta / "data/attempts.csv")
+    measurement_path = alpha / "data/measurements.csv"
     measurements, measurement_fields = _rows(measurement_path)
     measurements[0]["route_id"] = "wrong-route"
     measurements[0]["campaign_id"] = "wrong-campaign"
     measurements[0]["attempt_id"] = beta_attempts[0]["attempt_id"]
     write_csv(measurement_path, measurements, measurement_fields)
-    summary_path = alpha / "results/summary-results.csv"
+    summary_path = alpha / "data/summaries.csv"
     summaries, summary_fields = _rows(summary_path)
     summaries[0]["test_case_id"] = "wrong-case"
     write_csv(summary_path, summaries, summary_fields)
@@ -690,13 +702,13 @@ def test_validation_catches_row_route_campaign_and_summary_case_relationships(tm
 
 def test_validation_catches_measurement_for_non_passed_attempt(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    attempt_path = alpha / "results/attempts.csv"
+    attempt_path = alpha / "data/attempts.csv"
     attempts, attempt_fields = _rows(attempt_path)
     attempts[0]["status"] = "blocked"
     attempts[0]["reason"] = "controlled block"
     write_csv(attempt_path, attempts, attempt_fields)
     write_csv(
-        alpha / "failures/failure-register.csv",
+        alpha / "data/failures.csv",
         (
             {
                 "route_id": attempts[0]["route_id"],
@@ -723,7 +735,7 @@ def test_validation_catches_measurement_for_non_passed_attempt(tmp_path):
 
 def test_availability_accepts_passed_terminal_attempt_with_retained_rejection(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    attempt_path = alpha / "results/attempts.csv"
+    attempt_path = alpha / "data/attempts.csv"
     attempts, attempt_fields = _rows(attempt_path)
     rejected = dict(attempts[0])
     rejected.update(
@@ -737,13 +749,13 @@ def test_availability_accepts_passed_terminal_attempt_with_retained_rejection(tm
     )
     attempts.append(rejected)
     write_csv(attempt_path, attempts, attempt_fields)
-    manifest_path = alpha / "route-manifest.json"
+    manifest_path = alpha / "data/route.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["attempt_count"] = 2
     manifest["failure_count"] = 1
     write_json(manifest_path, manifest)
     write_csv(
-        alpha / "failures/failure-register.csv",
+        alpha / "data/failures.csv",
         (
             {
                 "route_id": rejected["route_id"],
@@ -768,7 +780,7 @@ def test_availability_accepts_passed_terminal_attempt_with_retained_rejection(tm
 
 def test_availability_rejects_stale_failed_status_beside_terminal_pass(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    attempt_path = alpha / "results/attempts.csv"
+    attempt_path = alpha / "data/attempts.csv"
     attempts, attempt_fields = _rows(attempt_path)
     historical = dict(attempts[0])
     historical.update(
@@ -782,7 +794,7 @@ def test_availability_rejects_stale_failed_status_beside_terminal_pass(tmp_path)
     )
     attempts.append(historical)
     write_csv(attempt_path, attempts, attempt_fields)
-    availability_path = alpha / "results/availability-matrix.csv"
+    availability_path = alpha / "data/availability-matrix.csv"
     availability, availability_fields = _rows(availability_path)
     availability[0]["status"] = "failed"
     write_csv(availability_path, availability, availability_fields)
@@ -827,7 +839,7 @@ def test_checkout_crlf_manifest_is_a_nonblocking_integrity_limitation(tmp_path):
 
 def test_validation_recomputes_markdown_docx_parity(tmp_path):
     _, alpha, _, _ = _collection(tmp_path)
-    markdown = alpha / "workbook/source/final-report.md"
+    markdown = alpha / "reports/final-report.md"
     markdown.write_text(
         markdown.read_text(encoding="utf-8").replace(
             "One passed miniature case.", "A changed canonical conclusion."
@@ -843,7 +855,7 @@ def test_validation_recomputes_markdown_docx_parity(tmp_path):
 
 def test_validation_catches_unsupported_cross_route_ranking(tmp_path):
     collection, _, _, cross = _collection(tmp_path)
-    markdown = cross / "workbook/source/final-report.md"
+    markdown = cross / "reports/final-report.md"
     markdown.write_text(
         markdown.read_text(encoding="utf-8").replace(
             "No universal ranking is supported.",
@@ -860,11 +872,11 @@ def test_validation_catches_unsupported_cross_route_ranking(tmp_path):
 
 def test_validation_checks_cross_route_checksum_manifest(tmp_path):
     collection, _, _, cross = _collection(tmp_path)
-    pdf = cross / "workbook/generated/final-report.pdf"
+    pdf = cross / "reports/final-report.pdf"
     manifest = cross / "evidence/manifest-sha256.txt"
     manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest.write_text(
-        f"{hash_file(pdf)}  06-cross-route-comparison/workbook/generated/final-report.pdf\n",
+        f"{hash_file(pdf)}  06-cross-route-comparison/reports/final-report.pdf\n",
         encoding="utf-8",
         newline="\n",
     )
@@ -901,7 +913,7 @@ def test_collection_rejects_rogue_route_directory(
     rogue = collection / directory_name
     rogue.mkdir()
     if write_manifest:
-        write_json(rogue / "route-manifest.json", {"route_id": "rogue-route"})
+        write_json(rogue / "data/route.json", {"route_id": "rogue-route"})
 
     report = validate_collection(collection)
 
@@ -924,7 +936,7 @@ def test_collection_ignores_non_route_support_directories(tmp_path):
 
 def test_collection_reconciles_cross_route_source_identities_and_counts(tmp_path):
     collection, _, _, cross = _collection(tmp_path)
-    manifest_path = cross / "route-manifest.json"
+    manifest_path = cross / "data/route.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["source_route_ids"] = manifest["source_route_ids"][:-1]
     manifest["source_campaign_ids"] = ["stale-campaign"]
@@ -1055,7 +1067,7 @@ def test_validate_only_cli_is_read_only_and_uses_exit_0_or_1(tmp_path):
     assert valid.returncode == 0, valid.stdout + valid.stderr
     assert not (collection / "validation").exists()
 
-    path = alpha / "results/summary-results.csv"
+    path = alpha / "data/summaries.csv"
     rows, fields = _rows(path)
     rows[0]["value"] = "999"
     write_csv(path, rows, fields)

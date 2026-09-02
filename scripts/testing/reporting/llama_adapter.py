@@ -1916,9 +1916,13 @@ def audit_atomicbot_sources(
             if not _atomicbot_float_equal(register["Weighted_Score_0_to_10"], final_score):
                 raise ValueError(f"quality register score conflict: {row['test_id']} {prompt_id}")
             prompt_scores.append(final_score)
+            published_prompt_path = resolve_repository_path(
+                root, relative, prefer_migrated=True
+            )
             quality_prompt_rows.append({
                 "test_case_id": row["test_id"], "prompt_id": prompt_id,
-                "relative_path": repo_relative(root, prompt_path), "sha256": hash_file(prompt_path),
+                "relative_path": repo_relative(root, published_prompt_path),
+                "sha256": hash_file(published_prompt_path),
                 "output_sha256": output_hash, "adjudication_key": adjudication_key,
                 "dimensions": dimensions, "weighted_score": weighted, "critical_caps": caps,
                 "critical_cap_reason": adjudication["critical_cap_reason"], "score": final_score,
@@ -2624,8 +2628,12 @@ def _animehacker_evidence_id(relative: Path) -> str:
     return f"animehacker-{hashlib.sha256(relative.as_posix().encode('utf-8')).hexdigest()[:20]}"
 
 
+def _animehacker_canonical_source_path(root: Path, relative: Path) -> Path:
+    return resolve_repository_path(root, relative, prefer_migrated=True)
+
+
 def _animehacker_source_record(root: Path, relative: Path, role: str, label: str) -> EvidenceRecord:
-    path = resolve_repository_path(root, relative)
+    path = _animehacker_canonical_source_path(root, relative)
     return EvidenceRecord(
         route_id=ANIMEHACKER_ROUTE_ID,
         campaign_id=ANIMEHACKER_CAMPAIGN_ID,
@@ -2643,6 +2651,20 @@ def _animehacker_entity_hash(value: object) -> str:
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
+
+
+def _animehacker_historical_source_entity(
+    row: Mapping[str, object],
+) -> dict[str, object]:
+    """Restore migrated evidence tokens before authenticating the frozen workbook row."""
+    source = dict(row)
+    retained_prefix = (
+        "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18"
+    )
+    source["Evidence"] = str(source.get("Evidence", "")).replace(
+        retained_prefix, ANIMEHACKER_RAW_RELATIVE.as_posix()
+    )
+    return source
 
 
 def _animehacker_authority_role(relative: Path) -> str:
@@ -2892,13 +2914,15 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
         "rubric-contract": ANIMEHACKER_RUBRIC_RELATIVE,
     }
     reconciliation = _read_json(
-        resolve_repository_path(root, authority_paths["reconciliation"])
+        _animehacker_canonical_source_path(root, authority_paths["reconciliation"])
     )
     runtime_state = _read_json(
-        resolve_repository_path(root, ANIMEHACKER_RAW_RELATIVE / "runtime/state.json")
+        _animehacker_canonical_source_path(
+            root, ANIMEHACKER_RAW_RELATIVE / "runtime/state.json"
+        )
     )
     recovery_state = _read_json(
-        resolve_repository_path(
+        _animehacker_canonical_source_path(
             root, ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/state.json"
         )
     )
@@ -2935,23 +2959,23 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
         raise ValueError("formal runtime summary authority conflict")
     summaries = {
         test_id: _animehacker_validate_summary(
-            resolve_repository_path(root, relative), test_id
+            _animehacker_canonical_source_path(root, relative), test_id
         )
         for test_id, relative in ANIMEHACKER_FORMAL_SUMMARIES.items()
     }
     safety_measurements = {
-        test_id: _read_json(resolve_repository_path(root, relative))
+        test_id: _read_json(_animehacker_canonical_source_path(root, relative))
         for test_id, relative in ANIMEHACKER_SAFETY_MEASUREMENTS.items()
     }
 
     cpu = _read_json(
-        resolve_repository_path(root, authority_paths["cpu-reconciliation"])
+        _animehacker_canonical_source_path(root, authority_paths["cpu-reconciliation"])
     )
     sycl = _read_json(
-        resolve_repository_path(root, authority_paths["sycl-reconciliation"])
+        _animehacker_canonical_source_path(root, authority_paths["sycl-reconciliation"])
     )
     vulkan = _read_json(
-        resolve_repository_path(root, authority_paths["vulkan-reconciliation"])
+        _animehacker_canonical_source_path(root, authority_paths["vulkan-reconciliation"])
     )
     cpu_counts = {key: int(cpu[key]) for key in ("passed", "failed", "total")}
     sycl_counts = {key: int(sycl[key]) for key in ("passed", "failed", "total")}
@@ -2964,10 +2988,12 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
         raise ValueError("Vulkan classification conflict")
 
     quality_main = _read_json(
-        resolve_repository_path(root, authority_paths["quality-adjudication"])
+        _animehacker_canonical_source_path(root, authority_paths["quality-adjudication"])
     )
     quality_recovery = _read_json(
-        resolve_repository_path(root, authority_paths["quality-recovery-adjudication"])
+        _animehacker_canonical_source_path(
+            root, authority_paths["quality-recovery-adjudication"]
+        )
     )
     quality_sources = {**quality_main, **quality_recovery}
     if set(quality_sources) != set(ANIMEHACKER_RUNNABLE_IDS):
@@ -2994,8 +3020,8 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
             folder = "quality-recovery" if test_id == "AH-09" else "quality"
             response_relative = ANIMEHACKER_RAW_RELATIVE / f"{folder}/{test_id}/{prompt_id}-response.txt"
             prompt_relative = ANIMEHACKER_RAW_RELATIVE / f"{folder}/{test_id}/{prompt_id}.json"
-            response_path = resolve_repository_path(root, response_relative)
-            prompt_path = resolve_repository_path(root, prompt_relative)
+            response_path = _animehacker_canonical_source_path(root, response_relative)
+            prompt_path = _animehacker_canonical_source_path(root, prompt_relative)
             response_text = response_path.read_text(encoding="utf-8")
             prompt_payload = _read_json(prompt_path)
             response_digest = hashlib.sha256(response_text.encode("utf-8")).hexdigest()
@@ -3034,7 +3060,7 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
 
     authenticated_authorities: list[dict[str, str]] = []
     for relative, expected_hash in ANIMEHACKER_SOURCE_AUTHORITY_HASHES.items():
-        authority_path = resolve_repository_path(root, relative)
+        authority_path = _animehacker_canonical_source_path(root, relative)
         actual_hash = hash_file(authority_path)
         role = _animehacker_authority_role(relative)
         if actual_hash != expected_hash:
@@ -3085,7 +3111,9 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
         (ANIMEHACKER_PROMPT_RELATIVE, "prompt-contract", "GTQ-PROMPTS-v1 authority"),
         (ANIMEHACKER_RUBRIC_RELATIVE, "quality-rubric", "GTQ-QUALITY-RUBRIC-v1 authority"),
     ]
-    animehacker_raw_root = resolve_repository_path(root, ANIMEHACKER_RAW_RELATIVE)
+    animehacker_raw_root = _animehacker_canonical_source_path(
+        root, ANIMEHACKER_RAW_RELATIVE
+    )
     for path in sorted(animehacker_raw_root.rglob("*")):
         if path.is_file():
             relative = ANIMEHACKER_RAW_RELATIVE / path.relative_to(animehacker_raw_root)
@@ -3234,7 +3262,7 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
     ))
 
     repository = json.loads(
-        resolve_repository_path(
+        _animehacker_canonical_source_path(
             root, ANIMEHACKER_RAW_RELATIVE / "acquisition/repository.json"
         ).read_text(encoding="utf-8-sig")
     )
@@ -3249,7 +3277,7 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
             "workbook_revision": "1.5",
             "status_authority": repo_relative(
                 root,
-                resolve_repository_path(
+                _animehacker_canonical_source_path(
                     root, ANIMEHACKER_RAW_RELATIVE / "reconciliation.json"
                 ),
             ),
@@ -3333,8 +3361,10 @@ def build_animehacker_report(bundle: RouteBundle) -> Report:
         ANIMEHACKER_PROMPT_RELATIVE,
         ANIMEHACKER_RUBRIC_RELATIVE,
     )
-    evidence_by_path = {row.relative_path: row for row in bundle.evidence}
-    key_evidence = tuple(evidence_by_path[path.as_posix()] for path in key_paths)
+    evidence_by_id = {row.evidence_id: row for row in bundle.evidence}
+    key_evidence = tuple(
+        evidence_by_id[_animehacker_evidence_id(path)] for path in key_paths
+    )
     sections = (
         ReportSection(SECTION_ORDER[0], (ReportParagraph(
             "This publication is controlled by WB-03 revision 1.5 and the authenticated source set listed in the Evidence section."
@@ -3425,15 +3455,22 @@ def _animehacker_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
     evidence_by_path = {row.relative_path: row for row in bundle.evidence}
     measurement_ids = {row.measurement_id for row in bundle.measurements}
     errors: list[str] = []
-    expected_authorities = {
-        relative.as_posix(): {
-            "relative_path": relative.as_posix(),
+    expected_authorities: dict[str, dict[str, str]] = {}
+    for relative, digest in ANIMEHACKER_SOURCE_AUTHORITY_HASHES.items():
+        evidence_id = _animehacker_evidence_id(relative)
+        evidence = next(
+            (row for row in bundle.evidence if row.evidence_id == evidence_id),
+            None,
+        )
+        relative_path = (
+            evidence.relative_path if evidence is not None else relative.as_posix()
+        )
+        expected_authorities[relative_path] = {
+            "relative_path": relative_path,
             "role": _animehacker_authority_role(relative),
             "sha256": digest,
-            "evidence_id": _animehacker_evidence_id(relative),
+            "evidence_id": evidence_id,
         }
-        for relative, digest in ANIMEHACKER_SOURCE_AUTHORITY_HASHES.items()
-    }
     published_authorities = bundle.repository.get("source_authorities", [])
     published_by_path = {
         row.get("relative_path"): row
@@ -3462,7 +3499,9 @@ def _animehacker_relationship_receipt(bundle: RouteBundle) -> dict[str, object]:
         errors.append("published matrix entity-hash map relationship")
     historical_rows = bundle.repository.get("historical_failure_rows", [])
     historical_hashes = {
-        str(row.get("Failure ID")): _animehacker_entity_hash(row)
+        str(row.get("Failure ID")): _animehacker_entity_hash(
+            _animehacker_historical_source_entity(row)
+        )
         for row in historical_rows
         if isinstance(row, dict)
     } if isinstance(historical_rows, list) else {}

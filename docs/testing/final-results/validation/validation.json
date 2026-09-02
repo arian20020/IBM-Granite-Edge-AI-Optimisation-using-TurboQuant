@@ -1,0 +1,117 @@
+{
+  "schema": "testing-cleanup-final-validation/v1",
+  "release_version": "unified-final-results-2026-09-01-v2",
+  "cleanup_version": "testing-results-cleanup-2026-09-02-v1",
+  "valid": true,
+  "status": "passed",
+  "checks": {
+    "archive_receipt": {
+      "valid": true,
+      "entry_count": 1128,
+      "total_bytes": 2038466,
+      "unverified_count": 0,
+      "manifest_sha256": "863a13513f760ac70545b67fa4e70e017fe5e0eb89de4313f7c8a68debb54ed7",
+      "receipt_sha256": "f6a661a00783e8e429721de463bceadb88b4136581f2155cbd2d524240c82b6e"
+    },
+    "clean_git_archive": {
+      "valid": true,
+      "receipt": "docs/testing/cleanup/clean-archive-validation.json",
+      "status": "passed",
+      "gate_count": 13,
+      "failed_gate_count": 0,
+      "evidence_hydration_performed": false
+    },
+    "comparison_decisions": {
+      "valid": true,
+      "row_count": 20,
+      "sha256": "bbe77f0f503ef650607793fa81a84ca09f5ad5e386a512cd8f1d39b6fffec258",
+      "unchanged": true
+    },
+    "evidence_relationships": {
+      "valid": true,
+      "record_count": 1857,
+      "relationship_count": 1857,
+      "unique_evidence_id_count": 1857,
+      "unique_path_count": 1846
+    },
+    "inventory_reduction": {
+      "valid": true,
+      "before": {
+        "path_count": 5057,
+        "size_bytes": 1977743410
+      },
+      "removed": {
+        "path_count": 1529,
+        "size_bytes": 18265409
+      },
+      "after": {
+        "path_count": 3528,
+        "size_bytes": 1959478001
+      }
+    },
+    "migration_indexes": {
+      "valid": true,
+      "published_path_rows": 1572,
+      "test_path_rows": 94,
+      "testing_code_rows": 74,
+      "evidence_rows": 1400
+    },
+    "outcomes": {
+      "valid": true,
+      "total": 169,
+      "status_counts": {
+        "passed": 81,
+        "failed": 6,
+        "blocked": 28,
+        "artifact_unavailable": 54
+      }
+    },
+    "pdf_reports": {
+      "valid": true,
+      "file_count": 6,
+      "page_count": 202,
+      "inspected_page_count": 202,
+      "blank_page_count": 0,
+      "clipped_text_block_count": 0,
+      "render_error_count": 0
+    },
+    "portable_workbooks": {
+      "valid": true,
+      "file_count": 2,
+      "read_only_open_count": 2,
+      "absolute_path_count": 0,
+      "missing_sheet_reference_count": 0,
+      "external_formula_reference_count": 0,
+      "formula_error_count": 0
+    },
+    "removal_receipt": {
+      "valid": true,
+      "planned_count": 1529,
+      "removed_count": 1529,
+      "archive_external_count": 1128,
+      "remove_regenerable_count": 401,
+      "selected_source_path_present_count": 0
+    },
+    "report_parity": {
+      "valid": true,
+      "pair_count": 6,
+      "matching_pair_count": 6
+    },
+    "semantic_equality": {
+      "valid": true,
+      "byte_equal": true,
+      "baseline_file_sha256": "671bb80ed06438142216b6a1bfda03da39dbb4de7a5359efcaabebf74f70745d",
+      "final_file_sha256": "671bb80ed06438142216b6a1bfda03da39dbb4de7a5359efcaabebf74f70745d",
+      "snapshot_sha256": "e1415852768a586c51692a72f41605fd6334afd640c6bceae2f7e20d17ef5aa6"
+    },
+    "stale_paths": {
+      "valid": true,
+      "published_path_count": 0
+    }
+  },
+  "limitations": [
+    "No benchmark, inference, quality adjudication, Microsoft Word export, or evidence regeneration was performed.",
+    "Comparison conclusions remain bounded by the published comparability matrix.",
+    "Licensing and verified-author metadata gaps remain unchanged."
+  ]
+}
