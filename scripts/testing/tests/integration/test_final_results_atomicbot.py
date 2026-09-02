@@ -126,6 +126,43 @@ def test_clean_index_excludes_archived_atomicbot_rows_and_fixture_recovers_them(
     assert audit["stale_index_hash_conflicts"] == 263
 
 
+def test_clean_head_builds_atomicbot_from_retained_canonical_evidence() -> None:
+    """Catch any production dependency on the removed AtomicBot raw root."""
+    receipt = json.loads(
+        (
+            REPOSITORY_ROOT
+            / "docs/testing/cleanup/implementation-root-removal-receipt.json"
+        ).read_text(encoding="utf-8")
+    )
+    removed = {
+        entry["path"]
+        for entry in receipt["entries"]
+        if entry["path"].startswith(
+            "experiments/raw-results/atomicbot-turboquant/"
+        )
+    }
+    tracked = set(
+        subprocess.check_output(
+            ["git", "ls-files", "-z"], cwd=REPOSITORY_ROOT
+        ).decode("utf-8").split("\0")
+    )
+    assert len(removed) == 517
+    assert removed.isdisjoint(tracked)
+
+    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+
+    audit = bundle.repository["source_reconciliation"]
+    assert len(bundle.attempts) == 19
+    assert audit["stale_index_missing_paths"] == 38
+    assert audit["stale_index_hash_conflicts"] == 263
+    assert all(
+        not item.relative_path.startswith(
+            "experiments/raw-results/atomicbot-turboquant/"
+        )
+        for item in bundle.evidence
+    )
+
+
 def test_atomicbot_coexisting_legacy_sources_never_leak_into_bundle_or_outputs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import json
 import os
 import re
 import tempfile
@@ -16,6 +17,10 @@ from .models import EvidenceRecord
 
 _HASH_BLOCK_SIZE = 1024 * 1024
 _EVIDENCE_ID_PREFIX_LENGTH = 12
+_CLEANUP_INVENTORY_RELATIVE = Path("docs/testing/cleanup/file-inventory.csv")
+_IMPLEMENTATION_REMOVAL_RECEIPT_RELATIVE = Path(
+    "docs/testing/cleanup/implementation-root-removal-receipt.json"
+)
 
 
 def _resolved_contained_path(repo_root: Path, path: Path) -> tuple[Path, Path]:
@@ -132,6 +137,130 @@ def resolve_repository_path(
         migrated_relative = migrated_bases.pop()
     _, migrated = _resolved_contained_path(root, root / migrated_relative)
     return migrated
+
+
+@lru_cache(maxsize=8)
+def _archived_path_identities(
+    receipt_path: str,
+    receipt_modified_ns: int,
+    receipt_size_bytes: int,
+    inventory_path: str,
+    inventory_modified_ns: int,
+    inventory_size_bytes: int,
+) -> dict[str, tuple[str, int]]:
+    """Validate and load identities for deliberately removed tracked paths."""
+    del (
+        receipt_modified_ns,
+        receipt_size_bytes,
+        inventory_modified_ns,
+        inventory_size_bytes,
+    )
+    receipt_file = Path(receipt_path)
+    inventory_file = Path(inventory_path)
+    receipt = json.loads(receipt_file.read_text(encoding="utf-8"))
+    if (
+        not isinstance(receipt, dict)
+        or receipt.get("schema")
+        != "testing-cleanup-implementation-root-removal/v1"
+        or receipt.get("valid") is not True
+    ):
+        raise ValueError("implementation-root removal receipt is not valid")
+    declared_payload_hash = receipt.get("receipt_payload_sha256")
+    unhashed = dict(receipt)
+    unhashed.pop("receipt_payload_sha256", None)
+    actual_payload_hash = hashlib.sha256(
+        (json.dumps(unhashed, sort_keys=True, separators=(",", ":")) + "\n").encode(
+            "utf-8"
+        )
+    ).hexdigest()
+    if declared_payload_hash != actual_payload_hash:
+        raise ValueError("implementation-root removal receipt self-hash mismatch")
+    inventory_digest = hash_file(inventory_file)
+    inventory_declaration = receipt.get("inventory")
+    if (
+        not isinstance(inventory_declaration, dict)
+        or inventory_declaration.get("path")
+        != _CLEANUP_INVENTORY_RELATIVE.as_posix()
+        or inventory_declaration.get("sha256") != inventory_digest
+    ):
+        raise ValueError("implementation-root removal inventory identity mismatch")
+
+    with inventory_file.open("r", encoding="utf-8-sig", newline="") as handle:
+        inventory_rows = {
+            row["path"]: row
+            for row in csv.DictReader(handle)
+            if row.get("tracked_status") == "tracked"
+            and row.get("action") == "archive_external"
+            and row.get("path", "").startswith("experiments/raw-results/")
+        }
+    entries = receipt.get("entries")
+    if not isinstance(entries, list) or not all(
+        isinstance(entry, dict) for entry in entries
+    ):
+        raise ValueError("implementation-root removal entries are malformed")
+    identities: dict[str, tuple[str, int]] = {}
+    for entry in entries:
+        path = _portable_relative(str(entry.get("path", "")).replace("\\", "/"))
+        if path in identities:
+            raise ValueError(f"duplicate implementation-root removal path: {path}")
+        row = inventory_rows.get(path)
+        identity = (
+            str(entry.get("sha256", "")).lower(),
+            int(entry.get("size_bytes", -1)),
+        )
+        if row is None or identity != (
+            row.get("sha256", "").lower(),
+            int(row["size_bytes"]),
+        ):
+            raise ValueError(f"implementation-root removal identity mismatch: {path}")
+        identities[path] = identity
+    selection = receipt.get("selection")
+    sorted_paths = sorted(identities)
+    path_list_hash = hashlib.sha256(
+        ("\n".join(sorted_paths) + "\n").encode("utf-8")
+    ).hexdigest()
+    if (
+        not isinstance(selection, dict)
+        or selection.get("action") != "archive_external"
+        or selection.get("tracked_status") != "tracked"
+        or selection.get("path_prefix") != "experiments/raw-results/"
+        or selection.get("path_count") != len(identities)
+        or selection.get("size_bytes")
+        != sum(size for _digest, size in identities.values())
+        or selection.get("path_list_sha256") != path_list_hash
+        or set(identities) != set(inventory_rows)
+    ):
+        raise ValueError("implementation-root removal selection mismatch")
+    return identities
+
+
+def verified_archived_path_identities(
+    repo_root: Path,
+) -> dict[str, tuple[str, int]]:
+    """Return receipt-bound archived identities without restoring removed files.
+
+    Older isolated fixtures may omit both cleanup artifacts. If either artifact
+    is present, both are required and validated as one admission boundary.
+    """
+    root = Path(repo_root).resolve(strict=True)
+    receipt = root / _IMPLEMENTATION_REMOVAL_RECEIPT_RELATIVE
+    inventory = root / _CLEANUP_INVENTORY_RELATIVE
+    if not receipt.is_file() and not inventory.is_file():
+        return {}
+    if not receipt.is_file() or not inventory.is_file():
+        raise ValueError("cleanup archive identity boundary is incomplete")
+    receipt_stat = receipt.stat()
+    inventory_stat = inventory.stat()
+    return dict(
+        _archived_path_identities(
+            str(receipt.resolve()),
+            receipt_stat.st_mtime_ns,
+            receipt_stat.st_size,
+            str(inventory.resolve()),
+            inventory_stat.st_mtime_ns,
+            inventory_stat.st_size,
+        )
+    )
 
 
 def migrate_repository_references(repo_root: Path, value: str) -> str:
@@ -351,5 +480,6 @@ __all__ = [
     "repo_relative",
     "resolve_repository_path",
     "validate_sha256_manifest",
+    "verified_archived_path_identities",
     "write_sha256_manifest",
 ]

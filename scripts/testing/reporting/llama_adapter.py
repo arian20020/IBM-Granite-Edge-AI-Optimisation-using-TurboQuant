@@ -25,6 +25,7 @@ from .evidence import (
     repo_relative,
     resolve_repository_path,
     validate_sha256_manifest,
+    verified_archived_path_identities,
     write_sha256_manifest,
 )
 from .layout import render_validation_markdown
@@ -1962,13 +1963,20 @@ def audit_atomicbot_sources(
             "code": row["Failure_Code"], "reason": row["Observed_Symptom"],
         })
 
+    archived_identities = verified_archived_path_identities(root)
     stale_missing = stale_hash = 0
     for row in indexed:
-        path = resolve_repository_path(
-            root, row["Repository_Path"].replace("\\", "/")
-        )
-        if not path.is_file(): stale_missing += 1
-        elif hash_file(path) != row["SHA256"].lower(): stale_hash += 1
+        relative = row["Repository_Path"].replace("\\", "/")
+        archived_identity = archived_identities.get(relative)
+        if archived_identity is not None:
+            if archived_identity[0] != row["SHA256"].lower():
+                stale_hash += 1
+            continue
+        path = resolve_repository_path(root, relative, prefer_migrated=True)
+        if not path.is_file():
+            stale_missing += 1
+        elif hash_file(path) != row["SHA256"].lower():
+            stale_hash += 1
     if (len(indexed), stale_missing, stale_hash) != (828, 38, 263):
         raise ValueError(
             "stale index inventory conflict: expected 828 rows / 38 missing / 263 hash mismatches, "

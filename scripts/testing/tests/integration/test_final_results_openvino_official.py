@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 
 import pytest
@@ -140,6 +141,40 @@ def _rewrite_raw(repo: Path, case_id: str, mutate) -> None:
         "raw_result_sha256"
     ] = digest
     _write_rows(fv2_path, fv2)
+
+
+def test_clean_head_builds_official_bundle_from_retained_canonical_evidence() -> None:
+    """Catch any production dependency on the two removed source aliases."""
+    deleted_aliases = (
+        FV2 / "source-models.json",
+        FV2 / "guarded-retry-002/source-models.json",
+    )
+    tracked = set(
+        subprocess.check_output(
+            ["git", "ls-files", "-z"], cwd=AUTHORITATIVE_REPO_ROOT
+        ).decode("utf-8").split("\0")
+    )
+    assert all(relative.as_posix() not in tracked for relative in deleted_aliases)
+
+    bundle = build_official_bundle(AUTHORITATIVE_REPO_ROOT)
+
+    source_models = [
+        item
+        for item in bundle.evidence
+        if item.role == "missing-model-source-inventory"
+    ]
+    assert len(bundle.attempts) == 45
+    assert len(source_models) == 1
+    assert source_models[0].relative_path == (
+        "experiments/raw-results/retained/openvino-official-upstream/"
+        "2026-08-30/fv2-missing-model-attempts/guarded-retry-001/"
+        "source-models.json"
+    )
+    coverage, data = build_official_validation_receipts(
+        AUTHORITATIVE_REPO_ROOT, bundle
+    )
+    assert coverage["valid"] is True
+    assert data["valid"] is True
 
 
 def test_official_campaign_joins_fv2_statuses_to_only_fv1_passed_evidence():

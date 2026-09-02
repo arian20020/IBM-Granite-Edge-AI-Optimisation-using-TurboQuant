@@ -6,7 +6,8 @@
   "base_commit": "26d08591837ae8c6238686797b7e735e8738cb0d",
   "review_fix_input_commit": "2bcb25388e58ca1cb2d55afe6239ce9e7706ca74",
   "final_branch_fix_input_commit": "9678e9c175dba87e37711424004598f2e528f68a",
-  "validated_tree": "25556104735b80b84d89ada7fe6507ae180f971d",
+  "current_revision_fix_input_commit": "529082ce56a0ae7dec63ecea79ee7c9f12f2fac4",
+  "validated_tree": "9b1115011db2124efa9048f97ecf916a2cd60bba",
   "release_subtree": "3f72dc3dd0f64e7d298c1f0110bac7b2da6d68bf",
   "validated_scope": "Every path in validated_tree; the subsequently added receipt path listed in excluded_paths is intentionally outside this non-self-referential scope.",
   "excluded_paths": [
@@ -16,14 +17,14 @@
     "source": "plain git archive of validated_tree using the tree's committed attributes (no line-ending override)",
     "format": "tar",
     "canonical_mtime": "2026-09-02T00:00:00Z",
-    "size_bytes": 162334720,
-    "sha256": "ac191cbd8d265e2ce3a972d44f5c4e263ce6ca6e78a3d5b5c88c2fa12ac02c05",
+    "size_bytes": 162344960,
+    "sha256": "853d9647c3bf1147149ed1fea36efae23e64dfdc179856d1fa8dc46a7c423b42",
     "file_member_count": 4165,
     "member_count": 5662,
-    "file_payload_bytes": 158377094,
+    "file_payload_bytes": 158386958,
     "repeated_archive_sha256_equal": true,
     "short_path_validation": true,
-    "disposable_extraction_root": "C:\\T15FBR2\\x",
+    "disposable_extraction_root": "C:\\T15FIX2\\x",
     "evidence_hydration_performed": false,
     "published_evidence_source_count": 1846,
     "published_evidence_relationship_record_count": 1857,
@@ -177,5 +178,5 @@
       }
     ]
   },
-  "receipt_payload_sha256": "3c9109a04a9764c2ab51956394eb1c7c77b15eab52576cfced1e9c94e0d55e76"
+  "receipt_payload_sha256": "06f6b4186126874f1349e14fe1c650212bc90e912cc16a8dc446ab2c62c6d354"
 }

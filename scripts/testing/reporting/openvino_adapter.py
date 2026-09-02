@@ -18,6 +18,7 @@ from .evidence import (
     repo_relative,
     resolve_repository_path,
     validate_sha256_manifest,
+    verified_archived_path_identities,
 )
 from .models import (
     AttemptRecord,
@@ -84,6 +85,7 @@ _OFFICIAL_SOURCE_MODEL_ALIASES = (
     _OFFICIAL_FV2_RELATIVE / "guarded-retry-002/source-models.json",
     _OFFICIAL_FV2_RELATIVE / "source-models.json",
 )
+_OFFICIAL_SOURCE_MODEL_AUTHORITY = _OFFICIAL_SOURCE_MODEL_ALIASES[0]
 _OFFICIAL_CONVERSION_LOG_RELATIVE = (
     _OFFICIAL_FV2_RELATIVE
     / "guarded-retry-002/attempts/granite-3b__fp16/conversion.log"
@@ -956,6 +958,47 @@ def _official_canonical_source_path(repo_root: Path, relative: str | Path) -> Pa
     return resolve_repository_path(repo_root, relative, prefer_migrated=True)
 
 
+def _official_source_model_locations(
+    repo_root: Path,
+) -> tuple[Path, tuple[tuple[Path, str, str, int], ...]]:
+    """Resolve one retained authority plus three historical location records.
+
+    Removed aliases are admitted as metadata only after the cleanup receipt and
+    frozen inventory agree. Their bytes are never reconstructed in production.
+    """
+    root = Path(repo_root).resolve(strict=True)
+    archived = verified_archived_path_identities(root)
+    authority = _official_canonical_source_path(
+        root, _OFFICIAL_SOURCE_MODEL_AUTHORITY
+    )
+    if not authority.is_file():
+        raise FileNotFoundError(
+            "required official source-model authority is missing: "
+            f"{_OFFICIAL_SOURCE_MODEL_AUTHORITY.as_posix()}"
+        )
+    authority_identity = (hash_file(authority), authority.stat().st_size)
+    locations: list[tuple[Path, str, str, int]] = []
+    for relative in _OFFICIAL_SOURCE_MODEL_ALIASES:
+        archived_identity = archived.get(relative.as_posix())
+        if archived_identity is not None:
+            digest, size = archived_identity
+            published_relative = relative.as_posix()
+        else:
+            path = _official_canonical_source_path(root, relative)
+            if not path.is_file():
+                raise FileNotFoundError(
+                    f"required official source-model alias is missing: {relative.as_posix()}"
+                )
+            digest, size = hash_file(path), path.stat().st_size
+            published_relative = repo_relative(root, path)
+        if (digest, size) != authority_identity:
+            raise ValueError(
+                f"official source-model alias content conflict: {relative.as_posix()}"
+            )
+        locations.append((relative, published_relative, digest, size))
+    return authority, tuple(locations)
+
+
 def _official_terminal_manifest_relative(row: Mapping[str, str]) -> Path:
     model_weight = f"{row['model']}__{row['weight_precision']}"
     if model_weight == "granite-3b__fp16":
@@ -1100,15 +1143,7 @@ def _validate_official_preflight_inputs(repo_root: Path) -> tuple[Path, ...]:
 
 
 def _validate_official_source_model_aliases(repo_root: Path) -> None:
-    identities = {
-        (
-            hash_file(_official_canonical_source_path(repo_root, relative)),
-            _official_canonical_source_path(repo_root, relative).stat().st_size,
-        )
-        for relative in _OFFICIAL_SOURCE_MODEL_ALIASES
-    }
-    if len(identities) != 1:
-        raise ValueError("official source-model alias content conflict")
+    _official_source_model_locations(repo_root)
 
 
 def _validate_official_tables(
@@ -1125,7 +1160,6 @@ def _validate_official_tables(
     required_evidence = (
         *_OFFICIAL_PREFLIGHT_INPUTS,
         _OFFICIAL_BENCHMARK_INPUT,
-        *_OFFICIAL_SOURCE_MODEL_ALIASES,
         _OFFICIAL_CONVERSION_LOG_RELATIVE,
     )
     for relative in required_evidence:
@@ -2100,11 +2134,8 @@ def _official_source_location_rows(
         for item in bundle.evidence
         if item.role == "missing-model-source-inventory"
     )
-    for relative in _OFFICIAL_SOURCE_MODEL_ALIASES:
-        path = _official_canonical_source_path(repo_root, relative)
-        canonical_relative = repo_relative(repo_root, path)
-        digest = hash_file(path)
-        size = path.stat().st_size
+    _authority, locations = _official_source_model_locations(repo_root)
+    for relative, canonical_relative, digest, size in locations:
         if digest != content.sha256 or size != content.size_bytes:
             raise ValueError(
                 f"source-model alias content conflict: {relative.as_posix()}"
@@ -2132,12 +2163,12 @@ def _official_source_location_consistency_errors(
 ) -> list[str]:
     errors: list[str] = []
     evidence_by_id = {item.evidence_id: item for item in bundle.evidence}
-    alias_paths = {
-        repo_relative(
-            repo_root, _official_canonical_source_path(repo_root, relative)
-        )
-        for relative in _OFFICIAL_SOURCE_MODEL_ALIASES
+    _authority, locations = _official_source_model_locations(repo_root)
+    alias_identities = {
+        published_relative: (digest, size)
+        for _relative, published_relative, digest, size in locations
     }
+    alias_paths = set(alias_identities)
     allowed_paths = {item.relative_path for item in bundle.evidence} | alias_paths
     seen_paths: set[str] = set()
     observed_aliases: list[tuple[str, str, str, int]] = []
@@ -2168,16 +2199,19 @@ def _official_source_location_consistency_errors(
             observed_aliases.append((relative, evidence_id, digest, size))
             if role != "missing-model-source-inventory":
                 errors.append(f"{relative}: source-model alias role conflict")
+            if (digest, size) != alias_identities[relative]:
+                errors.append(f"{relative}: source-model alias metadata conflict")
         elif relative != record.relative_path:
             errors.append(f"{relative}: source-location path differs from evidence record")
-        physical = repo_root / Path(relative)
-        if not physical.is_file():
-            errors.append(f"{relative}: physical source-location file is missing")
-            continue
-        if hash_file(physical) != digest or physical.stat().st_size != size:
-            errors.append(f"{relative}: physical source-location content conflict")
+        if not is_alias:
+            physical = repo_root / Path(relative)
+            if not physical.is_file():
+                errors.append(f"{relative}: physical source-location file is missing")
+                continue
+            if hash_file(physical) != digest or physical.stat().st_size != size:
+                errors.append(f"{relative}: physical source-location content conflict")
     if {item[0] for item in observed_aliases} != alias_paths:
-        errors.append("source-model aliases do not preserve all three physical paths")
+        errors.append("source-model aliases do not preserve all three historical locations")
     if len({(item[1], item[2], item[3]) for item in observed_aliases}) != 1:
         errors.append("source-model aliases do not share one content evidence identity")
     return errors
@@ -4015,16 +4049,15 @@ def _official_frozen_validation_expectations(repo_root: Path) -> dict[str, objec
         for entity in evidence_entities.values()
         if entity["role"] == "missing-model-source-inventory"
     )
-    for relative in _OFFICIAL_SOURCE_MODEL_ALIASES:
-        path = _official_canonical_source_path(repo_root, relative)
-        canonical_relative = repo_relative(repo_root, path)
+    _authority, locations = _official_source_model_locations(repo_root)
+    for relative, canonical_relative, digest, size in locations:
         source_location_entities.append(
             {
                 "evidence_id": inventory_entity["evidence_id"],
                 "role": "missing-model-source-inventory",
                 "relative_path": canonical_relative,
-                "sha256": hash_file(path),
-                "size_bytes": path.stat().st_size,
+                "sha256": digest,
+                "size_bytes": size,
                 "source_label": (
                     "fv2 source-model inventory alias "
                     f"{relative.relative_to(_OFFICIAL_FV2_RELATIVE).as_posix()}"
