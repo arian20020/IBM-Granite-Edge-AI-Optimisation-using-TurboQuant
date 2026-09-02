@@ -626,7 +626,7 @@ def _validate_raw_quality_case(
 def build_experimental_bundle(repo_root: Path) -> RouteBundle:
     """Build the canonical fv6 bundle from only its frozen source evidence."""
     root = Path(repo_root).resolve(strict=True)
-    fv6 = resolve_repository_path(root, _FV6_RELATIVE)
+    fv6 = resolve_repository_path(root, _FV6_RELATIVE, prefer_migrated=True)
     workbook = root / _EXPERIMENTAL_WORKBOOK_RELATIVE
     detailed_path = fv6 / _DETAILED_NAME
     comparison_path = fv6 / _COMPARISON_NAME
@@ -684,7 +684,9 @@ def build_experimental_bundle(repo_root: Path) -> RouteBundle:
         ]
         if executed:
             raw_relative = _portable_source_path(row["raw_result_path"])
-            raw_path = resolve_repository_path(root, raw_relative)
+            raw_path = resolve_repository_path(
+                root, raw_relative, prefer_migrated=True
+            )
             if hash_file(raw_path) != row["raw_result_sha256"]:
                 raise ValueError(f"{case_id}: raw-result hash differs from detailed source")
             raw_record = _record_evidence(
@@ -882,7 +884,9 @@ def build_experimental_bundle(repo_root: Path) -> RouteBundle:
             if not isinstance(run, dict):
                 raise ValueError(f"{case_id}: malformed quality run")
             prompt_relative = _portable_source_path(str(run["prompt_path"]))
-            prompt_path = resolve_repository_path(root, prompt_relative)
+            prompt_path = resolve_repository_path(
+                root, prompt_relative, prefer_migrated=True
+            )
             if hash_file(prompt_path) != run["prompt_sha256"]:
                 raise ValueError(f"{case_id}/{run['prompt_id']}: prompt hash mismatch")
             if prompt_relative not in input_evidence_by_path:
@@ -1887,7 +1891,14 @@ def _prompt_and_output_rows(
         if not isinstance(payload, dict):
             raise ValueError(f"{case_id}: raw quality evidence is not an object")
         for run in payload["quality_runs"]:
-            prompt_path = _portable_source_path(str(run["prompt_path"]))
+            prompt_path = repo_relative(
+                repo_root,
+                resolve_repository_path(
+                    repo_root,
+                    _portable_source_path(str(run["prompt_path"])),
+                    prefer_migrated=True,
+                ),
+            )
             prompt_record = input_evidence[prompt_path]
             prompt_id = str(run["prompt_id"])
             candidate = {
@@ -2303,7 +2314,12 @@ def _entity_set_diagnostics(
 
 def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
     fv6_relative = Path(
-        repo_relative(repo_root, resolve_repository_path(repo_root, _FV6_RELATIVE))
+        repo_relative(
+            repo_root,
+            resolve_repository_path(
+                repo_root, _FV6_RELATIVE, prefer_migrated=True
+            ),
+        )
     )
     detailed = _read_csv(repo_root / fv6_relative / _DETAILED_NAME)
     quality_rows = _read_csv(repo_root / fv6_relative / _QUALITY_NAME)
@@ -2311,7 +2327,9 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
     used_evidence_ids: set[str] = set()
 
     def add_evidence(relative_path: Path | str, role: str, source_label: str) -> str:
-        source_path = resolve_repository_path(repo_root, relative_path)
+        source_path = resolve_repository_path(
+            repo_root, relative_path, prefer_migrated=True
+        )
         portable_path = repo_relative(repo_root, source_path)
         if portable_path in evidence_entities:
             return str(evidence_entities[portable_path]["evidence_id"])
@@ -2430,7 +2448,11 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
         raw_evidence_by_case[case_id] = raw_evidence_id
         attempt_evidence_ids.append(raw_evidence_id)
         attempt_entities[case_id]["evidence_ids"] = attempt_evidence_ids
-        raw_payload = _read_json(repo_root / Path(raw_relative))
+        raw_payload = _read_json(
+            resolve_repository_path(
+                repo_root, raw_relative, prefer_migrated=True
+            )
+        )
         if not isinstance(raw_payload, dict):
             raise ValueError(f"{case_id}: frozen raw result is not an object")
         raw_payloads[case_id] = raw_payload
@@ -2500,6 +2522,12 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
         for run in raw_payload["quality_runs"]:
             prompt_id = str(run["prompt_id"])
             prompt_relative = _portable_source_path(str(run["prompt_path"]))
+            published_prompt_relative = repo_relative(
+                repo_root,
+                resolve_repository_path(
+                    repo_root, prompt_relative, prefer_migrated=True
+                ),
+            )
             prompt_evidence_id = add_evidence(
                 prompt_relative,
                 "quality-prompt-input",
@@ -2511,7 +2539,7 @@ def _frozen_validation_expectations(repo_root: Path) -> dict[str, object]:
                 "domain": str(run["domain"]),
                 "prompt_length": str(run["prompt_length"]),
                 "input_evidence_id": prompt_evidence_id,
-                "relative_path": prompt_relative,
+                "relative_path": published_prompt_relative,
                 "sha256": str(run["prompt_sha256"]),
             }
             previous = prompt_entities.get(prompt_id)

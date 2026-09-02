@@ -72,6 +72,50 @@ def _copy_sources(tmp_path: Path) -> Path:
     return root
 
 
+def test_atomicbot_coexisting_legacy_sources_never_leak_into_bundle_or_outputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    root = _copy_sources(tmp_path)
+    legacy = root / "experiments/raw-results/atomicbot-turboquant"
+    retained = root / "experiments/raw-results/retained/atomicbot-turboquant"
+    shutil.copytree(retained, legacy, dirs_exist_ok=True)
+    route_relative = Path("published/02-atomicbot-turboquant")
+    monkeypatch.setattr(llama_adapter, "ATOMICBOT_ROUTE_RELATIVE", route_relative)
+
+    bundle = write_atomicbot_route(root)
+    legacy_prefix = "experiments/raw-results/atomicbot-turboquant/"
+    assert len(bundle.evidence) == 286
+    assert [
+        record.relative_path
+        for record in bundle.evidence
+        if record.relative_path.startswith(legacy_prefix)
+    ] == []
+
+    route = root / route_relative
+    text_outputs = [
+        path
+        for path in route.rglob("*")
+        if path.is_file() and path.suffix.casefold() in {".csv", ".json", ".md", ".txt"}
+    ]
+    with (root / "docs/testing/cleanup/PATH-MIGRATION.csv").open(
+        encoding="utf-8-sig", newline=""
+    ) as handle:
+        coexisting_legacy_paths = {
+            row["old_path"]
+            for row in csv.DictReader(handle)
+            if (root / row["old_path"]).is_file()
+            and (root / row["new_path"]).is_file()
+        }
+    assert text_outputs
+    assert len(coexisting_legacy_paths) == 481
+    assert [
+        (path.relative_to(route).as_posix(), legacy_path)
+        for path in text_outputs
+        for legacy_path in coexisting_legacy_paths
+        if legacy_path in path.read_text(encoding="utf-8-sig")
+    ] == []
+
+
 def test_bundle_represents_all_runtime_configs_and_current_formal_authority():
     bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
 

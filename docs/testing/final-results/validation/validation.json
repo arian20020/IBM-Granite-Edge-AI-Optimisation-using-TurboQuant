@@ -31,6 +31,9 @@
       "valid": true,
       "record_count": 1857,
       "relationship_count": 1857,
+      "relationship_record_count": 1857,
+      "snapshot_relationship_count": 1846,
+      "snapshot_relationship_count_semantics": "unique cited path cardinality (legacy frozen-snapshot field name)",
       "unique_evidence_id_count": 1857,
       "unique_path_count": 1846
     },
@@ -110,7 +113,7 @@
     }
   },
   "limitations": [
-    "No benchmark, inference, quality adjudication, Microsoft Word export, or evidence regeneration was performed.",
+    "No benchmark, inference, quality adjudication, Microsoft Word export, semantic evidence regeneration, or semantic evidence mutation was performed; scoped frozen text sources received an EOL-only canonical-byte admission at the Git boundary without changing scientific fields or meaning.",
     "Comparison conclusions remain bounded by the published comparability matrix.",
     "Licensing and verified-author metadata gaps remain unchanged."
   ]

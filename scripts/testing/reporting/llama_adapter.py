@@ -2012,7 +2012,7 @@ def build_atomicbot_bundle(repo_root: Path) -> RouteBundle:
 
     evidence: list[EvidenceRecord] = []; evidence_ids: set[str] = set()
     def add_evidence(relative: str | Path, role: str, label: str, evidence_id: str | None = None) -> str:
-        path = resolve_repository_path(root, relative)
+        path = resolve_repository_path(root, relative, prefer_migrated=True)
         relative_path = repo_relative(root, path)
         digest = hash_file(path)
         candidate = evidence_id or f"atomicbot-{role}-{digest[:16]}"

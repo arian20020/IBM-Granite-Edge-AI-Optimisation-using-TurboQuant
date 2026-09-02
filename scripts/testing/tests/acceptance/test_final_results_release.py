@@ -505,6 +505,12 @@ def test_release_readiness_records_every_pdf_page_and_spreadsheet_qa():
     assert readiness["basis"]["raw_git_archive_self_contained"] is True
     assert readiness["basis"]["external_hydration_required"] is False
     assert readiness["basis"]["published_evidence_source_count"] == 1846
+    assert readiness["basis"]["published_evidence_relationship_record_count"] == 1857
+    assert readiness["basis"]["semantic_snapshot_relationship_count"] == 1846
+    assert readiness["basis"]["published_stale_migrated_path_count"] == 0
+    assert readiness["basis"]["manifest_generation_order"].endswith(
+        "self-excluding staged-blob manifest last"
+    )
     assert readiness["qa_method"]["pdf_renderer"] == "PyMuPDF"
 
     pdf_qa = readiness["qa"]["pdf_reports"]

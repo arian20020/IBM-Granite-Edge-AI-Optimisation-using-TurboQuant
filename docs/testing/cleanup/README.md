@@ -15,8 +15,12 @@ relationships, or its guarded comparison decisions.
   the snapshot's canonical self-hash is
   `e1415852768a586c51692a72f41605fd6334afd640c6bceae2f7e20d17ef5aa6`.
 - The settled package retains 169 outcomes: 81 passed, 6 failed, 28 blocked,
-  and 54 artifact-unavailable. It retains 1,846 distinct cited evidence paths,
-  six Markdown/DOCX parity pairs, and six PDFs totalling 202 pages.
+  and 54 artifact-unavailable. It retains 1,857 evidence relationship records
+  with 1,857 unique evidence IDs across 1,846 distinct cited evidence paths,
+  six Markdown/DOCX parity pairs, and six PDFs totalling 202 pages. In the
+  frozen semantic-snapshot schema, the legacy field `relationship_count=1846`
+  is explicitly the unique-path cardinality; the `relationships` array contains
+  all 1,857 records.
 - Both primary portable OpenVINO XLSX derivatives open read-only and contain
   zero machine-specific absolute paths. The immutable source workbooks remain
   evidence-only and byte-identical.
@@ -57,7 +61,11 @@ the external archive receipt summarized by [`archive-summary.json`](archive-summ
 regenerable removals are limited to the exact cache rule recorded in
 [`removal-receipt.json`](removal-receipt.json).
 
-No benchmark, inference, quality adjudication, Microsoft Word export, evidence
-regeneration, or source-evidence mutation was performed during finalization.
-Pre-existing untracked scientific work was outside the cleanup transaction and
-was left untouched.
+No benchmark, inference, quality adjudication, Microsoft Word export, semantic
+evidence regeneration, or semantic evidence mutation was performed during
+finalization. The Git boundary did admit EOL-only canonical bytes for scoped
+frozen text sources—including the quality register, frozen prompt files, and
+official OpenVINO retest matrix—so a plain archive preserves their pre-existing
+authoritative working bytes. That byte-level admission changed no scientific
+field or meaning. Pre-existing untracked scientific work was outside the cleanup
+transaction and was left untouched.

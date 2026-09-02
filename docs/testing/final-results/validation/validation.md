@@ -8,7 +8,10 @@ Overall result: **Passed**.
 
 Every stable invariant already reconciles: the baseline and final semantic
 snapshots are byte-identical; all 169 outcomes (81 passed, 6 failed, 28 blocked,
-54 artifact-unavailable) and 1,846 distinct cited evidence paths remain; all
+54 artifact-unavailable), 1,857 evidence relationship records, and 1,846
+distinct cited evidence paths remain. The frozen snapshot's legacy
+`relationship_count=1846` value is the unique-path cardinality, while its
+`relationships` array contains 1,857 records. All
 six Markdown/DOCX pairs match; all 202 PDF pages render and have been visually
 inspected; and both portable XLSX files open read-only with zero
 machine-absolute paths.
@@ -24,5 +27,8 @@ zero with no blocking findings. The machine receipt for the immutable tree and
 archive identity is
 [`../../cleanup/clean-archive-validation.json`](../../cleanup/clean-archive-validation.json).
 
-No benchmark, inference, quality adjudication, Microsoft Word export, evidence
-regeneration, or source-evidence mutation was performed.
+No benchmark, inference, quality adjudication, Microsoft Word export, semantic
+evidence regeneration, or semantic evidence mutation was performed. Scoped
+frozen text sources received an EOL-only canonical-byte admission at the Git
+boundary so plain archives retain their pre-existing authoritative bytes; no
+scientific field or meaning changed.

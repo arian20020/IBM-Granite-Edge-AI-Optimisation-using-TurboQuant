@@ -396,13 +396,10 @@
     {
       "@id": "#testing-results-cleanup-finalization",
       "@type": "CreateAction",
-      "name": "Reconcile cleanup semantics and validate the self-contained release archive",
+      "name": "Reconcile cleanup semantics and write finalization receipts before manifest generation",
       "object": [
         {
           "@id": "validation/release-readiness.json"
-        },
-        {
-          "@id": "manifest-sha256.txt"
         }
       ],
       "result": [

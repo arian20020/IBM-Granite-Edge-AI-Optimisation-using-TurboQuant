@@ -4,8 +4,9 @@
   "cleanup_version": "testing-results-cleanup-2026-09-02-v1",
   "release_version": "unified-final-results-2026-09-01-v2",
   "base_commit": "26d08591837ae8c6238686797b7e735e8738cb0d",
-  "validated_tree": "70d7f6458e5ec746e8a50d624e6d68227b931a9e",
-  "release_subtree": "990b8e7e67728979380bd0799ad74d3fc253aa70",
+  "review_fix_input_commit": "2bcb25388e58ca1cb2d55afe6239ce9e7706ca74",
+  "validated_tree": "09b4baae700f36ea0d92a67c2010c2a87e2ddb11",
+  "release_subtree": "4ceb6a5851bddaa3f8a4abac6d8059048c47fadc",
   "validated_scope": "Every path in validated_tree; the subsequently added receipt path listed in excluded_paths is intentionally outside this non-self-referential scope.",
   "excluded_paths": [
     "docs/testing/cleanup/clean-archive-validation.json"
@@ -14,16 +15,19 @@
     "source": "plain git archive of validated_tree using the tree's committed attributes (no line-ending override)",
     "format": "tar",
     "canonical_mtime": "2026-09-02T00:00:00Z",
-    "size_bytes": 162283520,
-    "sha256": "63d1d915f75389d103c5a25c88416fbd81a349cca9dc1dc10a5219d92dab50c5",
+    "size_bytes": 162293760,
+    "sha256": "fa53d7208abbc1f242f0cdf983d3bebe65a51dbb4a392dc5d05ea2026a1cda91",
     "file_member_count": 4856,
     "member_count": 6357,
-    "file_payload_bytes": 157773309,
+    "file_payload_bytes": 157783488,
     "repeated_archive_sha256_equal": true,
     "short_path_validation": true,
-    "disposable_extraction_root": "C:\\T15V8\\x",
+    "disposable_extraction_root": "C:\\T15R1V3\\x",
     "evidence_hydration_performed": false,
     "published_evidence_source_count": 1846,
+    "published_evidence_relationship_record_count": 1857,
+    "snapshot_relationship_count": 1846,
+    "snapshot_relationship_count_semantics": "unique cited path cardinality (legacy frozen-snapshot field name)",
     "missing_published_evidence_source_count": 0,
     "frozen_byte_member_count": 21,
     "frozen_byte_member_examples": [
@@ -172,5 +176,5 @@
       }
     ]
   },
-  "receipt_payload_sha256": "25df29a4abca90e8514323cfcbfe47d8e22418a1fb7f1f4d363420dd51dd76ca"
+  "receipt_payload_sha256": "b02c1f5fcf80d6d9129e6b8d0859fc4b5f9adca1efb17859b8d18a21c326b0dd"
 }

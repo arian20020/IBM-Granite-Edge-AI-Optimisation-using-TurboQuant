@@ -4,8 +4,10 @@
 
 - Proved byte-for-byte equality between the frozen baseline and final semantic
   snapshots: 169 outcomes (81 passed, 6 failed, 28 blocked, and 54
-  artifact-unavailable), 1,846 distinct cited evidence paths, six report parity
-  pairs, six PDFs, and 202 PDF pages.
+  artifact-unavailable), 1,857 evidence relationship records across 1,846
+  distinct cited evidence paths, six report parity pairs, six PDFs, and 202 PDF
+  pages. The frozen `relationship_count=1846` field denotes unique-path
+  cardinality; the `relationships` array contains 1,857 records.
 - Reconciled the frozen 5,057-path, 1,977,743,410-byte recovery inventory to the
   verified 1,529-path, 18,265,409-byte removal transaction and the retained
   3,528-path, 1,959,478,001-byte snapshot.
@@ -20,10 +22,13 @@
 - Refreshed collection validation, release readiness, RO-Crate provenance, and
   the canonical staged-blob manifest after the final path set settled.
 
-No benchmark, inference, quality adjudication, Microsoft Word export, evidence
-regeneration, or source-evidence mutation was performed. The scientific release
-version remains `unified-final-results-2026-09-01-v2`; finalization records
-cleanup version `testing-results-cleanup-2026-09-02-v1`.
+No benchmark, inference, quality adjudication, Microsoft Word export, semantic
+evidence regeneration, or semantic evidence mutation was performed. Scoped
+frozen text sources received an EOL-only canonical-byte admission so plain Git
+archives preserve their pre-existing authoritative bytes; no scientific field
+or meaning changed. The scientific release version remains
+`unified-final-results-2026-09-01-v2`; finalization records cleanup version
+`testing-results-cleanup-2026-09-02-v1`.
 
 ## 2026-09-02 — Compact publication layout cleanup
 

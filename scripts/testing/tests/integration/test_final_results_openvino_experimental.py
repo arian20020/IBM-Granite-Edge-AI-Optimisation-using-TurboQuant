@@ -14,8 +14,13 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.testing.reporting import openvino_adapter
 from scripts.testing.reporting.csvio import validate_json
-from scripts.testing.reporting.evidence import validate_sha256_manifest
+from scripts.testing.reporting.evidence import (
+    repo_relative,
+    resolve_repository_path,
+    validate_sha256_manifest,
+)
 from scripts.testing.reporting.models import Status
 from scripts.testing.reporting.openvino_adapter import (
     build_experimental_bundle,
@@ -25,6 +30,10 @@ from scripts.testing.reporting.openvino_adapter import (
 
 
 FV6 = REPO_ROOT / "experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6"
+RETAINED_FV6 = (
+    REPO_ROOT
+    / "experiments/raw-results/retained/openvino-experimental-fork/2026-08-30/fv6"
+)
 ROUTE = REPO_ROOT / "docs/testing/final-results/04-openvino-experimental-fork"
 SOURCE_WORKBOOK = (
     REPO_ROOT
@@ -57,6 +66,63 @@ def _isolated_fv6_repo(tmp_path: Path) -> Path:
     workbook.parent.mkdir(parents=True)
     shutil.copyfile(SOURCE_WORKBOOK, workbook)
     return repo
+
+
+def _coexisting_fv6_repo(tmp_path: Path) -> Path:
+    """Create an exact old/new coexistence fixture from the retained authority."""
+    repo = tmp_path / "repo"
+    for source, relative in (
+        (RETAINED_FV6, RETAINED_FV6.relative_to(REPO_ROOT)),
+        (RETAINED_FV6, FV6.relative_to(REPO_ROOT)),
+    ):
+        shutil.copytree(source, repo / relative)
+    for source in (
+        SOURCE_WORKBOOK,
+        REPO_ROOT / "docs/testing/cleanup/PATH-MIGRATION.csv",
+    ):
+        target = repo / source.relative_to(REPO_ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+    return repo
+
+
+def test_fv6_coexisting_legacy_sources_never_leak_into_bundle_or_outputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    repo = _coexisting_fv6_repo(tmp_path)
+    route_relative = Path("published/04-openvino-experimental-fork")
+    monkeypatch.setattr(
+        openvino_adapter, "_EXPERIMENTAL_ROUTE_RELATIVE", route_relative
+    )
+
+    bundle = write_experimental_route(repo)
+    legacy_prefix = "experiments/raw-results/openvino-experimental-fork/"
+    assert len(bundle.evidence) == 81
+    assert [
+        record.relative_path
+        for record in bundle.evidence
+        if record.relative_path.startswith(legacy_prefix)
+    ] == []
+
+    route = repo / route_relative
+    text_outputs = [
+        path
+        for path in route.rglob("*")
+        if path.is_file() and path.suffix.casefold() in {".csv", ".json", ".md", ".txt"}
+    ]
+    coexisting_legacy_paths = {
+        row["old_path"]
+        for row in _rows(repo / "docs/testing/cleanup/PATH-MIGRATION.csv")
+        if (repo / row["old_path"]).is_file() and (repo / row["new_path"]).is_file()
+    }
+    assert text_outputs
+    assert len(coexisting_legacy_paths) == 80
+    assert [
+        (path.relative_to(route).as_posix(), legacy_path)
+        for path in text_outputs
+        for legacy_path in coexisting_legacy_paths
+        if legacy_path in path.read_text(encoding="utf-8-sig")
+    ] == []
 
 
 def _rewrite_raw(repo: Path, case_id: str, mutation) -> None:
@@ -167,9 +233,12 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
             assert row["raw_result_sha256"] == ""
             continue
         raw_relative = row["raw_result_path"].replace("\\", "/")
-        raw_record = evidence_by_path[raw_relative]
+        canonical_path = resolve_repository_path(
+            REPO_ROOT, raw_relative, prefer_migrated=True
+        )
+        raw_record = evidence_by_path[repo_relative(REPO_ROOT, canonical_path)]
         assert raw_record.sha256 == row["raw_result_sha256"]
-        assert raw_record.sha256 == _sha256(REPO_ROOT / raw_relative)
+        assert raw_record.sha256 == _sha256(canonical_path)
         assert raw_record.evidence_id in attempts_by_case[row["case_id"]].evidence_ids
 
     output_bundle = write_experimental_route(REPO_ROOT)

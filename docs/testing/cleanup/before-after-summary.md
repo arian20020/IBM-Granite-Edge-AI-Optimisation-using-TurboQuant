@@ -44,7 +44,9 @@ The byte-identical baseline/final snapshots prove that cleanup retained:
 - 169 attempt outcomes: 81 passed, 6 failed, 28 blocked, and 54
   artifact-unavailable;
 - 1,857 evidence records, 1,857 unique evidence IDs, and 1,846 unique cited
-  evidence paths;
+  evidence paths. The frozen snapshot's legacy `relationship_count=1846` field
+  denotes this unique-path cardinality; its `relationships` array has 1,857
+  records;
 - six Markdown/DOCX report parity pairs;
 - six PDFs and all 202 pages;
 - the complete guarded comparability matrix and unchanged decision rows.
@@ -58,3 +60,8 @@ references, zero external formula references, and zero formula errors.
 
 No claim of scientific improvement, route superiority, licensing permission,
 or authorship is implied by this filesystem cleanup.
+
+No semantic evidence regeneration or mutation occurred. Finalization did admit
+the pre-existing authoritative EOL representation of a scoped frozen-text set
+at the Git boundary using `-text`; this was a byte-preservation correction, not
+a change to scientific fields or conclusions.

@@ -174,6 +174,10 @@ def test_published_final_snapshot_is_byte_identical_to_the_frozen_baseline() -> 
         "passed": 81,
     }
     assert final["evidence"]["unique_path_count"] == 1846
+    assert final["evidence"]["relationship_count"] == 1846
+    assert final["evidence"]["record_count"] == 1857
+    assert final["evidence"]["unique_evidence_id_count"] == 1857
+    assert len(final["evidence"]["relationships"]) == 1857
     assert final["reports"]["pair_count"] == 6
     assert final["pdfs"]["file_count"] == 6
     assert final["pdfs"]["page_count"] == 202
@@ -338,10 +342,14 @@ def test_all_migration_indexes_are_complete_and_release_text_has_no_stale_path()
         and path.suffix.casefold() in {".csv", ".json", ".md", ".txt"}
     ]
     texts = [path.read_text(encoding="utf-8-sig") for path in text_files]
-    for row in published_rows:
+    for row in path_rows:
         full = row["old_path"]
-        relative = full.removeprefix("docs/testing/final-results/")
-        assert all(full not in text and relative not in text for text in texts), full
+        forbidden = {full}
+        if full.startswith("docs/testing/final-results/"):
+            forbidden.add(full.removeprefix("docs/testing/final-results/"))
+        assert all(
+            token not in text for text in texts for token in forbidden
+        ), full
 
 
 def test_six_parity_pairs_202_renderable_pdf_pages_and_two_portable_workbooks() -> None:
@@ -411,7 +419,14 @@ def test_final_validation_receipt_records_every_cleanup_invariant() -> None:
     assert semantic["baseline_file_sha256"] == semantic["final_file_sha256"]
     assert semantic["snapshot_sha256"] == BASELINE["snapshot_sha256"]
     assert validation["checks"]["outcomes"]["total"] == 169
-    assert validation["checks"]["evidence_relationships"]["unique_path_count"] == 1846
+    relationships = validation["checks"]["evidence_relationships"]
+    assert relationships["record_count"] == 1857
+    assert relationships["relationship_record_count"] == 1857
+    assert relationships["snapshot_relationship_count"] == 1846
+    assert relationships["snapshot_relationship_count_semantics"] == (
+        "unique cited path cardinality (legacy frozen-snapshot field name)"
+    )
+    assert relationships["unique_path_count"] == 1846
     assert validation["checks"]["report_parity"]["pair_count"] == 6
     assert validation["checks"]["pdf_reports"]["page_count"] == 202
     assert validation["checks"]["portable_workbooks"]["absolute_path_count"] == 0
@@ -420,12 +435,37 @@ def test_final_validation_receipt_records_every_cleanup_invariant() -> None:
     )
 
 
+def test_ro_crate_models_cleanup_finalization_before_manifest_generation() -> None:
+    crate = json.loads(
+        (RELEASE_ROOT / "ro-crate-metadata.json").read_text(encoding="utf-8")
+    )
+    entities = {entity["@id"]: entity for entity in crate["@graph"]}
+    finalization = entities["#testing-results-cleanup-finalization"]
+    manifest_generation = entities["#release-manifest-generation"]
+
+    finalization_inputs = {item["@id"] for item in finalization["object"]}
+    finalization_outputs = {item["@id"] for item in finalization["result"]}
+    manifest_inputs = {item["@id"] for item in manifest_generation["object"]}
+    manifest_outputs = {item["@id"] for item in manifest_generation["result"]}
+
+    assert "manifest-sha256.txt" not in finalization_inputs
+    assert finalization_outputs == {
+        "validation/validation.json",
+        "validation/validation.md",
+    }
+    assert finalization_outputs <= manifest_inputs
+    assert manifest_outputs == {"manifest-sha256.txt"}
+
+
 def test_clean_archive_receipt_is_self_hashed_and_records_all_thirteen_gates() -> None:
     receipt = json.loads(CLEAN_ARCHIVE_RECEIPT.read_text(encoding="utf-8"))
 
     assert receipt["schema"] == "testing-cleanup-clean-archive-validation/v1"
     assert receipt["valid"] is True
     assert receipt["base_commit"] == "26d08591837ae8c6238686797b7e735e8738cb0d"
+    assert receipt["review_fix_input_commit"] == (
+        "2bcb25388e58ca1cb2d55afe6239ce9e7706ca74"
+    )
     assert re.fullmatch(r"[0-9a-f]{40}", receipt["validated_tree"])
     assert re.fullmatch(r"[0-9a-f]{40}", receipt["release_subtree"])
     assert receipt["excluded_paths"] == [
@@ -437,6 +477,8 @@ def test_clean_archive_receipt_is_self_hashed_and_records_all_thirteen_gates() -
     assert receipt["archive"]["short_path_validation"] is True
     assert receipt["archive"]["evidence_hydration_performed"] is False
     assert receipt["archive"]["published_evidence_source_count"] == 1846
+    assert receipt["archive"]["published_evidence_relationship_record_count"] == 1857
+    assert receipt["archive"]["snapshot_relationship_count"] == 1846
     assert receipt["archive"]["missing_published_evidence_source_count"] == 0
     assert receipt["validation"]["command"] == [
         "py",
