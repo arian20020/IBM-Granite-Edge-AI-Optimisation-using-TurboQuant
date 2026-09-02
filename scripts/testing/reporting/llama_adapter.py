@@ -35,6 +35,11 @@ from .models import (
 from .openvino_report import SECTION_ORDER, regenerate_route_manifest
 from .parity import compare_markdown_docx
 from .report_model import Report, ReportNote, ReportParagraph, ReportSection, ReportTable
+from .reproduction import (
+    render_internal_scripts_notice,
+    render_release_validation_dependencies,
+    render_release_validation_guide,
+)
 
 
 ROUTE_ID = "upstream-llama-cpp"
@@ -1179,7 +1184,7 @@ def build_upstream_llama_report(bundle: RouteBundle) -> Report:
             ReportNote("No result establishes healthcare safety, educational efficacy, universal model quality, or causal superiority."),
         )),
         ReportSection(SECTION_ORDER[12], (
-            ReportParagraph("Regeneration normalizes existing evidence and does not rerun inference. Use the repository-relative inputs listed in reproduction/README.md."),
+            ReportParagraph("Use the supported validation-only CLI in reproduction/README.md to verify the settled package. It does not rerun inference, regenerate reports, invoke Word, or modify evidence."),
             _table("RE-01", "Canonical reproduction locations", ("Item", "Path"), (
                 ("Controlled workbook", WORKBOOK_RELATIVE.as_posix()), ("Quality source", QUALITY_RELATIVE.as_posix()),
                 ("Resource summary", RESOURCE_RELATIVE.as_posix()), ("Evidence index", EVIDENCE_INDEX_RELATIVE.as_posix()),
@@ -1402,46 +1407,13 @@ def write_upstream_llama_route(repo_root: Path) -> RouteBundle:
     write_csv(route / "reproduction/quality/adjudication-log.csv", ({"adjudication_id": "UL-QUALITY-ORIGINAL", "method": "Original conservative scoring", "status": "Preserved"},), ("adjudication_id", "method", "status"))
     _write_text(route / "evidence/failures/README.md", "# Failures and deviations\n\nHistorical failures and deviations are preserved; none is silently converted into a terminal failure of the 13 completed project workloads.")
     _write_text(route / "evidence/failures/curated-logs/README.md", "# Curated log handling\n\nNo logs are duplicated here. The complete source logs remain at their hashed repository-relative locations in `evidence/evidence-index.csv`.")
-    _write_text(route / "reproduction/README.md", "# Reproduction\n\nRun the five ordered commands in `commands.md` from the repository root. They normalize existing evidence, render derivatives, export through the owned Word process, finalize validation, verify the checksum receipt, and run focused tests. They do not rerun inference.")
+    _write_text(route / "reproduction/README.md", render_release_validation_guide("upstream-llama"))
     _write_text(
         route / "reproduction/commands.md",
-        """# Ordered reproduction commands
-
-Run from the repository root in PowerShell. Stop immediately if any command exits nonzero.
-
-1. Normalize and render
-
-```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import write_upstream_llama_route; write_upstream_llama_route(root)"
-```
-
-2. Export the owned Word PDF
-
-```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.docx -PdfPath docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.pdf -TimeoutSeconds 180
-```
-
-3. Finalize and validate the PDF
-
-```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import finalize_upstream_llama_route; finalize_upstream_llama_route(root)"
-```
-
-4. Validate the checksum manifest
-
-```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.evidence import validate_sha256_manifest; errors=validate_sha256_manifest(root, root/'docs/testing/final-results/01-upstream-llama-cpp/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
-```
-
-5. Run the focused validation suite
-
-```powershell
-& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/integration/test_final_results_upstream_llama.py -q
-```
-""",
+        render_release_validation_guide("upstream-llama"),
     )
-    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- Portable interpreter: `.tools/python311-portable/python.exe` (validated with Python 3.11.9).\n- Pinned reporting packages: `scripts/testing/requirements.txt`.\n- Owned Word exporter: `scripts/testing/cli/export_report.ps1` with a 180-second bound.\n- Normalizer/finalizer: `scripts/testing/reporting/llama_adapter.py`.\n- Focused validation: `scripts/testing/tests/integration/test_final_results_upstream_llama.py`.\n- Microsoft Word is required only for the DOCX-to-PDF export step.")
-    _write_text(route / "reproduction/scripts/README.md", "# Reproduction scripts\n\nThe maintained adapter is `scripts/testing/reporting/llama_adapter.py`; it is referenced rather than copied.")
+    _write_text(route / "reproduction/dependencies.md", render_release_validation_dependencies())
+    _write_text(route / "reproduction/scripts/README.md", render_internal_scripts_notice())
     _write_text(route / "README.md", "# Upstream llama.cpp final results\n\nCanonical Markdown: `reports/upstream-llama-cpp-report.md`. Generated DOCX/PDF are derivatives. Source evidence remains in its authoritative repository locations.")
     markdown = route / "reports/upstream-llama-cpp-report.md"
     docx = route / "reports/upstream-llama-cpp-report.docx"
@@ -2257,7 +2229,7 @@ def build_atomicbot_report(bundle: RouteBundle) -> Report:
         ReportSection(SECTION_ORDER[9], (ReportParagraph("CPU, Vulkan-hybrid, and Vulkan-native placement were observed. Partial Vulkan rows intentionally retained CPU KV; this is not silent fallback. Exact per-run CPU/GPU observations are preserved."),)),
         ReportSection(SECTION_ORDER[10], (ReportParagraph("Five nonterminal deviations are explicit and typed: two setup scopes, one test scope, one multi-test scope, and one mixed prompt/test scope. Device Guard blocked one repository executable; memory and safety gates were resolved by controlled retest; the P5 timeout remains preserved as a scored empty output. None is converted into a runtime failure or silently filtered."),)),
         ReportSection(SECTION_ORDER[11], (ReportParagraph("The historical Evidence Index audit is exact: 828 AtomicBot rows, 38 missing paths, 263 existing-path hash mismatches, and one Evidence_ID duplicated over five empty stdout paths (four extra rows). Only 57 exact indexed utilization tuples substantiate registered utilization; live measurement JSON and formal throughput sources are admitted under their current path/hash. Quality remains provisional, P1-P6 is not a general benchmark, and no direct OpenVINO score comparison is permitted."), ReportNote("Missing historical fields remain `Not collected`, never zero."))),
-        ReportSection(SECTION_ORDER[12], (ReportParagraph("Use reproduction/commands.md to regenerate normalized artifacts, render DOCX, export PDF through the owned Word process, finalize receipts, and rerun focused validation. It does not rerun benchmarks."),)),
+        ReportSection(SECTION_ORDER[12], (ReportParagraph("Use the supported validation-only CLI in reproduction/commands.md to verify the settled package. It does not rerun benchmarks, regenerate reports, invoke Word, or modify evidence."),)),
         ReportSection(SECTION_ORDER[13], (ReportParagraph("Each admitted source has a repository-relative path and SHA-256. Every material performance, quality, runtime, deviation, workbook-precedence, and stale-index claim is mapped in evidence/claim-evidence-map.csv. Stale unjoined index rows are a recorded source-control limitation."), _table("EV-01", "Admitted evidence", ("Evidence ID", "Role", "SHA-256", "Repository-relative path"), evidence_rows))),
         ReportSection(SECTION_ORDER[14], (ReportParagraph("R1 (2026-07-17): initial unified evidence-bound publication from WB-02 v1.7. R1 hardening receipt: independently pinned quality authorities, full score recomputation, separated performance provenance, exact workbook-duplicate value reconciliation, explicit deviation relationships, exact stale-index inventory, and portable outputs. Generated DOCX/PDF are derivatives."),)),
     )
@@ -2402,32 +2374,10 @@ def write_atomicbot_route(repo_root: Path) -> RouteBundle:
     _write_text(route / "reproduction/protocol/test-plan.md", "# Test plan\n\nWB-02 v1.7 controls 19 runtime configurations across CPU, Vulkan partial, and Vulkan maximum placement. This publication does not rerun inference.")
     _write_text(route / "reproduction/protocol/execution-sequence.md", "# Execution sequence\n\nBuild/setup; CPU cache ladder; guarded 8B cases; partial/full Vulkan placement; three measured repetitions; all-row utilization; P1-P6 historical screen.")
     _write_text(route / "reproduction/protocol/metric-definitions.md", "# Metric definitions\n\nTTFT, peak working set, KV allocation, and utilization use the 2026-07-17 measurement JSON sources reconciled to all 57 Performance-Measurement register rows. TTFT and KV use the median; peak working set uses the maximum; CPU/GPU headline values average the three per-repetition means. Decode throughput uses 19 formal sources: 17 formal summary JSON files and generation-only eval events from three samples for each of the two controlled safety-bypass rows. Utilization CSV files support raw utilization samples only and never decode throughput. Missing data is `Not collected`.")
-    _write_text(route / "reproduction/README.md", "# Reproduction\n\nCommands regenerate this publication from existing evidence; they do not rerun inference.")
-    _write_text(route / "reproduction/commands.md", """# Ordered reproduction commands
-
-1. Normalize and render
-```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import write_atomicbot_route; write_atomicbot_route(root)"
-```
-2. Export the owned Word PDF
-```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.docx -PdfPath docs/testing/final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.pdf -TimeoutSeconds 180
-```
-3. Finalize and validate the PDF
-```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import finalize_atomicbot_route; finalize_atomicbot_route(root)"
-```
-4. Validate manifest
-```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.evidence import validate_sha256_manifest; errors=validate_sha256_manifest(root,root/'docs/testing/final-results/02-atomicbot-turboquant/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
-```
-5. Run focused validation
-```powershell
-& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/integration/test_final_results_atomicbot.py -q
-```
-""")
-    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- `scripts/testing/cli/export_report.ps1` (owned Word, 180 seconds)\n- `scripts/testing/reporting/llama_adapter.py`\n- `scripts/testing/tests/integration/test_final_results_atomicbot.py`")
-    _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/reporting/llama_adapter.py`.")
+    _write_text(route / "reproduction/README.md", render_release_validation_guide("atomicbot"))
+    _write_text(route / "reproduction/commands.md", render_release_validation_guide("atomicbot"))
+    _write_text(route / "reproduction/dependencies.md", render_release_validation_dependencies())
+    _write_text(route / "reproduction/scripts/README.md", render_internal_scripts_notice())
     _write_text(route / "README.md", "# AtomicBot TurboQuant final results\n\nCanonical Markdown and generated derivatives preserve WB-02 v1.7 evidence boundaries. Quality is limited/provisional and not directly OpenVINO-comparable.")
     markdown = route / "reports/atomicbot-turboquant-report.md"; docx = route / "reports/atomicbot-turboquant-report.docx"
     if not markdown.is_file():
@@ -3368,7 +3318,7 @@ def build_animehacker_report(bundle: RouteBundle) -> Report:
             "The evidence supports a conditional research comparator, not production Intel GPU integration or a full-GPU TQ3 claim."
         ), ReportNote("Rejected/superseded summaries are provenance evidence only and never contribute to formal aggregates."))),
         ReportSection(SECTION_ORDER[12], (ReportParagraph(
-            "Use the ordered commands in reproduction/commands.md to rebuild the route from immutable evidence, export the owned Word PDF, finalize it, and validate checksums."
+            "Use the supported validation-only CLI in reproduction/commands.md to verify the settled package without rerunning benchmarks, regenerating reports, invoking Word, or modifying evidence."
         ),)),
         ReportSection(SECTION_ORDER[13], (ReportParagraph(
             "This reader-facing table lists the bounded key authority set. The complete 742-row audit inventory remains in evidence/evidence-index.csv."
@@ -3625,32 +3575,10 @@ def write_animehacker_route(repo_root: Path) -> RouteBundle:
     _write_text(route / "reproduction/protocol/test-plan.md", "# Test plan\n\nWB-03 v1.5 controls AH-01 through AH-10. This publication normalizes existing evidence and does not rerun inference.")
     _write_text(route / "reproduction/protocol/execution-sequence.md", "# Execution sequence\n\nCPU/SYCL/Vulkan build reconciliation; guarded runtime pilots; excluded warm-up; three formal repetitions for runnable rows; P1-P6 scoring; terminal reconciliation.")
     _write_text(route / "reproduction/protocol/metric-definitions.md", "# Metric definitions\n\nMedians use only the three explicitly included repetitions. Peak working set is the maximum included OS observation. Rejected evidence and safety-only pilots do not enter formal statistics. Missing OS observations display `Not collected`, never zero.")
-    _write_text(route / "reproduction/README.md", "# Reproduction\n\nThese commands rebuild the report from existing evidence; they do not rerun benchmarks.")
-    _write_text(route / "reproduction/commands.md", """# Ordered reproduction commands
-
-1. Normalize and render
-```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import write_animehacker_route; write_animehacker_route(root)"
-```
-2. Export the owned Word PDF
-```powershell
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/testing/cli/export_report.ps1 -DocxPath docs/testing/final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.docx -PdfPath docs/testing/final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.pdf -TimeoutSeconds 180
-```
-3. Finalize and validate
-```powershell
-& .tools/python311-portable/python.exe -c "import sys; from pathlib import Path; root=Path.cwd(); sys.path.insert(0,str(root)); from scripts.testing.reporting.llama_adapter import finalize_animehacker_route; finalize_animehacker_route(root)"
-```
-4. Validate manifest
-```powershell
-& .tools/python311-portable/python.exe -c "from pathlib import Path; from scripts.testing.reporting.evidence import validate_sha256_manifest; root=Path.cwd(); errors=validate_sha256_manifest(root,root/'docs/testing/final-results/03-animehacker-tq3-0/evidence/manifest-sha256.txt'); print(errors); raise SystemExit(bool(errors))"
-```
-5. Run focused validation
-```powershell
-& .tools/python311-portable/python.exe -m pytest scripts/testing/tests/integration/test_final_results_animehacker.py -q
-```
-""")
-    _write_text(route / "reproduction/dependencies.md", "# Dependencies\n\n- `.tools/python311-portable/python.exe`\n- `scripts/testing/requirements.txt`\n- Microsoft Word via the bounded owned exporter\n- `scripts/testing/reporting/llama_adapter.py`")
-    _write_text(route / "reproduction/scripts/README.md", "# Maintained scripts\n\nThe maintained normalizer/finalizer is `scripts/testing/reporting/llama_adapter.py`.")
+    _write_text(route / "reproduction/README.md", render_release_validation_guide("animehacker"))
+    _write_text(route / "reproduction/commands.md", render_release_validation_guide("animehacker"))
+    _write_text(route / "reproduction/dependencies.md", render_release_validation_dependencies())
+    _write_text(route / "reproduction/scripts/README.md", render_internal_scripts_notice())
     _write_text(route / "README.md", "# animehacker TQ3_0 final results\n\nCanonical Markdown and synchronized DOCX/PDF derivatives preserve WB-03 v1.5 authority, rejected evidence, safety classifications, and missing-value boundaries.")
 
     markdown = route / "reports/animehacker-tq3-0-report.md"

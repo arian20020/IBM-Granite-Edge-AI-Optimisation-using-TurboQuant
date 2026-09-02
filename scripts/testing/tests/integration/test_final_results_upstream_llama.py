@@ -481,7 +481,7 @@ def test_quality_contract_is_hash_bound_and_fully_preserved():
         assert module.hash_file(REPOSITORY_ROOT / relative) == evidence_by_role[role].sha256
 
 
-def test_comparator_claims_bind_all_eligible_rows_and_reproduction_is_executable():
+def test_comparator_claims_bind_all_eligible_rows_and_reproduction_is_cli_only():
     route = REPOSITORY_ROOT / "docs/testing/final-results/01-upstream-llama-cpp"
     claims = list(csv.DictReader((route / "evidence/claim-evidence-map.csv").open(encoding="utf-8-sig", newline="")))
     cpu = next(row for row in claims if row["claim_id"] == "UL-CLAIM-CPU")
@@ -492,26 +492,12 @@ def test_comparator_claims_bind_all_eligible_rows_and_reproduction_is_executable
     assert len(json.loads(gpu["evidence_ids"])) > 4
 
     commands = (route / "reproduction/commands.md").read_text(encoding="utf-8")
-    expected_order = (
-        "1. Normalize and render",
-        "2. Export the owned Word PDF",
-        "3. Finalize and validate the PDF",
-        "4. Validate the checksum manifest",
-        "5. Run the focused validation suite",
-    )
-    assert all(label in commands for label in expected_order)
-    assert [commands.index(label) for label in expected_order] == sorted(commands.index(label) for label in expected_order)
-    assert commands.count("sys.path.insert(0,str(root))") == 3
-    for path in (
-        ".tools/python311-portable/python.exe",
-        "scripts/testing/requirements.txt",
-        "scripts/testing/cli/export_report.ps1",
-        "scripts/testing/reporting/llama_adapter.py",
-        "scripts/testing/tests/integration/test_final_results_upstream_llama.py",
-    ):
-        assert path in commands or path in (route / "reproduction/dependencies.md").read_text(encoding="utf-8")
-        if path != ".tools/python311-portable/python.exe":
-            assert (REPOSITORY_ROOT / path).exists(), path
+    assert "python -m scripts.testing.cli.validate_results --route upstream-llama" in commands
+    assert "do not rerun" in commands.casefold()
+    assert "do not modify evidence" in commands.casefold()
+    assert "scripts.testing.reporting" not in commands
+    assert "export_report.ps1" not in commands
+    assert "powershell.exe" not in commands
 
     quality_root = route / "reproduction/quality"
     rubric_text = (quality_root / "rubric.md").read_text(encoding="utf-8")

@@ -835,6 +835,8 @@ def test_package_writer_creates_portable_parity_valid_artifacts_and_catalogs(tmp
         route / "reports/cross-route-comparison-report.docx",
         route / "validation/validation.json",
         route / "validation/validation.md",
+        route / "reproduction/README.md",
+        route / "reproduction/commands.md",
         route / "evidence/manifest-sha256.txt",
         output / "catalog/route-register.csv",
         output / "catalog/campaign-summary.csv",
@@ -846,6 +848,12 @@ def test_package_writer_creates_portable_parity_valid_artifacts_and_catalogs(tmp
         output / "catalog/comparability-matrix.csv",
     )
     assert all(path.is_file() for path in expected)
+    commands = (route / "reproduction/commands.md").read_text(encoding="utf-8")
+    assert "python -m scripts.testing.cli.validate_results --route cross-route" in commands
+    assert "do not rerun" in commands.casefold()
+    assert "do not modify evidence" in commands.casefold()
+    assert "write_cross_route_package" not in commands
+    assert "export_report.ps1" not in commands
     assert json.loads((route / "validation/validation.json").read_text())["checks"]["workbook_parity"]["matches"] is True
     manifest_lines = (route / "evidence/manifest-sha256.txt").read_text(encoding="utf-8").splitlines()
     assert len(manifest_lines) == len([path for path in route.rglob("*") if path.is_file()]) - 1

@@ -225,6 +225,12 @@ def test_official_generation_writes_common_route_and_copies_only_primary_workboo
     }
     actual = {path.relative_to(ROUTE).as_posix() for path in ROUTE.rglob("*") if path.is_file()}
     assert actual == expected
+    reproduction = (ROUTE / "reproduction/README.md").read_text(encoding="utf-8")
+    assert "python -m scripts.testing.cli.validate_results --route official-openvino" in reproduction
+    assert "do not rerun" in reproduction.casefold()
+    assert "do not modify evidence" in reproduction.casefold()
+    assert "scripts.testing.reporting" not in reproduction
+    assert "write_official_route" not in reproduction
     copied = ROUTE / "evidence/source" / V2_WORKBOOK.name
     assert copied.read_bytes() == (REPO_ROOT / V2_WORKBOOK).read_bytes()
     assert not (ROUTE / "evidence/source" / V1_WORKBOOK.name).exists()

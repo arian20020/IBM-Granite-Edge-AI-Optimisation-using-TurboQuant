@@ -1,8 +1,7 @@
-# Dependencies
+# Validation dependencies
 
-- Portable interpreter: `.tools/python311-portable/python.exe` (validated with Python 3.11.9).
-- Pinned reporting packages: `scripts/testing/requirements.txt`.
-- Owned Word exporter: `scripts/testing/cli/export_report.ps1` with a 180-second bound.
-- Normalizer/finalizer: `scripts/testing/reporting/llama_adapter.py`.
-- Focused validation: `scripts/testing/tests/integration/test_final_results_upstream_llama.py`.
-- Microsoft Word is required only for the DOCX-to-PDF export step.
+- Python with the pinned packages in `scripts/testing/requirements.txt`.
+- The settled route package and its repository-relative evidence sources.
+- The supported command in `commands.md` (or this directory's `README.md`).
+
+Report generation, Word export, benchmark execution, and quality re-adjudication are outside this validation-only boundary.

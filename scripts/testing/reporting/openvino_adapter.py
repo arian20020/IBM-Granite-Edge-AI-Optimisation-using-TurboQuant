@@ -29,6 +29,7 @@ from .models import (
 )
 from .layout import render_validation_markdown
 from .openvino_report import regenerate_route_manifest
+from .reproduction import render_release_validation_guide
 
 
 _EXPERIMENTAL_ROUTE_ID = "openvino-experimental-fork"
@@ -3436,14 +3437,8 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
     reproduction = route / "reproduction/README.md"
     reproduction.parent.mkdir(parents=True, exist_ok=True)
     reproduction.write_text(
-        "# Reproducing the experimental OpenVINO fv6 normalization\n\n"
-        "Run from the repository root with the pinned portable test interpreter:\n\n"
-        "```powershell\n"
-        "& '.tools/python311-portable/python.exe' -c \"from pathlib import Path; "
-        "from scripts.testing.reporting.openvino_adapter import "
-        "write_experimental_route; write_experimental_route(Path.cwd())\"\n"
-        "```\n\n"
-        "## Frozen inputs\n\n"
+        render_release_validation_guide("experimental-openvino")
+        + "## Frozen inputs\n\n"
         f"- `{detailed_evidence.relative_path}` — SHA-256 `{detailed_evidence.sha256}`\n"
         f"- `{quality_evidence.relative_path}` — SHA-256 `{quality_evidence.sha256}`\n"
         f"- `{workbook_evidence.relative_path}` — SHA-256 `{workbook_evidence.sha256}`\n"
@@ -3451,7 +3446,7 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         "and 48 hash-named prompt inputs under "
         "`experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6/` "
         "are individually listed and hashed in `../evidence/evidence-index.csv`.\n\n"
-        "The adapter only normalizes existing evidence; it does not rerun inference. "
+        "Validation only reads normalized evidence; it does not rerun inference. "
         "Do not replace unavailable observations with zero, infer missing hardware, "
         "or copy values from another campaign. A source conflict stops generation.\n\n"
         "The source XLSX is retained byte-identically under `../evidence/source/` as "
@@ -4484,14 +4479,8 @@ def write_official_route(repo_root: Path) -> RouteBundle:
     reproduction = route / "reproduction/README.md"
     reproduction.parent.mkdir(parents=True, exist_ok=True)
     reproduction.write_text(
-        "# Reproducing the official OpenVINO normalization\n\n"
-        "Run from the repository root with the pinned portable interpreter:\n\n"
-        "```powershell\n"
-        "& '.tools/python311-portable/python.exe' -c \"from pathlib import Path; "
-        "from scripts.testing.reporting.openvino_adapter import write_official_route; "
-        "write_official_route(Path.cwd())\"\n"
-        "```\n\n"
-        "## Authority boundary\n\n"
+        render_release_validation_guide("official-openvino")
+        + "## Authority boundary\n\n"
         f"- `{detailed.relative_path}` ({detailed.sha256}) is authoritative for all 45 final statuses.\n"
         f"- `{quality.relative_path}` ({quality.sha256}) and the indexed fv1 raw results supply observations only for the 15 fv2-passed cases.\n"
         f"- `{primary.relative_path}` ({primary.sha256}) is the revised workbook copied byte-identically into `../evidence/source/` as evidence-only/nonportable.\n"
@@ -4499,7 +4488,7 @@ def write_official_route(repo_root: Path) -> RouteBundle:
         "The primary handoff is `../reports/"
         "openvino-official-upstream-results.xlsx`; its adjacent provenance "
         "receipt records the 15 absolute-path replacements and source/output hashes. "
-        "The adapter does not rerun inference. It rejects missing passed evidence, any "
+        "Validation does not rerun inference. It rejects missing passed evidence, any "
         "published metric on a non-passed fv2 row, source conflicts, and missing final "
         "failure manifests. Regenerate the non-destructive checksum manifest only after "
         "the complete report, portable workbook, and receipt set is present.\n",

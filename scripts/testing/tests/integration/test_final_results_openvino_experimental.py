@@ -384,7 +384,11 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     }
     assert all(check["passed"] is True for check in data_validation["checks"].values())
     reproduction = (ROUTE / "reproduction/README.md").read_text(encoding="utf-8")
-    assert "write_experimental_route" in reproduction
+    assert "python -m scripts.testing.cli.validate_results --route experimental-openvino" in reproduction
+    assert "do not rerun" in reproduction.casefold()
+    assert "do not modify evidence" in reproduction.casefold()
+    assert "scripts.testing.reporting" not in reproduction
+    assert "write_experimental_route" not in reproduction
     assert "2026-08-30/fv6" in reproduction
     assert "Do not" in reproduction and "zero" in reproduction
 

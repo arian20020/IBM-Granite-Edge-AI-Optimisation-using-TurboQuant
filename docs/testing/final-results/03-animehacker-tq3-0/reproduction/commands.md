@@ -1,10 +1,9 @@
-# Release verification commands
+# Release verification command
 
-Run from the repository root in PowerShell. These commands validate the settled package; they do not rerun benchmarks or quality scoring, regenerate reports, invoke Word, or modify evidence.
+Run from the repository root. This validates the settled package through the supported contributor CLI. These checks do not rerun benchmarks or quality scoring, regenerate reports, invoke Word, or rewrite catalogs. They do not modify evidence.
 
 ```powershell
 python -m scripts.testing.cli.validate_results --route animehacker --output-root docs/testing/final-results
-python -m pytest scripts/testing/tests/integration/test_final_results_animehacker.py -q
 ```
 
-The supported CLI is the contributor-facing command surface. Adapter internals are provenance context, not a second command interface.
+Internal normalizers and finalizers are provenance implementation details, not an additional reproduction command surface.

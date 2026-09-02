@@ -438,9 +438,12 @@ def test_generated_inventory_manifest_and_reproduction_contract():
     for relative in expected:
         assert (ROUTE / relative).is_file(), relative
     commands = (ROUTE / "reproduction/commands.md").read_text(encoding="utf-8")
-    assert "write_animehacker_route" in commands
-    assert "finalize_animehacker_route" in commands
-    assert "-TimeoutSeconds 180" in commands
+    assert "python -m scripts.testing.cli.validate_results --route animehacker" in commands
+    assert "do not rerun" in commands.casefold()
+    assert "do not modify evidence" in commands.casefold()
+    assert "scripts.testing.reporting" not in commands
+    assert "export_report.ps1" not in commands
+    assert "powershell.exe" not in commands
     lines = (ROUTE / "evidence/manifest-sha256.txt").read_text(encoding="utf-8").splitlines()
     files = [path for path in ROUTE.rglob("*") if path.is_file()]
     assert len(lines) == len(files) - 1

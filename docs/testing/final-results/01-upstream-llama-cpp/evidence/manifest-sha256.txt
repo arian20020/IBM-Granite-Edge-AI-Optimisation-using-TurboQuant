@@ -16,9 +16,9 @@ ceb4463481ef129bfb029559c9beb6468fd41100f4e0117bc6899cc20ef25103  docs/testing/f
 853647ba13af16d6839dd9a19fe1e8c32a18ff3966dac47e4a036576909a4720  docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.docx
 149ea8fff88c0416cf0f7b91da545d4aacec550f1c8f207804b7fbd7aaa33b4b  docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.md
 e9fd0e7358acca1ddfc063049010cce617ec7ba6fd27a26e5a95cc9b56a77c8c  docs/testing/final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.pdf
-67e419d961f42b2e4dc22e57b61ed16f600adcf991e726194e27c3514898d581  docs/testing/final-results/01-upstream-llama-cpp/reproduction/README.md
-d36f9b53b5c7e33a2bcf5f823e259e637449f10c0828f451d64679a2abd2502f  docs/testing/final-results/01-upstream-llama-cpp/reproduction/commands.md
-e672175d7074b73dc687f77d63bd5412b706c1d8614b575dff4178e9e32c7148  docs/testing/final-results/01-upstream-llama-cpp/reproduction/dependencies.md
+2ed5a7002ff8f883b18643e88827b4ef6a31a6e5d46c975bca5015de53217802  docs/testing/final-results/01-upstream-llama-cpp/reproduction/README.md
+2ed5a7002ff8f883b18643e88827b4ef6a31a6e5d46c975bca5015de53217802  docs/testing/final-results/01-upstream-llama-cpp/reproduction/commands.md
+ac81ca5cea747daa3f4ab3d181f4fa4f762518170da5efd7fcbb78c28d002d9c  docs/testing/final-results/01-upstream-llama-cpp/reproduction/dependencies.md
 d1c3c7f6452b216d1bb6afc646fcdc388d167e1fbf9c2715b346d438231e1ea8  docs/testing/final-results/01-upstream-llama-cpp/reproduction/protocol/execution-sequence.md
 63ed49ac6dbf951bd895bd7692183a428e6aaceca91c1f60814ab2fe11d01fa4  docs/testing/final-results/01-upstream-llama-cpp/reproduction/protocol/intended-test-matrix.csv
 6d31040a595e3676febd9a782e94869c49bc18a4b8e82e67552dd0ede4dcc8eb  docs/testing/final-results/01-upstream-llama-cpp/reproduction/protocol/metric-definitions.md
@@ -29,7 +29,7 @@ e8e1b71d089011094a3dce849eeba1cdf8d65290b8e7ceef6406e30e65c18883  docs/testing/f
 06ad0361f92fa92c090fe19f2544938e0107dda7fb757af7f149ab2ad7f3ccba  docs/testing/final-results/01-upstream-llama-cpp/reproduction/quality/outputs-index.csv
 c84925accab38b1652b50438e204370b945a80bddd4d989151ff14ecfc9f5c40  docs/testing/final-results/01-upstream-llama-cpp/reproduction/quality/prompt-suite.csv
 6ea6300a31270adc3fd5caf7101d1dd0824e0ae4b3e67b381cab641d152609f2  docs/testing/final-results/01-upstream-llama-cpp/reproduction/quality/rubric.md
-4e33e680a25a9b84473a8e4edeed680f9cbcac15c0683a4470af0e479b266002  docs/testing/final-results/01-upstream-llama-cpp/reproduction/scripts/README.md
+7a4da6e20f73aeb421c393726666cb16e61e5d58fd2bf35ce80a517df689698a  docs/testing/final-results/01-upstream-llama-cpp/reproduction/scripts/README.md
 43a8ecae5909671ed58c89ad1e227bb1fc80be98cf44f71b6b79c206a7b47042  docs/testing/final-results/01-upstream-llama-cpp/reproduction/system/environment.txt
 071aba87490c7612d2fd2df772d7e2e34e9fb6658982e5e56626c19304b03c05  docs/testing/final-results/01-upstream-llama-cpp/reproduction/system/hardware.json
 8b3b4b6b58640207a97c915f306717dc97ce0dfd1f31c014f4bd8b6cae03f0c9  docs/testing/final-results/01-upstream-llama-cpp/reproduction/system/model-artifacts.csv

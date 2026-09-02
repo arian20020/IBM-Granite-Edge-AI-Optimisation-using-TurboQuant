@@ -23,6 +23,7 @@ from .models import RouteBundle, Status
 from .openvino_report import SECTION_ORDER, regenerate_route_manifest
 from .parity import compare_markdown_docx
 from .report_model import Report, ReportNote, ReportParagraph, ReportSection, ReportTable
+from .reproduction import render_release_validation_guide
 
 
 _THROUGHPUT_ALIASES = {
@@ -1157,7 +1158,7 @@ def build_cross_route_report(bundles: Sequence[RouteBundle]) -> Report:
             ReportNote("A direct protocol classification permits matched-row comparison only; it does not establish causal superiority or deployment safety."),
         )),
         ReportSection(SECTION_ORDER[12], (
-            ReportParagraph("Regeneration consumes the five existing normalized RouteBundle objects and does not rerun benchmarks."),
+            ReportParagraph("Use the supported validation-only CLI in reproduction/commands.md to verify the settled comparison without rerunning benchmarks, regenerating reports, invoking Word, rewriting catalogs, or modifying evidence."),
             _table("RE-01", "Reproduction outputs", ("Item", "Repository-relative path"), (
                 ("Canonical report", "docs/testing/final-results/06-cross-route-comparison/reports/cross-route-comparison-report.md"),
                 ("Comparability matrix", "docs/testing/final-results/06-cross-route-comparison/data/comparability-matrix.csv"),
@@ -1279,8 +1280,14 @@ def write_cross_route_package(
     cross_route_validation = build_cross_route_validation(report, catalogs, bundles)
     _write_text(route / "README.md", "# Guarded cross-route comparison\n\nThis route preserves complete status accounting and publishes protocol-gated comparisons without a universal repository score.")
     _write_text(route / "reproduction/protocol/comparability-policy.md", "# Comparability policy\n\nThroughput requires compatible model, input length, output length, backend class, repetition treatment, and metric definition. Quality additionally requires identical prompt set, prompt-suite identity, rubric, scoring version, denominator, and aggregation. Missing required metadata is not comparable; incompatible complete methods are descriptive only.")
-    _write_text(route / "reproduction/README.md", "# Reproduction\n\nRegeneration normalizes the existing five RouteBundle objects; it does not rerun inference.")
-    _write_text(route / "reproduction/commands.md", "# Commands\n\nUse `write_cross_route_package` to render Markdown/DOCX and catalogs, export only the owned DOCX through `scripts/testing/cli/export_report.ps1`, then use `finalize_cross_route_package`.\n")
+    _write_text(
+        route / "reproduction/README.md",
+        render_release_validation_guide("cross-route"),
+    )
+    _write_text(
+        route / "reproduction/commands.md",
+        render_release_validation_guide("cross-route"),
+    )
     _write_text(route / "evidence/claim-evidence-map.csv", "claim_id,claim_boundary\nCROSS-BOUNDARY-001,No universal ranking; source evidence remains in five route packages\n")
     markdown = route / "reports/cross-route-comparison-report.md"
     docx = route / "reports/cross-route-comparison-report.docx"
