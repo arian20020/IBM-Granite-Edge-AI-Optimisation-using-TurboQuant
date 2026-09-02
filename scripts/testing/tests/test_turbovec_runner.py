@@ -12,6 +12,7 @@ from scripts.testing.turbovec.runner import (
     prepare_controlled_inputs,
     run_fixture_campaign,
     run_live_campaign,
+    write_processed_results,
 )
 from scripts.testing.run_turbovec_feasibility import parser
 
@@ -22,6 +23,17 @@ class FailingProvider:
 
 
 class RunnerTests(unittest.TestCase):
+    def test_processed_result_is_recomputed_from_raw_metrics(self):
+        with tempfile.TemporaryDirectory() as root, tempfile.TemporaryDirectory() as processed:
+            run_id = "EXP-TV-COMP-001-20260903T010000Z-008"
+            run_live_campaign(DeterministicEmbeddingProvider(), Path(__file__).resolve().parents[3], Path(root), run_id, {"provider": "test"})
+            output = write_processed_results(Path(root) / run_id, Path(processed))
+            decision = json.loads((output / "decision.json").read_text(encoding="utf-8"))
+            self.assertEqual("DEMONSTRATOR_ONLY", decision["outcome"])
+            self.assertIsNone(decision["selected_configuration"])
+            self.assertTrue((output / "summary.json").is_file())
+            self.assertTrue((output / "report.md").is_file())
+
     def test_script_entry_point_does_not_shadow_published_turbovec(self):
         with tempfile.TemporaryDirectory() as root:
             run_id = "EXP-TV-COMP-001-20260903T010000Z-009"
@@ -38,6 +50,10 @@ class RunnerTests(unittest.TestCase):
             "--run-id", "EXP-TV-COMP-001-20260903T010000Z-002",
         ])
         self.assertEqual("measured", args.command)
+
+    def test_cli_accepts_processed_output_root(self):
+        args = parser().parse_args(["evaluate", "--run-directory", "run", "--processed-root", "processed"])
+        self.assertEqual(Path("processed"), args.processed_root)
 
     def test_live_campaign_publishes_query_metrics_and_closed_terminal(self):
         with tempfile.TemporaryDirectory() as root:
