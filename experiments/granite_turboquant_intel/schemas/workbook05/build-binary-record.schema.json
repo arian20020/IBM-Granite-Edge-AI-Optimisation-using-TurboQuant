@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://granite-edge-ai.local/workbook05/build-binary-record.schema.json",
+  "title": "Workbook 05 build binary metadata record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "record_type",
+    "route_id",
+    "component",
+    "relative_path",
+    "size_bytes",
+    "sha256",
+    "producer_command_id",
+    "configuration",
+    "copied_to_artifact"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "campaign_id": {"const": "GTQ-WB05-MF-v1"},
+    "record_type": {"const": "build-binary"},
+    "route_id": {"enum": ["route-a-merged-openvino", "route-b-experimental-qjl-polar"]},
+    "component": {"enum": ["runtime", "genai"]},
+    "relative_path": {"type": "string", "minLength": 1},
+    "size_bytes": {"type": "integer", "minimum": 0},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "producer_command_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "configuration": {"const": "Release"},
+    "copied_to_artifact": {"const": false}
+  }
+}

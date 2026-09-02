@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://granite-edge-ai.local/workbook05/model-conversion-record.schema.json",
+  "title": "Workbook 05 immutable model conversion record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "record_type",
+    "route_id",
+    "conversion_id",
+    "asset_id",
+    "source",
+    "dependency_preflight",
+    "toolchain",
+    "conversion",
+    "output",
+    "process",
+    "status",
+    "reasons",
+    "granite_model_test_authorised",
+    "activation_claim_authorised",
+    "packed_storage_claim_authorised",
+    "performance_claim_authorised",
+    "quality_claim_authorised"
+  ],
+  "$defs": {
+    "fileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relative_path", "size_bytes", "sha256"],
+      "properties": {
+        "relative_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "campaign_id": {"const": "GTQ-WB05-MF-v1"},
+    "record_type": {"const": "model-conversion-record"},
+    "route_id": {"const": "route-a-merged-openvino"},
+    "conversion_id": {"type": "string", "pattern": "^CONV-WB05-[A-Z0-9-]+$"},
+    "asset_id": {"type": "string", "pattern": "^MODEL-WB05-[A-Z0-9-]+$"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "resolved_revision", "source_directory", "aggregate_model_sha256", "aggregate_tokenizer_sha256"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "resolved_revision": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+        "source_directory": {"type": "string", "minLength": 3, "pattern": "^[A-Za-z]:\\\\"},
+        "aggregate_model_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "aggregate_tokenizer_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "dependency_preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "record_path", "record_sha256"],
+      "properties": {
+        "status": {"const": "Passed"},
+        "record_path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"},
+        "record_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python_version", "executable_path", "executable_sha256", "packages"],
+      "properties": {
+        "python_version": {"const": "3.12.10"},
+        "executable_path": {"type": "string", "minLength": 3, "pattern": "^[A-Za-z]:\\\\"},
+        "executable_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "packages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "version", "source_identity"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "version": {"type": "string", "minLength": 1},
+              "source_identity": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    },
+    "conversion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task", "weight_format", "symmetric", "group_size", "ratio", "data_free", "trust_remote_code", "arguments"],
+      "properties": {
+        "task": {"const": "text-generation-with-past"},
+        "weight_format": {"const": "int4"},
+        "symmetric": {"const": false},
+        "group_size": {"const": 128},
+        "ratio": {"const": 1.0},
+        "data_free": {"const": true},
+        "trust_remote_code": {"const": false},
+        "arguments": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directory", "files", "aggregate_sha256"],
+      "properties": {
+        "directory": {"type": "string", "minLength": 3, "pattern": "^[A-Za-z]:\\\\"},
+        "files": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/fileRecord"}},
+        "aggregate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at_utc", "completed_at_utc", "exit_code", "stdout_path", "stderr_path"],
+      "properties": {
+        "started_at_utc": {"type": "string", "format": "date-time", "minLength": 20},
+        "completed_at_utc": {"type": "string", "format": "date-time", "minLength": 20},
+        "exit_code": {"type": "integer"},
+        "stdout_path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"},
+        "stderr_path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"}
+      }
+    },
+    "status": {"enum": ["Candidate", "Failed", "Blocked", "IntegrityFailure"]},
+    "reasons": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "granite_model_test_authorised": {"const": false},
+    "activation_claim_authorised": {"const": false},
+    "packed_storage_claim_authorised": {"const": false},
+    "performance_claim_authorised": {"const": false},
+    "quality_claim_authorised": {"const": false}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "Candidate"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "process": {"properties": {"exit_code": {"const": 0}}},
+          "output": {"properties": {"files": {"minItems": 1}}}
+        }
+      }
+    }
+  ]
+}

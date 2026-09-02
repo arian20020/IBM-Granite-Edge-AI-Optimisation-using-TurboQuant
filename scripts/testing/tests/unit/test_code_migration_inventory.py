@@ -10,8 +10,15 @@ INVENTORY_PATH = ROOT / "docs/testing/cleanup/file-inventory.csv"
 MIGRATION_PATH = ROOT / "archive/testing-code/MIGRATION.csv"
 ARCHIVE_ROOT = ROOT / "archive/testing-code/2026-09-01"
 TESTING_ROOT = ROOT / "scripts/testing"
-ALLOWED_ROOT_FILES = {"README.md", "requirements.txt"}
-ALLOWED_ROOT_DIRS = {"campaigns", "cli", "examples", "reporting", "tests", "tools"}
+ALLOWED_ROOT_FILES = {
+    "README.md",
+    "requirements.txt",
+    "Validate-Workbook05-BuildStage.ps1",
+    "Validate-Workbook05-MemoryFrontier.ps1",
+    "Validate-Workbook05-Phase3.ps1",
+    "Validate-Workbook05-SourceAdmission.ps1",
+}
+ALLOWED_ROOT_DIRS = {"campaigns", "cli", "examples", "reporting", "tests", "tools", "workbook05"}
 IGNORED_ROOT_DIRS = {".pytest_cache", "__pycache__"}
 EXPECTED_ARCHIVE_BASELINE = "d0eb34f2"
 

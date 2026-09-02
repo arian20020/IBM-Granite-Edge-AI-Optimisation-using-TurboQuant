@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "relative_path": {
+      "type": "string",
+      "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/]{2})(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+    },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "phase_id",
+    "route_id",
+    "command",
+    "working_directory",
+    "started_utc",
+    "ended_utc",
+    "exit_code",
+    "stdout_path",
+    "stderr_path",
+    "cmake_cache_path",
+    "cmake_cache_sha256",
+    "cache_values",
+    "build_invoked",
+    "install_invoked",
+    "package_invoked",
+    "status",
+    "reasons"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "campaign_id": { "const": "GTQ-WB05-MF-v1" },
+    "phase_id": { "const": "phase-1-source-admission" },
+    "route_id": { "const": "route-a-merged-openvino" },
+    "command": {
+      "type": "array",
+      "minItems": 10,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "working_directory": { "const": "C:\\wb05" },
+    "started_utc": { "type": "string", "format": "date-time" },
+    "ended_utc": { "type": "string", "format": "date-time" },
+    "exit_code": { "type": "integer" },
+    "stdout_path": { "$ref": "#/$defs/relative_path" },
+    "stderr_path": { "$ref": "#/$defs/relative_path" },
+    "cmake_cache_path": { "$ref": "#/$defs/relative_path" },
+    "cmake_cache_sha256": { "$ref": "#/$defs/sha256" },
+    "cache_values": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "CMAKE_HOME_DIRECTORY",
+        "CMAKE_GENERATOR",
+        "CMAKE_GENERATOR_PLATFORM",
+        "ENABLE_INTEL_GPU"
+      ],
+      "properties": {
+        "CMAKE_HOME_DIRECTORY": { "const": "C:/wb05/source/route-a/openvino" },
+        "CMAKE_GENERATOR": { "const": "Visual Studio 17 2022" },
+        "CMAKE_GENERATOR_PLATFORM": { "const": "x64" },
+        "ENABLE_INTEL_GPU": { "const": "OFF" }
+      }
+    },
+    "build_invoked": { "const": false },
+    "install_invoked": { "const": false },
+    "package_invoked": { "const": false },
+    "status": { "enum": ["Passed", "Failed", "Blocked"] },
+    "reasons": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

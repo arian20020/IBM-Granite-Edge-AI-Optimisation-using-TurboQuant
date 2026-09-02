@@ -1,4 +1,4 @@
-# 05 Custom OpenVINO TurboQuant Controlled Retest Workbook v1.1
+# 05 Custom OpenVINO TurboQuant Controlled Retest Workbook v1.4
 
 **Controlled filename:** `05_Custom_OpenVINO_TurboQuant_Controlled_Retest_Workbook_v1.docx`  
 **Generated DOCX hash:** recorded in `Controlled-Workbook-Manifest.csv`  
@@ -7,11 +7,23 @@
 
 ## Custom OpenVINO CPU SDPA Complete KV-Cache Codec Controlled Retest Workbook
 
-Controlled retest revision 1.1. Historical results remain legacy evidence and are not copied into active result cells.
+Controlled retest revision 1.4. Historical results remain legacy evidence and are not copied into active result cells.
 
-**Purpose:** test every codec family exposed by the pinned experimental OpenVINO CPU SDPA branch: standard scalar caches, TurboQuant 4-bit, TurboQuant 3-bit, TurboQuant+QJL 4-bit family, TurboQuant+QJL 3-bit family, PolarQuant 4-bit and PolarQuant 3-bit. The campaign includes algorithm-level conformance, all 36 ordered K/V codec pairs, full model quality/performance tests, ablations, context scaling and known-path limitations.
+**Purpose:** control the Route B experimental candidatesâ€”TurboQuant, TurboQuant+QJL, and PolarQuantâ€”without assuming support before source admission, build, activation, packed-storage, and no-fallback evidence. Route A merged OpenVINO controls remain in WB-04 and both routes are joined only through the memory-frontier execution index. The campaign retains algorithm-level conformance, all 36 planned ordered K/V pairs, full model quality/performance tests, ablations, context scaling, and known-path limitations.
 
 **Important boundary:** this route is experimental and may be an open/unmerged pull request. Source comments, design documents and executable behaviour may disagree. No codec is marked supported merely because an enum or flag exists; it must build, activate, allocate the expected representation and complete the planned tests.
+
+# Two-route memory-frontier execution control
+
+| Control | Value |
+| --- | --- |
+| Campaign ID | GTQ-WB05-MF-v1 |
+| Route A | Merged OpenVINO TurboQuant; control IDs remain in WB-04 and are referenced by the execution index |
+| Route B | Experimental QJL/PolarQuant candidate from PR #35092; OVT IDs remain in WB-05 |
+| Execution order | Derived only after expected and measured K/V storage are reconciled |
+| Context discovery | 512, 1024, 2048, 4096, 8192, 16384, then doubling while stable and supported |
+| Quality controls | GTQ-PROMPTS-v1 and GTQ-QUALITY-RUBRIC-v1 |
+| Execution index | docs/testing/Workbook-05-Memory-Frontier-Execution-Index-v1.csv |
 
 # 1. Repository and environment record
 
@@ -25,7 +37,7 @@ Controlled retest revision 1.1. Historical results remain legacy evidence and ar
 | Compatible GenAI version/commit |  |
 | Build type | Custom Windows CPU Runtime |
 | Attention path | CPU SDPA |
-| Codec families expected | TBQ4, TBQ3, TBQ4_QJL, TBQ3_QJL, POLAR4, POLAR3 |
+| Codec families proposed by Route B candidate source | TBQ4, TBQ3, TBQ4_QJL, TBQ3_QJL, POLAR4, POLAR3; each remains unverified until admission evidence passes |
 | Independent K/V properties |  |
 | Test operator |  |
 | Test start/end date |  |

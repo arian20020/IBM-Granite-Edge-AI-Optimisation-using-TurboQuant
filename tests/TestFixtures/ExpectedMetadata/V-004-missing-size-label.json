@@ -1,0 +1,18 @@
+{
+    "fixtureId":  "V-004",
+    "fixtureFile":  "V-004-missing-size-label.gguf",
+    "expectedOutcome":  "Success",
+    "expectedMetadata":  {
+                             "modelName":  "IBM Granite Fixture Model",
+                             "architecture":  "granite",
+                             "parameterSizeLabel":  null,
+                             "quantization":  "Q4_K_M",
+                             "fileSizeBytes":  288,
+                             "contextLength":  131072,
+                             "ggufVersion":  3
+                         },
+    "integrity":  {
+                      "sha256":  "ad86cb22f3e5beb725ad3f682f4f36b42da645fd842d9b9302ef8f367fbc2358"
+                  },
+    "notes":  "Missing general.size_label should produce an unavailable size label."
+}

@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "route_id": "route-b-experimental-qjl-polar",
+  "support_boundary": "experimental",
+  "source": {
+    "repository_full_name": "EgorDuplensky/openvino",
+    "repository_url": "https://github.com/EgorDuplensky/openvino.git",
+    "source_role": "experimental-runtime",
+    "commit": "1827f6458d049de11c1a8203c793af67c99935dc",
+    "base_commit": "7de5a4fbb178a1de43f6bc3cccc95ff656abed05",
+    "pull_request_url": "https://github.com/openvinotoolkit/openvino/pull/35092",
+    "pull_request_state": "open"
+  },
+  "genai_candidate": null,
+  "admission_status": "Candidate",
+  "proofs": [
+    {
+      "proof_id": "RB-P01-document-capture",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RB-P02-runtime-source-tree",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RB-P03-runtime-submodules",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RB-P04-qjl-source-paths",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RB-P05-polar-source-paths",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RB-P06-encode-decode-source-paths",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RB-P07-independent-kv-source-paths",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RB-P08-test-discovery-audit",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    },
+    {
+      "proof_id": "RB-P09-generated-test-metadata",
+      "required": true,
+      "status": "Pending",
+      "evidence_path": ""
+    }
+  ],
+  "known_blockers": [
+    {
+      "blocker_id": "RB-SRC-001",
+      "severity": "Blocker",
+      "status": "Open",
+      "path": "src/plugins/intel_cpu/tests/functional/cmake/target_per_test.cmake",
+      "description": "Repeated GLOB_RECURSE assignments overwrite earlier test-source lists, so the current functional-test target may omit required instances.",
+      "evidence_url": "https://github.com/openvinotoolkit/openvino/pull/35092#discussion_r3042885748"
+    }
+  ],
+  "decision_reason": "Route B remains experimental and blocked at the Phase 1 boundary until the pinned source tree, recursive submodules, QJL and PolarQuant source paths, encode/decode paths, independent K/V source controls, test-discovery audit, generated test metadata, and controlling documents are captured and independently validated, and RB-SRC-001 is resolved or disproved. Build, activation, packed-size conformance, and fallback proof belong to later phases."
+}

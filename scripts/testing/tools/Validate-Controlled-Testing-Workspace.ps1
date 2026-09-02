@@ -65,7 +65,13 @@ $RequiredPaths = @(
     "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
     "experiments/granite_turboquant_intel/manifests/templates/run-manifest-template.json",
     "scripts/testing/tools/New-Controlled-TestRun.ps1",
-    "scripts/testing/tools/New-EvidenceHashManifest.ps1"
+    "scripts/testing/tools/New-EvidenceHashManifest.ps1",
+    "docs/testing/Workbook-05-Memory-Frontier-Execution-Index-v1.csv",
+    "experiments/granite_turboquant_intel/configurations/workbook05/preflight-settings.json",
+    "experiments/granite_turboquant_intel/configurations/workbook05/pinned-document-sources.json",
+    "experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1/campaign-manifest.json",
+    "experiments/granite_turboquant_intel/schemas/workbook05/source-admission.schema.json",
+    "scripts/testing/Validate-Workbook05-MemoryFrontier.ps1"
 )
 
 # Check each required file or directory.

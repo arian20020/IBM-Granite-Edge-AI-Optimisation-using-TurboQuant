@@ -530,3 +530,20 @@ external/
 # Formal testing logs are controlled evidence and must remain visible to Git.
 !/experiments/granite_turboquant_intel/logs/
 !/experiments/granite_turboquant_intel/logs/**
+
+# Create the intentional zero-byte malformed fixture.
+New-Item `
+    -ItemType File `
+    -Force `
+    -Path "tests\TestFixtures\Malformed\I-000-empty-file.gguf"
+
+# ============================================================
+# Controlled test-fixture exceptions
+# ============================================================
+
+# Full downloaded models remain ignored by the general *.gguf rule.
+# Only these tiny deterministic test fixtures may be committed.
+!tests/TestFixtures/GGUF/
+!tests/TestFixtures/GGUF/*.gguf
+!tests/TestFixtures/Malformed/
+!tests/TestFixtures/Malformed/*.gguf

@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "phase_id": "phase-1-source-admission",
+  "route_id": "route-a-merged-openvino",
+  "source_role": "runtime",
+  "repository_full_name": "openvinotoolkit/openvino",
+  "expected_origin_url": "https://github.com/openvinotoolkit/openvino.git",
+  "actual_origin_url": "https://github.com/openvinotoolkit/openvino.git",
+  "expected_commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+  "actual_commit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+  "working_tree_clean": true,
+  "submodules_complete": true,
+  "submodules": [
+    {
+      "path": "src/frontends/onnx/frontend/src/onnx",
+      "url": "https://github.com/onnx/onnx.git",
+      "commit": "1111111111111111111111111111111111111111",
+      "status": "clean"
+    }
+  ],
+  "command_records": [
+    "commands/route-a-runtime-git-version.json"
+  ],
+  "decision": "Passed",
+  "decision_reason": "The exact origin, commit, clean tree, and recursive submodules were verified."
+}

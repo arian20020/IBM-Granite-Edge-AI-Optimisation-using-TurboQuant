@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "relative_path": {
+      "type": "string",
+      "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/]{2})(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+    },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "route_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "decision_reason", "evidence_paths"],
+      "properties": {
+        "status": { "enum": ["Candidate", "Admitted", "Blocked"] },
+        "decision_reason": { "type": "string", "minLength": 1 },
+        "evidence_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/relative_path" }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "phase_id",
+    "measurement_controls_path",
+    "measurement_controls_sha256",
+    "route_decisions",
+    "checkpoint_status",
+    "checkpoint_path",
+    "hash_manifest_path",
+    "phase_reasons"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "campaign_id": { "const": "GTQ-WB05-MF-v1" },
+    "phase_id": { "const": "phase-1-source-admission" },
+    "measurement_controls_path": { "$ref": "#/$defs/relative_path" },
+    "measurement_controls_sha256": { "$ref": "#/$defs/sha256" },
+    "route_decisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route-a-merged-openvino",
+        "route-b-experimental-qjl-polar"
+      ],
+      "properties": {
+        "route-a-merged-openvino": { "$ref": "#/$defs/route_decision" },
+        "route-b-experimental-qjl-polar": { "$ref": "#/$defs/route_decision" }
+      }
+    },
+    "checkpoint_status": { "enum": ["Passed", "Blocked", "Candidate"] },
+    "checkpoint_path": { "$ref": "#/$defs/relative_path" },
+    "hash_manifest_path": { "$ref": "#/$defs/relative_path" },
+    "phase_reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

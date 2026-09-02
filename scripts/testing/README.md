@@ -2,6 +2,8 @@
 
 `scripts/testing` now exposes the supported contributor-facing command surface for testing campaigns and final-results validation. The CLI layer stays thin: it dispatches to the proven campaign and reporting implementations without duplicating route logic.
 
+The four `Validate-Workbook05-*.ps1` files remain top-level, documented CI entrypoints supplied by current `main`; implementation helpers remain grouped under `workbook05/` and `tools/`.
+
 ## Safety boundaries
 
 - `python -m scripts.testing.cli.validate_results` is read-only. It validates an existing final-results tree and returns `0` for pass or `1` for validation findings.

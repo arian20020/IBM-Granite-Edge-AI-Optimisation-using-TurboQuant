@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "campaign_id": "GTQ-WB05-MF-v1",
+  "metric_definitions_path": "docs/testing/Metric-Definitions.md",
+  "prompt_set_path": "experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json",
+  "prompt_set_id": "GTQ-PROMPTS-v1",
+  "rubric_path": "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
+  "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
+  "quality_amendment_path": "docs/superpowers/specs/2026-08-05-workbook-05-quality-metrics-amendment.md",
+  "measured_run_schema_path": "experiments/granite_turboquant_intel/schemas/workbook05/measured-run-manifest.schema.json",
+  "measured_run_template_path": "experiments/granite_turboquant_intel/manifests/templates/workbook05/measured-run-manifest-template.json",
+  "required_prompt_ids": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6"
+  ],
+  "required_metric_names": [
+    "Model load time",
+    "TTFT",
+    "Prompt-processing throughput",
+    "TPOT",
+    "Decode throughput",
+    "Total generation time",
+    "Peak working set",
+    "Peak private bytes",
+    "Minimum available RAM",
+    "KV-cache allocation",
+    "Quality score",
+    "Stability"
+  ]
+}

@@ -14,19 +14,25 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="Features\ModelImport\ModelCard.xaml" />
+    <None Remove="Features\ModelImport\Controls\ImportModelCard.xaml" />
+    <None Remove="Features\ModelImport\FileImport\ModelFormatSelectionCard.xaml" />
     <None Remove="Features\ModelImport\ModelImportPage.xaml" />
+    <None Remove="Features\ModelImport\ModelDownload\RecommendedModelDownloadPage.xaml" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="Assets\SplashScreen.scale-200.png" />
-    <Content Include="Assets\LockScreenLogo.scale-200.png" />
-    <Content Include="Assets\Square150x150Logo.scale-200.png" />
-    <Content Include="Assets\Square44x44Logo.scale-200.png" />
-    <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
-    <Content Include="Assets\StoreLogo.png" />
-    <Content Include="Assets\Wide310x150Logo.scale-200.png" />
-  </ItemGroup>
+	<ItemGroup>
+		<!-- Existing Windows application assets. -->
+		<Content Include="Assets\SplashScreen.scale-200.png" />
+		<Content Include="Assets\LockScreenLogo.scale-200.png" />
+		<Content Include="Assets\Square150x150Logo.scale-200.png" />
+		<Content Include="Assets\Square44x44Logo.scale-200.png" />
+		<Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
+		<Content Include="Assets\StoreLogo.png" />
+		<Content Include="Assets\Wide310x150Logo.scale-200.png" />
+
+		<!-- Granite Edge AI branding used inside the application UI. -->
+		<Content Include="Assets\Branding\granite-edge-ai-icon.svg" />
+	</ItemGroup>
 
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
@@ -45,7 +51,17 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
   </ItemGroup>
   <ItemGroup>
-    <Page Update="Features\ModelImport\ModelCard.xaml">
+    <Page Update="Features\ModelImport\FileImport\ModelFormatSelectionCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelImport\ModelDownload\RecommendedModelDownloadPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelImport\ModelDownload\ModelDownloadCard.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
@@ -53,6 +69,14 @@
     <Page Update="Features\ModelImport\ModelImportPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="Features\ModelImport\Controls\ImportModelCard.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Features\ModelImport\FileImport\DragDropRoute\" />
   </ItemGroup>
 
   <!--
