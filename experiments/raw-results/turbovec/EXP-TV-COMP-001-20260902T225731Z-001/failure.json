@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "run_id": "EXP-TV-COMP-001-20260902T225731Z-001",
+  "status": "blocked",
+  "blocking_gate": "granite-openvino-embedding",
+  "error_class": "unsupported_model_architecture",
+  "detail": "The locked optimum-intel 2.1.0 exporter for OpenVINO 2026.3 rejected ModernBertModel for feature-extraction because no supported export configuration exists. A direct OpenVINO trace also failed in ModernBERT mask creation. No substitute model, fake provider, dependency change, or measured retrieval was used.",
+  "upstream_python_failure": "One published-wheel test failed on Windows long-path atomic persistence; 321 passed and 157 were skipped.",
+  "rust_gate": "Unexecuted: Rust 1.89 was absent and installation was not approved."
+}

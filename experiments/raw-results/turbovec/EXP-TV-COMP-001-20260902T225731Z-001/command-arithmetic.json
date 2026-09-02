@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "commands": [
+    {"gate": "baseline-python", "discovered": 111, "executed": 111, "passed": 111, "failed": 0, "skipped": 0},
+    {"gate": "turbovec-harness", "discovered": 31, "executed": 31, "passed": 31, "failed": 0, "skipped": 0},
+    {"gate": "pdfpig", "discovered": 5, "executed": 5, "passed": 5, "failed": 0, "skipped": 0},
+    {"gate": "upstream-turbovec-python", "discovered": 479, "executed": 322, "passed": 321, "failed": 1, "skipped": 157},
+    {"gate": "upstream-turbovec-rust", "discovered": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "blocked": true},
+    {"gate": "granite-openvino-embedding", "discovered": 1, "executed": 1, "passed": 0, "failed": 1, "skipped": 0},
+    {"gate": "matched-retrieval", "discovered": 1, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "blocked": true}
+  ]
+}
