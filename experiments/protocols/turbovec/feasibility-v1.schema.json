@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.invalid/EXP-TV-COMP-001/feasibility-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "command"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string", "pattern": "^EXP-TV-COMP-001-[0-9]{8}T[0-9]{6}Z-[0-9]{3}$"},
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discovered", "executed", "passed", "failed", "skipped"],
+      "properties": {
+        "discovered": {"type": "integer", "minimum": 0},
+        "executed": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "skipped": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
