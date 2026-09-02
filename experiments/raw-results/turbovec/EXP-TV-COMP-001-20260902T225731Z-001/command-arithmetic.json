@@ -7,6 +7,6 @@
     {"gate": "upstream-turbovec-python", "discovered": 479, "executed": 322, "passed": 321, "failed": 1, "skipped": 157},
     {"gate": "upstream-turbovec-rust", "discovered": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "blocked": true},
     {"gate": "granite-openvino-embedding", "discovered": 1, "executed": 1, "passed": 0, "failed": 1, "skipped": 0},
-    {"gate": "matched-retrieval", "discovered": 1, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "blocked": true}
+    {"gate": "matched-retrieval", "discovered": 0, "executed": 0, "passed": 0, "failed": 0, "skipped": 0, "blocked": true}
   ]
 }
