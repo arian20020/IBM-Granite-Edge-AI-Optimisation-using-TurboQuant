@@ -34,10 +34,13 @@ from scripts.testing.reporting.report_model import (
 )
 from scripts.testing.reporting.validate import (
     GATE_ORDER,
+    GateResult,
+    ValidationReport,
     validate_collection,
     validate_route,
     write_validation_receipts,
 )
+from scripts.testing.cli import build_results as build_results_cli
 from scripts.testing.cli.build_results import build_final_results
 
 
@@ -133,6 +136,31 @@ ROUTES = (
     ("04-openvino-experimental-fork", "openvino-experimental-fork"),
     ("05-openvino-official-upstream", "openvino-official-upstream"),
 )
+BUILD_ROUTE_CASES = (
+    ("upstream-llama", ("01-upstream-llama-cpp",)),
+    ("atomicbot", ("02-atomicbot-turboquant",)),
+    ("animehacker", ("03-animehacker-tq3-0",)),
+    ("experimental-openvino", ("04-openvino-experimental-fork",)),
+    ("official-openvino", ("05-openvino-official-upstream",)),
+    (
+        "openvino",
+        ("04-openvino-experimental-fork", "05-openvino-official-upstream"),
+    ),
+    ("cross-route", ("06-cross-route-comparison",)),
+    (
+        "all",
+        tuple(directory for directory, _ in ROUTES)
+        + ("06-cross-route-comparison",),
+    ),
+)
+REPORT_STEMS = {
+    "01-upstream-llama-cpp": "upstream-llama-cpp-report",
+    "02-atomicbot-turboquant": "atomicbot-turboquant-report",
+    "03-animehacker-tq3-0": "animehacker-tq3-0-report",
+    "04-openvino-experimental-fork": "openvino-experimental-fork-report",
+    "05-openvino-official-upstream": "openvino-official-upstream-report",
+    "06-cross-route-comparison": "cross-route-comparison-report",
+}
 COLLECTION_CSV_TABLES = (
     ("catalog/route-register.csv", "catalog_content_mismatch"),
     ("catalog/campaign-summary.csv", "catalog_content_mismatch"),
@@ -160,6 +188,22 @@ def _write_pdf(path: Path, text: str) -> None:
     page.insert_text((72, 72), text)
     document.save(path)
     document.close()
+
+
+def _write_compact_build_fixture(route: Path, route_id: str) -> object:
+    route.mkdir(parents=True, exist_ok=True)
+    (route / "README.md").write_text("# Route\n", encoding="utf-8")
+    for directory in ("data", "evidence", "reports", "reproduction", "validation"):
+        (route / directory).mkdir()
+    write_json(route / "data/route.json", {"route_id": route_id})
+    stem = REPORT_STEMS[route.name]
+    (route / "reports" / f"{stem}.md").write_text("# Report\n", encoding="utf-8")
+    (route / "reports" / f"{stem}.docx").write_bytes(b"fixture-docx")
+    write_json(route / "validation/validation.json", {"valid": True})
+    (route / "validation/validation.md").write_text(
+        "# Validation\n", encoding="utf-8"
+    )
+    return object()
 
 
 def _write_route(collection: Path, directory: str, route_id: str) -> Path:
@@ -1110,6 +1154,211 @@ def test_invalid_cli_use_exits_2(tmp_path):
     assert result.returncode == 2
     assert "usage:" in result.stderr.casefold()
     assert "invalid choice" in result.stderr.casefold()
+
+
+def test_testing_readme_uses_the_retained_animehacker_runtime_path() -> None:
+    text = (REPOSITORY_ROOT / "scripts/testing/README.md").read_text(encoding="utf-8")
+    legacy = "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime"
+    retained = (
+        "experiments/raw-results/retained/"
+        "animehacker-tq3-0/2026-07-18/runtime"
+    )
+
+    assert retained in text
+    assert legacy not in text
+
+
+@pytest.mark.parametrize(("directory", "stem"), tuple(REPORT_STEMS.items()))
+def test_build_report_targets_are_the_existing_compact_paths(
+    tmp_path: Path,
+    directory: str,
+    stem: str,
+) -> None:
+    route = tmp_path / directory
+    (route / "reports").mkdir(parents=True)
+    expected = tuple(
+        route / "reports" / f"{stem}.{suffix}" for suffix in ("md", "docx", "pdf")
+    )
+    expected[0].write_text("# Report\n", encoding="utf-8")
+    expected[1].write_bytes(b"fixture-docx")
+
+    actual = build_results_cli._compact_report_targets(route)
+
+    assert actual == expected
+    assert actual[0].is_file()
+    assert actual[1].is_file()
+
+
+@pytest.mark.parametrize(("choice", "expected_directories"), BUILD_ROUTE_CASES)
+def test_successful_build_for_every_route_choice_uses_exact_compact_layout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    choice: str,
+    expected_directories: tuple[str, ...],
+) -> None:
+    from scripts.testing.reporting import comparison, llama_adapter, openvino_adapter
+
+    monkeypatch.setattr(build_results_cli, "REPOSITORY_ROOT", tmp_path)
+
+    def route_writer(module: object, relative_name: str, route_id: str):
+        def write(_repo_root: Path) -> object:
+            relative = getattr(module, relative_name)
+            return _write_compact_build_fixture(tmp_path / relative, route_id)
+
+        return write
+
+    def route_builder(_repo_root: Path) -> object:
+        return object()
+
+    def route_finalizer(module: object, relative_name: str):
+        def finalize(_repo_root: Path) -> dict[str, bool]:
+            route = tmp_path / getattr(module, relative_name)
+            _, _, pdf = build_results_cli._compact_report_targets(route)
+            assert pdf.is_file()
+            assert (route / "validation/validation.json").is_file()
+            return {"valid": True}
+
+        return finalize
+
+    llama_specs = (
+        (
+            "write_upstream_llama_route",
+            "build_upstream_llama_bundle",
+            "finalize_upstream_llama_route",
+            "ROUTE_RELATIVE",
+            "upstream-llama-cpp",
+        ),
+        (
+            "write_atomicbot_route",
+            "build_atomicbot_bundle",
+            "finalize_atomicbot_route",
+            "ATOMICBOT_ROUTE_RELATIVE",
+            "atomicbot-turboquant",
+        ),
+        (
+            "write_animehacker_route",
+            "build_animehacker_bundle",
+            "finalize_animehacker_route",
+            "ANIMEHACKER_ROUTE_RELATIVE",
+            "animehacker-tq3-0",
+        ),
+    )
+    for writer_name, builder_name, finalizer_name, relative_name, route_id in llama_specs:
+        monkeypatch.setattr(
+            llama_adapter,
+            writer_name,
+            route_writer(llama_adapter, relative_name, route_id),
+        )
+        monkeypatch.setattr(llama_adapter, builder_name, route_builder)
+        monkeypatch.setattr(
+            llama_adapter,
+            finalizer_name,
+            route_finalizer(llama_adapter, relative_name),
+        )
+
+    openvino_specs = (
+        (
+            "write_experimental_route",
+            "build_experimental_bundle",
+            "_EXPERIMENTAL_ROUTE_RELATIVE",
+            "openvino-experimental-fork",
+        ),
+        (
+            "write_official_route",
+            "build_official_bundle",
+            "_OFFICIAL_ROUTE_RELATIVE",
+            "openvino-official-upstream",
+        ),
+    )
+    for writer_name, builder_name, relative_name, route_id in openvino_specs:
+        monkeypatch.setattr(
+            openvino_adapter,
+            writer_name,
+            route_writer(openvino_adapter, relative_name, route_id),
+        )
+        monkeypatch.setattr(openvino_adapter, builder_name, route_builder)
+
+    def write_openvino_report(route: Path, _bundle: object) -> None:
+        _, docx, pdf = build_results_cli._compact_report_targets(route)
+        build_results_cli._export_pdf(docx, pdf)
+
+    monkeypatch.setattr(
+        build_results_cli, "_write_openvino_report", write_openvino_report
+    )
+
+    def write_cross_route(
+        _repo_root: Path,
+        _bundles: tuple[object, ...],
+        *,
+        output_root: Path,
+    ) -> object:
+        return _write_compact_build_fixture(
+            output_root / "06-cross-route-comparison", "cross-route-comparison"
+        )
+
+    def finalize_cross_route(
+        _repo_root: Path,
+        *,
+        output_root: Path,
+    ) -> dict[str, bool]:
+        route = output_root / "06-cross-route-comparison"
+        _, _, pdf = build_results_cli._compact_report_targets(route)
+        assert pdf.is_file()
+        return {"valid": True}
+
+    monkeypatch.setattr(comparison, "write_cross_route_package", write_cross_route)
+    monkeypatch.setattr(
+        comparison, "finalize_cross_route_package", finalize_cross_route
+    )
+
+    exported: list[tuple[Path, Path]] = []
+
+    def export_pdf(docx: Path, pdf: Path) -> None:
+        stem = REPORT_STEMS[docx.parents[1].name]
+        assert docx == docx.parents[1] / "reports" / f"{stem}.docx"
+        assert docx.is_file()
+        assert pdf == docx.with_suffix(".pdf")
+        _write_pdf(pdf, f"{stem} report")
+        exported.append((docx, pdf))
+
+    monkeypatch.setattr(build_results_cli, "_export_pdf", export_pdf)
+
+    def validate_selection(output_root: Path, route: str) -> ValidationReport:
+        scope = "collection" if route == "all" else "route"
+        return ValidationReport(
+            scope,
+            output_root.resolve(),
+            tuple(GateResult(name) for name in GATE_ORDER),
+        )
+
+    monkeypatch.setattr(build_results_cli, "_validate_selection", validate_selection)
+
+    output = tmp_path / "build"
+    report = build_final_results(choice, output)
+
+    assert report.valid is True
+    assert {
+        path.name for path in output.iterdir() if path.name.startswith("0")
+    } == set(expected_directories)
+    for directory in expected_directories:
+        route = output / directory
+        assert {path.name for path in route.iterdir()} == {
+            "README.md",
+            "data",
+            "evidence",
+            "reports",
+            "reproduction",
+            "validation",
+        }
+        stem = REPORT_STEMS[directory]
+        assert (route / "reports" / f"{stem}.docx").is_file()
+        assert (route / "reports" / f"{stem}.pdf").is_file()
+        assert (route / "validation/validation.json").is_file()
+        assert (route / "validation/validation.md").is_file()
+        assert not (route / "workbook").exists()
+        assert not (route / "results").exists()
+        assert not (route / "consolidated-validation").exists()
+    assert len(exported) == len(expected_directories)
 
 
 def test_build_refuses_protected_external_and_nonempty_output_roots(tmp_path):

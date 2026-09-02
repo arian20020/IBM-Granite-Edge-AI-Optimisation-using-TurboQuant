@@ -28,7 +28,9 @@ relationships, or its guarded comparison decisions.
   Cleanup changes path presentation and metadata, not route comparability.
 - [`before-after-summary.md`](before-after-summary.md) reconciles all 5,057
   inventoried paths and 1,977,743,410 bytes to the 1,529-path removal receipt
-  and the 3,528-path retained recovery snapshot.
+  and the 3,528-path retained recovery snapshot. It separately reconciles the
+  final implementation-branch removal of the 693 tracked legacy raw paths whose
+  frozen disposition was `archive_external`.
 - [`clean-archive-validation.json`](clean-archive-validation.json) binds the
   final no-hydration validation to an immutable staged Git tree and records all
   13 ordered release gates. The receipt excludes only itself from the declared
@@ -44,6 +46,7 @@ relationships, or its guarded comparison decisions.
 | [`PATH-MIGRATION.csv`](PATH-MIGRATION.csv) | Complete published-path migration ledger. |
 | [`test-path-migration.csv`](test-path-migration.csv) | Complete retained-test destination ledger. |
 | [`archive-plan.csv`](archive-plan.csv), [`archive-summary.json`](archive-summary.json), and [`removal-receipt.json`](removal-receipt.json) | Planned, archived, verified, and removed path bindings. |
+| [`implementation-root-removal-receipt.json`](implementation-root-removal-receipt.json) | Final implementation-branch removal of the exact 693 tracked `archive_external` raw paths, including authoritative archive bytes and parent-Git identities. |
 | [`pre-move-pytest-collection.txt`](pre-move-pytest-collection.txt) and [`post-move-pytest-collection.txt`](post-move-pytest-collection.txt) | Frozen pre/post test-identity proof for the move campaign. |
 | [`final-semantic-snapshot.json`](final-semantic-snapshot.json) | Post-cleanup semantic reconciliation against the frozen baseline. |
 | [`clean-archive-validation.json`](clean-archive-validation.json) | Untouched short-path Git-archive identity and 13-gate receipt. |
@@ -59,7 +62,11 @@ top-level manifest, and enclosing Git tree/commit. A live working tree is not
 the release authority. Historical files selected for preservation are bound to
 the external archive receipt summarized by [`archive-summary.json`](archive-summary.json);
 regenerable removals are limited to the exact cache rule recorded in
-[`removal-receipt.json`](removal-receipt.json).
+[`removal-receipt.json`](removal-receipt.json). The external archive is also the
+authoritative byte-recovery location for the 693 implementation-root removals;
+the parent commit and per-entry identities in
+[`implementation-root-removal-receipt.json`](implementation-root-removal-receipt.json)
+preserve the corresponding tracked-history forms.
 
 No benchmark, inference, quality adjudication, Microsoft Word export, semantic
 evidence regeneration, or semantic evidence mutation was performed during

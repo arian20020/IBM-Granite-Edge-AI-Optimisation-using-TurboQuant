@@ -9,7 +9,7 @@ The [guarded cross-route report](06-cross-route-comparison/reports/cross-route-c
 For audit and reuse:
 
 - [Release readiness evidence](validation/release-readiness.json) records the 202-page PDF review, four workbook audits, self-contained archive validation, and limitations.
-- [Cleanup finalization](validation/validation.md) and its [machine receipt](validation/validation.json) reconcile the semantic baseline, verified reduction, migration ledgers, and clean Git archive.
+- [Cleanup finalization](validation/validation.md), its [machine receipt](validation/validation.json), and the [implementation-root removal receipt](../cleanup/implementation-root-removal-receipt.json) reconcile the semantic baseline, verified reduction, exact legacy-path removal, migration ledgers, and clean Git archive.
 - [RO-Crate 1.3 metadata](ro-crate-metadata.json) connects canonical data, system context, and generated reports to their creation activities.
 - [Top-level SHA-256 manifest](manifest-sha256.txt) covers every packaged file except itself.
 - [Reproduction guide](REPRODUCING.md), [licensing and attribution gaps](LICENSES.md), and [release history](CHANGELOG.md) define the operating boundary.

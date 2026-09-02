@@ -37,6 +37,21 @@
       "unique_evidence_id_count": 1857,
       "unique_path_count": 1846
     },
+    "implementation_root_removal": {
+      "valid": true,
+      "receipt": "docs/testing/cleanup/implementation-root-removal-receipt.json",
+      "input_commit": "9678e9c175dba87e37711424004598f2e528f68a",
+      "removed_path_count": 693,
+      "authoritative_size_bytes": 125662,
+      "parent_git_blob_size_bytes": 125384,
+      "parent_git_blob_exact_count": 565,
+      "parent_git_blob_eol_normalized_count": 128,
+      "parent_git_blob_other_mismatch_count": 0,
+      "remaining_selected_path_count": 0,
+      "canonical_retained_path_count": 1400,
+      "published_evidence_relationship_record_count": 1857,
+      "published_evidence_unique_path_count": 1846
+    },
     "inventory_reduction": {
       "valid": true,
       "before": {

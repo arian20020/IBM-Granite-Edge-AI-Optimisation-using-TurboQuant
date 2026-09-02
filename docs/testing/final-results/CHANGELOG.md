@@ -1,5 +1,29 @@
 # Release history
 
+## 2026-09-02 — Final implementation-branch cleanup fix
+
+- Removed the exact 693 tracked legacy raw paths already classified
+  `archive_external`: 517 AtomicBot, 173 OpenVINO TurboQuant, two OpenVINO
+  official, and the raw-root `.gitkeep`. Their 125,662 authoritative worktree
+  bytes were verified against both inventory and external archive before the
+  explicit literal-path removals.
+- Recorded all parent-Git identities separately: 565 blobs are byte-exact and
+  128 are independently proven CRLF-to-LF-only normalized forms, with zero
+  other mismatches. Authoritative bytes remain recoverable from the external
+  archive and tracked forms from parent history.
+- Preserved the complete canonical retained-evidence closure: 1,400 retained
+  paths and 1,857 relationship records across 1,846 unique cited paths, with no
+  removed path cited, retained, imported, or migrated.
+- Corrected the supported build orchestrator to use every route's compact
+  `reports/` and consolidated `validation/` targets. Successful orchestration
+  coverage now exercises all eight route choices and proves the exact common
+  six-part publication layout.
+- Corrected the animehacker runtime example to the canonical retained path and
+  refreshed finalization, readiness, RO-Crate, archive, and manifest receipts.
+
+No benchmark, inference, quality adjudication, Microsoft Word export, semantic
+evidence regeneration, or semantic evidence mutation was performed.
+
 ## 2026-09-02 — Cleanup finalization and clean-archive validation
 
 - Proved byte-for-byte equality between the frozen baseline and final semantic

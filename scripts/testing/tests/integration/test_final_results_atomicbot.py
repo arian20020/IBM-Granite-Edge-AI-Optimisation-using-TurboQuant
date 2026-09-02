@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import shutil
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -23,6 +24,10 @@ from scripts.testing.reporting.llama_adapter import (
 from scripts.testing.reporting.models import Status
 from scripts.testing.reporting.openvino_report import SECTION_ORDER
 from scripts.testing.reporting.csvio import validate_json
+from scripts.testing.tests.integration.canonical_fixture import (
+    LegacyFixtureStats,
+    materialize_inventory_legacy_view,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
@@ -30,23 +35,30 @@ ROUTE = REPOSITORY_ROOT / "docs/testing/final-results/02-atomicbot-turboquant"
 
 
 @pytest.fixture
-def isolated_route(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    route = REPOSITORY_ROOT / ".pytest_cache" / "atomicbot" / tmp_path.name
-    if route.exists():
-        raise FileExistsError(route)
+def canonical_repository(tmp_path: Path) -> Path:
+    root = _copy_sources(tmp_path)
+    shutil.copytree(
+        REPOSITORY_ROOT / "docs/testing/final-results/standards",
+        root / "docs/testing/final-results/standards",
+    )
+    return root
+
+
+@pytest.fixture
+def isolated_route(
+    canonical_repository: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, Path]:
+    route = canonical_repository / "docs/testing/final-results/02-atomicbot-turboquant"
     shutil.copytree(ROUTE, route)
     monkeypatch.setattr(
         llama_adapter,
         "ATOMICBOT_ROUTE_RELATIVE",
-        route.relative_to(REPOSITORY_ROOT),
+        route.relative_to(canonical_repository),
     )
-    try:
-        yield route
-    finally:
-        shutil.rmtree(route)
+    return canonical_repository, route
 
 
-def _copy_sources(tmp_path: Path) -> Path:
+def _materialized_sources(tmp_path: Path) -> tuple[Path, LegacyFixtureStats]:
     root = tmp_path / "repo"
     for relative in (
         "docs/testing/workbooks/text-templates/02_AtomicBot_TurboQuant_Controlled_Retest_Workbook_v1.md",
@@ -57,7 +69,6 @@ def _copy_sources(tmp_path: Path) -> Path:
         "docs/testing/Failure-Register.csv",
         "docs/testing/Evidence-Index.csv",
         "docs/testing/cleanup/PATH-MIGRATION.csv",
-        "experiments/raw-results/atomicbot-turboquant",
         "experiments/raw-results/retained/atomicbot-turboquant",
         "experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json",
         "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
@@ -69,7 +80,50 @@ def _copy_sources(tmp_path: Path) -> Path:
             shutil.copytree(source, target)
         else:
             shutil.copy2(source, target)
-    return root
+    stats = materialize_inventory_legacy_view(
+        REPOSITORY_ROOT,
+        root,
+        "experiments/raw-results/atomicbot-turboquant/",
+    )
+    return root, stats
+
+
+def _copy_sources(tmp_path: Path) -> Path:
+    return _materialized_sources(tmp_path)[0]
+
+
+def test_clean_index_excludes_archived_atomicbot_rows_and_fixture_recovers_them(
+    tmp_path: Path,
+) -> None:
+    receipt = json.loads(
+        (
+            REPOSITORY_ROOT
+            / "docs/testing/cleanup/implementation-root-removal-receipt.json"
+        ).read_text(encoding="utf-8")
+    )
+    archived = {
+        entry["path"]
+        for entry in receipt["entries"]
+        if entry["path"].startswith(
+            "experiments/raw-results/atomicbot-turboquant/"
+        )
+    }
+    tracked = set(
+        subprocess.check_output(
+            ["git", "ls-files", "-z"], cwd=REPOSITORY_ROOT
+        ).decode("utf-8").split("\0")
+    )
+    assert len(archived) == 517
+    assert archived.isdisjoint(tracked)
+
+    root, stats = _materialized_sources(tmp_path)
+    assert stats.migrated_path_count == 481
+    assert stats.parent_history_path_count == 1072
+    assert stats.archive_external_path_count == 517
+    assert all((root / path).is_file() for path in archived)
+    audit = audit_atomicbot_sources(root)
+    assert audit["stale_index_missing_paths"] == 38
+    assert audit["stale_index_hash_conflicts"] == 263
 
 
 def test_atomicbot_coexisting_legacy_sources_never_leak_into_bundle_or_outputs(
@@ -116,8 +170,10 @@ def test_atomicbot_coexisting_legacy_sources_never_leak_into_bundle_or_outputs(
     ] == []
 
 
-def test_bundle_represents_all_runtime_configs_and_current_formal_authority():
-    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+def test_bundle_represents_all_runtime_configs_and_current_formal_authority(
+    canonical_repository: Path,
+):
+    bundle = build_atomicbot_bundle(canonical_repository)
 
     assert tuple(attempt.test_case_id for attempt in bundle.attempts) == ATOMICBOT_EXPECTED_IDS
     assert len(bundle.attempts) == 19
@@ -127,8 +183,10 @@ def test_bundle_represents_all_runtime_configs_and_current_formal_authority():
     assert bundle.repository["setup_status_counts"]["blocked"] == 1
 
 
-def test_observed_utilization_remains_attached_to_each_run():
-    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+def test_observed_utilization_remains_attached_to_each_run(
+    canonical_repository: Path,
+):
+    bundle = build_atomicbot_bundle(canonical_repository)
     rows = bundle.repository["utilization_observations"]
 
     assert len(rows) == 57
@@ -142,8 +200,10 @@ def test_observed_utilization_remains_attached_to_each_run():
     assert all(row["run_id"] and row["measurement_id"] and row["source_evidence_id"] for row in rows)
 
 
-def test_quality_is_limited_provisional_and_not_openvino_comparable():
-    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+def test_quality_is_limited_provisional_and_not_openvino_comparable(
+    canonical_repository: Path,
+):
+    bundle = build_atomicbot_bundle(canonical_repository)
 
     assert len(bundle.quality) == 114
     assert {record.prompt_id for record in bundle.quality} == {f"P{i}" for i in range(1, 7)}
@@ -337,8 +397,10 @@ def test_performance_field_source_identity_and_aggregate_mutations_are_rejected(
         build_atomicbot_bundle(root)
 
 
-def test_performance_sources_and_field_evidence_reconcile():
-    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+def test_performance_sources_and_field_evidence_reconcile(
+    canonical_repository: Path,
+):
+    bundle = build_atomicbot_bundle(canonical_repository)
     audit = bundle.repository["source_reconciliation"]
     mappings = bundle.repository["measurement_field_evidence"]
 
@@ -356,8 +418,10 @@ def test_performance_sources_and_field_evidence_reconcile():
     assert all(row["supported_fields"] == ["generation_tokens_per_second"] for row in throughput)
 
 
-def test_workbook_overwritten_quality_status_pattern_is_explicit_and_excluded():
-    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+def test_workbook_overwritten_quality_status_pattern_is_explicit_and_excluded(
+    canonical_repository: Path,
+):
+    bundle = build_atomicbot_bundle(canonical_repository)
     audit = bundle.repository["source_reconciliation"]
     assert audit["workbook_overwritten_result_rows"] == 19
     assert audit["workbook_duplicate_pairs_value_reconciled"] == 19
@@ -389,8 +453,10 @@ def test_coherent_fabricated_workbook_duplicate_values_are_rejected(tmp_path: Pa
         build_atomicbot_bundle(root)
 
 
-def test_all_five_deviations_have_valid_scopes_and_evidence():
-    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+def test_all_five_deviations_have_valid_scopes_and_evidence(
+    canonical_repository: Path,
+):
+    bundle = build_atomicbot_bundle(canonical_repository)
     rows = bundle.repository["deviation_rows"]
     assert len(rows) == 5
     assert {row["scope_type"] for row in rows} == {"setup", "test", "multi-test", "mixed"}
@@ -438,9 +504,10 @@ def test_stale_index_inventory_and_duplicate_mutations_are_rejected(tmp_path: Pa
 
 
 def test_stale_index_audit_is_exact_and_portable_outputs_contain_no_absolute_paths(
-    isolated_route: Path,
+    isolated_route: tuple[Path, Path],
 ):
-    bundle = write_atomicbot_route(REPOSITORY_ROOT)
+    repository, route = isolated_route
+    bundle = write_atomicbot_route(repository)
     audit = bundle.repository["source_reconciliation"]
     assert audit["index_row_count"] == 828
     assert audit["stale_index_missing_paths"] == 38
@@ -450,7 +517,7 @@ def test_stale_index_audit_is_exact_and_portable_outputs_contain_no_absolute_pat
     assert audit["duplicate_evidence_id_extra_rows"] == 4
 
     forbidden = ("C:\\Users\\", "C:/Users/", "\\\\?\\", str(REPOSITORY_ROOT))
-    for path in isolated_route.rglob("*"):
+    for path in route.rglob("*"):
         if path.is_file() and path.suffix.lower() not in {".docx", ".pdf"}:
             text = path.read_text(encoding="utf-8", errors="ignore")
             assert not any(value in text for value in forbidden), path
@@ -491,10 +558,11 @@ def test_conflicting_register_identity_and_silent_filtering_are_rejected(tmp_pat
 
 
 def test_route_generation_has_common_structure_schema_parity_and_honest_caveats(
-    isolated_route: Path,
+    isolated_route: tuple[Path, Path],
 ):
-    bundle = write_atomicbot_route(REPOSITORY_ROOT)
-    markdown = isolated_route / "reports/atomicbot-turboquant-report.md"
+    repository, route = isolated_route
+    bundle = write_atomicbot_route(repository)
+    markdown = route / "reports/atomicbot-turboquant-report.md"
     text = markdown.read_text(encoding="utf-8")
 
     assert len(bundle.attempts) == 19
@@ -503,7 +571,7 @@ def test_route_generation_has_common_structure_schema_parity_and_honest_caveats(
     assert "not directly comparable with OpenVINO" in text
     assert "Not collected" in text
     validation = json.loads(
-        (isolated_route / "validation/validation.json").read_text()
+        (route / "validation/validation.json").read_text()
     )
     assert validation["checks"]["workbook_parity"]["matches"] is True
     assert validation["checks"]["relationship"]["valid"] is True
@@ -518,9 +586,11 @@ def test_route_generation_has_common_structure_schema_parity_and_honest_caveats(
     assert validation["checks"]["data"]["valid"] is True
 
 
-def test_all_canonical_records_validate_against_shared_schemas_and_references():
-    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
-    schemas = REPOSITORY_ROOT / "docs/testing/final-results/standards/schemas"
+def test_all_canonical_records_validate_against_shared_schemas_and_references(
+    canonical_repository: Path,
+):
+    bundle = build_atomicbot_bundle(canonical_repository)
+    schemas = canonical_repository / "docs/testing/final-results/standards/schemas"
     collections = (
         (bundle.attempts, "attempts.schema.json"),
         (bundle.measurements, "measurements.schema.json"),
@@ -553,8 +623,10 @@ def test_all_canonical_records_validate_against_shared_schemas_and_references():
         (lambda row: row.update(evidence_ids=["EVID-MISSING"]), "deviation evidence"),
     ),
 )
-def test_relationship_receipt_rejects_deviation_mutations(mutator, expected_error):
-    bundle = build_atomicbot_bundle(REPOSITORY_ROOT)
+def test_relationship_receipt_rejects_deviation_mutations(
+    canonical_repository: Path, mutator, expected_error
+):
+    bundle = build_atomicbot_bundle(canonical_repository)
     mutator(bundle.repository["deviation_rows"][0])
     receipt = _atomicbot_relationship_receipt(bundle)
     assert receipt["valid"] is False
@@ -586,8 +658,11 @@ def test_generated_inventory_manifest_and_reproduction_contract():
     assert len(manifest_lines) == len(files) - 1
 
 
-def test_pdf_finalizer_uses_actual_structural_page_count(isolated_route: Path):
-    receipt = finalize_atomicbot_route(REPOSITORY_ROOT)
+def test_pdf_finalizer_uses_actual_structural_page_count(
+    isolated_route: tuple[Path, Path],
+):
+    repository, _route = isolated_route
+    receipt = finalize_atomicbot_route(repository)
     assert receipt["valid"] is True
     assert receipt["checks"]["page_count"] >= 10
     assert receipt["inspected_pages"] == list(range(1, receipt["checks"]["page_count"] + 1))

@@ -37,6 +37,26 @@ The local archive location and complete per-entry identities are recorded in
 [`archive-summary.json`](archive-summary.json) and its referenced external
 `archive-receipt.json`.
 
+## Final implementation-branch raw-path reduction
+
+The frozen table above describes the recovery snapshot at the Task 14 boundary.
+The final branch follow-up then removed the exact 693 *tracked* legacy raw paths
+whose inventory disposition was already `archive_external`: 517 AtomicBot, 173
+OpenVINO TurboQuant, two OpenVINO official, and the raw-root `.gitkeep`. The
+selected worktree bytes totalled 125,662 and matched the frozen inventory and
+verified external archive byte for byte before removal. None was cited,
+retained, imported by `evidence-manifest.csv`, or named by the migration ledger.
+
+The parent commit stored 565 of those blobs byte for byte. Git had normalized
+the remaining 128 from authoritative CRLF to LF; an independent comparison
+proved EOL-only equivalence with zero other mismatches. Consequently, the 693
+removed parent-tree blobs total 125,384 bytes while their authoritative external
+archive forms total 125,662 bytes. Both identities and recovery mechanisms are
+recorded per path in
+[`implementation-root-removal-receipt.json`](implementation-root-removal-receipt.json).
+The 1,400-path canonical retained manifest and all 1,857 published relationship
+records across 1,846 unique cited paths remain complete and hash-exact.
+
 ## Semantic result after reduction
 
 The byte-identical baseline/final snapshots prove that cleanup retained:

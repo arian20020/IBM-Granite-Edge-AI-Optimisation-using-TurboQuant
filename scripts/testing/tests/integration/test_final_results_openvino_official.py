@@ -12,7 +12,8 @@ import sys
 import pytest
 
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+AUTHORITATIVE_REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = AUTHORITATIVE_REPO_ROOT
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.testing.reporting.models import Status
@@ -21,6 +22,10 @@ from scripts.testing.reporting.evidence import (
     resolve_repository_path,
 )
 import scripts.testing.reporting.openvino_adapter as openvino_adapter
+from scripts.testing.tests.integration.canonical_fixture import (
+    materialize_exact_retained_alias,
+    materialize_openvino_canonical_repository,
+)
 from scripts.testing.reporting.openvino_adapter import (
     build_official_bundle,
     build_official_validation_receipts,
@@ -77,12 +82,35 @@ def _isolated_official_repo(tmp_path: Path) -> Path:
     ):
         target = repo / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(_canonical_source_path(REPO_ROOT, relative), target)
+        canonical = _canonical_source_path(REPO_ROOT, relative)
+        if canonical.is_file():
+            shutil.copyfile(canonical, target)
+        else:
+            materialize_exact_retained_alias(
+                AUTHORITATIVE_REPO_ROOT, repo, relative.as_posix()
+            )
     for relative in (V1_WORKBOOK, V2_WORKBOOK):
         target = repo / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(_canonical_source_path(REPO_ROOT, relative), target)
     return repo
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _canonical_official_repository(tmp_path_factory):
+    """Keep direct bundle/write tests off the cleaned implementation tree."""
+    global REPO_ROOT, ROUTE
+    original_root, original_route = REPO_ROOT, ROUTE
+    fixture = materialize_openvino_canonical_repository(
+        AUTHORITATIVE_REPO_ROOT,
+        tmp_path_factory.mktemp("canonical-official"),
+    )
+    REPO_ROOT = fixture
+    ROUTE = fixture / "docs/testing/final-results/05-openvino-official-upstream"
+    try:
+        yield
+    finally:
+        REPO_ROOT, ROUTE = original_root, original_route
 
 
 def _rewrite_json(repo: Path, relative: Path, mutate) -> None:

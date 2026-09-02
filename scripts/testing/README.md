@@ -25,7 +25,7 @@ Use `--` before forwarded route-specific options so the wrapper passes them thro
 
 ```powershell
 python -m scripts.testing.cli.run_atomicbot --mode retest -- --matrix experiments/manifests/atomicbot-turboquant/retest-matrix.json --dry-run --only AB-01
-python -m scripts.testing.cli.run_animehacker --mode quality -- --matrix experiments/manifests/animehacker-tq3-0/retest-matrix.json --prompt-set experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json --runtime-root experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime --output-root tmp/animehacker-quality
+python -m scripts.testing.cli.run_animehacker --mode quality -- --matrix experiments/manifests/animehacker-tq3-0/retest-matrix.json --prompt-set experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json --runtime-root experiments/raw-results/retained/animehacker-tq3-0/2026-07-18/runtime --output-root tmp/animehacker-quality
 python -m scripts.testing.cli.run_openvino --mode format-boundary -- --status
 python -m scripts.testing.cli.build_results --route all --output-root tmp/final-results-build
 python -m scripts.testing.cli.validate_results --route all --output-root docs/testing/final-results

@@ -11,8 +11,16 @@ The result route names are `upstream-llama-cpp`,
 raw-evidence source to exactly one retained path, byte size, SHA-256, stable
 evidence IDs, and terminal outcome metadata. `failure-records/` contains the
 derived terminal-evidence index, while its unique retained source README lives
-under `retained/shared/failure-records/`. Historical archive candidates are
-deliberately excluded from both the retained tree and its manifest.
+under `retained/shared/failure-records/`. The 693 tracked legacy raw paths whose
+frozen inventory action is `archive_external` were removed from this
+implementation branch only after their 125,662 authoritative bytes were
+matched to the inventory and verified external archive. They remain recoverable
+from that archive; the parent Git forms remain recoverable from history. The
+per-path byte identities and the 128 disclosed EOL-only Git-normalized parent
+blobs are recorded in
+[`implementation-root-removal-receipt.json`](../../docs/testing/cleanup/implementation-root-removal-receipt.json).
+Historical archive candidates are excluded from both the retained tree and its
+manifest, and no published evidence citation resolves to a removed path.
 
 Only paths changed during this migration. Captured bytes, evidence IDs,
 outcome meanings, and source labels that describe scientific provenance remain

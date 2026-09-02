@@ -39,6 +39,14 @@ ROUTE_DIRECTORIES = {
     "animehacker": "03-animehacker-tq3-0",
     "cross-route": "06-cross-route-comparison",
 }
+REPORT_STEMS = {
+    "01-upstream-llama-cpp": "upstream-llama-cpp-report",
+    "02-atomicbot-turboquant": "atomicbot-turboquant-report",
+    "03-animehacker-tq3-0": "animehacker-tq3-0-report",
+    "04-openvino-experimental-fork": "openvino-experimental-fork-report",
+    "05-openvino-official-upstream": "openvino-official-upstream-report",
+    "06-cross-route-comparison": "cross-route-comparison-report",
+}
 
 
 class InvalidBuildRequest(ValueError):
@@ -74,6 +82,20 @@ def selected_route_roots(output_root: Path, route: str) -> tuple[Path, ...]:
     if route == "all":
         return tuple(root / name for name in ROUTE_DIRECTORIES.values())
     return tuple(root / name for name in _selected_directories(route))
+
+
+def _compact_report_targets(route: Path) -> tuple[Path, Path, Path]:
+    """Return the canonical Markdown, DOCX, and PDF paths for one route."""
+    try:
+        stem = REPORT_STEMS[route.name]
+    except KeyError as error:
+        raise InvalidBuildRequest(f"unsupported route directory: {route.name}") from error
+    report = route / "reports" / stem
+    return (
+        report.with_suffix(".md"),
+        report.with_suffix(".docx"),
+        report.with_suffix(".pdf"),
+    )
 
 
 def _validate_selection(output_root: Path, route: str) -> "ValidationReport":
@@ -184,9 +206,9 @@ def _export_pdf(docx: Path, pdf: Path) -> None:
 def _write_openvino_report(route: Path, bundle: object) -> None:
     from pypdf import PdfReader
 
-    from scripts.testing.reporting.csvio import write_json
     from scripts.testing.reporting.docx_renderer import render_docx
     from scripts.testing.reporting.markdown_renderer import render_markdown
+    from scripts.testing.reporting.openvino_adapter import _write_compact_validation
     from scripts.testing.reporting.openvino_report import (
         SECTION_ORDER,
         build_openvino_report,
@@ -198,14 +220,10 @@ def _write_openvino_report(route: Path, bundle: object) -> None:
     )
 
     report = build_openvino_report(bundle)
-    stem = route.name.removeprefix("04-").removeprefix("05-")
-    markdown = route / "workbook/source" / f"{stem}-final-report.md"
-    docx = route / "workbook/generated" / f"{stem}-final-report.docx"
-    pdf = route / "workbook/generated" / f"{stem}-final-report.pdf"
+    markdown, docx, pdf = _compact_report_targets(route)
     render_markdown(report, markdown)
     render_docx(report, docx)
     parity = compare_markdown_docx(markdown, docx)
-    write_json(route / "validation/workbook-parity.json", parity)
     if not parity["matches"]:
         raise ValueError(f"OpenVINO workbook parity failed for {route.name}")
     _export_pdf(docx, pdf)
@@ -219,32 +237,28 @@ def _write_openvino_report(route: Path, bundle: object) -> None:
         "all_approved_sections_present": all(heading in combined for heading in SECTION_ORDER),
     }
     valid = all(value for key, value in checks.items() if key != "page_count")
-    write_json(
-        route / "validation/visual-validation.json",
-        {
-            "valid": valid,
-            "checks": checks,
-            "inspection_method": "Automated searchable-page and section-structure validation",
-            "manual_visual_qa_performed": False,
-        },
-    )
     if not valid:
         raise ValueError(f"OpenVINO PDF structure failed for {route.name}: {checks}")
-    (route / "validation/validation-report.md").write_text(
-        "# Validation report\n\n"
-        "Coverage, data, Markdown/DOCX parity, owned Word PDF export, and automated "
-        "PDF structure checks: Passed. Manual visual QA is not claimed by this build.\n",
-        encoding="utf-8",
-        newline="\n",
-    )
-    write_json(
-        route / "validation/integrity-validation.json",
+    write_portable_openvino_route_workbook(REPOSITORY_ROOT, route)
+    _write_compact_validation(
+        route,
+        str(bundle.route_id),
         {
-            "valid": True,
-            "status": "Passed after final PDF and validation receipt generation",
+            "workbook_parity": parity,
+            "visual": {
+                "valid": True,
+                "checks": checks,
+                "inspection_method": (
+                    "Automated searchable-page and section-structure validation"
+                ),
+                "manual_visual_qa_performed": False,
+            },
+            "integrity": {
+                "valid": True,
+                "status": "Passed after final PDF and validation receipt generation",
+            },
         },
     )
-    write_portable_openvino_route_workbook(REPOSITORY_ROOT, route)
     regenerate_route_manifest(REPOSITORY_ROOT, route)
 
 
@@ -256,26 +270,20 @@ def _build_standard_routes(route: str, output_root: Path) -> dict[str, object]:
     if ROUTE_DIRECTORIES["upstream-llama"] in selected:
         bundles["upstream-llama"] = llama_adapter.write_upstream_llama_route(REPOSITORY_ROOT)
         target = output_root / ROUTE_DIRECTORIES["upstream-llama"]
-        _export_pdf(
-            target / "workbook/generated/upstream-llama-cpp-final-report.docx",
-            target / "workbook/generated/upstream-llama-cpp-final-report.pdf",
-        )
+        _, docx, pdf = _compact_report_targets(target)
+        _export_pdf(docx, pdf)
         llama_adapter.finalize_upstream_llama_route(REPOSITORY_ROOT)
     if ROUTE_DIRECTORIES["atomicbot"] in selected:
         bundles["atomicbot"] = llama_adapter.write_atomicbot_route(REPOSITORY_ROOT)
         target = output_root / ROUTE_DIRECTORIES["atomicbot"]
-        _export_pdf(
-            target / "workbook/generated/atomicbot-turboquant-final-report.docx",
-            target / "workbook/generated/atomicbot-turboquant-final-report.pdf",
-        )
+        _, docx, pdf = _compact_report_targets(target)
+        _export_pdf(docx, pdf)
         llama_adapter.finalize_atomicbot_route(REPOSITORY_ROOT)
     if ROUTE_DIRECTORIES["animehacker"] in selected:
         bundles["animehacker"] = llama_adapter.write_animehacker_route(REPOSITORY_ROOT)
         target = output_root / ROUTE_DIRECTORIES["animehacker"]
-        _export_pdf(
-            target / "workbook/generated/animehacker-tq3-0-final-report.docx",
-            target / "workbook/generated/animehacker-tq3-0-final-report.pdf",
-        )
+        _, docx, pdf = _compact_report_targets(target)
+        _export_pdf(docx, pdf)
         llama_adapter.finalize_animehacker_route(REPOSITORY_ROOT)
     if ROUTE_DIRECTORIES["experimental-openvino"] in selected:
         bundle = openvino_adapter.write_experimental_route(REPOSITORY_ROOT)
@@ -338,10 +346,8 @@ def build_final_results(route: str, output_root: Path) -> "ValidationReport":
                 output_root=output,
             )
             cross = output / ROUTE_DIRECTORIES["cross-route"]
-            _export_pdf(
-                cross / "workbook/generated/cross-route-comparison-final-report.docx",
-                cross / "workbook/generated/cross-route-comparison-final-report.pdf",
-            )
+            _, docx, pdf = _compact_report_targets(cross)
+            _export_pdf(docx, pdf)
             finalize_cross_route_package(REPOSITORY_ROOT, output_root=output)
     report = _validate_selection(output, route)
     if route == "all":

@@ -21,6 +21,16 @@ the verified removal of 1,529 paths and 18,265,409 bytes to 3,528 paths and
 1,959,478,001 bytes. The external archive contains and verifies 1,128 paths;
 the other 401 removals are receipt-bound regenerable Python bytecode caches.
 
+The final implementation branch also removes the exact 693 tracked legacy raw
+paths already classified `archive_external`. Their 125,662 authoritative
+worktree bytes matched the inventory and verified external archive before
+removal. The parent commit holds 565 byte-exact blobs and 128 disclosed
+CRLF-to-LF-only normalized blobs (125,384 parent-blob bytes in total); zero
+other mismatches or canonical-evidence intersections exist. Both byte forms
+remain recoverable through the external archive and parent Git history. The
+per-path receipt is
+[`../../cleanup/implementation-root-removal-receipt.json`](../../cleanup/implementation-root-removal-receipt.json).
+
 The settled staged Git tree was archived untouched, extracted at a short path,
 and validated without evidence hydration. All 13 ordered release gates exited
 zero with no blocking findings. The machine receipt for the immutable tree and

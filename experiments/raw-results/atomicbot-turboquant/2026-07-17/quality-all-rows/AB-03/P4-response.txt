@@ -1,1 +1,0 @@
-The model used is IBM Granite 4.1 3B, running with upstream llama.cpp, with model weights in Q4_K_M and both K and V caches in Q8_0. The context length is set to 4096 tokens, and the test was executed locally on a Windows Intel laptop without activating TurboQuant.

@@ -1,3 +1,0 @@
-WARNING: CACHE_TYPES_CSV is not set, skipping cache-types tests.
-WARNING: CACHE_TYPES_CSV is not set, skipping LLM backend routing tests.
-WARNING: CACHE_TYPES_CSV is not set, skipping LLM backend routing tests.

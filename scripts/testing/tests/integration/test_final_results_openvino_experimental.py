@@ -29,8 +29,11 @@ from scripts.testing.reporting.openvino_adapter import (
 )
 
 
-FV6 = REPO_ROOT / "experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6"
-RETAINED_FV6 = (
+LEGACY_FV6 = (
+    REPO_ROOT
+    / "experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6"
+)
+FV6 = (
     REPO_ROOT
     / "experiments/raw-results/retained/openvino-experimental-fork/2026-08-30/fv6"
 )
@@ -40,6 +43,16 @@ SOURCE_WORKBOOK = (
     / "outputs/openvino-experimental-fork-results"
     / "Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
 )
+
+
+@pytest.fixture(autouse=True)
+def _use_retained_fv6_authority(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep all direct-path adapter helpers on the retained FV6 authority."""
+    monkeypatch.setattr(
+        openvino_adapter,
+        "_FV6_RELATIVE",
+        FV6.relative_to(REPO_ROOT),
+    )
 
 
 def _rows(path: Path) -> list[dict[str, str]]:
@@ -62,9 +75,13 @@ def _isolated_fv6_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     destination = repo / FV6.relative_to(REPO_ROOT)
     shutil.copytree(FV6, destination)
-    workbook = repo / SOURCE_WORKBOOK.relative_to(REPO_ROOT)
-    workbook.parent.mkdir(parents=True)
-    shutil.copyfile(SOURCE_WORKBOOK, workbook)
+    for source in (
+        SOURCE_WORKBOOK,
+        REPO_ROOT / "docs/testing/cleanup/PATH-MIGRATION.csv",
+    ):
+        target = repo / source.relative_to(REPO_ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
     return repo
 
 
@@ -72,8 +89,8 @@ def _coexisting_fv6_repo(tmp_path: Path) -> Path:
     """Create an exact old/new coexistence fixture from the retained authority."""
     repo = tmp_path / "repo"
     for source, relative in (
-        (RETAINED_FV6, RETAINED_FV6.relative_to(REPO_ROOT)),
-        (RETAINED_FV6, FV6.relative_to(REPO_ROOT)),
+        (FV6, FV6.relative_to(REPO_ROOT)),
+        (FV6, LEGACY_FV6.relative_to(REPO_ROOT)),
     ):
         shutil.copytree(source, repo / relative)
     for source in (
@@ -348,7 +365,13 @@ def test_fv6_normalization_preserves_complete_campaign_without_fabricating_unava
     for source in source_rows:
         if source["executed"] != "true":
             continue
-        raw = json.loads((REPO_ROOT / source["raw_result_path"].replace("\\", "/")).read_text())
+        raw = json.loads(
+            resolve_repository_path(
+                REPO_ROOT,
+                source["raw_result_path"].replace("\\", "/"),
+                prefer_migrated=True,
+            ).read_text()
+        )
         for repetition, run in enumerate(raw["benchmark_runs"], start=1):
             measurement = measurement_by_id[
                 f"{source['case_id']}--benchmark-repetition-{repetition:03d}"

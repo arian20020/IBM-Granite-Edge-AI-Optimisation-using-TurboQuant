@@ -5,8 +5,9 @@
   "release_version": "unified-final-results-2026-09-01-v2",
   "base_commit": "26d08591837ae8c6238686797b7e735e8738cb0d",
   "review_fix_input_commit": "2bcb25388e58ca1cb2d55afe6239ce9e7706ca74",
-  "validated_tree": "09b4baae700f36ea0d92a67c2010c2a87e2ddb11",
-  "release_subtree": "4ceb6a5851bddaa3f8a4abac6d8059048c47fadc",
+  "final_branch_fix_input_commit": "9678e9c175dba87e37711424004598f2e528f68a",
+  "validated_tree": "25556104735b80b84d89ada7fe6507ae180f971d",
+  "release_subtree": "3f72dc3dd0f64e7d298c1f0110bac7b2da6d68bf",
   "validated_scope": "Every path in validated_tree; the subsequently added receipt path listed in excluded_paths is intentionally outside this non-self-referential scope.",
   "excluded_paths": [
     "docs/testing/cleanup/clean-archive-validation.json"
@@ -15,14 +16,14 @@
     "source": "plain git archive of validated_tree using the tree's committed attributes (no line-ending override)",
     "format": "tar",
     "canonical_mtime": "2026-09-02T00:00:00Z",
-    "size_bytes": 162293760,
-    "sha256": "fa53d7208abbc1f242f0cdf983d3bebe65a51dbb4a392dc5d05ea2026a1cda91",
-    "file_member_count": 4856,
-    "member_count": 6357,
-    "file_payload_bytes": 157783488,
+    "size_bytes": 162334720,
+    "sha256": "ac191cbd8d265e2ce3a972d44f5c4e263ce6ca6e78a3d5b5c88c2fa12ac02c05",
+    "file_member_count": 4165,
+    "member_count": 5662,
+    "file_payload_bytes": 158377094,
     "repeated_archive_sha256_equal": true,
     "short_path_validation": true,
-    "disposable_extraction_root": "C:\\T15R1V3\\x",
+    "disposable_extraction_root": "C:\\T15FBR2\\x",
     "evidence_hydration_performed": false,
     "published_evidence_source_count": 1846,
     "published_evidence_relationship_record_count": 1857,
@@ -176,5 +177,5 @@
       }
     ]
   },
-  "receipt_payload_sha256": "b02c1f5fcf80d6d9129e6b8d0859fc4b5f9adca1efb17859b8d18a21c326b0dd"
+  "receipt_payload_sha256": "3c9109a04a9764c2ab51956394eb1c7c77b15eab52576cfced1e9c94e0d55e76"
 }

@@ -3,6 +3,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 
@@ -16,9 +18,13 @@ from scripts.testing.reporting.report_model import (
     ReportParagraph,
     ReportTable,
 )
+from scripts.testing.tests.integration.canonical_fixture import (
+    materialize_openvino_canonical_repository,
+)
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
+AUTHORITATIVE_REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
+REPOSITORY_ROOT = AUTHORITATIVE_REPOSITORY_ROOT
 EXPECTED_SECTIONS = [
     "1. Title and document control",
     "2. Technical summary",
@@ -36,6 +42,21 @@ EXPECTED_SECTIONS = [
     "14. Evidence index and hashes",
     "15. Revision history",
 ]
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _canonical_openvino_repository(tmp_path_factory):
+    """Build reports from a disposable canonical-plus-historical fixture."""
+    global REPOSITORY_ROOT
+    original_root = REPOSITORY_ROOT
+    REPOSITORY_ROOT = materialize_openvino_canonical_repository(
+        AUTHORITATIVE_REPOSITORY_ROOT,
+        tmp_path_factory.mktemp("canonical-openvino-reports"),
+    )
+    try:
+        yield
+    finally:
+        REPOSITORY_ROOT = original_root
 
 
 def _module():

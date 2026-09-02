@@ -24,6 +24,9 @@ PATH_MIGRATION = ROOT / "docs/testing/cleanup/PATH-MIGRATION.csv"
 BASELINE = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
 FINAL_SNAPSHOT = ROOT / "docs/testing/cleanup/final-semantic-snapshot.json"
 CLEAN_ARCHIVE_RECEIPT = ROOT / "docs/testing/cleanup/clean-archive-validation.json"
+IMPLEMENTATION_REMOVAL_RECEIPT = (
+    ROOT / "docs/testing/cleanup/implementation-root-removal-receipt.json"
+)
 FINAL_VALIDATION = ROOT / "docs/testing/final-results/validation/validation.json"
 RELEASE_ROOT = ROOT / "docs/testing/final-results"
 PORTABLE_WORKBOOKS = (
@@ -90,6 +93,95 @@ def _canonical_hash(payload: dict[str, object], excluded: str) -> str:
         "utf-8"
     )
     return hashlib.sha256(encoded).hexdigest()
+
+
+def test_implementation_root_removal_receipt_covers_exact_archived_raw_set() -> None:
+    inventory_rows = sorted(
+        (
+            row
+            for row in _rows(ROOT / "docs/testing/cleanup/file-inventory.csv")
+            if row["tracked_status"] == "tracked"
+            and row["action"] == "archive_external"
+            and row["path"].startswith("experiments/raw-results/")
+        ),
+        key=lambda row: row["path"],
+    )
+    assert len(inventory_rows) == 693
+    assert sum(int(row["size_bytes"]) for row in inventory_rows) == 125_662
+
+    receipt = json.loads(IMPLEMENTATION_REMOVAL_RECEIPT.read_text(encoding="utf-8"))
+    assert receipt["schema"] == "testing-cleanup-implementation-root-removal/v1"
+    assert receipt["valid"] is True
+    assert receipt["input_commit"] == (
+        "9678e9c175dba87e37711424004598f2e528f68a"
+    )
+    assert receipt["selection"] == {
+        "action": "archive_external",
+        "path_prefix": "experiments/raw-results/",
+        "tracked_status": "tracked",
+        "path_count": 693,
+        "size_bytes": 125_662,
+        "path_list_sha256": (
+            "d41e443798a39c8bf5cdbf17279fe3641237c3f410bcb2c1dfe8b32b3a891e0c"
+        ),
+        "breakdown": {
+            "atomicbot-turboquant": 517,
+            "openvino-turboquant": 173,
+            "openvino-official-upstream": 2,
+            "raw-root-gitkeep": 1,
+        },
+    }
+    assert receipt["verification"] == {
+        "inventory_worktree_external_exact_count": 693,
+        "parent_git_blob_exact_count": 565,
+        "parent_git_blob_eol_normalized_count": 128,
+        "parent_git_blob_other_mismatch_count": 0,
+        "published_citation_intersection_count": 0,
+        "retained_source_intersection_count": 0,
+        "retained_destination_intersection_count": 0,
+        "path_migration_intersection_count": 0,
+        "canonical_retained_path_count": 1400,
+        "canonical_retained_missing_count": 0,
+        "canonical_retained_hash_mismatch_count": 0,
+        "removed_path_count": 693,
+        "remaining_selected_path_count": 0,
+    }
+
+    expected = {
+        row["path"]: (int(row["size_bytes"]), row["sha256"])
+        for row in inventory_rows
+    }
+    entries = receipt["entries"]
+    assert len(entries) == 693
+    assert [entry["path"] for entry in entries] == sorted(expected)
+    assert {
+        entry["path"]: (entry["size_bytes"], entry["sha256"])
+        for entry in entries
+    } == expected
+    assert sum(entry["git_normalized_blob"] for entry in entries) == 128
+    assert all(entry["state"] == "removed_from_implementation_root" for entry in entries)
+    assert all(entry["inventory_worktree_external_exact"] is True for entry in entries)
+    assert all(
+        entry["parent_git_blob_relation"]
+        == (
+            "eol_only_git_normalized"
+            if entry["git_normalized_blob"]
+            else "byte_exact"
+        )
+        for entry in entries
+    )
+    assert all(not (ROOT / entry["path"]).exists() for entry in entries)
+    tracked_raw = set(
+        subprocess.check_output(
+            ["git", "ls-files", "experiments/raw-results"],
+            cwd=ROOT,
+            text=True,
+        ).splitlines()
+    )
+    assert tracked_raw.isdisjoint(expected)
+    assert receipt["receipt_payload_sha256"] == _canonical_hash(
+        receipt, "receipt_payload_sha256"
+    )
 
 
 def test_frozen_text_bytes_survive_the_git_tree_and_plain_archive() -> None:
@@ -403,6 +495,7 @@ def test_final_validation_receipt_records_every_cleanup_invariant() -> None:
         "clean_git_archive",
         "comparison_decisions",
         "evidence_relationships",
+        "implementation_root_removal",
         "inventory_reduction",
         "migration_indexes",
         "outcomes",
@@ -419,6 +512,12 @@ def test_final_validation_receipt_records_every_cleanup_invariant() -> None:
     assert semantic["baseline_file_sha256"] == semantic["final_file_sha256"]
     assert semantic["snapshot_sha256"] == BASELINE["snapshot_sha256"]
     assert validation["checks"]["outcomes"]["total"] == 169
+    implementation = validation["checks"]["implementation_root_removal"]
+    assert implementation["removed_path_count"] == 693
+    assert implementation["authoritative_size_bytes"] == 125_662
+    assert implementation["parent_git_blob_exact_count"] == 565
+    assert implementation["parent_git_blob_eol_normalized_count"] == 128
+    assert implementation["remaining_selected_path_count"] == 0
     relationships = validation["checks"]["evidence_relationships"]
     assert relationships["record_count"] == 1857
     assert relationships["relationship_record_count"] == 1857
@@ -449,6 +548,18 @@ def test_ro_crate_models_cleanup_finalization_before_manifest_generation() -> No
     manifest_outputs = {item["@id"] for item in manifest_generation["result"]}
 
     assert "manifest-sha256.txt" not in finalization_inputs
+    assert finalization_inputs == {
+        "validation/release-readiness.json",
+        "#implementation-root-removal-receipt",
+    }
+    receipt = entities["#implementation-root-removal-receipt"]
+    assert receipt["@type"] == "CreativeWork"
+    assert receipt["identifier"] == (
+        "docs/testing/cleanup/implementation-root-removal-receipt.json"
+    )
+    assert receipt["sha256"] == hashlib.sha256(
+        IMPLEMENTATION_REMOVAL_RECEIPT.read_bytes()
+    ).hexdigest()
     assert finalization_outputs == {
         "validation/validation.json",
         "validation/validation.md",
