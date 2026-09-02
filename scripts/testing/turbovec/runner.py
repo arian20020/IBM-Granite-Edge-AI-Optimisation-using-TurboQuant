@@ -213,6 +213,7 @@ def write_processed_results(run_directory: Path, processed_root: Path) -> Path:
     if terminal.get("status") != "completed": raise ValueError("raw run is not complete")
     results = json.loads((run / "results.json").read_text(encoding="utf-8"))
     metrics = json.loads((run / "metrics.json").read_text(encoding="utf-8"))
+    identities = json.loads((run / "identities.json").read_text(encoding="utf-8"))
     rows = {item["name"]: item for item in results["configurations"]}; exact = rows["exact"]
     candidates=[]
     for name in ("tq2", "tq3", "tq4"):
@@ -222,7 +223,8 @@ def write_processed_results(run_directory: Path, processed_root: Path) -> Path:
     run_id=str(terminal["run_id"]); output=Path(processed_root)/run_id
     if output.exists(): raise FileExistsError(run_id)
     output.mkdir(parents=True)
-    decision_document={"schema_version":"1.0","experiment_id":"EXP-TV-COMP-001","run_id":run_id,"outcome":decision.outcome.value,"selected_configuration":decision.selected_configuration,"thresholds":decision.thresholds,"reasons":list(decision.reasons),"product_status":"deferred"}
+    candidate = identities.get("dependencies", {}).get("turbovec")
+    decision_document={"schema_version":"1.0","experiment_id":"EXP-TV-COMP-001","run_id":run_id,"outcome":decision.outcome.value,"selected_configuration":decision.selected_configuration,"thresholds":decision.thresholds,"reasons":list(decision.reasons),"candidate":candidate,"product_status":"deferred"}
     summary={"schema_version":"1.0","experiment_id":"EXP-TV-COMP-001","run_id":run_id,"outcome":decision.outcome.value,"metrics":metrics["configurations"],"operational":{name:{"build_ns":row["build_ns"],"save_ns":row["save_ns"],"load_ns":row["load_ns"],"query_latency_ms":row["query_latency_ms"],"serving_bytes":row["serving_bytes"],"lifecycle_passed":row["lifecycle_passed"]} for name,row in rows.items()},"peak_process_memory_bytes":results.get("peak_process_memory_bytes",0)}
     _json(output/"decision.json",decision_document); _json(output/"summary.json",summary)
     lines=["# EXP-TV-COMP-001 Result","",f"**Outcome: {decision.outcome.value}**", "", "No configuration passed every Gate A threshold." if decision.reasons else f"Selected configuration: {decision.selected_configuration}.", "", "| Configuration | Recall@10 vs Exact | Relative nDCG@10 | p95 ms | Serving bytes |", "|---|---:|---:|---:|---:|"]
