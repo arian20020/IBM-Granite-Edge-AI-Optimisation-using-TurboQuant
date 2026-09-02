@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "experiment_id": "EXP-TV-COMP-001",
+  "dependencies": {
+    "turbovec": {
+      "repository": "https://github.com/RyanCodrai/turbovec",
+      "version": "1.0.0",
+      "commit": "ccab9f325e6ce2a270a87daf01ae4e443bcf2d49",
+      "tree": "0a7141836d01da61e6f3cf53b5c60916b741d811",
+      "licence": "MIT",
+      "wheel_filename": "turbovec-1.0.0-cp39-abi3-win_amd64.whl",
+      "wheel_bytes": 611788,
+      "wheel_sha256": "CD855E0B318A57DC57C733F9A62AE98DE5192F4F6C2C760E305523E8CEB1B090"
+    },
+    "pdfpig": {
+      "repository": "https://github.com/UglyToad/PdfPig",
+      "version": "0.1.15",
+      "commit": "f131f642976936e06ee91cb19d3ed728f9dd18b6",
+      "tree": "",
+      "licence": "Apache-2.0",
+      "wheel_filename": "",
+      "wheel_bytes": 0,
+      "wheel_sha256": ""
+    },
+    "embedding": {
+      "repository": "ibm-granite/granite-embedding-small-english-r2",
+      "revision": "",
+      "dimension": 384,
+      "licence": "Apache-2.0",
+      "status": "unlocked"
+    },
+    "openvino": {"version": "2026.3.0.0"}
+  },
+  "execution": {"warmup_batches": 5, "measured_batches": 30, "top_k": 10},
+  "thresholds": {
+    "recall_at_10": 0.9,
+    "relative_ndcg_at_10": 0.95,
+    "minimum_storage_ratio": 2.0,
+    "maximum_p95_slowdown": 1.1
+  }
+}
