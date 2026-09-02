@@ -1,6 +1,8 @@
 ﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
 # TurboVec Raw Evidence
 
+Latest run `EXP-TV-COMP-001-20260902T225731Z-001` ended **BLOCKED** at the Granite/OpenVINO gate. TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49` (MIT) was pinned; matched retrieval did not execute.
+
 ## Purpose
 
 Pinned TurboVec build, vector-compression, retrieval and comparison evidence.
@@ -28,4 +30,3 @@ R-M02, R-M13
 ## Source
 
 Repository evidence structure
-

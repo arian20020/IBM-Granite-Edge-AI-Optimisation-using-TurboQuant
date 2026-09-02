@@ -1,5 +1,7 @@
 # MoSCoW Requirements Baseline
 
+> TurboVec checkpoint: **BLOCKED**, commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T225731Z-001`. Priorities and deferrals are unchanged.
+
 **Document ID:** REQ-MOSCOW-001  
 **Version:** 1.2  
 **Presentation revision:** Categorised requirement views (CHG-014)  

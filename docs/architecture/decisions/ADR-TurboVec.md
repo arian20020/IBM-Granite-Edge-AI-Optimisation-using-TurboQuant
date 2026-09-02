@@ -1,5 +1,7 @@
 # ADR-TurboVec: TurboVec First-Release Decision
 
+> **2026-09-02 checkpoint:** **BLOCKED** for TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49` (MIT), run `EXP-TV-COMP-001-20260902T225731Z-001`. Granite ModernBERT did not pass the locked OpenVINO embedding gate; product integration remains deferred.
+
 **Status:** Accepted — full application integration deferred  
 **Date:** 2026-07-14  
 **Decision owner:** Arian B  

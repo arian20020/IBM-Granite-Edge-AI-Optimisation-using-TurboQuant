@@ -1,6 +1,8 @@
 ﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
 # R-M13 Evidence Location
 
+Latest decision: **BLOCKED** for TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T225731Z-001`. Product status remains deferred.
+
 ## Purpose
 
 Planned evidence location for requirement R-M13: The project must compare TurboVec-compressed or optimised vectors with an uncompressed-vector baseline.
@@ -28,4 +30,3 @@ R-M13
 ## Source
 
 RTM Planned Evidence Path
-

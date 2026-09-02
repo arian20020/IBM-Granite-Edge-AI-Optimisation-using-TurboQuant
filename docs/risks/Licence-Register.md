@@ -1,5 +1,7 @@
 # Licence Register
 
+> TurboVec identity: `https://github.com/RyanCodrai/turbovec`, commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, MIT. Outcome **BLOCKED** in `EXP-TV-COMP-001-20260902T225731Z-001`; this does not approve distribution or adoption.
+
 **Document ID:** REG-LIC-001  
 **Version:** 0.5
 **Status:** Selected development dependencies reviewed — exact release-package review pending  

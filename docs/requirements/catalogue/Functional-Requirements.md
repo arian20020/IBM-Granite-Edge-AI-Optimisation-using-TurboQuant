@@ -1,5 +1,7 @@
 # Functional Requirements
 
+> TurboVec checkpoint: **BLOCKED**, commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T225731Z-001`. F-M25, F-M26 and F-M27 remain deferred and unimplemented.
+
 **Baseline:** MoSCoW v1.2 / RTM v1.3  
 **Owner:** Arian B  
 **Presentation change:** CHG-014 / CR-014 — no scope change  
