@@ -1,5 +1,7 @@
 # Licence Review Notes
 
+> TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49` is MIT-licensed. Run `EXP-TV-COMP-001-20260902T225731Z-001` was **BLOCKED** at the Granite/OpenVINO gate; distribution and adoption remain unapproved.
+
 **Document ID:** NOTE-LIC-001  
 **Version:** 1.0  
 **Status:** Initial engineering review complete — final release-package review pending  
