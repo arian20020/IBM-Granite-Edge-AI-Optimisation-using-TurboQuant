@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "experiment_id": "EXP-TV-COMP-001",
+  "run_id": "EXP-TV-COMP-001-20260902T225731Z-001",
+  "outcome": "BLOCKED",
+  "candidate": {"repository": "https://github.com/RyanCodrai/turbovec", "commit": "ccab9f325e6ce2a270a87daf01ae4e443bcf2d49", "licence": "MIT"},
+  "product_status": "deferred",
+  "blocking_prerequisite": "A reviewed, version-locked OpenVINO export path for ModernBERT that produces a model accepted by TextEmbeddingPipeline, followed by a fresh formal run.",
+  "qualifying_configuration": null
+}

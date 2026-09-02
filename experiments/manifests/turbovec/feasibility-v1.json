@@ -24,10 +24,10 @@
     },
     "embedding": {
       "repository": "ibm-granite/granite-embedding-small-english-r2",
-      "revision": "",
+      "revision": "2ab6fa8ea2d674564defd37171ae19079b864b33",
       "dimension": 384,
       "licence": "Apache-2.0",
-      "status": "unlocked"
+      "status": "source-locked-runtime-blocked"
     },
     "openvino": {"version": "2026.3.0.0"}
   },

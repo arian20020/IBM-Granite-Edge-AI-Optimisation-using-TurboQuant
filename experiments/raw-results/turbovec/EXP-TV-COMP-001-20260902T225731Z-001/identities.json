@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "run_id": "EXP-TV-COMP-001-20260902T225731Z-001",
+  "source_commit": "2db6aeec36563f69c065880942d456b5211f2393",
+  "source_tree": "77d32ed84f65e23824e1215f21d38ec175b877e0",
+  "source_clean": true,
+  "environment": {"os": "Microsoft Windows 11 Home", "build": "26200", "cpu": "12th Gen Intel(R) Core(TM) i5-12450H", "ram_bytes": 16857817088, "python": "3.12.10", "dotnet_sdk": "10.0.301"},
+  "turbovec": {"repository": "https://github.com/RyanCodrai/turbovec", "version": "1.0.0", "commit": "ccab9f325e6ce2a270a87daf01ae4e443bcf2d49", "tree": "0a7141836d01da61e6f3cf53b5c60916b741d811", "licence": "MIT", "wheel_sha256": "CD855E0B318A57DC57C733F9A62AE98DE5192F4F6C2C760E305523E8CEB1B090"},
+  "embedding": {"repository": "ibm-granite/granite-embedding-small-english-r2", "revision": "2ab6fa8ea2d674564defd37171ae19079b864b33", "dimension": 384, "licence": "Apache-2.0", "model_sha256": "DCBFAF2EE50D358763CBC0C08E5B045ECBF6AEB02DC0E86FFB910029BF9EBB5F", "config_sha256": "154518E6452854EB11123CE433D165F2773437AA0F36935D2204249B2C327198", "tokenizer_sha256": "6C8AAA9A542084F2457EAB775D4EEB51F92A70C0FD9DE28D5EDB0DDEC3C08D30"},
+  "openvino_genai": "2026.3.0.0",
+  "pdfpig": "0.1.15"
+}

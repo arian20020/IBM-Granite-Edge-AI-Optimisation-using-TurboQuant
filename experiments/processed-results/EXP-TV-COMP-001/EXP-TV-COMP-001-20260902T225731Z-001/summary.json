@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "experiment_id": "EXP-TV-COMP-001",
+  "run_id": "EXP-TV-COMP-001-20260902T225731Z-001",
+  "outcome": "BLOCKED",
+  "reason": "The pinned Granite ModernBERT embedding model could not be exported into a model accepted by the locked OpenVINO GenAI 2026.3 TextEmbeddingPipeline stack.",
+  "retrieval_metrics": null,
+  "claim_boundary": "No TurboVec retrieval-quality, latency, memory, or storage conclusion can be made from this run."
+}
