@@ -1,6 +1,8 @@
 ﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
 # R-M13 Evidence Location
 
+Latest decision: **DEMONSTRATOR_ONLY** for run `EXP-TV-COMP-001-20260902T231605Z-005`. The real Granite/OpenVINO and Exact/TQ2/TQ3/TQ4 campaign executed, but no configuration passed every Gate A threshold.
+
 Latest decision: **BLOCKED** for TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T225731Z-001`. Product status remains deferred.
 
 ## Purpose

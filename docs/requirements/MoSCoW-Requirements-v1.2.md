@@ -1,5 +1,7 @@
 # MoSCoW Requirements Baseline
 
+> Latest TurboVec result: **DEMONSTRATOR_ONLY**, commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T231605Z-005`. Priorities and deferrals are unchanged.
+
 > TurboVec checkpoint: **BLOCKED**, commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T225731Z-001`. Priorities and deferrals are unchanged.
 
 **Document ID:** REQ-MOSCOW-001  
