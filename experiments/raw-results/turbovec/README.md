@@ -1,6 +1,8 @@
 ﻿<!-- IXN-EVIDENCE-STRUCTURE: GENERATED -->
 # TurboVec Raw Evidence
 
+Latest validated run: `EXP-TV-COMP-001-20260902T231605Z-005`, outcome **DEMONSTRATOR_ONLY**. The previous blocked and intermediate runs remain preserved as append-only history.
+
 Latest run `EXP-TV-COMP-001-20260902T225731Z-001` ended **BLOCKED** at the Granite/OpenVINO gate. TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49` (MIT) was pinned; matched retrieval did not execute.
 
 ## Purpose

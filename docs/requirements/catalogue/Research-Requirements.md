@@ -1,5 +1,7 @@
 # Research Requirements
 
+> Latest TurboVec result: **DEMONSTRATOR_ONLY**, commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T231605Z-005`. The feasibility question is answered; product requirements remain deferred.
+
 > TurboVec checkpoint: **BLOCKED**, commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T225731Z-001`. R-M02 and R-M13 remain pending/deferred.
 
 **Baseline:** MoSCoW v1.2 / RTM v1.3  

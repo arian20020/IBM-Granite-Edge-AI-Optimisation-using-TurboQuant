@@ -1,5 +1,7 @@
 # Licence Register
 
+> Latest technical result: **DEMONSTRATOR_ONLY** for TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T231605Z-005`. MIT identity is established; adoption and distribution remain unapproved.
+
 > TurboVec identity: `https://github.com/RyanCodrai/turbovec`, commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, MIT. Outcome **BLOCKED** in `EXP-TV-COMP-001-20260902T225731Z-001`; this does not approve distribution or adoption.
 
 **Document ID:** REG-LIC-001  

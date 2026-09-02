@@ -1,5 +1,7 @@
 # Risk Register
 
+> TurboVec run `EXP-TV-COMP-001-20260902T231605Z-005` produced **DEMONSTRATOR_ONLY** for commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`. Compatibility was demonstrated, but retrieval, storage and latency thresholds were not all met.
+
 > TurboVec run `EXP-TV-COMP-001-20260902T225731Z-001` recorded **BLOCKED** for commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`. Candidate identity is resolved, but Granite/OpenVINO compatibility remains open; no quality or performance claim is supported.
 
 **Document ID:** REG-RISK-001  
