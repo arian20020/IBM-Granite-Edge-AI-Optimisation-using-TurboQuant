@@ -4,7 +4,14 @@ import unittest
 from pathlib import Path
 
 from scripts.testing.turbovec.embedding import DeterministicEmbeddingProvider
-from scripts.testing.turbovec.runner import create_run_directory, run_fixture_campaign
+from scripts.testing.turbovec.runner import (
+    create_run_directory,
+    evaluate_matched_result,
+    prepare_controlled_inputs,
+    run_fixture_campaign,
+    run_live_campaign,
+)
+from scripts.testing.run_turbovec_feasibility import parser
 
 
 class FailingProvider:
@@ -13,6 +20,39 @@ class FailingProvider:
 
 
 class RunnerTests(unittest.TestCase):
+    def test_cli_accepts_measured_model_and_output_contract(self):
+        args = parser().parse_args([
+            "measured", "--model-root", "model", "--output-root", "out",
+            "--run-id", "EXP-TV-COMP-001-20260903T010000Z-002",
+        ])
+        self.assertEqual("measured", args.command)
+
+    def test_live_campaign_publishes_query_metrics_and_closed_terminal(self):
+        with tempfile.TemporaryDirectory() as root:
+            run_id = "EXP-TV-COMP-001-20260903T010000Z-001"
+            run_live_campaign(
+                DeterministicEmbeddingProvider(),
+                Path(__file__).resolve().parents[3],
+                Path(root),
+                run_id,
+                {"provider": "deterministic-test-only"},
+            )
+            run = Path(root) / run_id
+            metrics = json.loads((run / "metrics.json").read_text(encoding="utf-8"))
+            terminal = json.loads((run / "terminal.json").read_text(encoding="utf-8"))
+            self.assertEqual(120, metrics["queries"])
+            self.assertEqual("completed", terminal["status"])
+            self.assertEqual(4, len(terminal["files"]))
+
+    def test_controlled_inputs_batch_real_protocol_and_evaluate_every_query(self):
+        prepared = prepare_controlled_inputs(Path(__file__).resolve().parents[3], DeterministicEmbeddingProvider())
+        self.assertEqual((30, 384), prepared["document_embeddings"].shape)
+        self.assertEqual((120, 384), prepared["query_embeddings"].shape)
+        result = run_fixture_campaign(DeterministicEmbeddingProvider())
+        # Evaluation rejects a result that does not contain all controlled queries.
+        with self.assertRaises(ValueError):
+            evaluate_matched_result(result, prepared["query_ids"], prepared["grades"])
+
     def test_run_uses_identical_embedding_hash_and_matched_counts(self):
         result = run_fixture_campaign(DeterministicEmbeddingProvider())
         self.assertEqual(1, len({row["embedding_matrix_sha256"] for row in result["configurations"]}))

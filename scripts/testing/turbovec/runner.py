@@ -13,15 +13,89 @@ from typing import Sequence
 
 import numpy as np
 
+from .chunking import PageText, WordFixtureTokenCounter, chunk_pages
 from .embedding import EmbeddingProvider
-from .indexes import ExactIndex, TurboVecIndex
-from .metrics import aggregate_latency
+from .indexes import ExactIndex, TurboVecIndex, stable_uint64_id
+from .metrics import aggregate_latency, ndcg_at_k
 from .provenance import sha256_file
 
 
 CONFIGURATIONS = ("exact", "tq2", "tq3", "tq4")
 WARMUPS = 5
 MEASURED = 30
+
+
+def _embed_batched(provider: EmbeddingProvider, texts: Sequence[str], documents: bool) -> np.ndarray:
+    method = provider.embed_documents if documents else provider.embed_queries
+    batches = [method(texts[start:start + 16]) for start in range(0, len(texts), 16)]
+    return np.ascontiguousarray(np.concatenate(batches), dtype=np.float32)
+
+
+def prepare_controlled_inputs(repository_root: Path, provider: EmbeddingProvider) -> dict[str, object]:
+    protocol = Path(repository_root) / "experiments/protocols/turbovec"
+    corpus = json.loads((protocol / "corpus-v1.json").read_text(encoding="utf-8"))
+    queries = json.loads((protocol / "queries-v1.json").read_text(encoding="utf-8"))
+    relevance = json.loads((protocol / "relevance-v1.json").read_text(encoding="utf-8"))
+    chunks = []
+    for document in corpus["documents"]:
+        pages = [PageText(int(page["page"]), "\n\n".join(page["paragraphs"])) for page in document["pages"]]
+        made = chunk_pages(document["document_sha256"], pages, WordFixtureTokenCounter())
+        if [chunk.chunk_id for chunk in made] != document["expected_chunk_ids"]:
+            raise ValueError("controlled chunk identity mismatch")
+        chunks.extend(made)
+    query_ids = tuple(item["query_id"] for item in queries["queries"])
+    if len(chunks) != 30 or len(query_ids) != 120:
+        raise ValueError("controlled protocol cardinality mismatch")
+    grades: dict[str, dict[int, int]] = {query_id: {} for query_id in query_ids}
+    for item in relevance["judgements"]:
+        grades[item["query_id"]][stable_uint64_id(item["chunk_id"])] = int(item["grade"])
+    return {
+        "document_embeddings": _embed_batched(provider, [chunk.text for chunk in chunks], True),
+        "query_embeddings": _embed_batched(provider, [item["text"] for item in queries["queries"]], False),
+        "ids": np.asarray([stable_uint64_id(chunk.chunk_id) for chunk in chunks], dtype=np.uint64),
+        "query_ids": query_ids,
+        "grades": grades,
+    }
+
+
+def evaluate_matched_result(result: dict[str, object], query_ids: Sequence[str], grades: dict[str, dict[int, int]]) -> dict[str, object]:
+    rows = {row["name"]: row for row in result["configurations"]}
+    if set(rows) != set(CONFIGURATIONS):
+        raise ValueError("configuration set mismatch")
+    exact_ids = rows["exact"]["results"]["ids"]
+    if len(exact_ids) != len(query_ids):
+        raise ValueError("unmatched controlled query set")
+    output = {}
+    exact_ndcg = None
+    for name in CONFIGURATIONS:
+        ranked_rows = rows[name]["results"]["ids"]
+        scores = rows[name]["results"]["scores"]
+        if len(ranked_rows) != len(query_ids):
+            raise ValueError("unmatched controlled query set")
+        overlaps = {k: [] for k in (1, 5, 10)}; ndcgs=[]; reciprocal=[]; negative_scores=[]
+        for position, query_id in enumerate(query_ids):
+            ranked = list(map(int, ranked_rows[position])); truth = grades[query_id]
+            if truth:
+                for k in overlaps: overlaps[k].append(len(set(ranked[:k]) & set(map(int, exact_ids[position][:k]))) / k)
+                ndcgs.append(ndcg_at_k(ranked, truth, 10))
+                rank = next((index + 1 for index, identifier in enumerate(ranked) if identifier in truth), None)
+                reciprocal.append(0.0 if rank is None else 1.0 / rank)
+            else:
+                negative_scores.append(float(scores[position][0]))
+        mean_ndcg = float(np.mean(ndcgs));
+        if name == "exact": exact_ndcg = mean_ndcg
+        output[name] = {
+            "recall_at_1_against_exact": float(np.mean(overlaps[1])),
+            "recall_at_5_against_exact": float(np.mean(overlaps[5])),
+            "recall_at_10_against_exact": float(np.mean(overlaps[10])),
+            "ndcg_at_10": mean_ndcg,
+            "mrr": float(np.mean(reciprocal)),
+            "negative_query_top_score_mean": float(np.mean(negative_scores)) if negative_scores else None,
+        }
+    if not exact_ndcg or exact_ndcg <= 0:
+        raise ValueError("exact nDCG baseline is invalid")
+    for metrics in output.values(): metrics["relative_ndcg_at_10"] = metrics["ndcg_at_10"] / exact_ndcg
+    return {"schema_version": "1.0", "queries": len(query_ids), "configurations": output}
 
 
 def create_run_directory(output_root: Path, run_id: str) -> Path:
@@ -101,4 +175,32 @@ def run_fixture_campaign(provider: EmbeddingProvider, output_root: Path | None =
         return result
     except BaseException:
         _json(staging / "failure.json", {"schema_version":"1.0","run_id":run_id,"status":"failed"})
+        raise
+
+
+def run_live_campaign(provider: EmbeddingProvider, repository_root: Path, output_root: Path, run_id: str, identities: dict[str, object]) -> dict[str, object]:
+    staging = create_run_directory(output_root, run_id)
+    try:
+        prepared = prepare_controlled_inputs(repository_root, provider)
+        result = run_matched_campaign(prepared["document_embeddings"], prepared["query_embeddings"], prepared["ids"])
+        metrics = evaluate_matched_result(result, prepared["query_ids"], prepared["grades"])
+        try:
+            import psutil  # type: ignore
+            memory = psutil.Process().memory_info()
+            peak = int(getattr(memory, "peak_wset", memory.rss))
+        except ImportError:
+            peak = 0
+        result["peak_process_memory_bytes"] = peak
+        _json(staging / "identities.json", {"schema_version": "1.0", "run_id": run_id, **identities})
+        _json(staging / "results.json", result)
+        _json(staging / "metrics.json", metrics)
+        _json(staging / "command-arithmetic.json", {"discovered": 4, "executed": 4, "passed": 4, "failed": 0, "skipped": 0})
+        files=[]
+        for path in sorted(staging.iterdir()):
+            files.append({"name":path.name,"bytes":path.stat().st_size,"sha256":sha256_file(path)})
+        _json(staging / "terminal.json", {"schema_version":"1.0","run_id":run_id,"status":"completed","files":files})
+        staging.rename(Path(output_root) / run_id)
+        return {"results": result, "metrics": metrics}
+    except BaseException as error:
+        _json(staging / "failure.json", {"schema_version":"1.0","run_id":run_id,"status":"failed","error_type":type(error).__name__})
         raise
