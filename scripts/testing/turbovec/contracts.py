@@ -41,6 +41,7 @@ class EmbeddingIdentity:
     dimension: int
     licence: str
     status: str
+    exporter: Mapping[str, str] | None = None
 
 
 @dataclass(frozen=True)
