@@ -1,9 +1,9 @@
-# Reproducing the official OpenVINO normalization
+# Reproducing the official OpenVINO checks
 
-Run from the repository root with the pinned portable interpreter:
+Run the settled package validation from the repository root:
 
 ```powershell
-& '.tools/python311-portable/python.exe' -c "from pathlib import Path; from scripts.testing.reporting.openvino_adapter import write_official_route; write_official_route(Path.cwd())"
+python -m scripts.testing.cli.validate_results --route official-openvino --output-root docs/testing/final-results
 ```
 
 ## Authority boundary
@@ -13,4 +13,4 @@ Run from the repository root with the pinned portable interpreter:
 - `outputs/openvino-official-upstream-results/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx` (1d5fc2893e0c7f412140b3fa1a26c4a0c18e3c65ecfa356e80549dc4cd10aff7) is the revised workbook copied byte-identically into `../evidence/source/` as evidence-only/nonportable.
 - `outputs/openvino-official-upstream-results/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30.xlsx` (b3e26eae69c3854dec26536c6d141943572292f8a9ea331cb4de1d88c76b32b4) is indexed as prior evidence and is not duplicated.
 
-The primary handoff is `../reports/openvino-official-upstream-results.xlsx`; its adjacent provenance receipt records the 15 absolute-path replacements and source/output hashes. The adapter does not rerun inference. It rejects missing passed evidence, any published metric on a non-passed fv2 row, source conflicts, and missing final failure manifests. Regenerate the non-destructive checksum manifest only after the complete report, portable workbook, and receipt set is present.
+The primary handoff is `../reports/openvino-official-upstream-results.xlsx`; its adjacent provenance receipt records the 15 absolute-path replacements and source/output hashes. Validation does not rerun inference or quality adjudication. Missing passed evidence, a published metric on a non-passed fv2 row, a source conflict, or a missing final failure manifest remains a blocking finding.

@@ -27,6 +27,7 @@ from scripts.testing.reporting.validate import (
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 RELEASE_ROOT = REPOSITORY_ROOT / "docs/testing/final-results"
+PRECOMPACT_LAYOUT_COMMIT = "71fec68a12308d89ae90fc80f17302bd3527845c"
 ROUTES = (
     "01-upstream-llama-cpp",
     "02-atomicbot-turboquant",
@@ -36,15 +37,15 @@ ROUTES = (
     "06-cross-route-comparison",
 )
 REPORT_STEMS = {
-    "01-upstream-llama-cpp": "upstream-llama-cpp-final-report",
-    "02-atomicbot-turboquant": "atomicbot-turboquant-final-report",
-    "03-animehacker-tq3-0": "animehacker-tq3-0-final-report",
-    "04-openvino-experimental-fork": "openvino-experimental-fork-final-report",
-    "05-openvino-official-upstream": "openvino-official-upstream-final-report",
-    "06-cross-route-comparison": "cross-route-comparison-final-report",
+    "01-upstream-llama-cpp": "upstream-llama-cpp-report",
+    "02-atomicbot-turboquant": "atomicbot-turboquant-report",
+    "03-animehacker-tq3-0": "animehacker-tq3-0-report",
+    "04-openvino-experimental-fork": "openvino-experimental-fork-report",
+    "05-openvino-official-upstream": "openvino-official-upstream-report",
+    "06-cross-route-comparison": "cross-route-comparison-report",
 }
 OPENVINO_SOURCE_WORKBOOKS = {
-    "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx": (
+    "04-openvino-experimental-fork/evidence/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx": (
         "Dashboard",
         "Format Comparison",
         "Sector Summary",
@@ -54,7 +55,7 @@ OPENVINO_SOURCE_WORKBOOKS = {
         "Methodology",
         "Source Data",
     ),
-    "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx": (
+    "05-openvino-official-upstream/evidence/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx": (
         "Executive Summary",
         "Format Comparison",
         "Sector Summary",
@@ -67,11 +68,11 @@ OPENVINO_SOURCE_WORKBOOKS = {
     ),
 }
 OPENVINO_PORTABLE_WORKBOOKS = {
-    "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-portable-results.xlsx": OPENVINO_SOURCE_WORKBOOKS[
-        "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
+    "04-openvino-experimental-fork/reports/openvino-experimental-fork-results.xlsx": OPENVINO_SOURCE_WORKBOOKS[
+        "04-openvino-experimental-fork/evidence/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx"
     ],
-    "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-portable-results.xlsx": OPENVINO_SOURCE_WORKBOOKS[
-        "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx"
+    "05-openvino-official-upstream/reports/openvino-official-upstream-results.xlsx": OPENVINO_SOURCE_WORKBOOKS[
+        "05-openvino-official-upstream/evidence/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx"
     ],
 }
 OPENVINO_WORKBOOKS = {
@@ -79,8 +80,8 @@ OPENVINO_WORKBOOKS = {
     **OPENVINO_PORTABLE_WORKBOOKS,
 }
 OPENVINO_WORKBOOK_RECEIPTS = {
-    "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json",
-    "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json",
+    "04-openvino-experimental-fork/reports/openvino-experimental-fork-results-provenance.json",
+    "05-openvino-official-upstream/reports/openvino-official-upstream-results-provenance.json",
 }
 OPENVINO_MACHINE_PATH_COUNTS = {
     **{path: count for path, count in zip(OPENVINO_SOURCE_WORKBOOKS, (55, 15), strict=True)},
@@ -193,6 +194,44 @@ def _graph() -> tuple[dict[str, object], dict[str, dict[str, object]]]:
     return crate, entities
 
 
+def _path_migration_rows() -> list[dict[str, str]]:
+    path = REPOSITORY_ROOT / "docs/testing/cleanup/PATH-MIGRATION.csv"
+    with path.open(encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _removed_precompact_published_paths() -> set[str]:
+    prefix = RELEASE_ROOT.relative_to(REPOSITORY_ROOT).as_posix() + "/"
+    before = subprocess.run(
+        [
+            "git",
+            "ls-tree",
+            "-r",
+            "--name-only",
+            PRECOMPACT_LAYOUT_COMMIT,
+            "--",
+            prefix,
+        ],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    current = subprocess.run(
+        ["git", "ls-files", "--", prefix],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    route_prefixes = tuple(f"{prefix}{route}/" for route in ROUTES)
+    return {
+        path
+        for path in set(before) - set(current)
+        if path.startswith(route_prefixes)
+    }
+
+
 def test_release_portal_links_every_route_report_workbook_and_control_surface():
     targets = _markdown_targets(RELEASE_ROOT / "README.md")
     expected = {
@@ -208,10 +247,14 @@ def test_release_portal_links_every_route_report_workbook_and_control_surface():
         stem = REPORT_STEMS[route]
         expected.update(
             {
-                f"{route}/route-manifest.json",
-                f"{route}/workbook/source/{stem}.md",
-                f"{route}/workbook/generated/{stem}.docx",
-                f"{route}/workbook/generated/{stem}.pdf",
+                f"{route}/README.md",
+                f"{route}/data/route.json",
+                f"{route}/evidence/claim-evidence-map.csv",
+                f"{route}/validation/validation.md",
+                f"{route}/reproduction/README.md",
+                f"{route}/reports/{stem}.md",
+                f"{route}/reports/{stem}.docx",
+                f"{route}/reports/{stem}.pdf",
             }
         )
     expected.update(OPENVINO_WORKBOOKS)
@@ -239,6 +282,15 @@ def test_ro_crate_is_version_13_and_all_packaged_data_entity_ids_are_relative():
         assert not entity_id.startswith(("/", "\\")), entity_id
         assert not re.match(r"^[A-Za-z]:", entity_id), entity_id
         assert ".." not in PurePosixPath(entity_id).parts, entity_id
+        if "File" in _type_names(entity):
+            assert (RELEASE_ROOT / entity_id).is_file(), entity_id
+
+    old_published = {
+        row["old_path"].removeprefix("docs/testing/final-results/")
+        for row in _path_migration_rows()
+        if row["old_path"].startswith("docs/testing/final-results/")
+    }
+    assert not (old_published & entities.keys())
 
 
 def test_ro_crate_covers_reports_tables_systems_and_generation_provenance():
@@ -248,17 +300,17 @@ def test_ro_crate_covers_reports_tables_systems_and_generation_provenance():
         stem = REPORT_STEMS[route]
         expected_files.update(
             {
-                f"{route}/workbook/source/{stem}.md",
-                f"{route}/workbook/generated/{stem}.docx",
-                f"{route}/workbook/generated/{stem}.pdf",
+                f"{route}/reports/{stem}.md",
+                f"{route}/reports/{stem}.docx",
+                f"{route}/reports/{stem}.pdf",
             }
         )
     for route in ROUTES[:5]:
         expected_files.update(
             {
-                f"{route}/results/attempts.csv",
-                f"{route}/results/measurements.csv",
-                f"{route}/results/summary-results.csv",
+                f"{route}/data/attempts.csv",
+                f"{route}/data/measurements.csv",
+                f"{route}/data/summaries.csv",
             }
         )
     expected_files.update(OPENVINO_WORKBOOKS)
@@ -280,7 +332,7 @@ def test_ro_crate_covers_reports_tables_systems_and_generation_provenance():
         }
     }
     assert {
-        f"{route}/workbook/generated/{REPORT_STEMS[route]}.{suffix}"
+        f"{route}/reports/{REPORT_STEMS[route]}.{suffix}"
         for route in ROUTES
         for suffix in ("docx", "pdf")
     } <= generated.keys()
@@ -344,6 +396,43 @@ def test_reproduction_commands_are_exact_and_preserve_the_no_rerun_boundary():
     assert "recalculation" in text.casefold()
     for route in ROUTES:
         assert f"{route}/reproduction/" in text
+
+    reproduction_docs = [RELEASE_ROOT / "REPRODUCING.md"] + sorted(
+        RELEASE_ROOT.glob("*/reproduction/**/*.md")
+    )
+    command_lines = []
+    for path in reproduction_docs:
+        for block in re.findall(
+            r"```powershell\s*\n(.*?)```",
+            path.read_text(encoding="utf-8"),
+            re.DOTALL | re.IGNORECASE,
+        ):
+            command_lines.extend(
+                line.strip()
+                for line in block.splitlines()
+                if line.strip()
+                and not line.lstrip().startswith(("#", "$releaseTests"))
+                and not line.lstrip().startswith(("(", ")", "+"))
+            )
+
+    assert command_lines
+    assert not any("scripts.testing.reporting" in line for line in command_lines)
+    assert not any("scripts/testing/build_final_results.py" in line for line in command_lines)
+    for line in command_lines:
+        if re.search(r"(?:python(?:\.exe)?['\"]?\s+)(?!-m pytest)", line, re.IGNORECASE):
+            assert "-m scripts.testing.cli." in line, line
+
+
+def test_path_migration_covers_every_removed_precompact_published_path():
+    rows = _path_migration_rows()
+    mappings = {row["old_path"]: row["new_path"] for row in rows}
+    removed = _removed_precompact_published_paths()
+
+    assert removed
+    assert removed <= mappings.keys()
+    for old_path in sorted(removed):
+        assert not (REPOSITORY_ROOT / old_path).exists(), old_path
+        assert (REPOSITORY_ROOT / mappings[old_path]).is_file(), mappings[old_path]
 
 
 def test_openvino_workbooks_pass_read_only_sheet_and_formula_reference_qa():
@@ -420,7 +509,7 @@ def test_release_readiness_records_every_pdf_page_and_spreadsheet_qa():
 
     pdf_qa = readiness["qa"]["pdf_reports"]
     expected_pdf_paths = {
-        f"{route}/workbook/generated/{REPORT_STEMS[route]}.pdf" for route in ROUTES
+        f"{route}/reports/{REPORT_STEMS[route]}.pdf" for route in ROUTES
     }
     assert set(pdf_qa) == expected_pdf_paths
     for relative, receipt in pdf_qa.items():
@@ -484,7 +573,7 @@ def test_release_manifest_matches_git_index_canonical_blobs_for_archive_portabil
     critical_route_metadata = {
         f"{route}/{name}"
         for route in ("02-atomicbot-turboquant", "03-animehacker-tq3-0")
-        for name in ("route-manifest.json", "evidence/manifest-sha256.txt")
+        for name in ("data/route.json", "evidence/manifest-sha256.txt")
     }
     assert critical_route_metadata <= entries.keys()
 
@@ -586,8 +675,8 @@ def test_every_published_evidence_source_is_exact_in_raw_git_archive(tmp_path: P
         ),
         (
             lambda payload: payload["qa"]["openvino_workbooks"][
-                "04-openvino-experimental-fork/workbook/generated/"
-                "openvino-experimental-fork-portable-results.xlsx"
+                "04-openvino-experimental-fork/reports/"
+                "openvino-experimental-fork-results.xlsx"
             ].update(machine_absolute_path_count=1),
             "workbook_qa_invalid",
         ),
@@ -663,7 +752,7 @@ def test_release_metadata_gate_requires_generated_marker_and_activity(
     path = canonical_release / "ro-crate-metadata.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     expected_pdf = (
-        "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf"
+        "01-upstream-llama-cpp/reports/upstream-llama-cpp-report.pdf"
     )
     entity = next(item for item in payload["@graph"] if item.get("@id") == expected_pdf)
     entity.pop("additionalType")

@@ -36,7 +36,7 @@
   },
   "qa": {
     "pdf_reports": {
-      "01-upstream-llama-cpp/workbook/generated/upstream-llama-cpp-final-report.pdf": {
+      "01-upstream-llama-cpp/reports/upstream-llama-cpp-report.pdf": {
         "page_count": 47,
         "inspected_pages": [
           1,
@@ -93,7 +93,7 @@
         "clipped_text_block_count": 0,
         "notes": "Every page reviewed from a PyMuPDF render; intentional sparse section-transition pages were retained."
       },
-      "02-atomicbot-turboquant/workbook/generated/atomicbot-turboquant-final-report.pdf": {
+      "02-atomicbot-turboquant/reports/atomicbot-turboquant-report.pdf": {
         "page_count": 22,
         "inspected_pages": [
           1,
@@ -125,7 +125,7 @@
         "clipped_text_block_count": 0,
         "notes": "Every page reviewed from a PyMuPDF render; intentional sparse section-transition pages were retained."
       },
-      "03-animehacker-tq3-0/workbook/generated/animehacker-tq3-0-final-report.pdf": {
+      "03-animehacker-tq3-0/reports/animehacker-tq3-0-report.pdf": {
         "page_count": 7,
         "inspected_pages": [
           1,
@@ -142,7 +142,7 @@
         "clipped_text_block_count": 0,
         "notes": "Every page reviewed from a PyMuPDF render; intentional sparse section-transition pages were retained."
       },
-      "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-final-report.pdf": {
+      "04-openvino-experimental-fork/reports/openvino-experimental-fork-report.pdf": {
         "page_count": 54,
         "inspected_pages": [
           1,
@@ -206,7 +206,7 @@
         "clipped_text_block_count": 0,
         "notes": "Every page reviewed from a PyMuPDF render; intentional sparse section-transition pages were retained."
       },
-      "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-final-report.pdf": {
+      "05-openvino-official-upstream/reports/openvino-official-upstream-report.pdf": {
         "page_count": 52,
         "inspected_pages": [
           1,
@@ -268,7 +268,7 @@
         "clipped_text_block_count": 0,
         "notes": "Every page reviewed from a PyMuPDF render; intentional sparse section-transition pages were retained."
       },
-      "06-cross-route-comparison/workbook/generated/cross-route-comparison-final-report.pdf": {
+      "06-cross-route-comparison/reports/cross-route-comparison-report.pdf": {
         "page_count": 20,
         "inspected_pages": [
           1,
@@ -300,7 +300,7 @@
       }
     },
     "openvino_workbooks": {
-      "04-openvino-experimental-fork/results/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx": {
+      "04-openvino-experimental-fork/evidence/source/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx": {
         "role": "immutable_evidence_only_nonportable",
         "sha256": "09820a5b19edb11efd7640f1d9a13802b82fb464ab6e14622998d2565c5aca83",
         "read_only": true,
@@ -334,7 +334,7 @@
         "formula_error_count": 0,
         "result": "passed"
       },
-      "05-openvino-official-upstream/results/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx": {
+      "05-openvino-official-upstream/evidence/source/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx": {
         "role": "immutable_evidence_only_nonportable",
         "sha256": "1d5fc2893e0c7f412140b3fa1a26c4a0c18e3c65ecfa356e80549dc4cd10aff7",
         "read_only": true,
@@ -370,11 +370,11 @@
         "formula_error_count": 0,
         "result": "passed"
       },
-      "04-openvino-experimental-fork/workbook/generated/openvino-experimental-fork-portable-results.xlsx": {
+      "04-openvino-experimental-fork/reports/openvino-experimental-fork-results.xlsx": {
         "role": "primary_portable_derivative",
         "sha256": "d6b41105b80ebbd1e4214ead709541a52c142b45b60efc9ff4baad2dd1dd8f23",
         "source_sha256": "09820a5b19edb11efd7640f1d9a13802b82fb464ab6e14622998d2565c5aca83",
-        "provenance_receipt": "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json",
+        "provenance_receipt": "04-openvino-experimental-fork/reports/openvino-experimental-fork-results-provenance.json",
         "read_only": true,
         "data_only": false,
         "keep_links": true,
@@ -408,11 +408,11 @@
         "scientific_values_formulas_and_structure_preserved": true,
         "result": "passed"
       },
-      "05-openvino-official-upstream/workbook/generated/openvino-official-upstream-portable-results.xlsx": {
+      "05-openvino-official-upstream/reports/openvino-official-upstream-results.xlsx": {
         "role": "primary_portable_derivative",
         "sha256": "402cad868092d2031d82819cc4d27b7c6840ddf28d13c9a00d1ec1c2be62ed7b",
         "source_sha256": "1d5fc2893e0c7f412140b3fa1a26c4a0c18e3c65ecfa356e80549dc4cd10aff7",
-        "provenance_receipt": "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json",
+        "provenance_receipt": "05-openvino-official-upstream/reports/openvino-official-upstream-results-provenance.json",
         "read_only": true,
         "data_only": false,
         "keep_links": true,

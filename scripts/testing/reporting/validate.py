@@ -49,11 +49,11 @@ _SCHEMA_FILES = {
     "evidence": "evidence.schema.json",
 }
 _CSV_FILES = {
-    "attempts": "results/attempts.csv",
-    "measurements": "results/measurements.csv",
-    "summaries": "results/summary-results.csv",
-    "quality": "quality/scores.csv",
-    "failures": "failures/failure-register.csv",
+    "attempts": "data/attempts.csv",
+    "measurements": "data/measurements.csv",
+    "summaries": "data/summaries.csv",
+    "quality": "data/quality.csv",
+    "failures": "data/failures.csv",
     "evidence": "evidence/evidence-index.csv",
 }
 _ID_FIELDS = {
@@ -163,44 +163,38 @@ _TASK14_METADATA = (
 )
 _RELEASE_ROUTES = tuple(_EXPECTED_ROUTE_DIRECTORIES)
 _REPORT_STEMS = {
-    "01-upstream-llama-cpp": "upstream-llama-cpp-final-report",
-    "02-atomicbot-turboquant": "atomicbot-turboquant-final-report",
-    "03-animehacker-tq3-0": "animehacker-tq3-0-final-report",
-    "04-openvino-experimental-fork": "openvino-experimental-fork-final-report",
-    "05-openvino-official-upstream": "openvino-official-upstream-final-report",
-    "06-cross-route-comparison": "cross-route-comparison-final-report",
+    "01-upstream-llama-cpp": "upstream-llama-cpp-report",
+    "02-atomicbot-turboquant": "atomicbot-turboquant-report",
+    "03-animehacker-tq3-0": "animehacker-tq3-0-report",
+    "04-openvino-experimental-fork": "openvino-experimental-fork-report",
+    "05-openvino-official-upstream": "openvino-official-upstream-report",
+    "06-cross-route-comparison": "cross-route-comparison-report",
 }
 _RELEASE_REPORT_PATHS = tuple(
-    f"{route}/workbook/{folder}/{stem}.{suffix}"
+    f"{route}/reports/{stem}.{suffix}"
     for route, stem in _REPORT_STEMS.items()
-    for folder, suffix in (
-        ("source", "md"),
-        ("generated", "docx"),
-        ("generated", "pdf"),
-    )
+    for suffix in ("md", "docx", "pdf")
 )
 _OPENVINO_SOURCE_WORKBOOK_PATHS = (
-    "04-openvino-experimental-fork/results/source/"
+    "04-openvino-experimental-fork/evidence/source/"
     "Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx",
-    "05-openvino-official-upstream/results/source/"
+    "05-openvino-official-upstream/evidence/source/"
     "Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx",
 )
 _OPENVINO_PORTABLE_WORKBOOK_PATHS = (
-    "04-openvino-experimental-fork/workbook/generated/"
-    "openvino-experimental-fork-portable-results.xlsx",
-    "05-openvino-official-upstream/workbook/generated/"
-    "openvino-official-upstream-portable-results.xlsx",
+    "04-openvino-experimental-fork/reports/openvino-experimental-fork-results.xlsx",
+    "05-openvino-official-upstream/reports/openvino-official-upstream-results.xlsx",
 )
 _OPENVINO_WORKBOOK_RECEIPT_PATHS = (
-    "04-openvino-experimental-fork/workbook/generated/portable-workbook-provenance.json",
-    "05-openvino-official-upstream/workbook/generated/portable-workbook-provenance.json",
+    "04-openvino-experimental-fork/reports/openvino-experimental-fork-results-provenance.json",
+    "05-openvino-official-upstream/reports/openvino-official-upstream-results-provenance.json",
 )
 _OPENVINO_WORKBOOK_PATHS = (
     *_OPENVINO_SOURCE_WORKBOOK_PATHS,
     *_OPENVINO_PORTABLE_WORKBOOK_PATHS,
 )
 _EXPECTED_PDF_PAGE_COUNTS = {
-    f"{route}/workbook/generated/{stem}.pdf": page_count
+    f"{route}/reports/{stem}.pdf": page_count
     for (route, stem), page_count in zip(
         _REPORT_STEMS.items(),
         (47, 22, 7, 54, 52, 20),
@@ -481,7 +475,7 @@ def _load_route(route_root: Path) -> _RouteData:
     route = Path(route_root).resolve()
     issues: list[ValidationIssue] = []
     manifest: dict[str, object] = {}
-    manifest_path = route / "route-manifest.json"
+    manifest_path = route / "data/route.json"
     try:
         value = json.loads(manifest_path.read_text(encoding="utf-8"))
         if isinstance(value, dict):
@@ -538,11 +532,11 @@ def _gate_schema(data: _RouteData) -> GateResult:
         missing = sorted(required - set(data.manifest))
         if missing:
             issues.append(
-                _issue("cross_route_manifest_missing_fields", f"missing fields: {missing}", data.root / "route-manifest.json")
+                _issue("cross_route_manifest_missing_fields", f"missing fields: {missing}", data.root / "data/route.json")
             )
         if data.manifest.get("universal_ranking_permitted") is not False:
             issues.append(
-                _issue("universal_ranking_permitted", "cross-route manifest must prohibit universal ranking", data.root / "route-manifest.json")
+                _issue("universal_ranking_permitted", "cross-route manifest must prohibit universal ranking", data.root / "data/route.json")
             )
         # Cross-route packages deliberately do not duplicate canonical route tables.
         issues = [issue for issue in issues if issue.code not in {"invalid_or_missing_csv"}]
@@ -551,7 +545,7 @@ def _gate_schema(data: _RouteData) -> GateResult:
     validators = {name: Draft202012Validator(_read_schema(name)) for name in _SCHEMA_FILES}
     for error in validators["manifest"].iter_errors(data.manifest):
         pointer = "/" + "/".join(str(part) for part in error.absolute_path)
-        issues.append(_issue("schema_validation_error", f"manifest{pointer}: {error.message}", data.root / "route-manifest.json"))
+        issues.append(_issue("schema_validation_error", f"manifest{pointer}: {error.message}", data.root / "data/route.json"))
     for name, records in data.rows.items():
         validator = validators[name]
         for index, record in enumerate(records, start=2):
@@ -578,7 +572,7 @@ def _gate_schema(data: _RouteData) -> GateResult:
                 _issue(
                     "manifest_count_mismatch",
                     f"{manifest_field} does not match {name} rows",
-                    data.root / "route-manifest.json",
+                    data.root / "data/route.json",
                 )
             )
     return GateResult("schema", tuple(issues))
@@ -744,12 +738,14 @@ def _matrix_ids(path: Path) -> tuple[set[str], list[ValidationIssue]]:
 def _gate_coverage(data: _RouteData) -> GateResult:
     if data.root.name.startswith("06-"):
         return GateResult("coverage")
-    intended, issues = _matrix_ids(data.root / "protocol/intended-test-matrix.csv")
+    intended, issues = _matrix_ids(
+        data.root / "reproduction/protocol/intended-test-matrix.csv"
+    )
     attempts = {str(row.get("test_case_id")) for row in data.rows["attempts"]}
     for test_case_id in sorted(intended - attempts):
-        issues.append(_issue("missing_intended_attempt", f"no attempt for intended test case {test_case_id}", data.root / "results/attempts.csv"))
+        issues.append(_issue("missing_intended_attempt", f"no attempt for intended test case {test_case_id}", data.root / "data/attempts.csv"))
     for test_case_id in sorted(attempts - intended):
-        issues.append(_issue("unexpected_attempt", f"attempt is not in intended matrix: {test_case_id}", data.root / "results/attempts.csv"))
+        issues.append(_issue("unexpected_attempt", f"attempt is not in intended matrix: {test_case_id}", data.root / "data/attempts.csv"))
     return GateResult("coverage", tuple(issues))
 
 
@@ -862,7 +858,7 @@ def _gate_availability(data: _RouteData) -> GateResult:
     if data.root.name.startswith("06-"):
         return GateResult("availability")
     issues: list[ValidationIssue] = []
-    path = data.root / "results/availability-matrix.csv"
+    path = data.root / "data/availability-matrix.csv"
     try:
         with path.open(encoding="utf-8", newline="") as handle:
             availability = list(csv.DictReader(handle))
@@ -1008,10 +1004,10 @@ def _single_file(directory: Path, suffix: str) -> Path | None:
 
 
 def _gate_workbook_parity(data: _RouteData) -> GateResult:
-    markdown = _single_file(data.root / "workbook/source", ".md")
-    docx = _single_file(data.root / "workbook/generated", ".docx")
+    markdown = _single_file(data.root / "reports", ".md")
+    docx = _single_file(data.root / "reports", ".docx")
     if markdown is None or docx is None:
-        return GateResult("workbook_parity", (_issue("missing_or_ambiguous_workbook", "exactly one Markdown and DOCX report are required", data.root / "workbook"),))
+        return GateResult("workbook_parity", (_issue("missing_or_ambiguous_workbook", "exactly one Markdown and DOCX report are required", data.root / "reports"),))
     try:
         comparison = compare_markdown_docx(markdown, docx)
         markdown_text = markdown.read_text(encoding="utf-8")
@@ -1026,17 +1022,17 @@ def _gate_workbook_parity(data: _RouteData) -> GateResult:
         ]
         narrative_matches = all(text in markdown_text for text in narrative_paragraphs)
     except (OSError, UnicodeError, ValueError) as error:
-        return GateResult("workbook_parity", (_issue("workbook_parity_error", str(error), data.root / "workbook"),))
+        return GateResult("workbook_parity", (_issue("workbook_parity_error", str(error), data.root / "reports"),))
     issues = () if comparison.get("matches") and narrative_matches else (
-        _issue("workbook_parity_mismatch", "canonical Markdown and generated DOCX semantics differ", data.root / "workbook"),
+        _issue("workbook_parity_mismatch", "canonical Markdown and generated DOCX semantics differ", data.root / "reports"),
     )
     return GateResult("workbook_parity", issues)
 
 
 def _gate_pdf_structure(data: _RouteData) -> GateResult:
-    pdf = _single_file(data.root / "workbook/generated", ".pdf")
+    pdf = _single_file(data.root / "reports", ".pdf")
     if pdf is None:
-        return GateResult("pdf_structure", (_issue("missing_or_ambiguous_pdf", "exactly one generated PDF is required", data.root / "workbook/generated"),))
+        return GateResult("pdf_structure", (_issue("missing_or_ambiguous_pdf", "exactly one generated PDF is required", data.root / "reports"),))
     issues: list[ValidationIssue] = []
     try:
         if not pdf.read_bytes().startswith(b"%PDF-"):
@@ -1073,14 +1069,15 @@ def _gate_comparability(data: _RouteData) -> GateResult:
     if not data.root.name.startswith("06-"):
         return GateResult("comparability")
     issues: list[ValidationIssue] = []
-    receipt_path = data.root / "validation/cross-route-validation.json"
+    receipt_path = data.root / "validation/validation.json"
     try:
-        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        validation = json.loads(receipt_path.read_text(encoding="utf-8"))
+        receipt = validation.get("checks", {}).get("cross_route", {})
         if receipt.get("valid") is not True or receipt.get("universal_ranking_present") is not False:
             issues.append(_issue("cross_route_receipt_failed", "cross-route validation receipt is not passing", receipt_path))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+    except (OSError, UnicodeError, json.JSONDecodeError, AttributeError) as error:
         issues.append(_issue("invalid_cross_route_receipt", str(error), receipt_path))
-    markdown = _single_file(data.root / "workbook/source", ".md")
+    markdown = _single_file(data.root / "reports", ".md")
     if markdown is not None:
         try:
             if _affirmative_ranking(markdown.read_text(encoding="utf-8")):
@@ -1126,7 +1123,7 @@ def _route_directories(root: Path) -> list[Path]:
         if path.is_dir()
         and (
             re.match(r"^\d{2}-", path.name)
-            or (path / "route-manifest.json").is_file()
+            or (path / "data/route.json").is_file()
         )
     )
 
@@ -1342,7 +1339,7 @@ def _collection_reconciliation_issues(
             _issue(
                 "cross_route_source_routes_mismatch",
                 "cross-route source_route_ids differ from the five canonical route manifests",
-                cross.root / "route-manifest.json",
+                cross.root / "data/route.json",
             )
         )
     if sorted(str(value) for value in manifest.get("source_campaign_ids", ()) or ()) != expected_campaign_ids:
@@ -1350,7 +1347,7 @@ def _collection_reconciliation_issues(
             _issue(
                 "cross_route_source_campaigns_mismatch",
                 "cross-route source_campaign_ids differ from the five canonical route manifests",
-                cross.root / "route-manifest.json",
+                cross.root / "data/route.json",
             )
         )
     if manifest.get("attempt_count") != expected_attempt_count:
@@ -1358,7 +1355,7 @@ def _collection_reconciliation_issues(
             _issue(
                 "cross_route_attempt_count_mismatch",
                 f"cross-route attempt_count must be {expected_attempt_count}",
-                cross.root / "route-manifest.json",
+                cross.root / "data/route.json",
             )
         )
     if manifest.get("comparability_decision_count") != expected_comparison_count:
@@ -1366,13 +1363,13 @@ def _collection_reconciliation_issues(
             _issue(
                 "cross_route_comparison_count_mismatch",
                 f"cross-route comparability_decision_count must be {expected_comparison_count}",
-                cross.root / "route-manifest.json",
+                cross.root / "data/route.json",
             )
         )
 
     mirrored = {
-        "campaign-summary.csv": cross.root / "results/route-status-summary.csv",
-        "comparability-matrix.csv": cross.root / "results/comparability-matrix.csv",
+        "campaign-summary.csv": cross.root / "data/route-status-summary.csv",
+        "comparability-matrix.csv": cross.root / "data/comparability-matrix.csv",
     }
     for catalog_name, path in mirrored.items():
         expected_fields, expected_table = _expected_catalog_table(
@@ -1594,9 +1591,9 @@ def _release_ro_crate_issues(collection: Path) -> list[ValidationIssue]:
             f"{route}/{relative}"
             for route in _RELEASE_ROUTES[:5]
             for relative in (
-                "results/attempts.csv",
-                "results/measurements.csv",
-                "results/summary-results.csv",
+                "data/attempts.csv",
+                "data/measurements.csv",
+                "data/summaries.csv",
             )
         ),
     }
@@ -1735,7 +1732,7 @@ def validate_release_metadata(root: Path) -> GateResult:
             *_RELEASE_REPORT_PATHS,
             *_OPENVINO_WORKBOOK_PATHS,
             *_OPENVINO_WORKBOOK_RECEIPT_PATHS,
-            *(f"{route}/route-manifest.json" for route in _RELEASE_ROUTES),
+            *(f"{route}/data/route.json" for route in _RELEASE_ROUTES),
         }
         unlinked = sorted(expected_targets - portal_targets)
         if unlinked:
@@ -1969,7 +1966,7 @@ def validate_collection(root: Path) -> ValidationReport:
                 _issue(
                     "collection_route_identity_mismatch",
                     f"{route.name} must publish route_id {expected_route_id!r}",
-                    route / "route-manifest.json",
+                    route / "data/route.json",
                 )
             )
         reports.append(ValidationReport("route", data.root, tuple(_route_gates(data))))

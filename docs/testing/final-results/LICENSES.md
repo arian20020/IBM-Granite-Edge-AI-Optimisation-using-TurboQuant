@@ -23,3 +23,5 @@ Upstream projects, models, dependencies, and source workbooks may carry their ow
 `CITATION.cff` is intentionally omitted because verified author metadata is unavailable in the approved collection. Inventing authorship would create a false attribution. Cite the repository URL, release date, and commit only if your use permits it, and independently verify authorship before naming contributors.
 
 The [RO-Crate metadata](ro-crate-metadata.json) records technical provenance and file relationships; it does not resolve these licensing or authorship gaps.
+
+The compact-path cleanup recorded as `testing-results-cleanup-2026-09-02-v1` changes no rights, authorship claim, or citation status. Moving a packaged file and refreshing its relative metadata is not a license grant or verified attribution.

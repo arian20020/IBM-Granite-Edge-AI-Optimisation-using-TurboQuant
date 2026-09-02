@@ -1,3 +1,7 @@
-# Commands
+# Release verification command
 
-Use `write_cross_route_package` to render Markdown/DOCX and catalogs, export only the owned DOCX through `Export-Final-Results-Pdf.ps1`, then use `finalize_cross_route_package`.
+Run from the repository root. This reads the five canonical route packages and validates the guarded comparison without rerunning inference or rewriting catalogs.
+
+```powershell
+python -m scripts.testing.cli.validate_results --route cross-route --output-root docs/testing/final-results
+```

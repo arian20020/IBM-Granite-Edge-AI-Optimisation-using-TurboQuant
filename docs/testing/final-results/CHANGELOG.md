@@ -1,5 +1,14 @@
 # Release history
 
+## 2026-09-02 — Compact publication layout cleanup
+
+- Recorded cleanup version `testing-results-cleanup-2026-09-02-v1` for the path-only and metadata refresh of release package `unified-final-results-2026-09-01-v2`.
+- Standardized all six published routes on the same `README.md`, `reports/`, `data/`, `evidence/`, `validation/`, and `reproduction/` layout.
+- Refreshed the portal, canonical-data catalogs, RO-Crate activities, validation receipts, migration ledger, supported CLI commands, and canonical staged-byte manifest for the settled paths.
+- Preserved exact attempt accounting, scientific values, evidence bytes, comparison boundaries, licensing gaps, and authorship limitations.
+
+No benchmark, inference, conversion, quality adjudication, Microsoft Word export, or evidence regeneration was run for this cleanup. The scientific release version remains `unified-final-results-2026-09-01-v2`.
+
 ## 2026-09-01 — Unified testing results library v2
 
 - Made the repository release self-contained: a raw Git archive now includes every exact source byte cited by all five evidence indexes and validates without external hydration.
