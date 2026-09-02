@@ -258,31 +258,44 @@ Frontend connection occurs only after the active frontend campaign publishes an 
 - Internal storage uses restrictive current-user ACLs. The release documentation states that library content is not separately encrypted at rest.
 - Delete removes the source snapshot, extracted pages, chunks, embeddings, all index forms, manifest, and staging remnants, then verifies absence. No secure-erasure claim is made.
 
-## 13. TurboVec feasibility and decision gate
+## 13. TurboVec feasibility and decision gates
 
 `EXP-TV-COMP-001` compares exact FP32 with TurboVec 2-bit, 3-bit, and 4-bit using identical admitted documents, extracted text, chunking, normalized embeddings, queries, top-k, hardware, power state, warm-up policy, and repetitions.
 
-TurboVec qualifies only if one configuration satisfies every criterion:
+### 13.1 Gate A: feasibility and permission to implement
+
+Gate A is executed before a production TurboVec worker or application integration exists. TurboVec qualifies for a production implementation plan only if one configuration satisfies every Gate A criterion:
 
 | Measure | Qualification threshold |
 |---|---|
 | Recall@10 against exact | at least `0.90` |
 | nDCG@10 relative to exact | at least `0.95` |
-| Citation correctness | no more than 2 percentage points below exact |
-| Grounded-answer usefulness | no more than 2 percentage points below exact |
 | Stored serving-index size | TurboVec index plus required sidecars is at least 2x smaller than the matched Exact normalized-FP32 serving index; shared documents, chunks, and transient build files are excluded from both sides |
 | Search p95 | no more than 10% slower than exact |
-| Correctness and lifecycle | zero crash, hang, leaked process, silent corruption, stale publication, or unreported fallback |
+| Candidate correctness and lifecycle | zero crash, hang, silent corruption, ID mismatch, save/load mismatch, or unreported fallback in the controlled Windows experiment |
+
+At Gate A, `INTEGRATE` means only that a production implementation plan is permitted. It is not a product, packaging, or release approval.
+
+### 13.2 Gate B: production and release qualification
+
+After Gate A returns `INTEGRATE`, the separately approved production implementation must satisfy every Gate B criterion before Compact retrieval is exposed:
+
+| Measure | Qualification threshold |
+|---|---|
+| Citation correctness | no more than 2 percentage points below Exact on the same application corpus and queries |
+| Grounded-answer usefulness | no more than 2 percentage points below Exact through both GGUF and OpenVINO chat routes |
+| Production lifecycle | zero crash, hang, leaked process, silent corruption, stale publication, or unreported fallback |
 | Deployment | passes normal Windows packaging, executable/model verification, and Application Control gates without weakening policy |
+| Application quality | passes cancellation, deletion, reindex, restart recovery, privacy, accessibility, and route-neutral context-identity gates |
 
 The formal result is one of:
 
-- `INTEGRATE`: the best qualifying configuration becomes Compact retrieval.
+- `INTEGRATE`: the best Gate A configuration is eligible for a separately approved production plan; it does not become user-visible until Gate B passes.
 - `DEMONSTRATOR_ONLY`: TurboVec runs and evidence is valid, but no configuration satisfies every production threshold.
 - `EXCLUDE`: an essential correctness, security, compatibility, or deployment gate fails reproducibly.
 - `BLOCKED`: prerequisites or external policy prevent a fair run; no pass/fail performance claim is made.
 
-If no configuration qualifies, the product retains Exact retrieval and no TurboVec package or production worker is shipped. The feasibility report and reproducible evidence remain valid project results.
+If no configuration qualifies at Gate A, no TurboVec production worker is built. If Gate A passes but Gate B fails, the product retains Exact retrieval and does not ship or expose Compact retrieval. The feasibility report and reproducible evidence remain valid project results.
 
 ## 14. Verification strategy
 
