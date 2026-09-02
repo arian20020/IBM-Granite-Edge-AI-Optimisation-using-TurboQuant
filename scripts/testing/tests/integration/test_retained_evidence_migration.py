@@ -30,6 +30,7 @@ ROUTES = {
     "openvino-experimental-fork",
     "openvino-official-upstream",
 }
+SHARED_ROUTE = "shared"
 
 
 def _rows(path: Path) -> list[dict[str, str]]:
@@ -63,7 +64,7 @@ def _destination(row: dict[str, str]) -> str:
     parts = source.parts
     if parts[2] == "failures":
         assert source.as_posix() == "experiments/raw-results/failures/README.md"
-        return "experiments/raw-results/failure-records/README.md"
+        return "experiments/raw-results/retained/shared/failure-records/README.md"
     route = row["route"] or parts[2]
     assert route in ROUTES
     tail = Path(*parts[3:]).as_posix()
@@ -92,6 +93,10 @@ def test_every_active_raw_inventory_row_has_one_exact_retained_destination() -> 
     assert len(set(mapping.values())) == len(rows)
     assert len({path.casefold() for path in mapping.values()}) == len(rows)
     assert RETAINED_ROOT.is_dir()
+    assert all(
+        destination.startswith("experiments/raw-results/retained/")
+        for destination in mapping.values()
+    )
 
     for row in rows:
         destination = ROOT / mapping[row["path"]]
@@ -222,9 +227,14 @@ def test_terminal_support_artifacts_have_complete_failure_records() -> None:
         "blocked",
         "artifact_unavailable",
     }
+    blank_route_rows = [row for row in expected_rows if not row["route"]]
+    assert len(blank_route_rows) == 9
+    assert {
+        Path(_destination(row)).parts[3] for row in blank_route_rows
+    } == {"openvino-official-upstream"}
     expected = {
         (
-            row["route"],
+            row["route"] or Path(_destination(row)).parts[3],
             row["test_case_id"],
             row["attempt_id"],
             row["terminal_status"],
@@ -248,6 +258,7 @@ def test_terminal_support_artifacts_have_complete_failure_records() -> None:
         )
         for row in actual_rows
     }
+    assert all(row["route"] in ROUTES for row in actual_rows)
     assert actual == expected
 
 

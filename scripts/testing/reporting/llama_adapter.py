@@ -19,7 +19,14 @@ from typing import Iterable, Mapping, Sequence
 
 from .csvio import write_csv, write_json
 from .docx_renderer import render_docx
-from .evidence import hash_file, validate_sha256_manifest, write_sha256_manifest
+from .evidence import (
+    hash_file,
+    migrate_repository_references,
+    repo_relative,
+    resolve_repository_path,
+    validate_sha256_manifest,
+    write_sha256_manifest,
+)
 from .layout import render_validation_markdown
 from .markdown_renderer import render_markdown
 from .models import (
@@ -247,7 +254,7 @@ def _evidence_records(
                 "Evidence-Index binding conflict: "
                 f"{row['Test_ID']} / {row['Run_ID']} / {relative}"
             )
-        path = root / relative
+        path = resolve_repository_path(root, relative)
         if digest != row["SHA256"].lower():
             raise ValueError(f"Evidence-Index hash conflict: {relative}")
         if row["Evidence_ID"] in ids or relative in by_path:
@@ -283,7 +290,8 @@ def _evidence_records(
         (Path("experiments/raw-results/upstream-llama-cpp/README.md"), "raw-results-placeholder", "Raw-results placeholder only"),
     )
     for relative_path, role, label in sources:
-        path = root / relative_path
+        path = resolve_repository_path(root, relative_path)
+        actual_relative = repo_relative(root, path)
         digest = hash_file(path)
         evidence_id = f"{ROUTE_ID}-{digest[:12]}"
         if evidence_id in ids:
@@ -295,7 +303,7 @@ def _evidence_records(
             campaign_id=CAMPAIGN_ID,
             evidence_id=evidence_id,
             role=role,
-            relative_path=relative_path.as_posix(),
+            relative_path=actual_relative,
             sha256=digest,
             size_bytes=path.stat().st_size,
             source_label=label,
@@ -307,8 +315,9 @@ def _evidence_records(
     workbook = root / WORKBOOK_RELATIVE
     for row in _table_by_header(workbook, ("Failure ID", "Test ID", "Code", "Description")):
         relative = Path(row["Evidence"].strip().replace("\\", "/"))
-        path = root / relative
-        if not path.is_file() or relative.as_posix() in by_path:
+        path = resolve_repository_path(root, relative)
+        actual_relative = repo_relative(root, path)
+        if not path.is_file() or actual_relative in by_path:
             continue
         digest = hash_file(path)
         evidence_id = f"{ROUTE_ID}-{digest[:12]}"
@@ -319,7 +328,7 @@ def _evidence_records(
             campaign_id=CAMPAIGN_ID,
             evidence_id=evidence_id,
             role="historical-deviation-evidence",
-            relative_path=relative.as_posix(),
+            relative_path=actual_relative,
             sha256=digest,
             size_bytes=path.stat().st_size,
             source_label=f"{row['Failure ID']} supporting evidence",
@@ -1313,7 +1322,7 @@ def write_upstream_llama_route(repo_root: Path) -> RouteBundle:
     write_csv(route / "data/measurements.csv", _csv_rows(bundle.measurements), _MEASUREMENT_FIELDS)
     write_csv(route / "data/summaries.csv", _csv_rows(bundle.summaries), _SUMMARY_FIELDS)
     write_csv(route / "data/availability-matrix.csv", ({"test_case_id": a.test_case_id, "model_id": a.model_id, "weight_format_id": a.weight_format_id, "cache_format_id": a.cache_format_id, "backend_id": a.backend_id, "status": a.status.value} for a in bundle.attempts), ("test_case_id", "model_id", "weight_format_id", "cache_format_id", "backend_id", "status"))
-    _write_text(route / "evidence/source/README.md", "# Source-result handling\n\nNo raw result dataset exists here to copy: `experiments/raw-results/upstream-llama-cpp/` contains a README placeholder only. The controlled WB-01 Markdown, processed quality and resource summaries, and indexed log tree remain in their authoritative repository locations and are hashed in `evidence/evidence-index.csv`. No editable source workbook was invented.")
+    _write_text(route / "evidence/source/README.md", "# Source-result handling\n\nNo raw result dataset exists here to copy: `experiments/raw-results/retained/upstream-llama-cpp/README.md` is a retained placeholder only. The controlled WB-01 Markdown, processed quality and resource summaries, and indexed log tree remain in their authoritative repository locations and are hashed in `evidence/evidence-index.csv`. No editable source workbook was invented.")
     write_csv(route / "data/quality.csv", _csv_rows(bundle.quality), _QUALITY_FIELDS)
     prompt_contract = _read_json(root / QUALITY_PROMPTS_RELATIVE)
     rubric_contract = _read_json(root / QUALITY_RUBRIC_RELATIVE)
@@ -1594,14 +1603,15 @@ def _atomicbot_source_record(
     *,
     evidence_id: str | None = None,
 ) -> EvidenceRecord:
-    path = root / relative
+    path = resolve_repository_path(root, relative)
+    actual_relative = repo_relative(root, path)
     digest = hash_file(path)
     return EvidenceRecord(
         route_id=ATOMICBOT_ROUTE_ID,
         campaign_id=ATOMICBOT_CAMPAIGN_ID,
         evidence_id=evidence_id or f"atomicbot-{digest[:16]}",
         role=role,
-        relative_path=relative.as_posix(),
+        relative_path=actual_relative,
         sha256=digest,
         size_bytes=path.stat().st_size,
         source_label=label,
@@ -1628,14 +1638,14 @@ def _atomicbot_exact_index_join(
     row = candidates[0]
     if row["Test_ID"] != test_id or row["Run_ID"] != evidence_run_id:
         raise ValueError(f"Evidence-Index identity conflict: {relative}")
-    path = root / relative
+    path = resolve_repository_path(root, relative)
     if not path.is_file():
         raise ValueError(f"joined evidence path is missing: {relative}")
     digest = hash_file(path)
     if digest != row["SHA256"].lower():
         raise ValueError(f"Evidence-Index hash conflict: {relative}")
     return {
-        "evidence_id": row["Evidence_ID"], "relative_path": relative,
+        "evidence_id": row["Evidence_ID"], "relative_path": repo_relative(root, path),
         "sha256": digest, "evidence_run_id": row["Run_ID"],
     }
 
@@ -1694,11 +1704,11 @@ def audit_atomicbot_sources(
         measurement_relative = (sample_dir / "measurement.json").as_posix()
         evidence_run_id = f"{row['Test_ID']}-UTIL-R001"
         raw_join = _atomicbot_exact_index_join(root, by_path, raw_relative, row["Test_ID"], evidence_run_id)
-        measurement_path = root / measurement_relative
+        measurement_path = resolve_repository_path(root, measurement_relative)
         payload = _read_json(measurement_path)
         measurement_join = {
             "evidence_id": f"atomicbot-resource-{hash_file(measurement_path)[:16]}",
-            "relative_path": measurement_relative, "sha256": hash_file(measurement_path),
+            "relative_path": repo_relative(root, measurement_path), "sha256": hash_file(measurement_path),
             "evidence_run_id": evidence_run_id,
         }
         expected_sample_id = f"{row['Test_ID']}-sample-{row['Repetition_Number']}"
@@ -1717,7 +1727,7 @@ def audit_atomicbot_sources(
         }
         if any(not _atomicbot_float_equal(row[field], value) for field, value in checks.items()):
             raise ValueError(f"performance register field conflict: {row['Measurement_ID']}")
-        raw_rows = _read_csv(root / raw_relative)
+        raw_rows = _read_csv(resolve_repository_path(root, raw_relative))
         raw_cpu = [float(sample["cpu_percent"]) for sample in raw_rows]
         raw_gpu = [float(sample["gpu_percent"]) for sample in raw_rows]
         raw_checks = {
@@ -1741,11 +1751,18 @@ def audit_atomicbot_sources(
 
     for test_id, rows in performance_by_test.items():
         relative = Path(rows[0]["Processed_Result_Path"].replace("\\", "/"))
-        payload = _read_json(root / relative)
+        summary_path = resolve_repository_path(root, relative)
+        payload = _read_json(summary_path)
         if not isinstance(payload, dict) or payload.get("test_id") != test_id or len(payload.get("samples", [])) != 3:
             raise ValueError(f"current server summary identity conflict: {relative}")
         expected_samples = [
-            _read_json(root / Path(row["Raw_Metrics_Path"].replace("\\", "/")).parent / "measurement.json")
+            _read_json(
+                resolve_repository_path(
+                    root,
+                    Path(row["Raw_Metrics_Path"].replace("\\", "/")).parent
+                    / "measurement.json",
+                )
+            )
             for row in sorted(rows, key=lambda item: int(item["Repetition_Number"]))
         ]
         if payload["samples"] != expected_samples:
@@ -1770,7 +1787,10 @@ def audit_atomicbot_sources(
         )
         if any(not _atomicbot_float_equal(left, right, tolerance) for left, right, tolerance in aggregate_checks):
             raise ValueError(f"current server summary aggregate conflict: {test_id}")
-        current_summaries[test_id] = {"relative_path": relative.as_posix(), "sha256": hash_file(root / relative)}
+        current_summaries[test_id] = {
+            "relative_path": repo_relative(root, summary_path),
+            "sha256": hash_file(summary_path),
+        }
         workbook_expected_duplicates[test_id] = {
             "cpu": " / ".join(f"{float(aggregate['cpu_percent'][key]):.2f}" for key in ("mean", "median", "peak")),
             "gpu": " / ".join(f"{float(aggregate['gpu_percent'][key]):.2f}" for key in ("mean", "median", "peak")),
@@ -1786,7 +1806,7 @@ def audit_atomicbot_sources(
             raise ValueError(f"throughput register conflict: {test_id}")
         if test_id not in safety_ids:
             relative = ATOMICBOT_RAW_ROOT / f"2026-07-16/acquisition/metrics/{test_id}/{test_id}-formal-summary.json"
-            payload = _read_json(root / relative)
+            payload = _read_json(resolve_repository_path(root, relative))
             if not isinstance(payload, dict) or payload.get("test_id") != test_id or payload.get("formal_success_count") != 3:
                 raise ValueError(f"formal throughput identity conflict: {test_id}")
             if not _atomicbot_float_equal(payload["median_tokens_per_second"], formal_value):
@@ -1797,7 +1817,9 @@ def audit_atomicbot_sources(
             values = []
             for repetition in range(1, 4):
                 relative = ATOMICBOT_RAW_ROOT / f"2026-07-16/safety-bypass/{test_id}/cli-throughput/sample-{repetition}/events.jsonl"
-                matches = tps_pattern.findall((root / relative).read_text(encoding="utf-8"))
+                matches = tps_pattern.findall(
+                    resolve_repository_path(root, relative).read_text(encoding="utf-8")
+                )
                 if len(matches) != 1:
                     raise ValueError(f"formal throughput parse conflict: {relative}")
                 values.append(float(matches[0])); source_paths.append(relative.as_posix())
@@ -1809,7 +1831,7 @@ def audit_atomicbot_sources(
             "supported_fields": ["generation_tokens_per_second"],
         })
 
-    master = _read_json(root / ATOMICBOT_MASTER_RELATIVE)
+    master = _read_json(resolve_repository_path(root, ATOMICBOT_MASTER_RELATIVE))
     if not isinstance(master, dict) or tuple(master.get("tests", {})) != ATOMICBOT_EXPECTED_IDS:
         raise ValueError("AtomicBot master summary must contain the complete 19-row set")
     for test_id, row in master["tests"].items():
@@ -1846,8 +1868,12 @@ def audit_atomicbot_sources(
     if {row["name"]: float(row["weight"]) for row in rubric_contract.get("dimensions", [])} != expected_weights:
         raise ValueError("quality rubric dimension conflict")
 
-    quality_summary = _read_json(root / ATOMICBOT_QUALITY_RELATIVE)
-    adjudications = _read_json(root / ATOMICBOT_ADJUDICATION_RELATIVE)
+    quality_summary = _read_json(
+        resolve_repository_path(root, ATOMICBOT_QUALITY_RELATIVE)
+    )
+    adjudications = _read_json(
+        resolve_repository_path(root, ATOMICBOT_ADJUDICATION_RELATIVE)
+    )
     quality_register = [row for row in _read_csv(root / ATOMICBOT_QUALITY_REGISTER_RELATIVE) if row["Route"] == ATOMICBOT_ROUTE_ID]
     if not isinstance(quality_summary, dict) or tuple(row["test_id"] for row in quality_summary.get("rows", [])) != ATOMICBOT_EXPECTED_IDS:
         raise ValueError("AtomicBot current quality summary must contain the complete 19-row set")
@@ -1862,7 +1888,8 @@ def audit_atomicbot_sources(
         for prompt_id in (f"P{i}" for i in range(1, 7)):
             summary_prompt = row["prompts"][prompt_id]
             relative = ATOMICBOT_RAW_ROOT / f"2026-07-17/quality-all-rows/{row['test_id']}/{prompt_id}.json"
-            prompt_payload = _read_json(root / relative)
+            prompt_path = resolve_repository_path(root, relative)
+            prompt_payload = _read_json(prompt_path)
             if not isinstance(prompt_payload, dict) or (prompt_payload.get("test_id"), prompt_payload.get("prompt_id")) != (row["test_id"], prompt_id):
                 raise ValueError(f"quality prompt identity conflict: {relative}")
             output_hash = hashlib.sha256(str(prompt_payload.get("output", "")).encode("utf-8")).hexdigest()
@@ -1891,7 +1918,7 @@ def audit_atomicbot_sources(
             prompt_scores.append(final_score)
             quality_prompt_rows.append({
                 "test_case_id": row["test_id"], "prompt_id": prompt_id,
-                "relative_path": relative.as_posix(), "sha256": hash_file(root / relative),
+                "relative_path": repo_relative(root, prompt_path), "sha256": hash_file(prompt_path),
                 "output_sha256": output_hash, "adjudication_key": adjudication_key,
                 "dimensions": dimensions, "weighted_score": weighted, "critical_caps": caps,
                 "critical_cap_reason": adjudication["critical_cap_reason"], "score": final_score,
@@ -1902,9 +1929,9 @@ def audit_atomicbot_sources(
 
     # Cross-source agreement is necessary but not sufficient: these independent
     # source pins stop coordinated edits from redefining the published quality.
-    if hash_file(root / ATOMICBOT_QUALITY_RELATIVE) != ATOMICBOT_QUALITY_SUMMARY_SHA256:
+    if hash_file(resolve_repository_path(root, ATOMICBOT_QUALITY_RELATIVE)) != ATOMICBOT_QUALITY_SUMMARY_SHA256:
         raise ValueError("quality summary authority hash conflict")
-    if hash_file(root / ATOMICBOT_ADJUDICATION_RELATIVE) != ATOMICBOT_ADJUDICATION_SHA256:
+    if hash_file(resolve_repository_path(root, ATOMICBOT_ADJUDICATION_RELATIVE)) != ATOMICBOT_ADJUDICATION_SHA256:
         raise ValueError("quality adjudication authority hash conflict")
     if hash_file(root / ATOMICBOT_QUALITY_REGISTER_RELATIVE) != ATOMICBOT_QUALITY_REGISTER_SHA256:
         raise ValueError("quality register authority hash conflict")
@@ -1933,7 +1960,9 @@ def audit_atomicbot_sources(
 
     stale_missing = stale_hash = 0
     for row in indexed:
-        path = root / row["Repository_Path"].replace("\\", "/")
+        path = resolve_repository_path(
+            root, row["Repository_Path"].replace("\\", "/")
+        )
         if not path.is_file(): stale_missing += 1
         elif hash_file(path) != row["SHA256"].lower(): stale_hash += 1
     if (len(indexed), stale_missing, stale_hash) != (828, 38, 263):
@@ -1979,7 +2008,9 @@ def build_atomicbot_bundle(repo_root: Path) -> RouteBundle:
 
     evidence: list[EvidenceRecord] = []; evidence_ids: set[str] = set()
     def add_evidence(relative: str | Path, role: str, label: str, evidence_id: str | None = None) -> str:
-        relative_path = Path(relative).as_posix(); path = root / relative_path; digest = hash_file(path)
+        path = resolve_repository_path(root, relative)
+        relative_path = repo_relative(root, path)
+        digest = hash_file(path)
         candidate = evidence_id or f"atomicbot-{role}-{digest[:16]}"
         if candidate in evidence_ids:
             existing = next(item for item in evidence if item.evidence_id == candidate)
@@ -2147,7 +2178,13 @@ def build_atomicbot_bundle(repo_root: Path) -> RouteBundle:
                 scoring_version="v1-recomputed-and-evidence-bound; application limited/provisional",
                 source_evidence_id=quality_evidence_by_key[(row["test_id"], prompt_id)],
             ))
-    env = _read_json(root / (ATOMICBOT_RAW_ROOT / "2026-07-16/acquisition/results/AtomicBot_Environment_Manifest.json"))
+    env = _read_json(
+        resolve_repository_path(
+            root,
+            ATOMICBOT_RAW_ROOT
+            / "2026-07-16/acquisition/results/AtomicBot_Environment_Manifest.json",
+        )
+    )
     failure_register_eid = evidence_by_role["failure-register"].evidence_id
     deviation_rows = [dict(row, evidence_ids=[failure_register_eid]) for row in audit["deviation_rows"]]
     quality_contract = {
@@ -2588,13 +2625,13 @@ def _animehacker_evidence_id(relative: Path) -> str:
 
 
 def _animehacker_source_record(root: Path, relative: Path, role: str, label: str) -> EvidenceRecord:
-    path = root / relative
+    path = resolve_repository_path(root, relative)
     return EvidenceRecord(
         route_id=ANIMEHACKER_ROUTE_ID,
         campaign_id=ANIMEHACKER_CAMPAIGN_ID,
         evidence_id=_animehacker_evidence_id(relative),
         role=role,
-        relative_path=relative.as_posix(),
+        relative_path=repo_relative(root, path),
         sha256=hash_file(path),
         size_bytes=path.stat().st_size,
         source_label=label,
@@ -2854,9 +2891,17 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
         "prompt-contract": ANIMEHACKER_PROMPT_RELATIVE,
         "rubric-contract": ANIMEHACKER_RUBRIC_RELATIVE,
     }
-    reconciliation = _read_json(root / authority_paths["reconciliation"])
-    runtime_state = _read_json(root / ANIMEHACKER_RAW_RELATIVE / "runtime/state.json")
-    recovery_state = _read_json(root / ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/state.json")
+    reconciliation = _read_json(
+        resolve_repository_path(root, authority_paths["reconciliation"])
+    )
+    runtime_state = _read_json(
+        resolve_repository_path(root, ANIMEHACKER_RAW_RELATIVE / "runtime/state.json")
+    )
+    recovery_state = _read_json(
+        resolve_repository_path(
+            root, ANIMEHACKER_RAW_RELATIVE / "runtime-recovery/state.json"
+        )
+    )
     if not all(isinstance(item, dict) for item in (reconciliation, runtime_state, recovery_state)):
         raise ValueError("animehacker reconciliation source shape conflict")
     state_attempts = runtime_state.get("attempts", {})
@@ -2889,17 +2934,25 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
             raise ValueError("rejected runtime summary cannot be selected for formal statistics")
         raise ValueError("formal runtime summary authority conflict")
     summaries = {
-        test_id: _animehacker_validate_summary(root / relative, test_id)
+        test_id: _animehacker_validate_summary(
+            resolve_repository_path(root, relative), test_id
+        )
         for test_id, relative in ANIMEHACKER_FORMAL_SUMMARIES.items()
     }
     safety_measurements = {
-        test_id: _read_json(root / relative)
+        test_id: _read_json(resolve_repository_path(root, relative))
         for test_id, relative in ANIMEHACKER_SAFETY_MEASUREMENTS.items()
     }
 
-    cpu = _read_json(root / authority_paths["cpu-reconciliation"])
-    sycl = _read_json(root / authority_paths["sycl-reconciliation"])
-    vulkan = _read_json(root / authority_paths["vulkan-reconciliation"])
+    cpu = _read_json(
+        resolve_repository_path(root, authority_paths["cpu-reconciliation"])
+    )
+    sycl = _read_json(
+        resolve_repository_path(root, authority_paths["sycl-reconciliation"])
+    )
+    vulkan = _read_json(
+        resolve_repository_path(root, authority_paths["vulkan-reconciliation"])
+    )
     cpu_counts = {key: int(cpu[key]) for key in ("passed", "failed", "total")}
     sycl_counts = {key: int(sycl[key]) for key in ("passed", "failed", "total")}
     if cpu_counts != {"passed": 40, "failed": 0, "total": 40}:
@@ -2910,8 +2963,12 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
     if vulkan_classification != "not proven by source audit; not a controlled TQ3 route":
         raise ValueError("Vulkan classification conflict")
 
-    quality_main = _read_json(root / authority_paths["quality-adjudication"])
-    quality_recovery = _read_json(root / authority_paths["quality-recovery-adjudication"])
+    quality_main = _read_json(
+        resolve_repository_path(root, authority_paths["quality-adjudication"])
+    )
+    quality_recovery = _read_json(
+        resolve_repository_path(root, authority_paths["quality-recovery-adjudication"])
+    )
     quality_sources = {**quality_main, **quality_recovery}
     if set(quality_sources) != set(ANIMEHACKER_RUNNABLE_IDS):
         raise ValueError("quality adjudication test set conflict")
@@ -2937,8 +2994,10 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
             folder = "quality-recovery" if test_id == "AH-09" else "quality"
             response_relative = ANIMEHACKER_RAW_RELATIVE / f"{folder}/{test_id}/{prompt_id}-response.txt"
             prompt_relative = ANIMEHACKER_RAW_RELATIVE / f"{folder}/{test_id}/{prompt_id}.json"
-            response_text = (root / response_relative).read_text(encoding="utf-8")
-            prompt_payload = _read_json(root / prompt_relative)
+            response_path = resolve_repository_path(root, response_relative)
+            prompt_path = resolve_repository_path(root, prompt_relative)
+            response_text = response_path.read_text(encoding="utf-8")
+            prompt_payload = _read_json(prompt_path)
             response_digest = hashlib.sha256(response_text.encode("utf-8")).hexdigest()
             if raw.get("output") != response_text or raw.get("output_sha256") != response_digest:
                 raise ValueError(f"quality response hash conflict: {test_id} {prompt_id}")
@@ -2950,7 +3009,7 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
             scores.append(score)
             quality_rows.append({
                 "test_case_id": test_id, "prompt_id": prompt_id, "score": score,
-                "source_relative": prompt_relative.as_posix(), "output_sha256": response_digest,
+                "source_relative": repo_relative(root, prompt_path), "output_sha256": response_digest,
                 "deterministic_pass": bool(details["adjudication"]["deterministic_pass"]),
                 "dimensions": dict(details["adjudication"]["dimensions"]),
                 "critical_caps": list(details["adjudication"]["critical_caps"]),
@@ -2959,21 +3018,29 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
         if not _animehacker_equal(statistics.fmean(scores), source.get("mean_score")):
             raise ValueError(f"quality mean conflict: {test_id}")
 
-    failures = _table_by_header(workbook, ("Failure ID", "Test ID", "Code", "Description"))
-    if tuple(row["Failure ID"] for row in failures) != (
+    frozen_failures = _table_by_header(workbook, ("Failure ID", "Test ID", "Code", "Description"))
+    if tuple(row["Failure ID"] for row in frozen_failures) != (
         "AH-F01", "AH-F02", "AH-F03", "AH-F04", "AH-F05", "AH-F06",
         "AH-F07", "AH-F08", "AH-F09", "AH-F11", "AH-F10",
-    ) or any(not row["Resolved?"].startswith("Yes") for row in failures):
+    ) or any(not row["Resolved?"].startswith("Yes") for row in frozen_failures):
         raise ValueError("historical failure ledger conflict")
+    failures = [
+        {
+            **row,
+            "Evidence": migrate_repository_references(root, row["Evidence"]),
+        }
+        for row in frozen_failures
+    ]
 
     authenticated_authorities: list[dict[str, str]] = []
     for relative, expected_hash in ANIMEHACKER_SOURCE_AUTHORITY_HASHES.items():
-        actual_hash = hash_file(root / relative)
+        authority_path = resolve_repository_path(root, relative)
+        actual_hash = hash_file(authority_path)
         role = _animehacker_authority_role(relative)
         if actual_hash != expected_hash:
             raise ValueError(f"{role} authority hash conflict: {relative.as_posix()}")
         authenticated_authorities.append({
-            "relative_path": relative.as_posix(),
+            "relative_path": repo_relative(root, authority_path),
             "role": role,
             "sha256": expected_hash,
             "evidence_id": _animehacker_evidence_id(relative),
@@ -2984,7 +3051,7 @@ def audit_animehacker_sources(repo_root: Path) -> dict[str, object]:
     if matrix_hashes != ANIMEHACKER_MATRIX_ENTITY_HASHES:
         raise ValueError("intended matrix complete entity conflict")
     failure_hashes = {
-        row["Failure ID"]: _animehacker_entity_hash(row) for row in failures
+        row["Failure ID"]: _animehacker_entity_hash(row) for row in frozen_failures
     }
     if failure_hashes != ANIMEHACKER_FAILURE_ENTITY_HASHES:
         raise ValueError("historical failure ledger conflict")
@@ -3018,9 +3085,10 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
         (ANIMEHACKER_PROMPT_RELATIVE, "prompt-contract", "GTQ-PROMPTS-v1 authority"),
         (ANIMEHACKER_RUBRIC_RELATIVE, "quality-rubric", "GTQ-QUALITY-RUBRIC-v1 authority"),
     ]
-    for path in sorted((root / ANIMEHACKER_RAW_RELATIVE).rglob("*")):
+    animehacker_raw_root = resolve_repository_path(root, ANIMEHACKER_RAW_RELATIVE)
+    for path in sorted(animehacker_raw_root.rglob("*")):
         if path.is_file():
-            relative = path.relative_to(root)
+            relative = ANIMEHACKER_RAW_RELATIVE / path.relative_to(animehacker_raw_root)
             role = "raw-evidence"
             if relative in ANIMEHACKER_FORMAL_SUMMARIES.values():
                 role = "formal-runtime-summary"
@@ -3033,6 +3101,9 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
             evidence_paths.append((relative, role, f"animehacker source: {relative.name}"))
     evidence = tuple(_animehacker_source_record(root, *item) for item in evidence_paths)
     evidence_by_path = {row.relative_path: row for row in evidence}
+    evidence_by_path.update(
+        {legacy.as_posix(): row for (legacy, _role, _label), row in zip(evidence_paths, evidence)}
+    )
 
     attempts: list[AttemptRecord] = []
     for test_id in ANIMEHACKER_EXPECTED_IDS:
@@ -3163,7 +3234,9 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
     ))
 
     repository = json.loads(
-        (root / ANIMEHACKER_RAW_RELATIVE / "acquisition/repository.json").read_text(encoding="utf-8-sig")
+        resolve_repository_path(
+            root, ANIMEHACKER_RAW_RELATIVE / "acquisition/repository.json"
+        ).read_text(encoding="utf-8-sig")
     )
     return RouteBundle(
         route_id=ANIMEHACKER_ROUTE_ID, campaign_id=ANIMEHACKER_CAMPAIGN_ID,
@@ -3173,7 +3246,13 @@ def build_animehacker_bundle(repo_root: Path) -> RouteBundle:
             "repository_url": "https://github.com/animehacker/llama-turboquant",
             "branch": "main (detached campaign pin)",
             "commit": repository.get("commit", "5bc5ed3bdc25003aa9f07422753a7b8d4f9190fc"),
-            "workbook_revision": "1.5", "status_authority": (ANIMEHACKER_RAW_RELATIVE / "reconciliation.json").as_posix(),
+            "workbook_revision": "1.5",
+            "status_authority": repo_relative(
+                root,
+                resolve_repository_path(
+                    root, ANIMEHACKER_RAW_RELATIVE / "reconciliation.json"
+                ),
+            ),
             "measurement_authority": "Only summary paths explicitly included by reconciliation/state",
             "formal_runtime_summary_count": 7, "rejected_runtime_summary_count": 2,
             "unresolved_failure_count": 0, "historical_failure_attempt_count": len(audit["historical_failures"]),

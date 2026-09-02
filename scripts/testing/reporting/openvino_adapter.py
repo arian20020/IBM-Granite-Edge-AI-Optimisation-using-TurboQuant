@@ -15,6 +15,8 @@ from .csvio import write_csv, write_json
 from .evidence import (
     build_evidence_record,
     hash_file,
+    repo_relative,
+    resolve_repository_path,
     validate_sha256_manifest,
 )
 from .models import (
@@ -624,7 +626,7 @@ def _validate_raw_quality_case(
 def build_experimental_bundle(repo_root: Path) -> RouteBundle:
     """Build the canonical fv6 bundle from only its frozen source evidence."""
     root = Path(repo_root).resolve(strict=True)
-    fv6 = root / _FV6_RELATIVE
+    fv6 = resolve_repository_path(root, _FV6_RELATIVE)
     workbook = root / _EXPERIMENTAL_WORKBOOK_RELATIVE
     detailed_path = fv6 / _DETAILED_NAME
     comparison_path = fv6 / _COMPARISON_NAME
@@ -682,7 +684,7 @@ def build_experimental_bundle(repo_root: Path) -> RouteBundle:
         ]
         if executed:
             raw_relative = _portable_source_path(row["raw_result_path"])
-            raw_path = root / Path(raw_relative)
+            raw_path = resolve_repository_path(root, raw_relative)
             if hash_file(raw_path) != row["raw_result_sha256"]:
                 raise ValueError(f"{case_id}: raw-result hash differs from detailed source")
             raw_record = _record_evidence(
@@ -880,7 +882,7 @@ def build_experimental_bundle(repo_root: Path) -> RouteBundle:
             if not isinstance(run, dict):
                 raise ValueError(f"{case_id}: malformed quality run")
             prompt_relative = _portable_source_path(str(run["prompt_path"]))
-            prompt_path = root / Path(prompt_relative)
+            prompt_path = resolve_repository_path(root, prompt_relative)
             if hash_file(prompt_path) != run["prompt_sha256"]:
                 raise ValueError(f"{case_id}/{run['prompt_id']}: prompt hash mismatch")
             if prompt_relative not in input_evidence_by_path:
@@ -1045,7 +1047,9 @@ def _validate_official_raw_cache_semantics(
     if isinstance(selected, dict):
         benchmark_runs.append(selected)
     expected_path = _OFFICIAL_BENCHMARK_INPUT.as_posix()
-    expected_sha = hash_file(repo_root / _OFFICIAL_BENCHMARK_INPUT)
+    expected_sha = hash_file(
+        resolve_repository_path(repo_root, _OFFICIAL_BENCHMARK_INPUT)
+    )
     for run in benchmark_runs:
         if not isinstance(run, dict):
             raise ValueError(f"{case_id}: malformed benchmark input evidence")
@@ -1057,7 +1061,9 @@ def _validate_official_raw_cache_semantics(
 
 
 def _validate_official_preflight_inputs(repo_root: Path) -> tuple[Path, ...]:
-    receipt_path = repo_root / _OFFICIAL_FV1_RELATIVE / "preflight/preflight-receipt.json"
+    receipt_path = resolve_repository_path(
+        repo_root, _OFFICIAL_FV1_RELATIVE / "preflight/preflight-receipt.json"
+    )
     payload = _read_json(receipt_path)
     captures = payload.get("captures") if isinstance(payload, dict) else None
     if not isinstance(captures, dict) or not captures:
@@ -1073,7 +1079,7 @@ def _validate_official_preflight_inputs(repo_root: Path) -> tuple[Path, ...]:
             raise ValueError(
                 f"official preflight input path conflict for capture {capture_id}"
             )
-        actual_sha = hash_file(repo_root / relative)
+        actual_sha = hash_file(resolve_repository_path(repo_root, relative))
         if capture.get("prompt_sha256") != actual_sha:
             raise ValueError(
                 f"official preflight input hash conflict for capture {capture_id}"
@@ -1086,7 +1092,10 @@ def _validate_official_preflight_inputs(repo_root: Path) -> tuple[Path, ...]:
 
 def _validate_official_source_model_aliases(repo_root: Path) -> None:
     identities = {
-        (hash_file(repo_root / relative), (repo_root / relative).stat().st_size)
+        (
+            hash_file(resolve_repository_path(repo_root, relative)),
+            resolve_repository_path(repo_root, relative).stat().st_size,
+        )
         for relative in _OFFICIAL_SOURCE_MODEL_ALIASES
     }
     if len(identities) != 1:
@@ -1111,7 +1120,7 @@ def _validate_official_tables(
         _OFFICIAL_CONVERSION_LOG_RELATIVE,
     )
     for relative in required_evidence:
-        if not (repo_root / relative).is_file():
+        if not resolve_repository_path(repo_root, relative).is_file():
             raise FileNotFoundError(f"required official evidence is missing: {relative.as_posix()}")
     preflight_inputs = _validate_official_preflight_inputs(repo_root)
     _validate_official_source_model_aliases(repo_root)
@@ -1256,7 +1265,9 @@ def _validate_official_tables(
                 raise ValueError(
                     f"{row['case_id']}: non-passed fv2 row contains published observations"
                 )
-            manifest_path = repo_root / _official_terminal_manifest_relative(row)
+            manifest_path = resolve_repository_path(
+                repo_root, _official_terminal_manifest_relative(row)
+            )
             if not manifest_path.is_file():
                 raise FileNotFoundError(
                     f"missing final missing-model manifest: {manifest_path}"
@@ -1366,7 +1377,12 @@ def _validate_official_tables(
                 raise ValueError(
                     f"official fv1 comparison conflict for {source['case_id']} field {field}"
                 )
-    if _read_csv(repo_root / _OFFICIAL_FV1_RELATIVE / "official-openvino-coverage.csv") != fv1_coverage:
+    if _read_csv(
+        resolve_repository_path(
+            repo_root,
+            _OFFICIAL_FV1_RELATIVE / "official-openvino-coverage.csv",
+        )
+    ) != fv1_coverage:
         raise ValueError("official fv1 coverage read is not stable")
     if fv1_coverage != fv2_coverage:
         raise ValueError("official fv1/fv2 coverage differs")
@@ -1383,8 +1399,9 @@ def _validate_official_tables(
 def build_official_bundle(repo_root: Path) -> RouteBundle:
     """Join fv2 final status authority to fv1 evidence for fv2-passed cases."""
     root = Path(repo_root).resolve(strict=True)
-    fv1 = root / _OFFICIAL_FV1_RELATIVE
-    consolidated = root / _OFFICIAL_FV2_RELATIVE / "consolidated"
+    fv1 = resolve_repository_path(root, _OFFICIAL_FV1_RELATIVE)
+    fv2_root = resolve_repository_path(root, _OFFICIAL_FV2_RELATIVE)
+    consolidated = fv2_root / "consolidated"
     fv2_detailed_path = consolidated / "official-openvino-detailed-results.csv"
     fv2_comparison_path = consolidated / "official-openvino-comparison.csv"
     fv2_coverage_path = consolidated / "official-openvino-coverage.csv"
@@ -1419,7 +1436,7 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
     preflight_input_records = [
         _record_official_evidence(
             root,
-            root / relative,
+            resolve_repository_path(root, relative),
             "preflight-input",
             f"fv1 preflight input {relative.name}",
             evidence,
@@ -1428,7 +1445,7 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
     ]
     benchmark_input_record = _record_official_evidence(
         root,
-        root / _OFFICIAL_BENCHMARK_INPUT,
+        resolve_repository_path(root, _OFFICIAL_BENCHMARK_INPUT),
         "benchmark-prompt-input",
         "fv1 shared benchmark prompt input",
         evidence,
@@ -1465,7 +1482,6 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
 
     manifest_evidence_by_path: dict[str, EvidenceRecord] = {}
     indexed_digests = {item.sha256 for item in evidence}
-    fv2_root = root / _OFFICIAL_FV2_RELATIVE
     for path in sorted(fv2_root.rglob("*.json")):
         relative = path.relative_to(root).as_posix()
         if relative in {item.relative_path for item in evidence}:
@@ -1493,7 +1509,7 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
 
     conversion_log_record = _record_official_evidence(
         root,
-        root / _OFFICIAL_CONVERSION_LOG_RELATIVE,
+        resolve_repository_path(root, _OFFICIAL_CONVERSION_LOG_RELATIVE),
         "conversion-log",
         "fv2 guarded-retry-002 conversion log",
         evidence,
@@ -1528,7 +1544,7 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
             raw_relative = _portable_source_path(fv1_row["raw_result_path"])
             if not raw_relative:
                 raise ValueError(f"{case_id}: passed fv2 case lacks fv1 raw evidence")
-            raw_path = root / Path(raw_relative)
+            raw_path = resolve_repository_path(root, raw_relative)
             if not raw_path.is_file():
                 raise ValueError(f"{case_id}: passed fv2 raw evidence file is missing")
             if hash_file(raw_path) != fv1_row["raw_result_sha256"]:
@@ -1623,7 +1639,12 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
                     tuple(sorted((str(key), str(value)) for key, value in properties.items()))
                 )
         else:
-            terminal_relative = _official_terminal_manifest_relative(row).as_posix()
+            terminal_relative = repo_relative(
+                root,
+                resolve_repository_path(
+                    root, _official_terminal_manifest_relative(row)
+                ),
+            )
             manifest_record = manifest_evidence_by_path.get(terminal_relative)
             if manifest_record is None:
                 raise ValueError(f"{case_id}: final manifest evidence was not indexed")
@@ -1704,7 +1725,7 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
         _validate_raw_quality_case(case_id, raw_payload, source_by_prompt, fv1_by_case[case_id])
         for run in raw_payload["quality_runs"]:
             prompt_relative = _portable_source_path(str(run["prompt_path"]))
-            prompt_path = root / Path(prompt_relative)
+            prompt_path = resolve_repository_path(root, prompt_relative)
             if hash_file(prompt_path) != run["prompt_sha256"]:
                 raise ValueError(f"{case_id}/{run['prompt_id']}: fv1 prompt hash conflict")
             if prompt_relative not in input_evidence_by_path:
@@ -1732,7 +1753,11 @@ def build_official_bundle(repo_root: Path) -> RouteBundle:
         "source_date": "2026-08-30",
     }
     terminal_manifests = [
-        _read_json(root / _official_terminal_manifest_relative(row))
+                _read_json(
+                    resolve_repository_path(
+                        root, _official_terminal_manifest_relative(row)
+                    )
+                )
         for row in fv2_detailed
         if not _bool(row["executed"])
     ]
@@ -3444,7 +3469,7 @@ def write_experimental_route(repo_root: Path) -> RouteBundle:
         f"- `{workbook_evidence.relative_path}` — SHA-256 `{workbook_evidence.sha256}`\n"
         "- The companion comparison, coverage, `rows.json`, 27 raw-result JSON files, "
         "and 48 hash-named prompt inputs under "
-        "`experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6/` "
+        "`experiments/raw-results/retained/openvino-experimental-fork/2026-08-30/fv6/` "
         "are individually listed and hashed in `../evidence/evidence-index.csv`.\n\n"
         "Validation only reads normalized evidence; it does not rerun inference. "
         "Do not replace unavailable observations with zero, infer missing hardware, "

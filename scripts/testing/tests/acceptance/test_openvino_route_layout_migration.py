@@ -63,6 +63,20 @@ def _rows(path: Path) -> list[dict[str, str]]:
         )
 
 
+def _migrated_relationships(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    migrations = {
+        row["old_path"]: row["new_path"]
+        for row in _rows(ROOT / "docs/testing/cleanup/PATH-MIGRATION.csv")
+    }
+    return [
+        {
+            **row,
+            "relative_path": migrations.get(row["relative_path"], row["relative_path"]),
+        }
+        for row in rows
+    ]
+
+
 def _baseline_rows(table: str, route_id: str) -> list[dict[str, str]]:
     return sorted(
         (
@@ -168,10 +182,12 @@ def test_openvino_routes_preserve_semantics_evidence_and_portable_derivatives(
     evidence_rows = _rows(route / "evidence/evidence-index.csv")
     evidence_ids = {row["evidence_id"] for row in evidence_rows}
     expected_relationships = sorted(
-        (
+        _migrated_relationships(
+            [
             row
             for row in BASELINE["evidence"]["relationships"]
             if row["evidence_id"] in evidence_ids
+            ]
         ),
         key=lambda row: json.dumps(row, sort_keys=True, separators=(",", ":")),
     )

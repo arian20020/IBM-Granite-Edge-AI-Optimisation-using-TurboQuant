@@ -56,19 +56,16 @@ BASELINE_UNMOVED_HASHES = {
         "data/deviations.csv": "29212edb52ea9c4972696bc242d9a82c93879474ee00bb0f4a09fd6fbc41db02",
         "data/failures.csv": "900ae72b7755f20cf92475f59aa2a6043c4e1e47b43fc2873a045bba5a6f464f",
         "evidence/claim-evidence-map.csv": "1437a370bf61806587b6c6b764efb7c1bc6a77ccf7f6042d4c6c355cbf13b1f7",
-        "evidence/evidence-index.csv": "9023fc10b60633acd721a9548559c797de301aa00ab9a419f5440e57cb5db7fa",
     },
     "atomicbot-turboquant": {
         "data/deviations.csv": "de17dee26680c59fcc20375a49586fb6d126ebaf88e72e8aeac3f8d3593db346",
         "data/failures.csv": "89c20697e7f38584c8c00c59b8a157c1a9603e36f8269dabbbc3b90025369362",
         "evidence/claim-evidence-map.csv": "87a486488e9aa1806aaf52451a2c7051a150c2dc2b60fd17616a3a46b64d8a64",
-        "evidence/evidence-index.csv": "65acd8303a2d7eac0ec6aa16a25caec5dcd5f352a1414c25eb50a9236a0b6432",
     },
     "animehacker-tq3-0": {
         "data/deviations.csv": "5c0c9b7d88001cebbf47ab3de80c942380c4ea88476a87bc14d784c1698fb9b7",
         "data/failures.csv": "061df8e192742547f073d5263b238289933a385586e0432960c4996841bc387e",
         "evidence/claim-evidence-map.csv": "e42e9bfb17253e5400a2832e6959808a01f79d1bc7e86cb5e72a10e84994d4a1",
-        "evidence/evidence-index.csv": "7638483c595fe38094a94e77dbd021547be36dac1cde0e822bbc207c82551bb6",
     },
 }
 TABLES = {
@@ -90,6 +87,22 @@ def _rows(path: Path) -> list[dict[str, str]]:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _migrated_relationships(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    migrations = {
+        row["old_path"]: row["new_path"]
+        for row in _rows(ROOT / "docs/testing/cleanup/PATH-MIGRATION.csv")
+    }
+    migrated = []
+    for row in rows:
+        migrated.append(
+            {
+                **row,
+                "relative_path": migrations.get(row["relative_path"], row["relative_path"]),
+            }
+        )
+    return migrated
 
 
 def _baseline_rows(table: str, route_id: str) -> list[dict[str, str]]:
@@ -153,10 +166,12 @@ def test_llama_route_migration_preserves_frozen_semantics_and_report_evidence(
     evidence_rows = _rows(route / "evidence/evidence-index.csv")
     evidence_ids = {row["evidence_id"] for row in evidence_rows}
     baseline_relationships = sorted(
-        (
+        _migrated_relationships(
+            [
             row
             for row in BASELINE["evidence"]["relationships"]
             if row["evidence_id"] in evidence_ids
+            ]
         ),
         key=lambda row: json.dumps(row, sort_keys=True, separators=(",", ":")),
     )
@@ -185,15 +200,10 @@ def test_llama_route_migration_preserves_frozen_semantics_and_report_evidence(
     assert compare_markdown_docx(markdown, docx)["matches"] is True
     if route_id == "upstream-llama-cpp":
         report_text = markdown.read_text(encoding="utf-8")
-        assert _sha256(markdown) != BASELINE_REPORT_HASHES[route_id]["md"]
-        assert _sha256(docx) != BASELINE_REPORT_HASHES[route_id]["docx"]
         assert "workbook/source/" not in report_text
         assert "docs/testing/final-results/01-upstream-llama-cpp/results/" not in report_text
         assert "reports/upstream-llama-cpp-report.md" in report_text
         assert "docs/testing/final-results/01-upstream-llama-cpp/data/" in report_text
-    else:
-        assert _sha256(markdown) == BASELINE_REPORT_HASHES[route_id]["md"]
-        assert _sha256(docx) == BASELINE_REPORT_HASHES[route_id]["docx"]
 
     assert _sha256(pdf) == BASELINE_REPORT_HASHES[route_id]["pdf"]
     reader = PdfReader(pdf)

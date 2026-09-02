@@ -10,7 +10,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 from scripts.testing.reporting.evidence import (
     build_evidence_record,
     hash_file,
+    migrate_repository_references,
     repo_relative,
+    resolve_repository_path,
     validate_sha256_manifest,
     write_sha256_manifest,
 )
@@ -37,6 +39,70 @@ def test_repo_relative_rejects_symlink_resolution_escape(tmp_path):
 
     with pytest.raises(ValueError, match="repository"):
         repo_relative(tmp_path, link)
+
+
+def test_resolve_repository_path_translates_exact_legacy_ledger_entry(tmp_path):
+    ledger = tmp_path / "docs/testing/cleanup/PATH-MIGRATION.csv"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        "old_path,new_path,reason\n"
+        "legacy/evidence.json,retained/route/evidence.json,path-only move\n",
+        encoding="utf-8",
+    )
+    retained = tmp_path / "retained/route/evidence.json"
+    retained.parent.mkdir(parents=True)
+    retained.write_text("retained", encoding="utf-8")
+
+    assert resolve_repository_path(tmp_path, "legacy/evidence.json") == retained.resolve()
+
+
+def test_resolve_repository_path_translates_consistent_legacy_directory(tmp_path):
+    ledger = tmp_path / "docs/testing/cleanup/PATH-MIGRATION.csv"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        "old_path,new_path,reason\n"
+        "legacy/a.json,retained/route/a.json,path-only move\n"
+        "legacy/nested/b.json,retained/route/nested/b.json,path-only move\n",
+        encoding="utf-8",
+    )
+    retained = tmp_path / "retained/route"
+    retained.mkdir(parents=True)
+    legacy = tmp_path / "legacy"
+    legacy.mkdir()
+    (legacy / "unrelated.txt").write_text("preserved", encoding="utf-8")
+
+    assert resolve_repository_path(tmp_path, "legacy") == retained.resolve()
+
+
+def test_resolve_repository_path_prefers_existing_path_and_rejects_escape(tmp_path):
+    ledger = tmp_path / "docs/testing/cleanup/PATH-MIGRATION.csv"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        "old_path,new_path,reason\n"
+        "legacy/evidence.json,retained/route/evidence.json,path-only move\n",
+        encoding="utf-8",
+    )
+    legacy = tmp_path / "legacy/evidence.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text("legacy", encoding="utf-8")
+
+    assert resolve_repository_path(tmp_path, "legacy/evidence.json") == legacy.resolve()
+    with pytest.raises(ValueError, match="POSIX"):
+        resolve_repository_path(tmp_path, "../outside.json")
+
+
+def test_migrate_repository_references_rewrites_only_exact_ledger_tokens(tmp_path):
+    ledger = tmp_path / "docs/testing/cleanup/PATH-MIGRATION.csv"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        "old_path,new_path,reason\n"
+        "legacy/evidence.json,retained/route/evidence.json,path-only move\n",
+        encoding="utf-8",
+    )
+
+    assert migrate_repository_references(
+        tmp_path, "`legacy/evidence.json`; legacy/evidence.json.bak"
+    ) == "`retained/route/evidence.json`; legacy/evidence.json.bak"
 
 
 def test_hash_file_streams_sha256_and_requires_a_file(tmp_path):

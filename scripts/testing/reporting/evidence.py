@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import os
 import re
 import tempfile
 from collections.abc import Collection, Sequence
+from functools import lru_cache
 from pathlib import Path
 
 from .models import EvidenceRecord
@@ -54,6 +56,94 @@ def repo_relative(repo_root: Path, path: Path) -> str:
     root, target = _resolved_contained_path(repo_root, path)
     relative = target.relative_to(root).as_posix()
     return _portable_relative(relative)
+
+
+@lru_cache(maxsize=8)
+def _path_migrations(
+    ledger_path: str, modified_ns: int, size_bytes: int
+) -> dict[str, str]:
+    """Load an immutable snapshot of the path ledger for one repository state."""
+    del modified_ns, size_bytes
+    migrations: dict[str, str] = {}
+    with Path(ledger_path).open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if reader.fieldnames is None or not {"old_path", "new_path"}.issubset(
+            reader.fieldnames
+        ):
+            raise ValueError("PATH-MIGRATION.csv is missing required path columns")
+        for row in reader:
+            old_path = _portable_relative(row["old_path"].replace("\\", "/"))
+            new_path = _portable_relative(row["new_path"].replace("\\", "/"))
+            existing = migrations.get(old_path)
+            if existing is not None and existing != new_path:
+                raise ValueError(
+                    f"PATH-MIGRATION.csv has conflicting mappings for {old_path}"
+                )
+            migrations[old_path] = new_path
+    return migrations
+
+
+def resolve_repository_path(repo_root: Path, relative_path: str | Path) -> Path:
+    """Resolve a live repository path through the exact cleanup ledger.
+
+    Frozen registers retain their historical path strings. Existing paths win,
+    while a missing legacy path is translated only by an exact ledger row.
+    """
+    root = Path(repo_root).resolve(strict=True)
+    relative = _portable_relative(Path(relative_path).as_posix())
+    _, direct = _resolved_contained_path(root, root / relative)
+    if direct.exists() and not direct.is_dir():
+        return direct
+
+    ledger = root / "docs/testing/cleanup/PATH-MIGRATION.csv"
+    if not ledger.is_file():
+        return direct
+    ledger_stat = ledger.stat()
+    migrations = _path_migrations(
+        str(ledger.resolve()), ledger_stat.st_mtime_ns, ledger_stat.st_size
+    )
+    migrated_relative = migrations.get(relative)
+    if migrated_relative is None:
+        prefix = f"{relative}/"
+        migrated_bases: set[str] = set()
+        for old_path, new_path in migrations.items():
+            if not old_path.startswith(prefix):
+                continue
+            suffix = old_path[len(prefix) :]
+            suffix_marker = f"/{suffix}"
+            if not new_path.endswith(suffix_marker):
+                raise ValueError(
+                    f"PATH-MIGRATION.csv cannot derive a directory mapping for {relative}"
+                )
+            migrated_bases.add(new_path[: -len(suffix_marker)])
+        if not migrated_bases:
+            return direct
+        if len(migrated_bases) != 1:
+            raise ValueError(
+                f"PATH-MIGRATION.csv has conflicting directory mappings for {relative}"
+            )
+        migrated_relative = migrated_bases.pop()
+    _, migrated = _resolved_contained_path(root, root / migrated_relative)
+    return migrated
+
+
+def migrate_repository_references(repo_root: Path, value: str) -> str:
+    """Translate complete repository-path tokens while preserving surrounding text."""
+    root = Path(repo_root).resolve(strict=True)
+    ledger = root / "docs/testing/cleanup/PATH-MIGRATION.csv"
+    if not ledger.is_file() or not value:
+        return value
+    ledger_stat = ledger.stat()
+    migrations = _path_migrations(
+        str(ledger.resolve()), ledger_stat.st_mtime_ns, ledger_stat.st_size
+    )
+    migrated = value
+    for old_path, new_path in sorted(
+        migrations.items(), key=lambda item: len(item[0]), reverse=True
+    ):
+        pattern = rf"(?<![A-Za-z0-9._/\\-]){re.escape(old_path)}(?![A-Za-z0-9._/\\-])"
+        migrated = re.sub(pattern, lambda _match: new_path, migrated)
+    return migrated
 
 
 def hash_file(path: Path) -> str:
@@ -250,7 +340,9 @@ def validate_sha256_manifest(root: Path, manifest: Path) -> list[str]:
 __all__ = [
     "build_evidence_record",
     "hash_file",
+    "migrate_repository_references",
     "repo_relative",
+    "resolve_repository_path",
     "validate_sha256_manifest",
     "write_sha256_manifest",
 ]

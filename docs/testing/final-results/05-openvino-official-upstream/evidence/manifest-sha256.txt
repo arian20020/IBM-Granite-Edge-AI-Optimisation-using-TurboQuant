@@ -15,7 +15,7 @@ fad71c6b3f199d5abb85318ccb930a1b455000de97c5dde074cc6e97e68f9381  docs/testing/f
 5f7dde8af8a36ccbd62326cb881346b79eaa94f9a507fe1b91dd472abd362a55  docs/testing/final-results/05-openvino-official-upstream/reports/openvino-official-upstream-report.pdf
 184ea402268473b81efeadc73e30e6d34d363092938e6e5e424f4a3aa1fc4d36  docs/testing/final-results/05-openvino-official-upstream/reports/openvino-official-upstream-results-provenance.json
 1407c2bdf9fc27d01b665bf82a24ce56a5708898416fc94aabb563d7f384bed2  docs/testing/final-results/05-openvino-official-upstream/reports/openvino-official-upstream-results.xlsx
-c81a8f7fa494e852c812da3b967df0c2c0044dd7f940688f20e6afbafd14a354  docs/testing/final-results/05-openvino-official-upstream/reproduction/README.md
+2f01505e9c14a8999789abc00c722247a272a4cf83b44494587abddd82e92998  docs/testing/final-results/05-openvino-official-upstream/reproduction/README.md
 19c11c721cb12ede5cb109b194c2765a1b85a991cb791dfccf8679b3092392fd  docs/testing/final-results/05-openvino-official-upstream/reproduction/protocol/intended-test-matrix.csv
 aa902e805c6e3d1220fd15b55ae8b36586ac0cf01221abf73cca7b8d423e1718  docs/testing/final-results/05-openvino-official-upstream/reproduction/quality/outputs-index.csv
 3757dbcae4eebdc57eb5fc84c2598e7f97e44d22e7967d30041796757be32c9f  docs/testing/final-results/05-openvino-official-upstream/reproduction/quality/prompt-suite.csv

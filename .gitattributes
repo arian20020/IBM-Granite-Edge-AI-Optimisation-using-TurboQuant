@@ -25,7 +25,7 @@ experiments/raw-results/openvino-experimental-fork/2026-08-30/fv6/** -text white
 experiments/raw-results/openvino-official-upstream/2026-08-30/fv1/** -text whitespace=-blank-at-eol,-blank-at-eof
 experiments/raw-results/openvino-official-upstream/2026-08-30/fv2-missing-model-attempts/** -text whitespace=-blank-at-eol,-blank-at-eof
 experiments/raw-results/retained/** -text whitespace=-blank-at-eol,-blank-at-eof
-experiments/raw-results/failure-records/README.md -text whitespace=-blank-at-eol,-blank-at-eof
+experiments/raw-results/retained/shared/failure-records/README.md -text whitespace=-blank-at-eol,-blank-at-eof
 outputs/openvino-experimental-fork-results/Granite_OpenVINO_Final_Healthcare_Education_Results_2026-08-30.xlsx -text
 outputs/openvino-official-upstream-results/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30.xlsx -text
 outputs/openvino-official-upstream-results/Granite_Official_OpenVINO_TurboQuant_Results_2026-08-30_v2_Missing_Attempts.xlsx -text
