@@ -22,6 +22,10 @@ class TurboVecControlContractTests(unittest.TestCase):
         manifest = load_control_manifest(MANIFEST)
         self.assertEqual("ccab9f325e6ce2a270a87daf01ae4e443bcf2d49", manifest.turbovec.commit)
         self.assertEqual(384, manifest.embedding.dimension)
+        raw = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual("locked", raw["dependencies"]["embedding"]["status"])
+        self.assertEqual("1.27.0", raw["dependencies"]["embedding"]["exporter"]["optimum_intel"])
+        self.assertEqual("4.51.3", raw["dependencies"]["embedding"]["exporter"]["transformers"])
         self.assertEqual(30, manifest.measured_batches)
         self.assertEqual(5, manifest.warmup_batches)
 
