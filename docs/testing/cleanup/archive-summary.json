@@ -1,0 +1,11 @@
+{
+  "archive_manifest_sha256": "863a13513f760ac70545b67fa4e70e017fe5e0eb89de4313f7c8a68debb54ed7",
+  "archive_root": "C:\\Users\\Student\\Downloads\\Granite-Testing-Historical-Archive-2026-09-01",
+  "entry_count": 1128,
+  "plan_sha256": "9f35b438a11b36d64e959e062fd4791944bfbb2d7105f3c3fad7f393bbe42ef0",
+  "receipt_path": "C:\\Users\\Student\\Downloads\\Granite-Testing-Historical-Archive-2026-09-01\\archive-receipt.json",
+  "receipt_sha256": "f6a661a00783e8e429721de463bceadb88b4136581f2155cbd2d524240c82b6e",
+  "schema": "testing-history-archive-summary/v1",
+  "total_bytes": 2038466,
+  "unverified_count": 0
+}
