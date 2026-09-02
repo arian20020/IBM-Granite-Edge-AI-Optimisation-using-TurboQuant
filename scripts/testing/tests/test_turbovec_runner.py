@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +22,16 @@ class FailingProvider:
 
 
 class RunnerTests(unittest.TestCase):
+    def test_script_entry_point_does_not_shadow_published_turbovec(self):
+        with tempfile.TemporaryDirectory() as root:
+            run_id = "EXP-TV-COMP-001-20260903T010000Z-009"
+            completed = subprocess.run(
+                [sys.executable, str(Path(__file__).resolve().parents[1] / "run_turbovec_feasibility.py"),
+                 "fixture", "--output-root", root, "--run-id", run_id],
+                cwd=Path(__file__).resolve().parents[3], capture_output=True, text=True,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+
     def test_cli_accepts_measured_model_and_output_contract(self):
         args = parser().parse_args([
             "measured", "--model-root", "model", "--output-root", "out",

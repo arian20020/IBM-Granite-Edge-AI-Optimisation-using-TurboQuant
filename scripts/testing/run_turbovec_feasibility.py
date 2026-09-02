@@ -9,8 +9,9 @@ import subprocess
 import sys
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-if str(REPOSITORY_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPOSITORY_ROOT))
+SCRIPT_DIRECTORY = Path(__file__).resolve().parent
+sys.path[:] = [entry for entry in sys.path if Path(entry or ".").resolve() != SCRIPT_DIRECTORY]
+sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from scripts.testing.turbovec.embedding import DeterministicEmbeddingProvider, OpenVinoGraniteEmbeddingProvider, lock_model_assets
 from scripts.testing.turbovec.runner import run_fixture_campaign, run_live_campaign
