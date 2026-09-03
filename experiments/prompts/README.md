@@ -32,3 +32,34 @@ Repository evidence structure
 # Versioned Prompts
 
 Store shared prompts and prompt metadata here. Every prompt used in a run must have a stable version or hash. Do not edit a prompt after it has been used; create a new version.
+
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+Contains fixed prompts used to make model-quality tests repeatable.
+
+### Start here
+
+Begin with [`.gitkeep`](.gitkeep). The tables below explain the remaining items.
+
+### How this folder fits into testing
+
+This folder belongs to the experiment layer between the test plan and the curated final-results release.
+
+### Files
+
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`.gitkeep`](.gitkeep) | Supporting data file for .gitkeep. | Controlled test input |
+
+### Important boundaries
+
+- A protocol or manifest describes intended work; it is not proof that the experiment ran.
+- Use the curated final-results package for conclusions and this tree for audit or reproduction.
+
+### Related guides
+
+- [Parent guide](../README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->

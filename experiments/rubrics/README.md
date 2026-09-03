@@ -32,3 +32,34 @@ Repository evidence structure
 # Evaluation Rubrics
 
 Store versioned output-quality, instruction-following, long-context and failure-classification rubrics here. Each processed evaluation must record the rubric version used.
+
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+Defines how model output quality is scored.
+
+### Start here
+
+Begin with [`.gitkeep`](.gitkeep). The tables below explain the remaining items.
+
+### How this folder fits into testing
+
+This folder belongs to the experiment layer between the test plan and the curated final-results release.
+
+### Files
+
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`.gitkeep`](.gitkeep) | Supporting data file for .gitkeep. | Controlled test input |
+
+### Important boundaries
+
+- A protocol or manifest describes intended work; it is not proof that the experiment ran.
+- Use the curated final-results package for conclusions and this tree for audit or reproduction.
+
+### Related guides
+
+- [Parent guide](../README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->

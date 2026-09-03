@@ -1,16 +1,16 @@
-# Custom OpenVINO TurboQuant Protocols
+# TurboVec
 
-Experimental protocols for the proposed OpenVINO TurboQuant route. Start with explicit feasibility gates and CPU SDPA validation. Do not claim activation or benefit unless directly demonstrated by runtime evidence and matched measurements.
+This folder covers the TurboVec feasibility experiment.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder covers the experimental OpenVINO TurboQuant route.
+This folder covers the TurboVec feasibility experiment.
 
 ### Start here
 
-This is a navigation or evidence container. Use the folder explanations below to choose the next level.
+Begin with [`feasibility-v1.json`](feasibility-v1.json). The tables below explain the remaining items.
 
 ### How this folder fits into testing
 
@@ -18,7 +18,9 @@ This folder belongs to the experiment layer between the test plan and the curate
 
 ### Files
 
-There are no immediate non-README files at this level. Continue into the child folders described above.
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`feasibility-v1.json`](feasibility-v1.json) | Stores a JSON object with top-level fields `schema_version`, `experiment_id`, `dependencies`, `execution`, `thresholds`. | Controlled test input |
 
 ### Important boundaries
 

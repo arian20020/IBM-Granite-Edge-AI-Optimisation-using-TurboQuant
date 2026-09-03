@@ -29,3 +29,64 @@ None assigned
 
 Repository evidence structure
 
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+Contains results derived from raw evidence. Use validation and provenance before trusting a value.
+
+### Start here
+
+Begin with [`.gitkeep`](.gitkeep). The tables below explain the remaining items.
+
+### How this folder fits into testing
+
+This folder belongs to the experiment layer between the test plan and the curated final-results release.
+
+### Folders
+
+| Folder | What it contains |
+| --- | --- |
+| [`animehacker-tq3-0/`](animehacker-tq3-0/README.md) | This folder covers the animehacker TQ3_0 route. |
+| [`atomicbot-turboquant/`](atomicbot-turboquant/README.md) | This folder covers the AtomicBot TurboQuant route. |
+| [`context/`](context/README.md) | This folder groups the context material used by the testing workflow. |
+| [`cross-route/`](cross-route/README.md) | This folder groups the cross route material used by the testing workflow. |
+| [`cross-route-comparison/`](cross-route-comparison/README.md) | This folder covers the guarded cross-route comparison. |
+| [`custom-openvino-turboquant/`](custom-openvino-turboquant/README.md) | This folder covers the experimental OpenVINO TurboQuant route. |
+| [`EST-VALID-001/`](EST-VALID-001/README.md) | This folder groups the EST VALID 001 material used by the testing workflow. |
+| [`EXP-TQ-COMP-001/`](EXP-TQ-COMP-001/README.md) | This folder groups the EXP TQ COMP 001 material used by the testing workflow. |
+| [`EXP-TV-COMP-001/`](EXP-TV-COMP-001/README.md) | This folder groups the EXP TV COMP 001 material used by the testing workflow. |
+| [`final-metrics/`](final-metrics/README.md) | This folder groups the final metrics material used by the testing workflow. |
+| [`memory-budgets/`](memory-budgets/README.md) | This folder groups the memory budgets material used by the testing workflow. |
+| [`official-openvino/`](official-openvino/README.md) | This folder covers the official OpenVINO route. |
+| [`upstream-llama-cpp/`](upstream-llama-cpp/README.md) | This folder covers the upstream llama.cpp route. |
+
+### Files
+
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`.gitkeep`](.gitkeep) | Supporting data file for .gitkeep. | Supporting repository file |
+
+### Important boundaries
+
+- A protocol or manifest describes intended work; it is not proof that the experiment ran.
+- Use the curated final-results package for conclusions and this tree for audit or reproduction.
+
+### Related guides
+
+- [Parent guide](../README.md)
+- [animehacker-tq3-0 guide](animehacker-tq3-0/README.md)
+- [atomicbot-turboquant guide](atomicbot-turboquant/README.md)
+- [context guide](context/README.md)
+- [cross-route guide](cross-route/README.md)
+- [cross-route-comparison guide](cross-route-comparison/README.md)
+- [custom-openvino-turboquant guide](custom-openvino-turboquant/README.md)
+- [EST-VALID-001 guide](EST-VALID-001/README.md)
+- [EXP-TQ-COMP-001 guide](EXP-TQ-COMP-001/README.md)
+- [EXP-TV-COMP-001 guide](EXP-TV-COMP-001/README.md)
+- [final-metrics guide](final-metrics/README.md)
+- [memory-budgets guide](memory-budgets/README.md)
+- [official-openvino guide](official-openvino/README.md)
+- [upstream-llama-cpp guide](upstream-llama-cpp/README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->

@@ -32,3 +32,36 @@ R-M13
 ## Source
 
 RTM Planned Evidence Path
+
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+This folder groups the EXP TV COMP 001 material used by the testing workflow.
+
+### Start here
+
+This is a navigation or evidence container. Use the folder explanations below to choose the next level.
+
+### How this folder fits into testing
+
+This folder belongs to the experiment layer between the test plan and the curated final-results release.
+
+### Generated child folders
+
+**Generated run or test-case folders:** 4 folder(s), for example `EXP-TV-COMP-001-20260902T225731Z-001/`, `EXP-TV-COMP-001-20260902T231605Z-003/`, `EXP-TV-COMP-001-20260902T231605Z-004/`, `EXP-TV-COMP-001-20260902T231605Z-005/`. These hold individual runs, test cases or generated stages. They do not receive separate README files because adding documentation inside captured run folders could blur the evidence boundary.
+
+### Files
+
+There are no immediate non-README files at this level. Continue into the child folders described above.
+
+### Important boundaries
+
+- A protocol or manifest describes intended work; it is not proof that the experiment ran.
+- Use the curated final-results package for conclusions and this tree for audit or reproduction.
+
+### Related guides
+
+- [Parent guide](../README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->

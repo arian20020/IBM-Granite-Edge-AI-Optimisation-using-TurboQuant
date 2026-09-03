@@ -28,3 +28,37 @@ commit `d19c30ea81466dce337eec4ecd1bc037eabee1f0`, with tree
 `2e872dd4817c42d91cb7c3094954d7b56fa12b0a`. Reproducible builds use the
 controller-generated replay commit from all four patch files, not the
 development commit. The replay tree must equal the tree above byte-for-byte.
+
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+This folder groups the openvino turboquant material used by the testing workflow.
+
+### Start here
+
+Begin with [`0001-tbq-codec.patch`](0001-tbq-codec.patch). The tables below explain the remaining items.
+
+### How this folder fits into testing
+
+This folder belongs to the experiment layer between the test plan and the curated final-results release.
+
+### Files
+
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`0001-tbq-codec.patch`](0001-tbq-codec.patch) | Controlled source patch for 0001 tbq codec. Its presence does not prove it was applied in a test run. | Supporting repository file |
+| [`0002-kv-config-telemetry.patch`](0002-kv-config-telemetry.patch) | Controlled source patch for 0002 kv config telemetry. Its presence does not prove it was applied in a test run. | Supporting repository file |
+| [`0003-fused-stateful-runtime.patch`](0003-fused-stateful-runtime.patch) | Controlled source patch for 0003 fused stateful runtime. Its presence does not prove it was applied in a test run. | Supporting repository file |
+| [`0004-bounded-identity-gpu-standard.patch`](0004-bounded-identity-gpu-standard.patch) | Controlled source patch for 0004 bounded identity gpu standard. Its presence does not prove it was applied in a test run. | Supporting repository file |
+
+### Important boundaries
+
+- A protocol or manifest describes intended work; it is not proof that the experiment ran.
+- Use the curated final-results package for conclusions and this tree for audit or reproduction.
+
+### Related guides
+
+- [Parent guide](../README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->
