@@ -1,8 +1,8 @@
 # Beginner-Friendly Testing README Hierarchy Design
 
-**Date:** 3 September 2026  
-**Target branch:** `main`  
-**Target worktree:** `C:\Users\Student\Granite-Main-Merge-2026-09-02`  
+**Date:** 3 September 2026
+**Target branch:** `main`
+**Target worktree:** `C:\Users\Student\Granite-Main-Merge-2026-09-02`
 **Status:** Awaiting implementation approval
 
 ## Problem
