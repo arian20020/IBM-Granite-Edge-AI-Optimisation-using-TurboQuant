@@ -85,5 +85,13 @@ This folder belongs to the tooling layer. It helps create or check evidence but 
 ### Related guides
 
 - [Parent guide](../README.md)
+- [campaigns guide](campaigns/README.md)
+- [cli guide](cli/README.md)
+- [examples guide](examples/README.md)
+- [reporting guide](reporting/README.md)
+- [tests guide](tests/README.md)
+- [tools guide](tools/README.md)
+- [turbovec guide](turbovec/README.md)
+- [workbook05 guide](workbook05/README.md)
 
 <!-- END BEGINNER DIRECTORY GUIDE -->
