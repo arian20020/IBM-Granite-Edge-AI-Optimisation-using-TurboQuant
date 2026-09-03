@@ -10,7 +10,7 @@ This folder groups the environments material used by the testing workflow.
 
 ### Start here
 
-Continue with [`ENV-20260714-INTEL-LAPTOP-01/`](ENV-20260714-INTEL-LAPTOP-01/README.md).
+Continue with the generated `ENV-20260714-INTEL-LAPTOP-01/` environment-record folder described below.
 
 ### How this folder fits into testing
 

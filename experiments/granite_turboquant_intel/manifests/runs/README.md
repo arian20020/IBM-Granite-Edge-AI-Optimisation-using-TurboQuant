@@ -10,7 +10,7 @@ This folder groups the runs material used by the testing workflow.
 
 ### Start here
 
-Continue with [`upstream-llama-cpp/`](upstream-llama-cpp/README.md).
+Continue with the generated `upstream-llama-cpp/` run-record folder described below.
 
 ### How this folder fits into testing
 

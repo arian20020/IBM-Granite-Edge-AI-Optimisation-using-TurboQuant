@@ -10,7 +10,7 @@ Implements route-specific test campaign logic behind the supported command line 
 
 ### Start here
 
-Continue with [`GTQ-WB05-MF-v1/`](GTQ-WB05-MF-v1/README.md).
+Continue with the generated `GTQ-WB05-MF-v1/` campaign-record folder described below.
 
 ### How this folder fits into testing
 
