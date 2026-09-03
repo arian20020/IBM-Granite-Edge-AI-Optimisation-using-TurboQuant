@@ -32,3 +32,58 @@ python -m scripts.testing.cli.run_openvino --mode format-boundary -- --status
 python -m scripts.testing.cli.build_results --route all --output-root tmp/final-results-build
 python -m scripts.testing.cli.validate_results --route all --output-root docs/testing/final-results
 ```
+
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+This is the supported code area for running, processing and validating tests.
+
+### Start here
+
+Start with the supported commands in [`cli/`](cli/README.md). Use lower-level modules only when you are maintaining the test system.
+
+### How this folder fits into testing
+
+This folder belongs to the tooling layer. It helps create or check evidence but is not evidence by itself.
+
+### Folders
+
+| Folder | What it contains |
+| --- | --- |
+| [`campaigns/`](campaigns/README.md) | Implements route-specific test campaign logic behind the supported command line tools. |
+| [`cli/`](cli/README.md) | Provides the supported command line entry points for running and validating tests. |
+| [`examples/`](examples/README.md) | Contains example input files that show the expected structure without being real results. |
+| [`reporting/`](reporting/README.md) | Builds and validates the common Markdown, DOCX, PDF and data reports. |
+| [`tests/`](tests/README.md) | Tests the testing tools themselves. These are not model benchmark results. |
+| [`tools/`](tools/README.md) | Contains lower-level migration, capture, conversion, reconciliation and validation utilities. |
+| [`turbovec/`](turbovec/README.md) | This folder covers the TurboVec feasibility experiment. |
+| [`workbook05/`](workbook05/README.md) | Contains controlled helpers for Workbook 05 source admission, build and measurement stages. |
+
+### Generated child folders
+
+**Python cache folders:** 1 folder(s), for example `__pycache__/`. These are temporary Python bytecode caches. They are not source files or test evidence and do not receive README files.
+
+### Files
+
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`Invoke-TurboVecFeasibility.ps1`](Invoke-TurboVecFeasibility.ps1) | Runs the Invoke TurboVecFeasibility PowerShell workflow. | Executable; may create or change outputs |
+| [`requirements.txt`](requirements.txt) | Pinned or bounded Python packages needed by this testing area. | Supporting repository file |
+| [`run_turbovec_feasibility.py`](run_turbovec_feasibility.py) | CLI entry point for the controlled TurboVec feasibility campaign. | Executable; may create or change outputs |
+| [`Test-TurboVecEvidence.ps1`](Test-TurboVecEvidence.ps1) | Checks the Test TurboVecEvidence PowerShell workflow. | Executable or importable tooling |
+| [`Validate-Workbook05-BuildStage.ps1`](Validate-Workbook05-BuildStage.ps1) | Runs the complete repository-side Workbook 05 documented-build gate. | Executable or importable tooling |
+| [`Validate-Workbook05-MemoryFrontier.ps1`](Validate-Workbook05-MemoryFrontier.ps1) | Runs every repository-controlled Workbook 05 memory-frontier scaffold gate. | Executable or importable tooling |
+| [`Validate-Workbook05-Phase3.ps1`](Validate-Workbook05-Phase3.ps1) | Checks the Validate Workbook05 Phase3 PowerShell workflow. | Executable or importable tooling |
+| [`Validate-Workbook05-SourceAdmission.ps1`](Validate-Workbook05-SourceAdmission.ps1) | Runs every repository-controlled Workbook 05 Phase 1 source-admission gate. | Executable or importable tooling |
+
+### Important boundaries
+
+- Read command help before running a script. Commands named run, build, generate, convert, publish or finalise may create or change outputs.
+- Passing tests for this tooling does not mean a model benchmark or application evaluation passed.
+
+### Related guides
+
+- [Parent guide](../README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->
