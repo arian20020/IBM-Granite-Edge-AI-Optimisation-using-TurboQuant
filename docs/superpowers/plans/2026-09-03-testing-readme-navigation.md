@@ -24,6 +24,21 @@
 - Distinguish passed, failed, blocked and unavailable results; never turn missing evidence into zero.
 - Keep cross-route comparison claims within the published comparability rules.
 
+## Approved execution amendment: preserve immutable final-results v2
+
+During Task 4, the canonical validator showed that adding or editing files under
+`docs/testing/final-results` invalidates its exact path/hash manifest and makes a
+new `reports/README.md` violate the one-Markdown-report parity rule. The user
+selected the preservation option on 3 September 2026.
+
+Therefore Tasks 3 and 4 below are superseded as direct-edit instructions. Their
+attempted changes were removed and release validation was rerun successfully.
+Instead, create
+`docs/testing/Final-Results-Beginner-Directory-Guide.md`. This companion guide
+must describe every directory and every file inside the immutable release while
+leaving `docs/testing/final-results` byte-for-byte unchanged. Link the companion
+from `docs/testing/README.md`. All other tasks continue as written.
+
 ---
 
 ### Task 1: Strengthen the three navigation roots
@@ -163,7 +178,10 @@ git commit -m "docs(testing): explain supporting documentation folders"
 
 ---
 
-### Task 3: Complete README coverage for final-results routes 01–03
+### Task 3: Superseded direct-edit plan for final-results routes 01–03
+
+> **Do not execute this task.** Its README-only changes were reverted by commit
+> `d7e48f10` to restore release integrity. Use the approved companion guide above.
 
 **Files:** Create or modify `README.md` in every directory listed below:
 
@@ -239,7 +257,10 @@ git commit -m "docs(testing): explain llama route result packages"
 
 ---
 
-### Task 4: Complete README coverage for final-results routes 04–06 and shared files
+### Task 4: Superseded direct-edit plan for final-results routes 04–06 and shared files
+
+> **Do not execute this task.** Use the approved companion guide above and prove
+> that the immutable release validator still passes.
 
 **Files:** Create or modify `README.md` in every directory listed below:
 

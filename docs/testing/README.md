@@ -158,6 +158,7 @@ This folder supports the controlled path from a test requirement to evidence, va
 | [`Failure-Code-Catalogue.md`](Failure-Code-Catalogue.md) | Readable Markdown document titled “Controlled Failure Code Catalogue”. | Supporting repository file |
 | [`Failure-Register.csv`](Failure-Register.csv) | CSV table with 12 data row(s). Main columns are `Failure_ID`, `Date_UTC`, `Date_Local`, `Run_ID`, `Test_ID`, `Route`, `Workbook_ID` and 20 more. | Supporting repository file |
 | [`Failure-Register.md`](Failure-Register.md) | Readable Markdown document titled “Failure Register”. | Supporting repository file |
+| [`Final-Results-Beginner-Directory-Guide.md`](Final-Results-Beginner-Directory-Guide.md) | Readable Markdown document titled “Final Results: Beginner Directory and File Guide”. | Supporting repository file |
 | [`Master-Test-Plan.md`](Master-Test-Plan.md) | Readable Markdown document titled “Master Test Plan”. | Supporting repository file |
 | [`Metric-Definitions.md`](Metric-Definitions.md) | Readable Markdown document titled “Metric Definitions and Calculation Rules”. | Supporting repository file |
 | [`Model-Register.csv`](Model-Register.csv) | CSV table with 0 data row(s). Main columns are `Model_ID`, `Display_Name`, `Family`, `Release`, `Variant`, `Source_URL`, `Source_Revision` and 23 more. | Supporting repository file |
@@ -196,7 +197,11 @@ This folder supports the controlled path from a test requirement to evidence, va
 - [cleanup guide](cleanup/README.md)
 - [failure-evidence guide](failure-evidence/README.md)
 - [final-results guide](final-results/README.md)
+- [legacy guide](legacy/README.md)
+- [manual guide](manual/README.md)
 - [plans guide](plans/README.md)
+- [runbooks guide](runbooks/README.md)
+- [source-material guide](source-material/README.md)
 - [strategies guide](strategies/README.md)
 - [test-reports guide](test-reports/README.md)
 - [ux-evaluation guide](ux-evaluation/README.md)
