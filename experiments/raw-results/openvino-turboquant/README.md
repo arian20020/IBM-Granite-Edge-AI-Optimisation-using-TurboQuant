@@ -1,20 +1,24 @@
-# Cross Route Comparison
+# Openvino Turboquant
 
-This folder covers the guarded cross-route comparison.
+This folder groups the openvino turboquant material used by the testing workflow.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder covers the guarded cross-route comparison.
+This folder groups the openvino turboquant material used by the testing workflow.
 
 ### Start here
 
-Start with the curated final-results report for conclusions. Enter this folder's dated or run-named children only when auditing the captured source evidence.
+This is a navigation or evidence container. Use the folder explanations below to choose the next level.
 
 ### How this folder fits into testing
 
 This folder belongs to the experiment layer between the test plan and the curated final-results release.
+
+### Generated child folders
+
+**Date folders:** 3 folder(s), for example `2026-07-27/`, `2026-07-30/`, `2026-08-01/`. These hold individual runs, test cases or generated stages. They do not receive separate README files because adding documentation inside captured run folders could blur the evidence boundary.
 
 ### Files
 

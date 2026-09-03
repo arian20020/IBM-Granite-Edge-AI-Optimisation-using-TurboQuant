@@ -1,20 +1,26 @@
-# Cross Route Comparison
+# Shared
 
-This folder covers the guarded cross-route comparison.
+This folder groups the shared material used by the testing workflow.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder covers the guarded cross-route comparison.
+This folder groups the shared material used by the testing workflow.
 
 ### Start here
 
-Start with the curated final-results report for conclusions. Enter this folder's dated or run-named children only when auditing the captured source evidence.
+Continue with [`failure-records/`](failure-records/README.md).
 
 ### How this folder fits into testing
 
 This folder belongs to the experiment layer between the test plan and the curated final-results release.
+
+### Folders
+
+| Folder | What it contains |
+| --- | --- |
+| [`failure-records/`](failure-records/README.md) | Contains raw records describing failed or blocked runs. |
 
 ### Files
 
@@ -29,5 +35,6 @@ There are no immediate non-README files at this level. Continue into the child f
 ### Related guides
 
 - [Parent guide](../README.md)
+- [failure-records guide](failure-records/README.md)
 
 <!-- END BEGINNER DIRECTORY GUIDE -->

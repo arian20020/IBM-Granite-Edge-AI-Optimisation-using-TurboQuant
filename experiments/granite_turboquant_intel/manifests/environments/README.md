@@ -1,20 +1,26 @@
-# Cross Route Comparison
+# Environments
 
-This folder covers the guarded cross-route comparison.
+This folder groups the environments material used by the testing workflow.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder covers the guarded cross-route comparison.
+This folder groups the environments material used by the testing workflow.
 
 ### Start here
 
-Start with the curated final-results report for conclusions. Enter this folder's dated or run-named children only when auditing the captured source evidence.
+Continue with [`ENV-20260714-INTEL-LAPTOP-01/`](ENV-20260714-INTEL-LAPTOP-01/README.md).
 
 ### How this folder fits into testing
 
 This folder belongs to the experiment layer between the test plan and the curated final-results release.
+
+### Folders
+
+| Folder | What it contains |
+| --- | --- |
+| `ENV-20260714-INTEL-LAPTOP-01/` | This folder groups the ENV 20260714 INTEL LAPTOP 01 material used by the testing workflow. |
 
 ### Files
 
@@ -22,7 +28,6 @@ There are no immediate non-README files at this level. Continue into the child f
 
 ### Important boundaries
 
-- Treat captured evidence as read-only. Add a new run instead of rewriting an old one.
 - A protocol or manifest describes intended work; it is not proof that the experiment ran.
 - Use the curated final-results package for conclusions and this tree for audit or reproduction.
 

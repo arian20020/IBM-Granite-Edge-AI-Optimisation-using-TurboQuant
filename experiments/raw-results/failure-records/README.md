@@ -1,16 +1,16 @@
-# Cross Route Comparison
+# Failure Records
 
-This folder covers the guarded cross-route comparison.
+Contains raw records describing failed or blocked runs.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder covers the guarded cross-route comparison.
+Contains raw records describing failed or blocked runs.
 
 ### Start here
 
-Start with the curated final-results report for conclusions. Enter this folder's dated or run-named children only when auditing the captured source evidence.
+Begin with [`failure-evidence.csv`](failure-evidence.csv). The tables below explain the remaining items.
 
 ### How this folder fits into testing
 
@@ -18,7 +18,9 @@ This folder belongs to the experiment layer between the test plan and the curate
 
 ### Files
 
-There are no immediate non-README files at this level. Continue into the child folders described above.
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`failure-evidence.csv`](failure-evidence.csv) | CSV table with 15 data row(s). Main columns are `route`, `test_case_id`, `attempt_id`, `terminal_status`, `evidence_ids`, `retained_path`, `size_bytes` and 1 more. | Preserved evidence; do not edit |
 
 ### Important boundaries
 

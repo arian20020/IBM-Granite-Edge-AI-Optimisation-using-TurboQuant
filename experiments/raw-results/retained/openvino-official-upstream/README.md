@@ -1,12 +1,12 @@
-# Cross Route Comparison
+# Official Upstream OpenVINO
 
-This folder covers the guarded cross-route comparison.
+This folder covers the official upstream OpenVINO route.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder covers the guarded cross-route comparison.
+This folder covers the official upstream OpenVINO route.
 
 ### Start here
 
@@ -15,6 +15,10 @@ Start with the curated final-results report for conclusions. Enter this folder's
 ### How this folder fits into testing
 
 This folder belongs to the experiment layer between the test plan and the curated final-results release.
+
+### Generated child folders
+
+**Date folders:** 3 folder(s), for example `2026-07-28/`, `2026-07-30/`, `2026-08-30/`. These hold individual runs, test cases or generated stages. They do not receive separate README files because adding documentation inside captured run folders could blur the evidence boundary.
 
 ### Files
 
