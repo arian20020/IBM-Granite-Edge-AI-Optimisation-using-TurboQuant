@@ -76,3 +76,49 @@ official OpenVINO retest matrix—so a plain archive preserves their pre-existin
 authoritative working bytes. That byte-level admission changed no scientific
 field or meaning. Pre-existing untracked scientific work was outside the cleanup
 transaction and was left untouched.
+
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+Records how testing material was reorganised and how removals were checked.
+
+### Start here
+
+Begin with [`baseline-summary.md`](baseline-summary.md). The tables below explain the remaining items.
+
+### How this folder fits into testing
+
+This folder supports the controlled path from a test requirement to evidence, validation and a bounded conclusion.
+
+### Files
+
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`archive-plan.csv`](archive-plan.csv) | CSV table with 1128 data row(s). Main columns are `source_root_id`, `source_root`, `source_branch`, `source_head`, `source_status_sha256`, `source_path`, `archive_path` and 3 more. | Supporting repository file |
+| [`archive-summary.json`](archive-summary.json) | Stores a JSON object with top-level fields `archive_manifest_sha256`, `archive_root`, `entry_count`, `plan_sha256`, `receipt_path`, `receipt_sha256`, `schema`, `total_bytes`, …. | Supporting repository file |
+| [`baseline-semantic-snapshot.json`](baseline-semantic-snapshot.json) | Stores a JSON object with top-level fields `comparability`, `evidence`, `outcomes`, `pdfs`, `reports`, `schema`, `scientific_tables`, `snapshot_sha256`. | Supporting repository file |
+| [`baseline-summary.md`](baseline-summary.md) | Readable Markdown document titled “Testing cleanup baseline”. | Supporting repository file |
+| [`before-after-summary.md`](before-after-summary.md) | Readable Markdown document titled “Before/after cleanup reconciliation”. | Supporting repository file |
+| [`clean-archive-validation.json`](clean-archive-validation.json) | Stores a JSON object with top-level fields `schema`, `valid`, `cleanup_version`, `release_version`, `base_commit`, `review_fix_input_commit`, `final_branch_fix_input_commit`, `current_revision_fix_input_commit`, …. | Supporting repository file |
+| [`duplicate-groups.csv`](duplicate-groups.csv) | CSV table with 1604 data row(s). Main columns are `duplicate_group`, `path`, `sha256`, `size_bytes`, `action`. | Supporting repository file |
+| [`file-inventory.csv`](file-inventory.csv) | CSV table with 5057 data row(s). Main columns are `source_root_id`, `path`, `tracked_status`, `size_bytes`, `sha256`, `route`, `test_case_id` and 8 more. | Supporting repository file |
+| [`final-semantic-snapshot.json`](final-semantic-snapshot.json) | Stores a JSON object with top-level fields `comparability`, `evidence`, `outcomes`, `pdfs`, `reports`, `schema`, `scientific_tables`, `snapshot_sha256`. | Supporting repository file |
+| [`implementation-root-removal-receipt.json`](implementation-root-removal-receipt.json) | Stores a JSON object with top-level fields `schema`, `valid`, `cleanup_version`, `release_version`, `input_commit`, `input_tree`, `inventory`, `external_archive`, …. | Supporting repository file |
+| [`inventory-metadata.json`](inventory-metadata.json) | Stores a JSON object with top-level fields `canonical_branch`, `canonical_head`, `canonical_root`, `canonical_status_capture_phase`, `canonical_status_sha256`, `record_count`, `schema`, `scopes`, …. | Supporting repository file |
+| [`PATH-MIGRATION.csv`](PATH-MIGRATION.csv) | CSV table with 1572 data row(s). Main columns are `old_path`, `new_path`, `reason`. | Supporting repository file |
+| [`post-move-pytest-collection.txt`](post-move-pytest-collection.txt) | Plain-text evidence or diagnostic output for post move pytest collection; read it as supporting detail, not as the final conclusion. | Supporting repository file |
+| [`pre-move-pytest-collection.txt`](pre-move-pytest-collection.txt) | Plain-text evidence or diagnostic output for pre move pytest collection; read it as supporting detail, not as the final conclusion. | Supporting repository file |
+| [`removal-receipt.json`](removal-receipt.json) | Stores a JSON object with top-level fields `action_counts`, `archive_entry_count`, `archive_manifest_sha256`, `archive_plan_path`, `archive_plan_sha256`, `archive_receipt_path`, `archive_receipt_sha256`, `archive_root`, …. | Supporting repository file |
+| [`source-canonical-deltas.csv`](source-canonical-deltas.csv) | CSV table with 5156 data row(s). Main columns are `path`, `state`, `source_sha256`, `canonical_sha256`, `classification`. | Supporting repository file |
+| [`test-path-migration.csv`](test-path-migration.csv) | CSV table with 94 data row(s). Main columns are `source_path`, `destination_path`, `bucket`. | Supporting repository file |
+
+### Important boundaries
+
+- Check the file's status and evidence links before treating it as a current result.
+
+### Related guides
+
+- [Parent guide](../README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->

@@ -29,3 +29,30 @@ None assigned
 
 Repository evidence structure
 
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+Contains evidence and explanations for failed, blocked or inconclusive tests.
+
+### Start here
+
+This is a navigation or evidence container. Use the folder explanations below to choose the next level.
+
+### How this folder fits into testing
+
+This folder supports the controlled path from a test requirement to evidence, validation and a bounded conclusion.
+
+### Files
+
+There are no immediate non-README files at this level. Continue into the child folders described above.
+
+### Important boundaries
+
+- Check the file's status and evidence links before treating it as a current result.
+
+### Related guides
+
+- [Parent guide](../README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->

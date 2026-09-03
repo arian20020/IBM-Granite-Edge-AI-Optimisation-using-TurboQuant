@@ -29,3 +29,32 @@ None assigned
 
 Repository evidence structure
 
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+Contains approved plans for testing work that may be complete, active or still proposed.
+
+### Start here
+
+Begin with [`2026-07-16-atomicbot-turboquant-formal-retest-design.md`](2026-07-16-atomicbot-turboquant-formal-retest-design.md). The tables below explain the remaining items.
+
+### How this folder fits into testing
+
+This folder supports the controlled path from a test requirement to evidence, validation and a bounded conclusion.
+
+### Files
+
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`2026-07-16-atomicbot-turboquant-formal-retest-design.md`](2026-07-16-atomicbot-turboquant-formal-retest-design.md) | Readable Markdown document titled “AtomicBot TurboQuant Formal Retest Design”. | Supporting repository file |
+
+### Important boundaries
+
+- Check the file's status and evidence links before treating it as a current result.
+
+### Related guides
+
+- [Parent guide](../README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->

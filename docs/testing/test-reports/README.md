@@ -29,3 +29,32 @@ None assigned
 
 Repository evidence structure
 
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+Contains reports from application or repository test activities.
+
+### Start here
+
+Begin with [`.gitkeep`](.gitkeep). The tables below explain the remaining items.
+
+### How this folder fits into testing
+
+This folder supports the controlled path from a test requirement to evidence, validation and a bounded conclusion.
+
+### Files
+
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`.gitkeep`](.gitkeep) | Supporting data file for .gitkeep. | Supporting repository file |
+
+### Important boundaries
+
+- Check the file's status and evidence links before treating it as a current result.
+
+### Related guides
+
+- [Parent guide](../README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->

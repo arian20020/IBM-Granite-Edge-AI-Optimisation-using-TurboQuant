@@ -33,3 +33,41 @@ The first command generates the content, the second inserts the synchronized rev
 ## Completion rule
 
 A workbook result section is complete only when its run ID, processed-result path, raw-evidence path and evidence commit are recorded in `../Workbook-Completion-Register.csv`. Important measured values must first be stored in the relevant machine-readable register rather than only typed into Word.
+
+<!-- BEGIN BEGINNER DIRECTORY GUIDE -->
+
+## Beginner directory guide
+
+Contains controlled workbook templates, generated copies and workbook indexes.
+
+### Start here
+
+Begin with [`Controlled-Workbook-Manifest.csv`](Controlled-Workbook-Manifest.csv). The tables below explain the remaining items.
+
+### How this folder fits into testing
+
+This folder supports the controlled path from a test requirement to evidence, validation and a bounded conclusion.
+
+### Folders
+
+| Folder | What it contains |
+| --- | --- |
+| [`generated/`](generated/README.md) | Contains files produced from controlled templates. Edit the source template or generator when possible. |
+| [`text-templates/`](text-templates/README.md) | Contains readable Markdown sources used to generate workbook documents. |
+
+### Files
+
+| File | What it is for | Status and editing guidance |
+| --- | --- | --- |
+| [`Controlled-Workbook-Manifest.csv`](Controlled-Workbook-Manifest.csv) | CSV table with 6 data row(s). Main columns are `Workbook_ID`, `Controlled_File`, `Canonical_Text_Template`, `Source_File`, `Source_SHA256`, `Canonical_Template_SHA256`, `Last_Validated_DOCX_SHA256` and 5 more. | Supporting repository file |
+
+### Important boundaries
+
+- Check the file's status and evidence links before treating it as a current result.
+
+### Related guides
+
+- [Parent guide](../README.md)
+- [generated guide](generated/README.md)
+
+<!-- END BEGINNER DIRECTORY GUIDE -->
