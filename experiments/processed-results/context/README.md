@@ -33,7 +33,7 @@ RTM Planned Evidence Path
 
 ## Beginner directory guide
 
-This folder groups the context material used by the testing workflow.
+This is the planned location for derived context-stability results used to identify the largest stable tested context under requirement R-M07. Folder presence is not proof that the experiment ran.
 
 ### Start here
 

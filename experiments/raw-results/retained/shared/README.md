@@ -1,12 +1,12 @@
-# Shared
+# Shared retained evidence
 
-This folder groups the shared material used by the testing workflow.
+This folder contains retained evidence that belongs to the collection as a whole rather than to one inference route.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder groups the shared material used by the testing workflow.
+Use this folder for collection-wide retained source evidence. The current child preserves the shared terminal failure records used by the failure index.
 
 ### Start here
 

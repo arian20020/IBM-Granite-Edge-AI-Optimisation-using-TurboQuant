@@ -20,7 +20,7 @@ This folder supports the controlled path from a test requirement to evidence, va
 
 | File | What it is for | Status and editing guidance |
 | --- | --- | --- |
-| [`Previous-Testing-Status.md`](Previous-Testing-Status.md) | Readable Markdown document titled “Previous Testing Campaign Status”. | Supporting repository file |
+| [`Previous-Testing-Status.md`](Previous-Testing-Status.md) | Preserves the earlier campaign status for historical context; it must not override newer controlled results. | Legacy record; not current authority |
 
 ### Important boundaries
 

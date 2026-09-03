@@ -24,7 +24,7 @@ This folder belongs to the experiment layer between the test plan and the curate
 | [`atomicbot-turboquant/`](atomicbot-turboquant/README.md) | This folder covers the AtomicBot TurboQuant route. |
 | [`openvino-experimental-fork/`](openvino-experimental-fork/README.md) | This folder covers the experimental OpenVINO fork route. |
 | [`openvino-official-upstream/`](openvino-official-upstream/README.md) | This folder covers the official upstream OpenVINO route. |
-| [`shared/`](shared/README.md) | This folder groups the shared material used by the testing workflow. |
+| [`shared/`](shared/README.md) | Contains retained evidence used by more than one route, currently the shared terminal failure-record source. |
 | [`upstream-llama-cpp/`](upstream-llama-cpp/README.md) | This folder covers the upstream llama.cpp route. |
 
 ### Files

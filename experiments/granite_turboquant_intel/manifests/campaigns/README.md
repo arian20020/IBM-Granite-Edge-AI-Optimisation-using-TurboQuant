@@ -20,7 +20,7 @@ This folder belongs to the experiment layer between the test plan and the curate
 
 | Folder | What it contains |
 | --- | --- |
-| `GTQ-WB05-MF-v1/` | This folder groups the GTQ WB05 MF v1 material used by the testing workflow. |
+| `GTQ-WB05-MF-v1/` | Contains the controlled campaign manifest for Workbook 05 memory-frontier testing, including the planned cases and campaign identity. |
 
 ### Files
 

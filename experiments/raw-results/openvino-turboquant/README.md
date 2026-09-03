@@ -1,12 +1,12 @@
-# Openvino Turboquant
+# OpenVINO TurboQuant raw evidence
 
-This folder groups the openvino turboquant material used by the testing workflow.
+This folder preserves historical date-organised captures from the experimental OpenVINO TurboQuant campaign. The canonical retained evidence layout is under `../retained/openvino-experimental-fork/`.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder groups the openvino turboquant material used by the testing workflow.
+Use the dated folders to inspect original campaign captures. Treat them as read-only; use the canonical retained tree and final-results package for published claims.
 
 ### Start here
 

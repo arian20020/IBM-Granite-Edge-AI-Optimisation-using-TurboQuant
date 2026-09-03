@@ -33,7 +33,7 @@ RTM Planned Evidence Path
 
 ## Beginner directory guide
 
-This folder groups the cross route material used by the testing workflow.
+This is the planned location for a derived compatibility view across llama.cpp, TurboQuant forks and OpenVINO under requirement R-M11. Use the validated final-results package for released comparisons.
 
 ### Start here
 

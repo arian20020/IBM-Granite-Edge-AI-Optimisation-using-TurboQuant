@@ -20,7 +20,7 @@ This folder supports the controlled path from a test requirement to evidence, va
 
 | File | What it is for | Status and editing guidance |
 | --- | --- | --- |
-| [`Model-Import-GGUF-Picker-Smoke-Test.md`](Model-Import-GGUF-Picker-Smoke-Test.md) | Readable Markdown document titled “Model Import GGUF Picker Smoke Test”. | Supporting repository file |
+| [`Model-Import-GGUF-Picker-Smoke-Test.md`](Model-Import-GGUF-Picker-Smoke-Test.md) | Manual smoke-test procedure for checking that the application can select and begin importing a GGUF model through the file picker. | Manual test procedure |
 
 ### Important boundaries
 

@@ -77,18 +77,20 @@ This folder belongs to the experiment layer between the test plan and the curate
 | [`atomicbot-turboquant/`](atomicbot-turboquant/README.md) | This folder covers the AtomicBot TurboQuant route. |
 | [`cross-route-comparison/`](cross-route-comparison/README.md) | This folder covers the guarded cross-route comparison. |
 | [`custom-openvino-turboquant/`](custom-openvino-turboquant/README.md) | This folder covers the experimental OpenVINO TurboQuant route. |
-| [`EXP-OV-OFFICIAL-001/`](EXP-OV-OFFICIAL-001/README.md) | This folder groups the EXP OV OFFICIAL 001 material used by the testing workflow. |
+| [`EXP-OV-OFFICIAL-001/`](EXP-OV-OFFICIAL-001/README.md) | Planned evidence location for the official OpenVINO source, conversion and runtime experiment required by R-M03. |
 | [`failure-records/`](failure-records/README.md) | Contains raw records describing failed or blocked runs. |
 | [`official-openvino/`](official-openvino/README.md) | This folder covers the official OpenVINO route. |
-| [`openvino-community/`](openvino-community/README.md) | This folder groups the openvino community material used by the testing workflow. |
-| [`openvino-conversion/`](openvino-conversion/README.md) | This folder groups the openvino conversion material used by the testing workflow. |
-| [`openvino-official/`](openvino-official/README.md) | This folder groups the openvino official material used by the testing workflow. |
-| [`openvino-turboquant/`](openvino-turboquant/README.md) | This folder groups the openvino turboquant material used by the testing workflow. |
+| [`openvino-community/`](openvino-community/README.md) | Raw conversion and runtime evidence from community-sourced models, kept separate from official IBM-source evidence. |
+| [`openvino-conversion/`](openvino-conversion/README.md) | Planned evidence location for the verified IBM-source-to-OpenVINO preparation route required by F-S15. |
+| [`openvino-official/`](openvino-official/README.md) | Raw official IBM-source OpenVINO conversion/runtime evidence and reproducible blockers. |
+| [`openvino-turboquant/`](openvino-turboquant/README.md) | Historical date-organised raw evidence for the experimental OpenVINO TurboQuant campaign. Use `retained/openvino-experimental-fork/` for the canonical retained layout. |
 | [`quality/`](quality/README.md) | Contains prompts, scoring rules, output indexes and quality-evaluation evidence. |
 | [`retained/`](retained/README.md) | Preserves raw evidence moved from older layouts without rewriting its contents. |
 | [`turbovec/`](turbovec/README.md) | This folder covers the TurboVec feasibility experiment. |
 
 ### Files
+
+Row counts in this table are a snapshot of the current evidence manifest, not a fixed requirement.
 
 | File | What it is for | Status and editing guidance |
 | --- | --- | --- |

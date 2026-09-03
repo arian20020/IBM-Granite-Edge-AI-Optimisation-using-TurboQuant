@@ -1,12 +1,12 @@
 # Environments
 
-This folder groups the environments material used by the testing workflow.
+This folder records the machines on which controlled testing was performed, including hardware, operating-system and software identity.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder groups the environments material used by the testing workflow.
+Use these records to decide whether two runs used the same environment and whether a result can be reproduced on comparable hardware.
 
 ### Start here
 
@@ -20,7 +20,7 @@ This folder belongs to the experiment layer between the test plan and the curate
 
 | Folder | What it contains |
 | --- | --- |
-| `ENV-20260714-INTEL-LAPTOP-01/` | This folder groups the ENV 20260714 INTEL LAPTOP 01 material used by the testing workflow. |
+| `ENV-20260714-INTEL-LAPTOP-01/` | Contains the captured identity of the Intel laptop environment used by the named controlled runs. It has no separate README because it is a generated evidence record. |
 
 ### Files
 

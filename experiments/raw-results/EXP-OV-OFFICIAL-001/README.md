@@ -33,7 +33,7 @@ RTM Planned Evidence Path
 
 ## Beginner directory guide
 
-This folder groups the EXP OV OFFICIAL 001 material used by the testing workflow.
+This is the planned evidence location for experiment `EXP-OV-OFFICIAL-001`, covering official model provenance, OpenVINO conversion, runtime verification and any reproducible blocker under requirement R-M03.
 
 ### Start here
 

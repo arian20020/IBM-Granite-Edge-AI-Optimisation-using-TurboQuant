@@ -1,12 +1,12 @@
 # Templates
 
-This folder groups the templates material used by the testing workflow.
+This folder contains reusable starting structures for new manifests.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder groups the templates material used by the testing workflow.
+Copy a suitable template when creating a controlled manifest, then replace every placeholder and validate it before execution. A template is not run evidence.
 
 ### Start here
 

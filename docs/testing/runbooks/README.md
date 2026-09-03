@@ -20,8 +20,8 @@ This folder supports the controlled path from a test requirement to evidence, va
 
 | File | What it is for | Status and editing guidance |
 | --- | --- | --- |
-| [`Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md`](Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md) | Readable Markdown document titled “Hardware Inspection Intel Runner Stage 0 Runbook”. | Supporting repository file |
-| [`Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md`](Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md) | Readable Markdown document titled “Hardware Inspection Intel Runner Stage A Runbook”. | Supporting repository file |
+| [`Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md`](Hardware-Inspection-Intel-Runner-Stage-0-Runbook.md) | Procedure for validating hosted repository identity before any hardware evidence is collected. | Operator runbook |
+| [`Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md`](Hardware-Inspection-Intel-Runner-Stage-A-Runbook.md) | Permission-gated procedure for collecting deterministic evidence on one approved ephemeral Intel runner. | Operator runbook |
 
 ### Important boundaries
 

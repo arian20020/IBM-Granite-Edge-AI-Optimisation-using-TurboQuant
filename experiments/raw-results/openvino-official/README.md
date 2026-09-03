@@ -33,7 +33,7 @@ Repository evidence structure
 
 ## Beginner directory guide
 
-This folder groups the openvino official material used by the testing workflow.
+This folder holds raw official IBM-source OpenVINO conversion and runtime evidence, including model identity, device verification, failures and remaining gates.
 
 ### Start here
 

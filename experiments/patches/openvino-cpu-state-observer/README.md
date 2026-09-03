@@ -21,7 +21,7 @@ CPU debug-capability builds.
 
 ## Beginner directory guide
 
-This folder groups the openvino cpu state observer material used by the testing workflow.
+This folder documents the controlled CPU state-allocation observer patch set. It is private project instrumentation, remains disabled by default and must not be described as upstream OpenVINO functionality.
 
 ### Start here
 

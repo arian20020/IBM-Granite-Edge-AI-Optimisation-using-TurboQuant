@@ -37,7 +37,7 @@ RTM Planned Evidence Path
 
 ## Beginner directory guide
 
-This folder groups the EXP TV COMP 001 material used by the testing workflow.
+This folder contains processed outputs for the TurboVec matched-retrieval feasibility experiment. Its latest formal interpretation remains `DEMONSTRATOR_ONLY`; these results do not establish product readiness.
 
 ### Start here
 

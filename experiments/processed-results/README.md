@@ -49,15 +49,15 @@ This folder belongs to the experiment layer between the test plan and the curate
 | --- | --- |
 | [`animehacker-tq3-0/`](animehacker-tq3-0/README.md) | This folder covers the animehacker TQ3_0 route. |
 | [`atomicbot-turboquant/`](atomicbot-turboquant/README.md) | This folder covers the AtomicBot TurboQuant route. |
-| [`context/`](context/README.md) | This folder groups the context material used by the testing workflow. |
-| [`cross-route/`](cross-route/README.md) | This folder groups the cross route material used by the testing workflow. |
+| [`context/`](context/README.md) | Planned home for derived context-stability results associated with requirement R-M07. Folder presence alone does not mean the experiment completed. |
+| [`cross-route/`](cross-route/README.md) | Planned home for the derived route-compatibility view associated with requirement R-M11. Use final-results for released comparisons. |
 | [`cross-route-comparison/`](cross-route-comparison/README.md) | This folder covers the guarded cross-route comparison. |
 | [`custom-openvino-turboquant/`](custom-openvino-turboquant/README.md) | This folder covers the experimental OpenVINO TurboQuant route. |
-| [`EST-VALID-001/`](EST-VALID-001/README.md) | This folder groups the EST VALID 001 material used by the testing workflow. |
-| [`EXP-TQ-COMP-001/`](EXP-TQ-COMP-001/README.md) | This folder groups the EXP TQ COMP 001 material used by the testing workflow. |
-| [`EXP-TV-COMP-001/`](EXP-TV-COMP-001/README.md) | This folder groups the EXP TV COMP 001 material used by the testing workflow. |
-| [`final-metrics/`](final-metrics/README.md) | This folder groups the final metrics material used by the testing workflow. |
-| [`memory-budgets/`](memory-budgets/README.md) | This folder groups the memory budgets material used by the testing workflow. |
+| [`EST-VALID-001/`](EST-VALID-001/README.md) | Planned location for memory-estimator accuracy and false-safe/false-unsafe analysis under requirement R-M14. |
+| [`EXP-TQ-COMP-001/`](EXP-TQ-COMP-001/README.md) | Planned location for a matched TurboQuant-versus-standard-cache comparison under requirement R-M01. |
+| [`EXP-TV-COMP-001/`](EXP-TV-COMP-001/README.md) | Contains the processed TurboVec feasibility runs and their bounded `DEMONSTRATOR_ONLY` decision under requirement R-M13. |
+| [`final-metrics/`](final-metrics/README.md) | Planned location for normalised memory and runtime-performance measures under requirements R-M04 and R-M05. |
+| [`memory-budgets/`](memory-budgets/README.md) | Planned location for derived 4 GB, 8 GB and 16 GB system-memory budget assessments under requirement R-M12. |
 | [`official-openvino/`](official-openvino/README.md) | This folder covers the official OpenVINO route. |
 | [`upstream-llama-cpp/`](upstream-llama-cpp/README.md) | This folder covers the upstream llama.cpp route. |
 

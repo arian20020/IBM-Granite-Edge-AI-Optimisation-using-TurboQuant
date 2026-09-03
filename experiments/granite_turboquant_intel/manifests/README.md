@@ -20,11 +20,11 @@ This folder belongs to the experiment layer between the test plan and the curate
 
 | Folder | What it contains |
 | --- | --- |
-| [`builds/`](builds/README.md) | This folder groups the builds material used by the testing workflow. |
+| [`builds/`](builds/README.md) | Records the repository revision, compiler settings and binary identity used for each controlled build. |
 | [`campaigns/`](campaigns/README.md) | Implements route-specific test campaign logic behind the supported command line tools. |
-| [`environments/`](environments/README.md) | This folder groups the environments material used by the testing workflow. |
-| [`runs/`](runs/README.md) | This folder groups the runs material used by the testing workflow. |
-| [`templates/`](templates/README.md) | This folder groups the templates material used by the testing workflow. |
+| [`environments/`](environments/README.md) | Records the hardware, operating system, drivers and tool versions of each test machine. |
+| [`runs/`](runs/README.md) | Binds individual run IDs to their test case, configuration, inputs and expected evidence locations. |
+| [`templates/`](templates/README.md) | Provides reusable manifest skeletons; a template is an input format, not evidence that a run occurred. |
 
 ### Files
 

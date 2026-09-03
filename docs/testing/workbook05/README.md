@@ -35,11 +35,11 @@ This folder supports the controlled path from a test requirement to evidence, va
 
 | File | What it is for | Status and editing guidance |
 | --- | --- | --- |
-| [`2026-08-06-route-b-phase-2-closure.md`](2026-08-06-route-b-phase-2-closure.md) | Readable Markdown document titled “Workbook 05 Route B Phase 2 Closure”. | Supporting repository file |
-| [`2026-08-13-route-a-phase-2-closure.md`](2026-08-13-route-a-phase-2-closure.md) | Readable Markdown document titled “Workbook 05 Route A Phase 2 Closure”. | Supporting repository file |
-| [`phase3-asset-lock-runbook.md`](phase3-asset-lock-runbook.md) | Readable Markdown document titled “Workbook 05 Phase 3 C1 Asset-Lock Runbook”. | Supporting repository file |
-| [`phase3-c1-implementation-status.md`](phase3-c1-implementation-status.md) | Readable Markdown document titled “Workbook 05 Phase 3 C1 implementation status”. | Supporting repository file |
-| [`phase3-dependency-preflight-runbook.md`](phase3-dependency-preflight-runbook.md) | Readable Markdown document titled “Workbook 05 Phase 3 Clean Dependency-Preflight Runbook”. | Supporting repository file |
+| [`2026-08-06-route-b-phase-2-closure.md`](2026-08-06-route-b-phase-2-closure.md) | Records why Route B Phase 2 was closed as blocked and which evidence supports that boundary. | Phase decision record |
+| [`2026-08-13-route-a-phase-2-closure.md`](2026-08-13-route-a-phase-2-closure.md) | Records the accepted Route A Phase 2 closure and the evidence admitted into the next stage. | Phase decision record |
+| [`phase3-asset-lock-runbook.md`](phase3-asset-lock-runbook.md) | Procedure for verifying and locking the exact Phase 3 C1 model assets before any live operation. | Operator runbook |
+| [`phase3-c1-implementation-status.md`](phase3-c1-implementation-status.md) | Summarises which Phase 3 C1 controls are implemented and which operations remain gated. | Status record |
+| [`phase3-dependency-preflight-runbook.md`](phase3-dependency-preflight-runbook.md) | Procedure for validating the clean Windows dependencies required before Phase 3 may proceed. | Operator runbook |
 
 ### Important boundaries
 

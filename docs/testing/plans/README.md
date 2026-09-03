@@ -47,7 +47,7 @@ This folder supports the controlled path from a test requirement to evidence, va
 
 | File | What it is for | Status and editing guidance |
 | --- | --- | --- |
-| [`2026-07-16-atomicbot-turboquant-formal-retest-design.md`](2026-07-16-atomicbot-turboquant-formal-retest-design.md) | Readable Markdown document titled “AtomicBot TurboQuant Formal Retest Design”. | Supporting repository file |
+| [`2026-07-16-atomicbot-turboquant-formal-retest-design.md`](2026-07-16-atomicbot-turboquant-formal-retest-design.md) | Approved design for the AtomicBot TurboQuant formal retest, including scope, sequence, evidence and completion rules. | Historical test design |
 
 ### Important boundaries
 

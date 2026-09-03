@@ -1,12 +1,12 @@
 # Builds
 
-This folder groups the builds material used by the testing workflow.
+This folder records how tested binaries were built and identifies the exact source revision and build outputs used by a route.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder groups the builds material used by the testing workflow.
+Use these records to connect a reported result to a reproducible source revision, toolchain and binary identity.
 
 ### Start here
 
@@ -20,7 +20,7 @@ This folder belongs to the experiment layer between the test plan and the curate
 
 | Folder | What it contains |
 | --- | --- |
-| `upstream-llama-cpp/` | This folder covers the upstream llama.cpp route. |
+| `upstream-llama-cpp/` | Contains the build identity and verification records for the upstream llama.cpp route. It has no separate README because its contents are generated records. |
 
 ### Files
 

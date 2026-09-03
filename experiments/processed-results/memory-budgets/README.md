@@ -33,7 +33,7 @@ RTM Planned Evidence Path
 
 ## Beginner directory guide
 
-This folder groups the memory budgets material used by the testing workflow.
+This is the planned location for assessments against 4 GB, 8 GB and 16 GB total system-memory budgets. Each value must state whether it is measured, calculated or predicted and retain its uncertainty.
 
 ### Start here
 

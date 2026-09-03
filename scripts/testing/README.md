@@ -1,8 +1,24 @@
 # Testing Commands
 
-`scripts/testing` now exposes the supported contributor-facing command surface for testing campaigns and final-results validation. The CLI layer stays thin: it dispatches to the proven campaign and reporting implementations without duplicating route logic.
+`scripts/testing` provides the supported contributor-facing command surface for testing campaigns and final-results validation. The CLI layer stays thin: it dispatches to the proven campaign and reporting implementations without duplicating route logic.
 
 The four `Validate-Workbook05-*.ps1` files remain top-level, documented CI entrypoints supplied by current `main`; implementation helpers remain grouped under `workbook05/` and `tools/`.
+
+## Choose the safest entry point
+
+| Goal | Start here |
+| --- | --- |
+| Check the published result package without changing it | `python -m scripts.testing.cli.validate_results --route all --output-root docs/testing/final-results` |
+| See the supported commands and arguments | [`cli/README.md`](cli/README.md) |
+| Run one repository route | Use the matching `run_llama`, `run_atomicbot`, `run_animehacker` or `run_openvino` command below |
+| Export a report to PDF | Use `scripts/testing/cli/export_report.ps1` as shown below |
+| Maintain route implementation code | [`campaigns/README.md`](campaigns/README.md) |
+| Investigate migration, capture or reconciliation utilities | [`tools/README.md`](tools/README.md) |
+| Test the testing system itself | [`tests/README.md`](tests/README.md) |
+| Work on TurboVec feasibility evidence | [`turbovec/README.md`](turbovec/README.md) |
+| Work on Workbook 05 controls | [`workbook05/README.md`](workbook05/README.md) |
+
+Prefer the CLI when it supports the required task. Files under `tools/` are lower-level maintenance utilities and may assume carefully prepared evidence or manifests.
 
 ## Safety boundaries
 

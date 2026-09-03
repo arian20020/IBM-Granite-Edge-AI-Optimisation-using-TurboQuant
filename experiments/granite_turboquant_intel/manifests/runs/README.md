@@ -1,12 +1,12 @@
 # Runs
 
-This folder groups the runs material used by the testing workflow.
+This folder stores run manifests that bind an execution ID to its route, test case, configuration and evidence locations.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
 
-This folder groups the runs material used by the testing workflow.
+Use a run manifest to answer exactly what was requested, where its evidence belongs and which identifiers must appear in later reports.
 
 ### Start here
 
@@ -20,7 +20,7 @@ This folder belongs to the experiment layer between the test plan and the curate
 
 | Folder | What it contains |
 | --- | --- |
-| `upstream-llama-cpp/` | This folder covers the upstream llama.cpp route. |
+| `upstream-llama-cpp/` | Contains generated run manifests for the upstream llama.cpp route. Individual run folders do not receive separate README files. |
 
 ### Files
 

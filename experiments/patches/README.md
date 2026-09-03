@@ -20,8 +20,8 @@ This folder belongs to the experiment layer between the test plan and the curate
 
 | Folder | What it contains |
 | --- | --- |
-| [`openvino-cpu-state-observer/`](openvino-cpu-state-observer/README.md) | This folder groups the openvino cpu state observer material used by the testing workflow. |
-| [`openvino-turboquant/`](openvino-turboquant/README.md) | This folder groups the openvino turboquant material used by the testing workflow. |
+| [`openvino-cpu-state-observer/`](openvino-cpu-state-observer/README.md) | Contains the private, default-off instrumentation patch set used to observe OpenVINO CPU state allocation. It is project instrumentation, not upstream functionality. |
+| [`openvino-turboquant/`](openvino-turboquant/README.md) | Contains the ordered TurboQuant and cache-telemetry patch series applied to a pinned OpenVINO GenAI baseline for the experimental route. |
 
 ### Files
 

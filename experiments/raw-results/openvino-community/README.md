@@ -33,7 +33,7 @@ Repository evidence structure
 
 ## Beginner directory guide
 
-This folder groups the openvino community material used by the testing workflow.
+This folder is reserved for raw OpenVINO evidence produced from community-sourced models. Its contents must remain clearly separated from official IBM-source evidence.
 
 ### Start here
 

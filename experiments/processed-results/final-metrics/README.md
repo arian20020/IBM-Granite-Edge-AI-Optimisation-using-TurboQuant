@@ -36,7 +36,7 @@ RTM Planned Evidence Path
 
 ## Beginner directory guide
 
-This folder groups the final metrics material used by the testing workflow.
+This is the planned location for normalised memory and runtime-performance measures under requirements R-M04 and R-M05. Check evidence links before treating any value as measured and final.
 
 ### Start here
 

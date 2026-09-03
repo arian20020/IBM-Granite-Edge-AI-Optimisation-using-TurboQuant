@@ -2,11 +2,47 @@
 
 > This guide explains every directory and file in `docs/testing/final-results` without changing that checksum-validated release package.
 
+## Release snapshot
+
+- **Release:** `unified-final-results-2026-09-01-v2`
+- **Release date:** 1 September 2026
+- **Readiness status:** `ready_with_documented_limitations`
+- **Campaign accounting:** 169 intended configurations: 81 passed, 6 failed, 28 blocked and 54 unavailable because validated model artefacts were missing.
+- **Integrity:** every ordered validation gate passes for the published package.
+
+“Ready with documented limitations” means that the package is internally validated and suitable for the bounded claims stated in its reports. It does not mean that every configuration ran, that every route is directly comparable, or that the software is proven suitable for clinical, educational or production use. Read the [validation summary](final-results/validation/validation-summary.md), [release-readiness receipt](final-results/validation/release-readiness.json), [comparability matrix](final-results/catalog/comparability-matrix.csv) and [licensing disclosure](final-results/LICENSES.md) before making wider claims.
+
 ## Start here
 
 The final-results package contains the published evidence from five inference routes and one guarded comparison package. It accounts for 169 intended configurations: 81 passed, 6 failed, 28 were blocked and 54 were unavailable because validated model artefacts were missing.
 
 For a readable technical overview, open the [cross-route Markdown report](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.md). For an editable copy, use its DOCX file. For printing, use its PDF file. If you need rows for analysis, use the files in [`final-results/catalog/`](final-results/catalog/).
+
+## Open the main result for each route
+
+| Route | Read online | Edit in Word | Print or share | Excel comparison |
+| --- | --- | --- | --- | --- |
+| Upstream llama.cpp | [Markdown](final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.md) | [DOCX](final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.docx) | [PDF](final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.pdf) | Not supplied for this route |
+| AtomicBot TurboQuant | [Markdown](final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.md) | [DOCX](final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.docx) | [PDF](final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.pdf) | Not supplied for this route |
+| animehacker TQ3_0 | [Markdown](final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.md) | [DOCX](final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.docx) | [PDF](final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.pdf) | Not supplied for this route |
+| Experimental OpenVINO fork | [Markdown](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-report.md) | [DOCX](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-report.docx) | [PDF](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-report.pdf) | [XLSX](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-results.xlsx) |
+| Official upstream OpenVINO | [Markdown](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-report.md) | [DOCX](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-report.docx) | [PDF](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-report.pdf) | [XLSX](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-results.xlsx) |
+| Guarded cross-route comparison | [Markdown](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.md) | [DOCX](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.docx) | [PDF](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.pdf) | Use the shared [catalog CSV files](final-results/catalog/) |
+
+The DOCX and XLSX files above are editable copies of released results, but the copies inside `final-results` are immutable release artefacts. Save edits outside `final-results`. Blank controlled workbook templates are documented separately in the [workbooks guide](workbooks/README.md).
+
+## Jump to a directory reference
+
+- [Release root](#release-root)
+- [01 — Upstream llama.cpp](#route-01)
+- [02 — AtomicBot TurboQuant](#route-02)
+- [03 — animehacker TQ3_0](#route-03)
+- [04 — Experimental OpenVINO fork](#route-04)
+- [05 — Official upstream OpenVINO](#route-05)
+- [06 — Cross-route comparison](#route-06)
+- [Shared catalog](#shared-catalog)
+- [Standards and schemas](#shared-standards)
+- [Release validation](#release-validation)
 
 ## Important words
 
@@ -45,8 +81,9 @@ For a readable technical overview, open the [cross-route Markdown report](final-
 
 ## Complete directory and file reference
 
-The sections below describe each folder and every file directly inside it. A file appears once, under its immediate parent folder.
+The sections below describe each folder and every file directly inside it. A file appears once, under its immediate parent folder. Any row count shown is a snapshot of this release, not a permanent schema requirement.
 
+<a id="release-root"></a>
 ## `final-results/`
 
 Contains the curated, validated result packages used for final reporting.
@@ -72,10 +109,11 @@ Contains the curated, validated result packages used for final reporting.
 | [`CHANGELOG.md`](final-results/CHANGELOG.md) | History of released package changes. | Supporting repository file |
 | [`LICENSES.md`](final-results/LICENSES.md) | Licensing, attribution and known licensing-gap information. | Supporting repository file |
 | [`manifest-sha256.txt`](final-results/manifest-sha256.txt) | SHA-256 checksums used to detect missing or changed packaged files. | Supporting repository file |
-| [`README.md`](final-results/README.md) | Readable Markdown document titled “Granite + TurboQuant unified testing results”. | Supporting repository file |
+| [`README.md`](final-results/README.md) | Main release entry point: explains scope, route layout, validation status, comparison limits and where to begin. | Release overview; do not edit in place |
 | [`REPRODUCING.md`](final-results/REPRODUCING.md) | Step-by-step guide to validating or rebuilding the published package. | Supporting repository file |
 | [`ro-crate-metadata.json`](final-results/ro-crate-metadata.json) | RO-Crate metadata connecting files, sources and creation activities. | Supporting repository file |
 
+<a id="route-01"></a>
 ### `final-results/01-upstream-llama-cpp/`
 
 This folder covers the upstream llama.cpp baseline route. It is a curated publication package, not a live working directory.
@@ -94,7 +132,7 @@ This folder covers the upstream llama.cpp baseline route. It is a curated public
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/01-upstream-llama-cpp/README.md) | Readable Markdown document titled “Upstream llama.cpp final results”. | Supporting repository file |
+| [`README.md`](final-results/01-upstream-llama-cpp/README.md) | Introduces the upstream llama.cpp route, its outcome boundary and the route's data, evidence, report, reproduction and validation areas. | Route overview; do not edit in place |
 
 #### `final-results/01-upstream-llama-cpp/data/`
 
@@ -147,7 +185,7 @@ Preserves failed or blocked outcomes so they are not hidden from the final recor
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/01-upstream-llama-cpp/evidence/failures/README.md) | Readable Markdown document titled “Failures and deviations”. | Supporting repository file |
+| [`README.md`](final-results/01-upstream-llama-cpp/evidence/failures/README.md) | Explains how this route preserves failures and deviations and how curated log extracts relate to structured failure rows. | Failure-evidence guide |
 
 ###### `final-results/01-upstream-llama-cpp/evidence/failures/curated-logs/`
 
@@ -157,7 +195,7 @@ Contains the small, relevant log excerpts selected to explain a failure. Here it
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/01-upstream-llama-cpp/evidence/failures/curated-logs/README.md) | Readable Markdown document titled “Curated log handling”. | Supporting repository file |
+| [`README.md`](final-results/01-upstream-llama-cpp/evidence/failures/curated-logs/README.md) | Defines how small relevant log extracts are selected without replacing or rewriting their original source evidence. | Curated-log handling rule |
 
 ##### `final-results/01-upstream-llama-cpp/evidence/source/`
 
@@ -167,7 +205,7 @@ Preserves source artefacts used to build this package. These are evidence, not t
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/01-upstream-llama-cpp/evidence/source/README.md) | Readable Markdown document titled “Source-result handling”. | Preserved evidence; do not edit |
+| [`README.md`](final-results/01-upstream-llama-cpp/evidence/source/README.md) | Explains the handling and authority of source-result artefacts preserved for the upstream llama.cpp release. | Preserved evidence; do not edit |
 
 #### `final-results/01-upstream-llama-cpp/reports/`
 
@@ -178,7 +216,7 @@ Contains human-readable result reports and editable or printable versions. Here 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
 | [`upstream-llama-cpp-report.docx`](final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.docx) | Editable Word version of upstream llama cpp report for review or handoff. | Generated or review artefact |
-| [`upstream-llama-cpp-report.md`](final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.md) | Readable Markdown document titled “Upstream llama.cpp Final Test Report”. | Supporting repository file |
+| [`upstream-llama-cpp-report.md`](final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.md) | Human-readable upstream llama.cpp findings, performance and quality summary, failures, limitations and bounded conclusions. | Primary readable route report |
 | [`upstream-llama-cpp-report.pdf`](final-results/01-upstream-llama-cpp/reports/upstream-llama-cpp-report.pdf) | Printable PDF version of upstream llama cpp report. Use its source file when edits are needed. | Generated or review artefact |
 
 #### `final-results/01-upstream-llama-cpp/reproduction/`
@@ -198,9 +236,9 @@ Contains the inputs and instructions needed to understand or reproduce the route
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`commands.md`](final-results/01-upstream-llama-cpp/reproduction/commands.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
-| [`dependencies.md`](final-results/01-upstream-llama-cpp/reproduction/dependencies.md) | Readable Markdown document titled “Validation dependencies”. | Supporting repository file |
-| [`README.md`](final-results/01-upstream-llama-cpp/reproduction/README.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
+| [`commands.md`](final-results/01-upstream-llama-cpp/reproduction/commands.md) | Lists the safe commands used to validate this published route package. | Reproduction instruction |
+| [`dependencies.md`](final-results/01-upstream-llama-cpp/reproduction/dependencies.md) | Lists the software needed to run the route's validation and reproduction checks. | Reproduction dependency record |
+| [`README.md`](final-results/01-upstream-llama-cpp/reproduction/README.md) | Starting point for understanding and validating this route's frozen reproduction material. | Reproduction guide |
 
 ##### `final-results/01-upstream-llama-cpp/reproduction/protocol/`
 
@@ -210,10 +248,10 @@ Defines what was meant to be tested, in what order, and under which rules. Here 
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`execution-sequence.md`](final-results/01-upstream-llama-cpp/reproduction/protocol/execution-sequence.md) | Readable Markdown document titled “Execution sequence”. | Controlled test input |
+| [`execution-sequence.md`](final-results/01-upstream-llama-cpp/reproduction/protocol/execution-sequence.md) | Defines the ordered preparation, warm-up, measurement, quality and close-out stages used by the route. | Controlled test input |
 | [`intended-test-matrix.csv`](final-results/01-upstream-llama-cpp/reproduction/protocol/intended-test-matrix.csv) | CSV table with 13 data row(s). Main columns are `ID`, `Model`, `Weights`, `K/V cache`, `Device`, `Context`, `Purpose` and 1 more. | Controlled test input |
-| [`metric-definitions.md`](final-results/01-upstream-llama-cpp/reproduction/protocol/metric-definitions.md) | Readable Markdown document titled “Metric definitions”. | Controlled test input |
-| [`test-plan.md`](final-results/01-upstream-llama-cpp/reproduction/protocol/test-plan.md) | Readable Markdown document titled “Test plan”. | Controlled test input |
+| [`metric-definitions.md`](final-results/01-upstream-llama-cpp/reproduction/protocol/metric-definitions.md) | Defines route metric names, units, calculations and aggregation rules. | Controlled test input |
+| [`test-plan.md`](final-results/01-upstream-llama-cpp/reproduction/protocol/test-plan.md) | Defines the route's intended cases, controls, gates and required evidence. | Controlled test input |
 
 ##### `final-results/01-upstream-llama-cpp/reproduction/quality/`
 
@@ -224,11 +262,11 @@ Contains prompts, scoring rules, output indexes and quality-evaluation evidence.
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
 | [`adjudication-log.csv`](final-results/01-upstream-llama-cpp/reproduction/quality/adjudication-log.csv) | CSV table with 1 data row(s). Main columns are `adjudication_id`, `method`, `status`. | Supporting repository file |
-| [`calibration.md`](final-results/01-upstream-llama-cpp/reproduction/quality/calibration.md) | Readable Markdown document titled “Calibration”. | Supporting repository file |
+| [`calibration.md`](final-results/01-upstream-llama-cpp/reproduction/quality/calibration.md) | Records how the quality rubric was calibrated so repeated scoring uses the same interpretation. | Quality-control record |
 | [`outputs-index.csv`](final-results/01-upstream-llama-cpp/reproduction/quality/outputs-index.csv) | CSV table with 54 data row(s). Main columns are `test_case_id`, `prompt_id`, `source_evidence_id`. | Supporting repository file |
 | [`prompt-suite.csv`](final-results/01-upstream-llama-cpp/reproduction/quality/prompt-suite.csv) | CSV table with 6 data row(s). Main columns are `prompt_id`, `task_type`, `scope`, `deterministic_checks_json`, `generation_settings_json`, `prompt_set_id`. | Supporting repository file |
-| [`README.md`](final-results/01-upstream-llama-cpp/reproduction/quality/README.md) | Readable Markdown document titled “Quality evidence”. | Supporting repository file |
-| [`rubric.md`](final-results/01-upstream-llama-cpp/reproduction/quality/rubric.md) | Readable Markdown document titled “GTQ-QUALITY-RUBRIC-v1”. | Supporting repository file |
+| [`README.md`](final-results/01-upstream-llama-cpp/reproduction/quality/README.md) | Explains the route's prompts, captured outputs, scoring records and quality-evidence boundary. | Quality-evidence guide |
+| [`rubric.md`](final-results/01-upstream-llama-cpp/reproduction/quality/rubric.md) | Defines the weighted criteria, penalties and score calculation used for this route's quality evaluation. | Controlled quality rubric |
 
 ##### `final-results/01-upstream-llama-cpp/reproduction/scripts/`
 
@@ -238,7 +276,7 @@ Contains route-specific experiment scripts and compatibility entry points. Here 
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/01-upstream-llama-cpp/reproduction/scripts/README.md) | Readable Markdown document titled “Maintained implementation”. | Supporting repository file |
+| [`README.md`](final-results/01-upstream-llama-cpp/reproduction/scripts/README.md) | Points to the maintained repository scripts that implement this route instead of duplicating executable code in the release. | Implementation pointer |
 
 ##### `final-results/01-upstream-llama-cpp/reproduction/system/`
 
@@ -265,6 +303,7 @@ Contains checks showing whether the package structure and claims satisfy the rel
 | [`validation.json`](final-results/01-upstream-llama-cpp/validation/validation.json) | Machine-readable validation result for tools and automated checks. | Validation receipt |
 | [`validation.md`](final-results/01-upstream-llama-cpp/validation/validation.md) | Readable explanation of the validation result and remaining limitations. | Validation receipt |
 
+<a id="route-02"></a>
 ### `final-results/02-atomicbot-turboquant/`
 
 This folder covers the AtomicBot TurboQuant route. It is a curated publication package, not a live working directory.
@@ -283,7 +322,7 @@ This folder covers the AtomicBot TurboQuant route. It is a curated publication p
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/02-atomicbot-turboquant/README.md) | Readable Markdown document titled “AtomicBot TurboQuant final results”. | Supporting repository file |
+| [`README.md`](final-results/02-atomicbot-turboquant/README.md) | Introduces the AtomicBot TurboQuant route, its outcome boundary and the route's data, evidence, report, reproduction and validation areas. | Route overview; do not edit in place |
 
 #### `final-results/02-atomicbot-turboquant/data/`
 
@@ -336,7 +375,7 @@ Preserves failed or blocked outcomes so they are not hidden from the final recor
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/02-atomicbot-turboquant/evidence/failures/README.md) | Readable Markdown document titled “Failures and deviations”. | Supporting repository file |
+| [`README.md`](final-results/02-atomicbot-turboquant/evidence/failures/README.md) | Explains how this route preserves failures and deviations and how curated log extracts relate to structured failure rows. | Failure-evidence guide |
 
 ###### `final-results/02-atomicbot-turboquant/evidence/failures/curated-logs/`
 
@@ -346,7 +385,7 @@ Contains the small, relevant log excerpts selected to explain a failure. Here it
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/02-atomicbot-turboquant/evidence/failures/curated-logs/README.md) | Readable Markdown document titled “Curated log handling”. | Supporting repository file |
+| [`README.md`](final-results/02-atomicbot-turboquant/evidence/failures/curated-logs/README.md) | Defines how small relevant log extracts are selected without replacing or rewriting their original source evidence. | Curated-log handling rule |
 
 ##### `final-results/02-atomicbot-turboquant/evidence/source/`
 
@@ -356,7 +395,7 @@ Preserves source artefacts used to build this package. These are evidence, not t
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/02-atomicbot-turboquant/evidence/source/README.md) | Readable Markdown document titled “Source-result handling”. | Preserved evidence; do not edit |
+| [`README.md`](final-results/02-atomicbot-turboquant/evidence/source/README.md) | Explains the handling and authority of source-result artefacts preserved for the AtomicBot release. | Preserved evidence; do not edit |
 
 #### `final-results/02-atomicbot-turboquant/reports/`
 
@@ -367,7 +406,7 @@ Contains human-readable result reports and editable or printable versions. Here 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
 | [`atomicbot-turboquant-report.docx`](final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.docx) | Editable Word version of atomicbot turboquant report for review or handoff. | Generated or review artefact |
-| [`atomicbot-turboquant-report.md`](final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.md) | Readable Markdown document titled “AtomicBot TurboQuant Final Test Report”. | Supporting repository file |
+| [`atomicbot-turboquant-report.md`](final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.md) | Human-readable AtomicBot findings, performance and quality summary, failures, limitations and bounded conclusions. | Primary readable route report |
 | [`atomicbot-turboquant-report.pdf`](final-results/02-atomicbot-turboquant/reports/atomicbot-turboquant-report.pdf) | Printable PDF version of atomicbot turboquant report. Use its source file when edits are needed. | Generated or review artefact |
 
 #### `final-results/02-atomicbot-turboquant/reproduction/`
@@ -387,9 +426,9 @@ Contains the inputs and instructions needed to understand or reproduce the route
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`commands.md`](final-results/02-atomicbot-turboquant/reproduction/commands.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
-| [`dependencies.md`](final-results/02-atomicbot-turboquant/reproduction/dependencies.md) | Readable Markdown document titled “Validation dependencies”. | Supporting repository file |
-| [`README.md`](final-results/02-atomicbot-turboquant/reproduction/README.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
+| [`commands.md`](final-results/02-atomicbot-turboquant/reproduction/commands.md) | Lists the safe commands used to validate this published route package. | Reproduction instruction |
+| [`dependencies.md`](final-results/02-atomicbot-turboquant/reproduction/dependencies.md) | Lists the software needed to run the route's validation and reproduction checks. | Reproduction dependency record |
+| [`README.md`](final-results/02-atomicbot-turboquant/reproduction/README.md) | Starting point for understanding and validating this route's frozen reproduction material. | Reproduction guide |
 
 ##### `final-results/02-atomicbot-turboquant/reproduction/protocol/`
 
@@ -399,10 +438,10 @@ Defines what was meant to be tested, in what order, and under which rules. Here 
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`execution-sequence.md`](final-results/02-atomicbot-turboquant/reproduction/protocol/execution-sequence.md) | Readable Markdown document titled “Execution sequence”. | Controlled test input |
+| [`execution-sequence.md`](final-results/02-atomicbot-turboquant/reproduction/protocol/execution-sequence.md) | Defines the ordered preparation, warm-up, measurement, quality and close-out stages used by the route. | Controlled test input |
 | [`intended-test-matrix.csv`](final-results/02-atomicbot-turboquant/reproduction/protocol/intended-test-matrix.csv) | CSV table with 19 data row(s). Main columns are `ID`, `Model`, `KV cache`, `Execution`, `Context`, `Purpose / limitation`, `Status`. | Controlled test input |
-| [`metric-definitions.md`](final-results/02-atomicbot-turboquant/reproduction/protocol/metric-definitions.md) | Readable Markdown document titled “Metric definitions”. | Controlled test input |
-| [`test-plan.md`](final-results/02-atomicbot-turboquant/reproduction/protocol/test-plan.md) | Readable Markdown document titled “Test plan”. | Controlled test input |
+| [`metric-definitions.md`](final-results/02-atomicbot-turboquant/reproduction/protocol/metric-definitions.md) | Defines route metric names, units, calculations and aggregation rules. | Controlled test input |
+| [`test-plan.md`](final-results/02-atomicbot-turboquant/reproduction/protocol/test-plan.md) | Defines the route's intended cases, controls, gates and required evidence. | Controlled test input |
 
 ##### `final-results/02-atomicbot-turboquant/reproduction/quality/`
 
@@ -413,11 +452,11 @@ Contains prompts, scoring rules, output indexes and quality-evaluation evidence.
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
 | [`adjudication-log.csv`](final-results/02-atomicbot-turboquant/reproduction/quality/adjudication-log.csv) | CSV table with 114 data row(s). Main columns are `quality_id`, `test_case_id`, `prompt_id`, `adjudication_key`, `dimensions_json`, `weighted_score`, `critical_caps_json` and 5 more. | Supporting repository file |
-| [`calibration.md`](final-results/02-atomicbot-turboquant/reproduction/quality/calibration.md) | Readable Markdown document titled “Calibration”. | Supporting repository file |
+| [`calibration.md`](final-results/02-atomicbot-turboquant/reproduction/quality/calibration.md) | Records how the quality rubric was calibrated so repeated scoring uses the same interpretation. | Quality-control record |
 | [`outputs-index.csv`](final-results/02-atomicbot-turboquant/reproduction/quality/outputs-index.csv) | CSV table with 114 data row(s). Main columns are `test_case_id`, `prompt_id`, `output_sha256`, `adjudication_key`, `source_evidence_id`. | Supporting repository file |
 | [`prompt-suite.csv`](final-results/02-atomicbot-turboquant/reproduction/quality/prompt-suite.csv) | CSV table with 6 data row(s). Main columns are `prompt_id`, `task`, `deterministic_checks_json`, `generation_settings_json`, `scope`, `comparability`. | Supporting repository file |
-| [`README.md`](final-results/02-atomicbot-turboquant/reproduction/quality/README.md) | Readable Markdown document titled “Quality evidence”. | Supporting repository file |
-| [`rubric.md`](final-results/02-atomicbot-turboquant/reproduction/quality/rubric.md) | Readable Markdown document titled “GTQ-QUALITY-RUBRIC-v1 — limited/provisional application”. | Supporting repository file |
+| [`README.md`](final-results/02-atomicbot-turboquant/reproduction/quality/README.md) | Explains the route's prompts, captured outputs, scoring records and quality-evidence boundary. | Quality-evidence guide |
+| [`rubric.md`](final-results/02-atomicbot-turboquant/reproduction/quality/rubric.md) | Defines the weighted criteria and penalties used for this route, including its limited/provisional application boundary. | Controlled quality rubric |
 
 ##### `final-results/02-atomicbot-turboquant/reproduction/scripts/`
 
@@ -427,7 +466,7 @@ Contains route-specific experiment scripts and compatibility entry points. Here 
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/02-atomicbot-turboquant/reproduction/scripts/README.md) | Readable Markdown document titled “Maintained implementation”. | Supporting repository file |
+| [`README.md`](final-results/02-atomicbot-turboquant/reproduction/scripts/README.md) | Points to the maintained repository scripts that implement this route instead of duplicating executable code in the release. | Implementation pointer |
 
 ##### `final-results/02-atomicbot-turboquant/reproduction/system/`
 
@@ -454,6 +493,7 @@ Contains checks showing whether the package structure and claims satisfy the rel
 | [`validation.json`](final-results/02-atomicbot-turboquant/validation/validation.json) | Machine-readable validation result for tools and automated checks. | Validation receipt |
 | [`validation.md`](final-results/02-atomicbot-turboquant/validation/validation.md) | Readable explanation of the validation result and remaining limitations. | Validation receipt |
 
+<a id="route-03"></a>
 ### `final-results/03-animehacker-tq3-0/`
 
 This folder covers the animehacker TQ3_0 route. It is a curated publication package, not a live working directory.
@@ -472,7 +512,7 @@ This folder covers the animehacker TQ3_0 route. It is a curated publication pack
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/03-animehacker-tq3-0/README.md) | Readable Markdown document titled “animehacker TQ3_0 final results”. | Supporting repository file |
+| [`README.md`](final-results/03-animehacker-tq3-0/README.md) | Introduces the animehacker TQ3_0 route, its outcome boundary and the route's data, evidence, report, reproduction and validation areas. | Route overview; do not edit in place |
 
 #### `final-results/03-animehacker-tq3-0/data/`
 
@@ -526,7 +566,7 @@ Preserves failed or blocked outcomes so they are not hidden from the final recor
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/03-animehacker-tq3-0/evidence/failures/README.md) | Readable Markdown document titled “Failures and deviations”. | Supporting repository file |
+| [`README.md`](final-results/03-animehacker-tq3-0/evidence/failures/README.md) | Explains how this route preserves failures and deviations and how curated log extracts relate to structured failure rows. | Failure-evidence guide |
 
 ###### `final-results/03-animehacker-tq3-0/evidence/failures/curated-logs/`
 
@@ -536,7 +576,7 @@ Contains the small, relevant log excerpts selected to explain a failure. Here it
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/03-animehacker-tq3-0/evidence/failures/curated-logs/README.md) | Readable Markdown document titled “Curated log handling”. | Supporting repository file |
+| [`README.md`](final-results/03-animehacker-tq3-0/evidence/failures/curated-logs/README.md) | Defines how small relevant log extracts are selected without replacing or rewriting their original source evidence. | Curated-log handling rule |
 
 ##### `final-results/03-animehacker-tq3-0/evidence/source/`
 
@@ -546,7 +586,7 @@ Preserves source artefacts used to build this package. These are evidence, not t
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/03-animehacker-tq3-0/evidence/source/README.md) | Readable Markdown document titled “Source-result handling”. | Preserved evidence; do not edit |
+| [`README.md`](final-results/03-animehacker-tq3-0/evidence/source/README.md) | Explains the handling and authority of source-result artefacts preserved for the animehacker release. | Preserved evidence; do not edit |
 
 #### `final-results/03-animehacker-tq3-0/reports/`
 
@@ -557,7 +597,7 @@ Contains human-readable result reports and editable or printable versions. Here 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
 | [`animehacker-tq3-0-report.docx`](final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.docx) | Editable Word version of animehacker tq3 0 report for review or handoff. | Generated or review artefact |
-| [`animehacker-tq3-0-report.md`](final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.md) | Readable Markdown document titled “animehacker TQ3_0 Final Test Report”. | Supporting repository file |
+| [`animehacker-tq3-0-report.md`](final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.md) | Human-readable animehacker findings, performance and quality summary, failures, limitations and bounded conclusions. | Primary readable route report |
 | [`animehacker-tq3-0-report.pdf`](final-results/03-animehacker-tq3-0/reports/animehacker-tq3-0-report.pdf) | Printable PDF version of animehacker tq3 0 report. Use its source file when edits are needed. | Generated or review artefact |
 
 #### `final-results/03-animehacker-tq3-0/reproduction/`
@@ -577,9 +617,9 @@ Contains the inputs and instructions needed to understand or reproduce the route
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`commands.md`](final-results/03-animehacker-tq3-0/reproduction/commands.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
-| [`dependencies.md`](final-results/03-animehacker-tq3-0/reproduction/dependencies.md) | Readable Markdown document titled “Validation dependencies”. | Supporting repository file |
-| [`README.md`](final-results/03-animehacker-tq3-0/reproduction/README.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
+| [`commands.md`](final-results/03-animehacker-tq3-0/reproduction/commands.md) | Lists the safe commands used to validate this published route package. | Reproduction instruction |
+| [`dependencies.md`](final-results/03-animehacker-tq3-0/reproduction/dependencies.md) | Lists the software needed to run the route's validation and reproduction checks. | Reproduction dependency record |
+| [`README.md`](final-results/03-animehacker-tq3-0/reproduction/README.md) | Starting point for understanding and validating this route's frozen reproduction material. | Reproduction guide |
 
 ##### `final-results/03-animehacker-tq3-0/reproduction/protocol/`
 
@@ -589,10 +629,10 @@ Defines what was meant to be tested, in what order, and under which rules. Here 
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`execution-sequence.md`](final-results/03-animehacker-tq3-0/reproduction/protocol/execution-sequence.md) | Readable Markdown document titled “Execution sequence”. | Controlled test input |
+| [`execution-sequence.md`](final-results/03-animehacker-tq3-0/reproduction/protocol/execution-sequence.md) | Defines the ordered preparation, warm-up, measurement, quality and close-out stages used by the route. | Controlled test input |
 | [`intended-test-matrix.csv`](final-results/03-animehacker-tq3-0/reproduction/protocol/intended-test-matrix.csv) | CSV table with 10 data row(s). Main columns are `test_id`, `phase`, `description`, `model_id`, `model_path_env`, `format`, `cache` and 10 more. | Controlled test input |
-| [`metric-definitions.md`](final-results/03-animehacker-tq3-0/reproduction/protocol/metric-definitions.md) | Readable Markdown document titled “Metric definitions”. | Controlled test input |
-| [`test-plan.md`](final-results/03-animehacker-tq3-0/reproduction/protocol/test-plan.md) | Readable Markdown document titled “Test plan”. | Controlled test input |
+| [`metric-definitions.md`](final-results/03-animehacker-tq3-0/reproduction/protocol/metric-definitions.md) | Defines route metric names, units, calculations and aggregation rules. | Controlled test input |
+| [`test-plan.md`](final-results/03-animehacker-tq3-0/reproduction/protocol/test-plan.md) | Defines the route's intended cases, controls, gates and required evidence. | Controlled test input |
 
 ##### `final-results/03-animehacker-tq3-0/reproduction/quality/`
 
@@ -603,11 +643,11 @@ Contains prompts, scoring rules, output indexes and quality-evaluation evidence.
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
 | [`adjudication-log.csv`](final-results/03-animehacker-tq3-0/reproduction/quality/adjudication-log.csv) | CSV table with 42 data row(s). Main columns are `test_case_id`, `prompt_id`, `score`, `deterministic_pass`, `dimensions_json`, `critical_caps_json`, `critical_cap_reason`. | Supporting repository file |
-| [`calibration.md`](final-results/03-animehacker-tq3-0/reproduction/quality/calibration.md) | Readable Markdown document titled “Calibration”. | Supporting repository file |
+| [`calibration.md`](final-results/03-animehacker-tq3-0/reproduction/quality/calibration.md) | Records how the historical quality rubric application was calibrated and bounded. | Quality-control record |
 | [`outputs-index.csv`](final-results/03-animehacker-tq3-0/reproduction/quality/outputs-index.csv) | CSV table with 42 data row(s). Main columns are `test_case_id`, `prompt_id`, `output_sha256`, `source_evidence_id`. | Supporting repository file |
 | [`prompt-suite.csv`](final-results/03-animehacker-tq3-0/reproduction/quality/prompt-suite.csv) | CSV table with 6 data row(s). Main columns are `prompt_id`, `task`, `deterministic_checks_json`, `scope`, `comparability`. | Supporting repository file |
-| [`README.md`](final-results/03-animehacker-tq3-0/reproduction/quality/README.md) | Readable Markdown document titled “Quality evidence”. | Supporting repository file |
-| [`rubric.md`](final-results/03-animehacker-tq3-0/reproduction/quality/rubric.md) | Readable Markdown document titled “GTQ-QUALITY-RUBRIC-v1 historical application”. | Supporting repository file |
+| [`README.md`](final-results/03-animehacker-tq3-0/reproduction/quality/README.md) | Explains the route's prompts, captured outputs, scoring records and historical quality-evidence boundary. | Quality-evidence guide |
+| [`rubric.md`](final-results/03-animehacker-tq3-0/reproduction/quality/rubric.md) | Defines the weighted criteria and penalties used in the route's historical rubric application. | Controlled quality rubric |
 
 ##### `final-results/03-animehacker-tq3-0/reproduction/scripts/`
 
@@ -617,7 +657,7 @@ Contains route-specific experiment scripts and compatibility entry points. Here 
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/03-animehacker-tq3-0/reproduction/scripts/README.md) | Readable Markdown document titled “Maintained implementation”. | Supporting repository file |
+| [`README.md`](final-results/03-animehacker-tq3-0/reproduction/scripts/README.md) | Points to the maintained repository scripts that implement this route instead of duplicating executable code in the release. | Implementation pointer |
 
 ##### `final-results/03-animehacker-tq3-0/reproduction/system/`
 
@@ -644,6 +684,7 @@ Contains checks showing whether the package structure and claims satisfy the rel
 | [`validation.json`](final-results/03-animehacker-tq3-0/validation/validation.json) | Machine-readable validation result for tools and automated checks. | Validation receipt |
 | [`validation.md`](final-results/03-animehacker-tq3-0/validation/validation.md) | Readable explanation of the validation result and remaining limitations. | Validation receipt |
 
+<a id="route-04"></a>
 ### `final-results/04-openvino-experimental-fork/`
 
 This folder covers the experimental OpenVINO fork route. It is a curated publication package, not a live working directory.
@@ -662,7 +703,7 @@ This folder covers the experimental OpenVINO fork route. It is a curated publica
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/04-openvino-experimental-fork/README.md) | Readable Markdown document titled “Experimental OpenVINO fork final results”. | Supporting repository file |
+| [`README.md`](final-results/04-openvino-experimental-fork/README.md) | Introduces the experimental OpenVINO fork route, its executed and unavailable cases, evidence boundary and report locations. | Route overview; do not edit in place |
 
 #### `final-results/04-openvino-experimental-fork/data/`
 
@@ -718,7 +759,7 @@ Contains human-readable result reports and editable or printable versions. Here 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
 | [`openvino-experimental-fork-report.docx`](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-report.docx) | Editable Word version of openvino experimental fork report for review or handoff. | Generated or review artefact |
-| [`openvino-experimental-fork-report.md`](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-report.md) | Readable Markdown document titled “Experimental OpenVINO fork final results”. | Supporting repository file |
+| [`openvino-experimental-fork-report.md`](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-report.md) | Human-readable experimental OpenVINO findings, performance and quality results, unavailable artefacts and bounded conclusions. | Primary readable route report |
 | [`openvino-experimental-fork-report.pdf`](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-report.pdf) | Printable PDF version of openvino experimental fork report. Use its source file when edits are needed. | Generated or review artefact |
 | [`openvino-experimental-fork-results-provenance.json`](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-results-provenance.json) | Stores a JSON object with top-level fields `activity_id`, `cached_formula_value_count`, `formula_count`, `formulas_preserved`, `machine_absolute_path_count`, `openpyxl_version`, `output_path`, `output_role`, …. | Supporting repository file |
 | [`openvino-experimental-fork-results.xlsx`](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-results.xlsx) | Excel workbook containing openvino experimental fork results. | Generated or review artefact |
@@ -739,7 +780,7 @@ Contains the inputs and instructions needed to understand or reproduce the route
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/04-openvino-experimental-fork/reproduction/README.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
+| [`README.md`](final-results/04-openvino-experimental-fork/reproduction/README.md) | Starting point for the route's frozen protocol, quality inputs, system identity and validation command. | Reproduction guide |
 
 ##### `final-results/04-openvino-experimental-fork/reproduction/protocol/`
 
@@ -786,6 +827,7 @@ Contains checks showing whether the package structure and claims satisfy the rel
 | [`validation.json`](final-results/04-openvino-experimental-fork/validation/validation.json) | Machine-readable validation result for tools and automated checks. | Validation receipt |
 | [`validation.md`](final-results/04-openvino-experimental-fork/validation/validation.md) | Readable explanation of the validation result and remaining limitations. | Validation receipt |
 
+<a id="route-05"></a>
 ### `final-results/05-openvino-official-upstream/`
 
 This folder covers the official upstream OpenVINO route. It is a curated publication package, not a live working directory.
@@ -804,7 +846,7 @@ This folder covers the official upstream OpenVINO route. It is a curated publica
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/05-openvino-official-upstream/README.md) | Readable Markdown document titled “Official OpenVINO upstream final results”. | Supporting repository file |
+| [`README.md`](final-results/05-openvino-official-upstream/README.md) | Introduces the official upstream OpenVINO route, its passed, failed and blocked cases, evidence boundary and report locations. | Route overview; do not edit in place |
 
 #### `final-results/05-openvino-official-upstream/data/`
 
@@ -860,7 +902,7 @@ Contains human-readable result reports and editable or printable versions. Here 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
 | [`openvino-official-upstream-report.docx`](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-report.docx) | Editable Word version of openvino official upstream report for review or handoff. | Generated or review artefact |
-| [`openvino-official-upstream-report.md`](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-report.md) | Readable Markdown document titled “Official upstream OpenVINO final results”. | Supporting repository file |
+| [`openvino-official-upstream-report.md`](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-report.md) | Human-readable official OpenVINO findings, performance and quality results, blockers, failures and bounded conclusions. | Primary readable route report |
 | [`openvino-official-upstream-report.pdf`](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-report.pdf) | Printable PDF version of openvino official upstream report. Use its source file when edits are needed. | Generated or review artefact |
 | [`openvino-official-upstream-results-provenance.json`](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-results-provenance.json) | Stores a JSON object with top-level fields `activity_id`, `cached_formula_value_count`, `formula_count`, `formulas_preserved`, `machine_absolute_path_count`, `openpyxl_version`, `output_path`, `output_role`, …. | Supporting repository file |
 | [`openvino-official-upstream-results.xlsx`](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-results.xlsx) | Excel workbook containing openvino official upstream results. | Generated or review artefact |
@@ -881,7 +923,7 @@ Contains the inputs and instructions needed to understand or reproduce the route
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/05-openvino-official-upstream/reproduction/README.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
+| [`README.md`](final-results/05-openvino-official-upstream/reproduction/README.md) | Starting point for the route's frozen protocol, quality inputs, system identity and validation command. | Reproduction guide |
 
 ##### `final-results/05-openvino-official-upstream/reproduction/protocol/`
 
@@ -928,6 +970,7 @@ Contains checks showing whether the package structure and claims satisfy the rel
 | [`validation.json`](final-results/05-openvino-official-upstream/validation/validation.json) | Machine-readable validation result for tools and automated checks. | Validation receipt |
 | [`validation.md`](final-results/05-openvino-official-upstream/validation/validation.md) | Readable explanation of the validation result and remaining limitations. | Validation receipt |
 
+<a id="route-06"></a>
 ### `final-results/06-cross-route-comparison/`
 
 This folder covers the guarded cross-route comparison package. It is a curated publication package, not a live working directory.
@@ -946,7 +989,7 @@ This folder covers the guarded cross-route comparison package. It is a curated p
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`README.md`](final-results/06-cross-route-comparison/README.md) | Readable Markdown document titled “Guarded cross-route comparison”. | Supporting repository file |
+| [`README.md`](final-results/06-cross-route-comparison/README.md) | Introduces the guarded comparison package and explains why only explicitly matched route dimensions may be compared. | Comparison overview; do not edit in place |
 
 #### `final-results/06-cross-route-comparison/data/`
 
@@ -980,7 +1023,7 @@ Contains human-readable result reports and editable or printable versions. Here 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
 | [`cross-route-comparison-report.docx`](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.docx) | Editable Word version of cross route comparison report for review or handoff. | Generated or review artefact |
-| [`cross-route-comparison-report.md`](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.md) | Readable Markdown document titled “Guarded cross-route comparison”. | Supporting repository file |
+| [`cross-route-comparison-report.md`](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.md) | Main human-readable synthesis of all five routes, including matched comparisons, non-comparable dimensions and bounded conclusions. | Primary overall report |
 | [`cross-route-comparison-report.pdf`](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.pdf) | Printable PDF version of cross route comparison report. Use its source file when edits are needed. | Generated or review artefact |
 
 #### `final-results/06-cross-route-comparison/reproduction/`
@@ -997,8 +1040,8 @@ Contains the inputs and instructions needed to understand or reproduce the route
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`commands.md`](final-results/06-cross-route-comparison/reproduction/commands.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
-| [`README.md`](final-results/06-cross-route-comparison/reproduction/README.md) | Readable Markdown document titled “Release verification command”. | Supporting repository file |
+| [`commands.md`](final-results/06-cross-route-comparison/reproduction/commands.md) | Lists the safe command used to validate the published comparison package. | Reproduction instruction |
+| [`README.md`](final-results/06-cross-route-comparison/reproduction/README.md) | Starting point for understanding the comparison policy and validating this frozen package. | Reproduction guide |
 
 ##### `final-results/06-cross-route-comparison/reproduction/protocol/`
 
@@ -1008,7 +1051,7 @@ Defines what was meant to be tested, in what order, and under which rules. Here 
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`comparability-policy.md`](final-results/06-cross-route-comparison/reproduction/protocol/comparability-policy.md) | Readable Markdown document titled “Comparability policy”. | Controlled test input |
+| [`comparability-policy.md`](final-results/06-cross-route-comparison/reproduction/protocol/comparability-policy.md) | Defines the dimensions that must match before performance or quality values may be compared across routes. | Controlled comparison policy |
 
 #### `final-results/06-cross-route-comparison/validation/`
 
@@ -1021,6 +1064,7 @@ Contains checks showing whether the package structure and claims satisfy the rel
 | [`validation.json`](final-results/06-cross-route-comparison/validation/validation.json) | Machine-readable validation result for tools and automated checks. | Validation receipt |
 | [`validation.md`](final-results/06-cross-route-comparison/validation/validation.md) | Readable explanation of the validation result and remaining limitations. | Validation receipt |
 
+<a id="shared-catalog"></a>
 ### `final-results/catalog/`
 
 Combines route-level records into collection-wide tables.
@@ -1038,6 +1082,7 @@ Combines route-level records into collection-wide tables.
 | [`quality-summary.csv`](final-results/catalog/quality-summary.csv) | One quality summary per eligible configuration. | Supporting repository file |
 | [`route-register.csv`](final-results/catalog/route-register.csv) | CSV table with 5 data row(s). Main columns are `route_id`, `campaign_id`, `attempt_count`, `measurement_count`, `summary_count`, `quality_count`, `failure_count` and 1 more. | Supporting repository file |
 
+<a id="shared-standards"></a>
 ### `final-results/standards/`
 
 Defines shared formats and rules used by every final-results package.
@@ -1052,12 +1097,12 @@ Defines shared formats and rules used by every final-results package.
 
 | File | What it contains or does | Authority and editing guidance |
 | --- | --- | --- |
-| [`data-dictionary.md`](final-results/standards/data-dictionary.md) | Readable Markdown document titled “Data dictionary”. | Supporting repository file |
-| [`metric-definitions.md`](final-results/standards/metric-definitions.md) | Readable Markdown document titled “Metric definitions”. | Supporting repository file |
-| [`provenance-policy.md`](final-results/standards/provenance-policy.md) | Readable Markdown document titled “Provenance policy”. | Supporting repository file |
-| [`quality-comparison-policy.md`](final-results/standards/quality-comparison-policy.md) | Readable Markdown document titled “Quality comparison policy”. | Supporting repository file |
-| [`README.md`](final-results/standards/README.md) | Readable Markdown document titled “Final-results standards”. | Supporting repository file |
-| [`status-taxonomy.md`](final-results/standards/status-taxonomy.md) | Readable Markdown document titled “Status taxonomy”. | Supporting repository file |
+| [`data-dictionary.md`](final-results/standards/data-dictionary.md) | Defines the shared table fields, data types and meanings used throughout final-results. | Shared data authority |
+| [`metric-definitions.md`](final-results/standards/metric-definitions.md) | Defines shared metric names, units, calculations and aggregation rules. | Shared metric authority |
+| [`provenance-policy.md`](final-results/standards/provenance-policy.md) | Defines how claims, derived values, files, hashes and original evidence must remain traceable. | Shared provenance authority |
+| [`quality-comparison-policy.md`](final-results/standards/quality-comparison-policy.md) | Defines when quality scores may be compared and which protocol differences prevent a direct ranking. | Shared quality-comparison authority |
+| [`README.md`](final-results/standards/README.md) | Entry point for the schemas, definitions and policies that every route package must follow. | Standards overview |
+| [`status-taxonomy.md`](final-results/standards/status-taxonomy.md) | Defines the allowed outcome states, including passed, failed, blocked and artefact unavailable. | Shared status authority |
 
 #### `final-results/standards/schemas/`
 
@@ -1075,6 +1120,7 @@ Contains machine-readable rules that describe valid evidence files.
 | [`results.schema.json`](final-results/standards/schemas/results.schema.json) | Stores a JSON object with top-level fields `$schema`, `title`, `type`, `additionalProperties`, `required`, `properties`. | Supporting repository file |
 | [`route-manifest.schema.json`](final-results/standards/schemas/route-manifest.schema.json) | Stores a JSON object with top-level fields `$schema`, `title`, `type`, `additionalProperties`, `required`, `properties`. | Supporting repository file |
 
+<a id="release-validation"></a>
 ### `final-results/validation/`
 
 Contains checks showing whether the package structure and claims satisfy the release rules.
@@ -1085,10 +1131,10 @@ Contains checks showing whether the package structure and claims satisfy the rel
 | --- | --- | --- |
 | [`cross-route-validation.json`](final-results/validation/cross-route-validation.json) | Stores a JSON object with top-level fields `gates`, `root`, `scope`, `valid`. | Validation receipt |
 | [`integrity-validation.json`](final-results/validation/integrity-validation.json) | Stores a JSON object with top-level fields `gates`, `root`, `scope`, `valid`. | Validation receipt |
-| [`README.md`](final-results/validation/README.md) | Readable Markdown document titled “Validation receipts”. | Validation receipt |
+| [`README.md`](final-results/validation/README.md) | Explains the collection-wide validation receipts, their scope and how to interpret a passed gate with limitations. | Validation guide |
 | [`release-readiness.json`](final-results/validation/release-readiness.json) | Machine-readable receipt for the final release-readiness checks. | Validation receipt |
 | [`schema-validation.json`](final-results/validation/schema-validation.json) | Stores a JSON object with top-level fields `gates`, `root`, `scope`, `valid`. | Validation receipt |
-| [`validation-summary.md`](final-results/validation/validation-summary.md) | Readable Markdown document titled “Unified final-results validation summary”. | Validation receipt |
+| [`validation-summary.md`](final-results/validation/validation-summary.md) | Human-readable collection-wide validation outcome, including passed gates, findings and documented limitations. | Validation receipt |
 | [`validation.json`](final-results/validation/validation.json) | Machine-readable validation result for tools and automated checks. | Validation receipt |
 | [`validation.md`](final-results/validation/validation.md) | Readable explanation of the validation result and remaining limitations. | Validation receipt |
 

@@ -20,7 +20,7 @@ This folder belongs to the experiment layer between the test plan and the curate
 
 | File | What it is for | Status and editing guidance |
 | --- | --- | --- |
-| [`quality-scoring-2026-07-15.md`](quality-scoring-2026-07-15.md) | Readable Markdown document titled “Upstream llama.cpp quality scoring — 2026-07-15”. | Supporting repository file |
+| [`quality-scoring-2026-07-15.md`](quality-scoring-2026-07-15.md) | Records the prompt-level quality scoring and scoring rationale for the dated upstream llama.cpp evaluation. | Processed quality record |
 | [`resource-metrics-2026-07-16.json`](resource-metrics-2026-07-16.json) | Stores a JSON object with top-level fields `measurement_revision`, `method`, `rows`. | Supporting repository file |
 
 ### Important boundaries

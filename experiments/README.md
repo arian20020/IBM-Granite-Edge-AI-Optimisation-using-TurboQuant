@@ -2,6 +2,22 @@
 
 Every formal experiment needs an ID, protocol, manifest, exact hashes, raw stdout/stderr, raw measurements, failed runs and reproducible processing scripts.
 
+## Choose what you need
+
+| Goal | Open this first |
+| --- | --- |
+| Read validated conclusions | [Final results](../docs/testing/final-results/README.md) |
+| Find the procedure that was intended | [Protocols](protocols/README.md) |
+| Check exact versions, inputs and configuration | [Manifests](manifests/README.md) |
+| Inspect direct captured evidence | [Raw results](raw-results/README.md) |
+| Inspect calculated or normalised outputs | [Processed results](processed-results/README.md) |
+| Understand prompts and quality scoring | [Prompts](prompts/README.md) and [rubrics](rubrics/README.md) |
+| Find charts used in reports | [Figures](figures/README.md) |
+| Inspect controlled source patches | [Patches](patches/README.md) |
+| Find route-specific compatibility scripts | [Experiment scripts](scripts/README.md) |
+
+A protocol, manifest, script or empty folder proves only that testing was prepared. A result becomes usable only when its captured evidence, provenance and validation agree.
+
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 
 ## Beginner directory guide
@@ -45,6 +61,7 @@ There are no immediate non-README files at this level. Continue into the child f
 - [figures guide](figures/README.md)
 - [granite_turboquant_intel guide](granite_turboquant_intel/README.md)
 - [manifests guide](manifests/README.md)
+- [patches guide](patches/README.md)
 - [processed-results guide](processed-results/README.md)
 - [prompts guide](prompts/README.md)
 - [protocols guide](protocols/README.md)

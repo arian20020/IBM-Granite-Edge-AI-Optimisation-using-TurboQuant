@@ -7,7 +7,20 @@
 
 This directory controls application testing, model/runtime feasibility, AI-quality evaluation and final cross-route comparison.
 
-## Start here
+## Choose what you need
+
+| Goal | Open this first |
+| --- | --- |
+| Read the overall findings | [Cross-route comparison report](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.md) |
+| Compare the two OpenVINO campaigns in Excel | [Experimental-fork workbook](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-results.xlsx) and [official-upstream workbook](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-results.xlsx) |
+| Find one route, file or evidence record | [Final-results beginner directory guide](Final-Results-Beginner-Directory-Guide.md) |
+| Understand why something failed or did not run | [Combined failure summary](final-results/catalog/failure-summary.csv) and [failure-evidence guide](failure-evidence/README.md) |
+| Understand quality scoring and comparison limits | [Quality comparison policy](final-results/standards/quality-comparison-policy.md) and [rubrics guide](../../experiments/rubrics/README.md) |
+| Run or validate the testing tools | [Testing commands](../../scripts/testing/README.md) |
+| Find editable controlled workbook templates | [Workbooks guide](workbooks/README.md) |
+| Audit provenance and checksums | [Evidence manifest](final-results/catalog/evidence-manifest.csv) and [release validation summary](final-results/validation/validation-summary.md) |
+
+## Before starting or changing a test
 
 1. Read `Validation-Audit-2026-07-13.md`.
 2. Read `Test-Strategy.md` and `Master-Test-Plan.md`.
@@ -86,17 +99,17 @@ notes/
 ## Non-negotiable rules
 
 1. Every test exists in the catalogue or frozen app-specific addendum before execution.
-1. Every execution ID exists in the route catalogue or frozen app-specific addendum before execution.
-2. Every execution receives a unique run ID.
-3. Environment, repository commit, build, model hash, configuration, prompt and command are recorded exactly.
-4. Raw evidence is immutable.
-5. Failed, blocked and inconclusive runs remain visible.
-6. Requested backend, device and optimisation are checked against actual runtime behaviour.
-7. Important results are entered in machine-readable registers before being copied into Word.
-8. A workbook row or app-evaluation report is incomplete until it links to a run ID, evidence path and evidence commit.
-9. Formal benchmarking uses a pilot, one excluded warm-up and at least three measured repetitions unless a documented safety gate prevents it.
-10. Quality is reported on the controlled 0-10 rubric.
-11. Model weights, secrets, build caches and copied third-party repositories are not committed.
+2. Every execution ID exists in the route catalogue or frozen app-specific addendum before execution.
+3. Every execution receives a unique run ID.
+4. Environment, repository commit, build, model hash, configuration, prompt and command are recorded exactly.
+5. Raw evidence is immutable.
+6. Failed, blocked and inconclusive runs remain visible.
+7. Requested backend, device and optimisation are checked against actual runtime behaviour.
+8. Important results are entered in machine-readable registers before being copied into Word.
+9. A workbook row or app-evaluation report is incomplete until it links to a run ID, evidence path and evidence commit.
+10. Formal benchmarking uses a pilot, one excluded warm-up and at least three measured repetitions unless a documented safety gate prevents it.
+11. Quality is reported on the controlled 0-10 rubric.
+12. Model weights, secrets, build caches and copied third-party repositories are not committed.
 
 ## Status vocabulary
 
@@ -142,49 +155,51 @@ This folder supports the controlled path from a test requirement to evidence, va
 
 ### Files
 
+Row counts in this table describe the files at the time this guide was updated. They are navigation aids, not fixed requirements; use each file's schema and validation rules as the authority.
+
 | File | What it is for | Status and editing guidance |
 | --- | --- | --- |
-| [`Animehacker-Large-Host-Completion-Guide.md`](Animehacker-Large-Host-Completion-Guide.md) | Readable Markdown document titled “Animehacker WB-03 Large-Host Completion Guide”. | Supporting repository file |
-| [`App-Specific-Evaluation-Addendum-v1.md`](App-Specific-Evaluation-Addendum-v1.md) | Readable Markdown document titled “App-Specific Evaluation Addendum”. | Supporting repository file |
+| [`Animehacker-Large-Host-Completion-Guide.md`](Animehacker-Large-Host-Completion-Guide.md) | Explains how to finish the WB-03 cases that require a larger-memory host while preserving the existing evidence boundary. | Operator guide |
+| [`App-Specific-Evaluation-Addendum-v1.md`](App-Specific-Evaluation-Addendum-v1.md) | Freezes application-evaluation IDs, research-question mappings, inputs, schemas, scoring rules and stopping gates. | Controlled test definition |
 | [`Build-Register.csv`](Build-Register.csv) | CSV table with 3 data row(s). Main columns are `Build_Check_ID`, `Route`, `Workbook_ID`, `Repository_ID`, `Build_ID`, `Environment_ID`, `Check_Title` and 26 more. | Supporting repository file |
 | [`Configuration-Register.csv`](Configuration-Register.csv) | CSV table with 0 data row(s). Main columns are `Configuration_ID`, `Test_ID`, `Route`, `Workbook_ID`, `Model`, `Model_ID`, `Weights` and 22 more. | Supporting repository file |
 | [`Cross-Route-Comparison-Register.csv`](Cross-Route-Comparison-Register.csv) | CSV table with 0 data row(s). Main columns are `Comparison_ID`, `Criterion`, `Source_Route`, `Source_Test_ID`, `Source_Run_ID`, `Source_Configuration_ID`, `Target_or_Baseline_Route` and 28 more. | Supporting repository file |
-| [`Decision-Log.md`](Decision-Log.md) | Readable Markdown document titled “Testing Decision Log”. | Supporting repository file |
+| [`Decision-Log.md`](Decision-Log.md) | Records important testing and interpretation decisions so later readers can understand why the method changed. | Append-only decision record |
 | [`Device-Verification-Register.csv`](Device-Verification-Register.csv) | CSV table with 19 data row(s). Main columns are `Test_ID`, `Route`, `Workbook_ID`, `Latest_Run_ID`, `Requested_Device`, `Actual_Device`, `Backend` and 20 more. | Supporting repository file |
 | [`Environment-Register.csv`](Environment-Register.csv) | CSV table with 2 data row(s). Main columns are `Environment_ID`, `Capture_Timestamp_UTC`, `Capture_Timestamp_Local`, `Timezone`, `Machine_Name`, `Machine_Role`, `Windows_Edition` and 45 more. | Supporting repository file |
 | [`Evidence-Index.csv`](Evidence-Index.csv) | CSV table with 1561 data row(s). Main columns are `Evidence_ID`, `Run_ID`, `Test_ID`, `Route`, `Workbook_ID`, `Evidence_Type`, `Repository_Path` and 12 more. | Supporting repository file |
-| [`Execution-Checklist.md`](Execution-Checklist.md) | Readable Markdown document titled “Controlled Test Execution Checklist”. | Supporting repository file |
-| [`Experiment-and-Test-Change-Control-Index.md`](Experiment-and-Test-Change-Control-Index.md) | Readable Markdown document titled “Experiment and Test Change-Control Index”. | Supporting repository file |
-| [`Failure-Code-Catalogue.md`](Failure-Code-Catalogue.md) | Readable Markdown document titled “Controlled Failure Code Catalogue”. | Supporting repository file |
+| [`Execution-Checklist.md`](Execution-Checklist.md) | Step-by-step pre-run, execution, evidence-capture and close-out checklist for a controlled test. | Operator checklist |
+| [`Experiment-and-Test-Change-Control-Index.md`](Experiment-and-Test-Change-Control-Index.md) | Entry point for deciding which protocol, manifest, register and workbook records must change together. | Change-control guide |
+| [`Failure-Code-Catalogue.md`](Failure-Code-Catalogue.md) | Defines the approved failure codes and meanings used to classify failed, blocked and inconclusive work consistently. | Controlled vocabulary |
 | [`Failure-Register.csv`](Failure-Register.csv) | CSV table with 12 data row(s). Main columns are `Failure_ID`, `Date_UTC`, `Date_Local`, `Run_ID`, `Test_ID`, `Route`, `Workbook_ID` and 20 more. | Supporting repository file |
-| [`Failure-Register.md`](Failure-Register.md) | Readable Markdown document titled “Failure Register”. | Supporting repository file |
-| [`Final-Results-Beginner-Directory-Guide.md`](Final-Results-Beginner-Directory-Guide.md) | Readable Markdown document titled “Final Results: Beginner Directory and File Guide”. | Supporting repository file |
-| [`Master-Test-Plan.md`](Master-Test-Plan.md) | Readable Markdown document titled “Master Test Plan”. | Supporting repository file |
-| [`Metric-Definitions.md`](Metric-Definitions.md) | Readable Markdown document titled “Metric Definitions and Calculation Rules”. | Supporting repository file |
+| [`Failure-Register.md`](Failure-Register.md) | Human-readable companion explaining the structured failure register and its current recorded incidents. | Failure record |
+| [`Final-Results-Beginner-Directory-Guide.md`](Final-Results-Beginner-Directory-Guide.md) | Complete beginner map of all 71 directories and 226 files in the immutable final-results release. | Navigation guide; does not alter the release |
+| [`Master-Test-Plan.md`](Master-Test-Plan.md) | Defines route order, stage gates, dependencies, stop conditions and required evidence for the controlled campaign. | Controlled test plan |
+| [`Metric-Definitions.md`](Metric-Definitions.md) | Defines calculation methods, units, aggregation rules and interpretation limits for reported metrics. | Metric authority |
 | [`Model-Register.csv`](Model-Register.csv) | CSV table with 0 data row(s). Main columns are `Model_ID`, `Display_Name`, `Family`, `Release`, `Variant`, `Source_URL`, `Source_Revision` and 23 more. | Supporting repository file |
-| [`OpenVINO-Codec-Extension-v1.1.md`](OpenVINO-Codec-Extension-v1.1.md) | Readable Markdown document titled “OpenVINO Codec Testing Extension v1.1”. | Supporting repository file |
-| [`OpenVINO-Codec-Extension-Validation-v1.1.md`](OpenVINO-Codec-Extension-Validation-v1.1.md) | Readable Markdown document titled “OpenVINO Codec Extension Validation v1.1”. | Supporting repository file |
-| [`OpenVINO-Codec-Register-Integration.md`](OpenVINO-Codec-Register-Integration.md) | Readable Markdown document titled “OpenVINO Codec Register Integration”. | Supporting repository file |
-| [`OpenVINO-Codec-Test-Boundary.md`](OpenVINO-Codec-Test-Boundary.md) | Readable Markdown document titled “OpenVINO KV-Cache Codec Test Boundary”. | Supporting repository file |
+| [`OpenVINO-Codec-Extension-v1.1.md`](OpenVINO-Codec-Extension-v1.1.md) | Extends the test method for OpenVINO KV-cache codecs, including format coverage, activation proof and safety gates. | Controlled test extension |
+| [`OpenVINO-Codec-Extension-Validation-v1.1.md`](OpenVINO-Codec-Extension-Validation-v1.1.md) | Records the structural review of the OpenVINO codec extension and the checks required before use. | Validation record |
+| [`OpenVINO-Codec-Register-Integration.md`](OpenVINO-Codec-Register-Integration.md) | Explains how codec-specific fields and outcomes map into the common testing registers. | Integration guide |
+| [`OpenVINO-Codec-Test-Boundary.md`](OpenVINO-Codec-Test-Boundary.md) | Defines which KV-cache codec claims and configurations are inside or outside the controlled OpenVINO test scope. | Scope boundary |
 | [`OpenVINO-Codec-Traceability-Extension-v1.1.csv`](OpenVINO-Codec-Traceability-Extension-v1.1.csv) | CSV table with 119 data row(s). Main columns are `Test_ID`, `Route`, `Category`, `Test_Title`, `Research_Question`, `Workbook_ID`, `Workbook_Section`. | Supporting repository file |
 | [`Performance-Measurement-Register.csv`](Performance-Measurement-Register.csv) | CSV table with 60 data row(s). Main columns are `Measurement_ID`, `Run_ID`, `Test_ID`, `Route`, `Workbook_ID`, `Configuration_ID`, `Warmup_or_Measured` and 36 more. | Supporting repository file |
 | [`Quality-Evaluation-Register.csv`](Quality-Evaluation-Register.csv) | CSV table with 156 data row(s). Main columns are `Evaluation_ID`, `Route`, `Workbook_ID`, `Test_ID`, `Run_ID`, `Configuration_ID`, `Comparison_Role` and 26 more. | Supporting repository file |
 | [`Repository-Register.csv`](Repository-Register.csv) | CSV table with 2 data row(s). Main columns are `Repository_ID`, `Route`, `Repository_URL`, `Branch_or_Tag`, `Commit_SHA`, `Upstream_Base_Commit`, `Detached_HEAD` and 16 more. | Supporting repository file |
-| [`Source-to-Control-Mapping.md`](Source-to-Control-Mapping.md) | Readable Markdown document titled “Source-to-Control Mapping”. | Supporting repository file |
+| [`Source-to-Control-Mapping.md`](Source-to-Control-Mapping.md) | Maps the supplied source documents to the controlled repository files that preserve or implement them. | Provenance map |
 | [`Structural-Validation-Report.json`](Structural-Validation-Report.json) | Stores a JSON object with top-level fields `timestamp_utc`, `validated_scope`, `branch_boundary`, `checks`, `errors`, `passed`, `boundary`. | Supporting repository file |
-| [`Test-ID-Catalogue-v1.1.md`](Test-ID-Catalogue-v1.1.md) | Readable Markdown document titled “Test ID Catalogue”. | Supporting repository file |
-| [`Test-ID-Catalogue.md`](Test-ID-Catalogue.md) | Readable Markdown document titled “Test ID Catalogue”. | Supporting repository file |
+| [`Test-ID-Catalogue-v1.1.md`](Test-ID-Catalogue-v1.1.md) | Versioned catalogue of controlled test IDs, including the expanded codec-testing definitions. | Versioned test definition |
+| [`Test-ID-Catalogue.md`](Test-ID-Catalogue.md) | Base catalogue that assigns stable IDs and route ownership to the original controlled tests. | Controlled test definition |
 | [`Test-Run-Register.csv`](Test-Run-Register.csv) | CSV table with 30 data row(s). Main columns are `Run_ID`, `Test_ID`, `Route`, `Workbook_ID`, `Run_Number`, `Run_Purpose`, `Start_Timestamp_UTC` and 116 more. | Supporting repository file |
-| [`Test-Strategy.md`](Test-Strategy.md) | Readable Markdown document titled “Application and Experimental Testing Strategy”. | Supporting repository file |
+| [`Test-Strategy.md`](Test-Strategy.md) | Defines the campaign's evidence standard, repeatability rules, comparison limits and claim language. | Method authority |
 | [`Test-Traceability-Matrix.csv`](Test-Traceability-Matrix.csv) | CSV table with 0 data row(s). Main columns are `Trace_ID`, `Research_Question`, `Project_Objective`, `Requirement_or_Risk_ID`, `Requirement_or_Risk_Summary`, `Test_ID`, `Route` and 17 more. | Supporting repository file |
-| [`TurboVec-Feasibility-Result-v1.md`](TurboVec-Feasibility-Result-v1.md) | Readable Markdown document titled “TurboVec Feasibility Result v1”. | Supporting repository file |
-| [`Validation-Audit-2026-07-13.md`](Validation-Audit-2026-07-13.md) | Readable Markdown document titled “Controlled Testing Workspace Validation Audit”. | Supporting repository file |
+| [`TurboVec-Feasibility-Result-v1.md`](TurboVec-Feasibility-Result-v1.md) | Summarises the bounded TurboVec feasibility outcome and explains why it remains demonstrator-only rather than product evidence. | Result summary with bounded claims |
+| [`Validation-Audit-2026-07-13.md`](Validation-Audit-2026-07-13.md) | Records the initial structural and methodological audit used to establish the controlled testing workspace. | Historical validation baseline |
 | [`Workbook-05-Memory-Frontier-Execution-Index-v1.csv`](Workbook-05-Memory-Frontier-Execution-Index-v1.csv) | CSV table with 119 data row(s). Main columns are `Execution_Record_ID`, `Test_ID`, `Workbook_ID`, `Route_ID`, `Phase_ID`, `Category`, `Test_Title` and 10 more. | Supporting repository file |
 | [`Workbook-Completion-Register.csv`](Workbook-Completion-Register.csv) | CSV table with 20 data row(s). Main columns are `Workbook_ID`, `Workbook_File`, `Route`, `Section_Type`, `Section_or_Test_ID`, `Section_Title`, `Required_Source_Evidence` and 13 more. | Supporting repository file |
-| [`Workbook-Data-Requirements.md`](Workbook-Data-Requirements.md) | Readable Markdown document titled “Workbook Data Requirements and Evidence Map”. | Supporting repository file |
+| [`Workbook-Data-Requirements.md`](Workbook-Data-Requirements.md) | Maps every workbook field to the evidence, identifier and validation needed before that field is complete. | Workbook completion authority |
 | [`Workbook-Revision-Control-Validation.json`](Workbook-Revision-Control-Validation.json) | Stores a JSON object with top-level fields `timestamp_utc`, `branch`, `pull_request`, `checks`, `errors`, `passed`, `boundary`. | Supporting repository file |
-| [`Workbook-Revision-Control-Validation.md`](Workbook-Revision-Control-Validation.md) | Readable Markdown document titled “Workbook Revision-Control Validation”. | Supporting repository file |
-| [`Workbook-Revision-Control.md`](Workbook-Revision-Control.md) | Readable Markdown document titled “Workbook Revision Control”. | Supporting repository file |
+| [`Workbook-Revision-Control-Validation.md`](Workbook-Revision-Control-Validation.md) | Human-readable result of the workbook source, template, hash and generated-file revision checks. | Validation record |
+| [`Workbook-Revision-Control.md`](Workbook-Revision-Control.md) | Defines how workbook templates and generated copies are versioned, regenerated and recorded without losing history. | Revision-control procedure |
 | [`Workbook-Revision-Register.csv`](Workbook-Revision-Register.csv) | CSV table with 37 data row(s). Main columns are `Record_ID`, `Workbook_ID`, `Version`, `Date`, `Changed_By`, `Change_Type`, `Change_Summary` and 5 more. | Supporting repository file |
 
 ### Important boundaries

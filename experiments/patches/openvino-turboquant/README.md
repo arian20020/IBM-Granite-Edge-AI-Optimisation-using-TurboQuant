@@ -33,7 +33,7 @@ development commit. The replay tree must equal the tree above byte-for-byte.
 
 ## Beginner directory guide
 
-This folder groups the openvino turboquant material used by the testing workflow.
+This folder contains the ordered patches used to build the experimental OpenVINO TurboQuant route from its pinned upstream baseline. Apply them only through the controlled replay process described above.
 
 ### Start here
 

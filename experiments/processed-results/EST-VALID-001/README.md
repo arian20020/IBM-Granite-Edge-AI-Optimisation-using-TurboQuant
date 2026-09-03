@@ -33,7 +33,7 @@ RTM Planned Evidence Path
 
 ## Beginner directory guide
 
-This folder groups the EST VALID 001 material used by the testing workflow.
+This is the planned location for experiment `EST-VALID-001`, which compares predicted and measured memory and records estimator error and false-safe or false-unsafe outcomes. Folder presence is not completion evidence.
 
 ### Start here
 

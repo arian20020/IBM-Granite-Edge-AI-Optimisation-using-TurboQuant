@@ -1,4 +1,4 @@
-# Official Openvino
+# Official OpenVINO
 
 This folder covers the official OpenVINO route.
 

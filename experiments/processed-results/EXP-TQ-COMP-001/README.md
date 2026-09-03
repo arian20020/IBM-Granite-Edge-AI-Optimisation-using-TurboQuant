@@ -33,7 +33,7 @@ RTM Planned Evidence Path
 
 ## Beginner directory guide
 
-This folder groups the EXP TQ COMP 001 material used by the testing workflow.
+This is the planned location for experiment `EXP-TQ-COMP-001`, a matched TurboQuant-versus-standard KV-cache comparison with controlled model, prompt, hardware and measurement settings.
 
 ### Start here
 

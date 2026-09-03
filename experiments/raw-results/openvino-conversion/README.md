@@ -33,7 +33,7 @@ RTM Planned Evidence Path
 
 ## Beginner directory guide
 
-This folder groups the openvino conversion material used by the testing workflow.
+This is the planned raw-evidence location for the verified IBM-source-to-OpenVINO preparation route required by F-S15, including conversion commands, logs, structure checks and runtime outcomes.
 
 ### Start here
 
