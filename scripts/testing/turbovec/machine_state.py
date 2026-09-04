@@ -165,7 +165,7 @@ def capture_sample(process: psutil.Process) -> MachineSample:
     )
 
 
-def capture_window(duration_seconds: int, interval_seconds: float = 1.0) -> list[MachineSample]:
+def capture_window(duration_seconds: int, interval_seconds: float = 3.0) -> list[MachineSample]:
     if duration_seconds < 1 or interval_seconds <= 0:
         raise ValueError("sampling duration and interval must be positive")
     process = psutil.Process()
@@ -192,12 +192,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--conditions-json", type=Path, required=True)
     parser.add_argument("--duration-seconds", type=int, default=60)
+    parser.add_argument("--interval-seconds", type=float, default=3.0)
     args = parser.parse_args(argv)
     if args.output_root.exists():
         raise FileExistsError(args.output_root)
     conditions = json.loads(args.conditions_json.read_text(encoding="utf-8"))
     args.output_root.mkdir(parents=True)
-    samples = capture_window(args.duration_seconds)
+    samples = capture_window(args.duration_seconds, args.interval_seconds)
     with (args.output_root / "samples.jsonl").open("w", encoding="utf-8", newline="\n") as stream:
         for item in samples:
             stream.write(json.dumps(asdict(item), sort_keys=True, separators=(",", ":")) + "\n")

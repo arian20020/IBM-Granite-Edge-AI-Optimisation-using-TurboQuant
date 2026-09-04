@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory=$true)][string]$PythonExe,
     [Parameter(Mandatory=$true)][string]$OutputRoot,
     [Parameter(Mandatory=$true)][string]$ConditionsJson,
-    [ValidateRange(1,3600)][int]$DurationSeconds=60
+    [ValidateRange(1,3600)][int]$DurationSeconds=60,
+    [ValidateRange(0.5,60)][double]$IntervalSeconds=3
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -27,5 +28,6 @@ if (Test-Path -LiteralPath $Output) { throw 'Output root already exists.' }
 & $Python -m scripts.testing.turbovec.machine_state `
     --output-root $Output `
     --conditions-json $Conditions `
-    --duration-seconds $DurationSeconds
+    --duration-seconds $DurationSeconds `
+    --interval-seconds $IntervalSeconds
 exit $LASTEXITCODE

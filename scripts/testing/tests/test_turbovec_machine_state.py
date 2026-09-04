@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+import inspect
+from pathlib import Path
 import unittest
 
 from scripts.testing.turbovec.machine_state import MachineSample, _committed_memory_bytes, capture_window, evaluate_readiness
@@ -42,6 +44,13 @@ def sample(second, *, cpu=3.0, available=8 * GIB, on_ac=True, power="balanced"):
 
 
 class MachineStateTests(unittest.TestCase):
+    def test_readiness_sampler_uses_low_overhead_three_second_default(self):
+        default = inspect.signature(capture_window).parameters["interval_seconds"].default
+        self.assertEqual(3.0, default)
+        wrapper = (Path(__file__).parents[1] / "Capture-TurboVecMachineState.ps1").read_text(encoding="utf-8")
+        self.assertIn("[double]$IntervalSeconds=3", wrapper)
+        self.assertIn("--interval-seconds $IntervalSeconds", wrapper)
+
     def test_committed_memory_uses_a_positive_host_measurement(self):
         self.assertGreater(_committed_memory_bytes(), 0)
 
