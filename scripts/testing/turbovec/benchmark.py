@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import gc
 import math
 from pathlib import Path
 import shutil
@@ -40,6 +41,34 @@ def _working_set() -> int:
         return 0
 
 
+def _available_ram() -> int:
+    try:
+        import psutil  # type: ignore
+        return int(psutil.virtual_memory().available)
+    except ImportError:
+        return 0
+
+
+def _recover(baseline_available: int, timeout_seconds: float = 60.0) -> dict[str, object]:
+    try:
+        import psutil  # type: ignore
+    except ImportError:
+        return {"recovered": False, "reason": "psutil unavailable", "samples": []}
+    gc.collect()
+    deadline = time.monotonic() + timeout_seconds
+    samples = []
+    consecutive = 0
+    while time.monotonic() < deadline:
+        cpu = float(psutil.cpu_percent(interval=1.0))
+        available = int(psutil.virtual_memory().available)
+        within_baseline = baseline_available <= 0 or abs(available - baseline_available) / baseline_available <= 0.05
+        samples.append({"system_cpu_percent": cpu, "available_ram_bytes": available, "within_five_percent_of_baseline": within_baseline})
+        consecutive = consecutive + 1 if cpu < 10.0 and within_baseline else 0
+        if consecutive >= 2:
+            return {"recovered": True, "reason": "", "samples": samples}
+    return {"recovered": False, "reason": "CPU/RAM did not recover within the fixed window", "samples": samples}
+
+
 def _storage(root: Path, shared_document_metadata_bytes: int) -> dict[str, int]:
     vector = index_metadata = serialization = auxiliary = 0
     for path in root.iterdir():
@@ -68,6 +97,7 @@ def _run_configuration(
     measured_batches: int,
     shared_document_metadata_bytes: int,
 ) -> dict[str, object]:
+    available_before = _available_ram()
     baseline_memory = _working_set()
     peak_memory = baseline_memory
     started = time.perf_counter_ns()
@@ -137,6 +167,8 @@ def _run_configuration(
             "baseline_process_working_set_bytes": baseline_memory,
             "peak_process_working_set_bytes": peak_memory,
             "incremental_peak_process_working_set_bytes": max(0, peak_memory - baseline_memory),
+            "available_system_ram_before_bytes": available_before,
+            "available_system_ram_after_cleanup_bytes": _available_ram(),
         },
         "lifecycle": {
             "save_reload_integrity": bool(save_reload_integrity),
@@ -160,6 +192,7 @@ def run_scale_benchmark(
     measured_batches: int = 30,
     shared_document_metadata_bytes: int,
     validity_probe: ValidityProbe | None = None,
+    enforce_recovery: bool = False,
 ) -> dict[str, object]:
     if len(document_embeddings) != scale or len(ids) != scale or len(query_embeddings) == 0:
         raise ValueError("benchmark input shape mismatch")
@@ -189,6 +222,12 @@ def run_scale_benchmark(
                     warmup_batches=warmup_batches, measured_batches=measured_batches,
                     shared_document_metadata_bytes=shared_document_metadata_bytes,
                 )
+                if enforce_recovery:
+                    baseline_available = int(configurations[name]["memory"]["available_system_ram_before_bytes"])
+                    recovery = _recover(baseline_available)
+                    configurations[name]["recovery"] = recovery
+                    if recovery["recovered"] is not True:
+                        reasons.append(f"{name} recovery failed: {recovery['reason']}")
                 after_ok, after_reason = probe(name, "after")
                 if not after_ok:
                     reasons.append(after_reason or f"{name} after-state invalid")
