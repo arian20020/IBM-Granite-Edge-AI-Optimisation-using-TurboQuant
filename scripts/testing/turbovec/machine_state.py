@@ -176,6 +176,10 @@ def capture_window(duration_seconds: int, interval_seconds: float = 1.0) -> list
     while time.monotonic() < deadline:
         time.sleep(min(interval_seconds, max(0.0, deadline - time.monotonic())))
         samples.append(capture_sample(process))
+    coverage = (datetime.fromisoformat(samples[-1].timestamp_utc) - datetime.fromisoformat(samples[0].timestamp_utc)).total_seconds()
+    if coverage < duration_seconds:
+        time.sleep(duration_seconds - coverage)
+        samples.append(capture_sample(process))
     return samples
 
 
