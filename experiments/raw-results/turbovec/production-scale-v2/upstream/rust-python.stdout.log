@@ -1,0 +1,11 @@
+
+running 6 tests
+test snap_retention_tests::growing_batch_sizes_keep_their_growth_headroom ... ok
+test snap_retention_tests::one_shot_bulk_add_releases_the_snapshot ... ok
+test snap_retention_tests::a_step_up_in_batch_size_is_not_shrunk_back ... ok
+test snap_retention_tests::a_one_off_spike_does_not_stay_pinned ... ok
+test snap_retention_tests::repeated_same_size_adds_keep_the_snapshot_warm ... ok
+test snap_retention_tests::jittering_batch_sizes_keep_their_growth_headroom ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+

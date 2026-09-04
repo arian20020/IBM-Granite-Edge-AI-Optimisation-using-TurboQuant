@@ -1,0 +1,149 @@
+{
+  "schema_version": "2.0",
+  "campaign_id": "turbovec-production-scale-final-evaluation-v2",
+  "experiment_id": "EXP-TV-COMP-001",
+  "status": "failed",
+  "source": {
+    "commit": "ccab9f325e6ce2a270a87daf01ae4e443bcf2d49",
+    "working_tree": "clean"
+  },
+  "runtime": {
+    "python": "Python 3.12.10",
+    "rust": "rustc 1.89.0 (29483883e 2025-08-04)",
+    "toolchain": "1.89.0",
+    "installer_sha256": "6f4bef66261261fcb43131be8720bab817d403a09edec7455c371974b90bdb7e"
+  },
+  "commands": {
+    "repository_baseline": {
+      "name": "repository-baseline",
+      "command": "C:\\R4-TV1-assets\\controlled-py312\\Scripts\\python.exe -m unittest scripts.testing.tests.test_animehacker_activation scripts.testing.tests.test_animehacker_build_reconcile scripts.testing.tests.test_animehacker_large_host scripts.testing.tests.test_animehacker_matrix scripts.testing.tests.test_animehacker_quality scripts.testing.tests.test_animehacker_reconcile scripts.testing.tests.test_animehacker_runner scripts.testing.tests.test_animehacker_source_audit scripts.testing.tests.test_atomicbot_full_quality scripts.testing.tests.test_atomicbot_matrix scripts.testing.tests.test_atomicbot_metrics scripts.testing.tests.test_atomicbot_quality scripts.testing.tests.test_atomicbot_reconcile scripts.testing.tests.test_atomicbot_runner scripts.testing.tests.test_atomicbot_utilization scripts.testing.tests.test_parse_llama_measurement -v",
+      "working_directory": "C:\\R4-TV1",
+      "exit_code": 0,
+      "stdout": {
+        "path": "repository-baseline.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "repository-baseline.stderr.log",
+        "bytes": 20549,
+        "sha256": "87c616ce84aaaa40875e1d4d22d3bc0489604f40cf0b133359df9b559fbe09e8"
+      },
+      "accounting": {
+        "discovered": 111,
+        "attempted": 111,
+        "executed": 111,
+        "passed": 111,
+        "failed": 0,
+        "skipped": 0,
+        "blocked": 0,
+        "unexecuted": 0
+      }
+    },
+    "upstream_python": {
+      "name": "upstream-python",
+      "command": "C:\\R4-TV1-assets\\controlled-py312\\Scripts\\python.exe -m pytest turbovec-python/tests -ra --tb=short",
+      "working_directory": "C:\\R4-TV1-assets\\turbovec-src",
+      "exit_code": 1,
+      "stdout": {
+        "path": "upstream-python.stdout.log",
+        "bytes": 19721,
+        "sha256": "8a2c06739d716271ff5f41f6985f1f9135101a4630c453eee3465df0f7c4768c"
+      },
+      "stderr": {
+        "path": "upstream-python.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "accounting": {
+        "discovered": 479,
+        "attempted": 322,
+        "executed": 322,
+        "passed": 321,
+        "failed": 1,
+        "skipped": 157,
+        "blocked": 0,
+        "unexecuted": 0
+      },
+      "known_long_path_only": true
+    },
+    "rust_core": {
+      "name": "rust-core",
+      "command": "C:\\Users\\Student\\.cargo\\bin\\cargo.exe +1.89.0 test --release --locked -p turbovec",
+      "working_directory": "C:\\R4-TV1-assets\\turbovec-src",
+      "exit_code": 0,
+      "stdout": {
+        "path": "rust-core.stdout.log",
+        "bytes": 35057,
+        "sha256": "4301101b646a49ef7f96090e9236c2874b78f131d0df1821a2bcc4a61349a217"
+      },
+      "stderr": {
+        "path": "rust-core.stderr.log",
+        "bytes": 4462,
+        "sha256": "f1977bcc5b6dd2f73eddd7dde9f4cafe673de343f4e89af7d7a6a1befa1a8dcd"
+      },
+      "accounting": {
+        "discovered": 475,
+        "attempted": 475,
+        "executed": 475,
+        "passed": 475,
+        "failed": 0,
+        "skipped": 0,
+        "blocked": 0,
+        "unexecuted": 0
+      }
+    },
+    "rust_python": {
+      "name": "rust-python",
+      "command": "C:\\Users\\Student\\.cargo\\bin\\cargo.exe +1.89.0 test --release --locked -p turbovec-python --no-default-features",
+      "working_directory": "C:\\R4-TV1-assets\\turbovec-src",
+      "exit_code": 0,
+      "stdout": {
+        "path": "rust-python.stdout.log",
+        "bytes": 580,
+        "sha256": "5984aa2c654c925131ca0b962ffd4b43f97fa58b0da63633119ebb04c9adc7e4"
+      },
+      "stderr": {
+        "path": "rust-python.stderr.log",
+        "bytes": 151,
+        "sha256": "98e2ad94a26000bdb84da27352589f56a198b557f88f2fab40fed99e7e2d7af2"
+      },
+      "accounting": {
+        "discovered": 6,
+        "attempted": 6,
+        "executed": 6,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "blocked": 0,
+        "unexecuted": 0
+      }
+    },
+    "clippy": {
+      "name": "clippy",
+      "command": "C:\\Users\\Student\\.cargo\\bin\\cargo.exe +1.89.0 clippy --release --locked --workspace --all-targets -- -D warnings",
+      "working_directory": "C:\\R4-TV1-assets\\turbovec-src",
+      "exit_code": 101,
+      "stdout": {
+        "path": "clippy.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "clippy.stderr.log",
+        "bytes": 19543,
+        "sha256": "3ede5a9894bcc13b0d9c6dd698bb7a248c26121f22af9bf045b366d9b7c04ff4"
+      },
+      "accounting": {
+        "discovered": 1,
+        "attempted": 1,
+        "executed": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "blocked": 0,
+        "unexecuted": 0
+      }
+    }
+  }
+}
