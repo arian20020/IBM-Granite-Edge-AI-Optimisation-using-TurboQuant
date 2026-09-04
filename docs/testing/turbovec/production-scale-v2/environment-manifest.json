@@ -1,0 +1,45 @@
+{
+  "campaign_id": "turbovec-production-scale-final-evaluation-v2",
+  "experiment_id": "EXP-TV-COMP-001",
+  "machine": {
+    "manufacturer_model": "Lenovo 83ER",
+    "cpu": "Intel Core i5-12450H",
+    "physical_cores": 8,
+    "logical_processors": 12,
+    "physical_ram_bytes": 16857817088,
+    "operating_system": "Windows 11 Home 10.0.26200 build 26200",
+    "power": "AC",
+    "power_scheme_guid": "381b4222-f694-41f0-9685-ff5bb260df2e",
+    "power_scheme": "Balanced"
+  },
+  "python": "3.12.10",
+  "dependencies": {
+    "turbovec": "1.0.0",
+    "numpy": "2.5.2",
+    "openvino": "2026.3.1",
+    "openvino_genai": "2026.3.0.0",
+    "psutil": "7.2.2",
+    "pytest": "9.1.1",
+    "optimum_intel": null,
+    "transformers": null,
+    "rustc": "1.89.0 (29483883e 2025-08-04)",
+    "cargo": "1.89.0 (c24e10642 2025-06-23)"
+  },
+  "turbovec": {
+    "source_commit": "ccab9f325e6ce2a270a87daf01ae4e443bcf2d49",
+    "source_tree": "0a7141836d01da61e6f3cf53b5c60916b741d811",
+    "wheel_bytes": 611788,
+    "wheel_sha256": "cd855e0b318a57dc57c733f9a62ae98de5192f4f6c2c760e305523e8ceb1b090"
+  },
+  "embedding_model": {
+    "repository": "ibm-granite/granite-embedding-small-english-r2",
+    "revision": "2ab6fa8ea2d674564defd37171ae19079b864b33",
+    "tree_sha256": "c050a0106ab7c2a77f1767f123438a206d18216d17012ed15e1bff95add636b2",
+    "tokenizer_sha256": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30",
+    "dimension": 384,
+    "dtype": "float32",
+    "normalization": "l2",
+    "batch_size": 16,
+    "device": "CPU"
+  }
+}
