@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:granite-edge-ai:turbovec:production-scale-v2:evidence",
+  "title": "TurboVec production-scale v2 terminal evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "files"],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "status": {"const": "completed"},
+    "files": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "bytes", "sha256"],
+        "properties": {
+          "name": {"enum": ["benchmark.json", "evaluation.json", "summary.json"]},
+          "bytes": {"type": "integer", "minimum": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

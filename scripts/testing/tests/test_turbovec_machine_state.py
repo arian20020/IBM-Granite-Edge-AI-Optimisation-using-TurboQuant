@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import unittest
 
-from scripts.testing.turbovec.machine_state import MachineSample, evaluate_readiness
+from scripts.testing.turbovec.machine_state import MachineSample, _committed_memory_bytes, evaluate_readiness
 
 
 GIB = 1024 ** 3
@@ -42,6 +42,9 @@ def sample(second, *, cpu=3.0, available=8 * GIB, on_ac=True, power="balanced"):
 
 
 class MachineStateTests(unittest.TestCase):
+    def test_committed_memory_uses_a_positive_host_measurement(self):
+        self.assertGreater(_committed_memory_bytes(), 0)
+
     def test_accepts_full_stable_sixty_second_window(self):
         samples = [sample(second) for second in range(61)]
         result = evaluate_readiness(samples, CONDITIONS)

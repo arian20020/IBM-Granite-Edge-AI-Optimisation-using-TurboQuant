@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$RunDirectory)
+param(
+    [Parameter(Mandatory=$true)][string]$RunDirectory,
+    [string]$PythonExe
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -9,6 +12,19 @@ $Item=Get-Item -LiteralPath $Run -Force
 if (-not $Item.PSIsContainer -or (($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) { throw 'Unsafe run directory.' }
 $Terminal=Get-Content -LiteralPath (Join-Path $Run 'terminal.json') -Raw | ConvertFrom-Json
 if ($Terminal.status -ne 'completed') { throw 'Evidence is not terminally complete.' }
+$TerminalNames=@($Terminal.files | ForEach-Object {$_.name} | Sort-Object)
+if (($TerminalNames -join ',') -eq 'benchmark.json,evaluation.json,summary.json') {
+    if ($PythonExe) {
+        if (-not [IO.Path]::IsPathFullyQualified($PythonExe)) { throw 'Python executable must be absolute.' }
+        $Python=(Resolve-Path -LiteralPath $PythonExe -ErrorAction Stop).Path
+    } else {
+        $Python=(Get-Command python -ErrorAction Stop).Source
+    }
+    $RepositoryRoot=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+    & $Python -m scripts.testing.turbovec.validate_campaign --run-directory $Run
+    if ($LASTEXITCODE -ne 0) { throw 'Production-scale TurboVec evidence validation failed.' }
+    exit 0
+}
 foreach($Record in $Terminal.files) {
     if ($Record.name -match '[\\/]' -or $Record.name -eq 'terminal.json') { throw 'Invalid evidence filename.' }
     $Path=Join-Path $Run $Record.name
