@@ -1,0 +1,46 @@
+{
+  "schema_version": "2.0",
+  "campaign_id": "turbovec-production-scale-final-evaluation-v2",
+  "experiment_id": "EXP-TV-COMP-001",
+  "scales": [30, 1000, 10000, 100000],
+  "required_scales": [30, 1000, 10000],
+  "conditional_scales": [100000],
+  "configurations": ["exact", "tq2", "tq3", "tq4"],
+  "embedding": {
+    "repository": "ibm-granite/granite-embedding-small-english-r2",
+    "revision": "2ab6fa8ea2d674564defd37171ae19079b864b33",
+    "dimension": 384,
+    "dtype": "float32",
+    "normalization": "l2",
+    "device": "CPU"
+  },
+  "measurement": {
+    "warmup_batches": 5,
+    "measured_batches": 30,
+    "independent_repetitions": 5,
+    "order": "rotating_latin_square",
+    "seed": 240904,
+    "top_k": 10,
+    "readiness_sample_seconds": 60,
+    "minimum_idle_seconds": 300,
+    "maximum_average_cpu_percent": 10.0,
+    "practical_available_ram_bytes": 4294967296,
+    "hard_available_ram_bytes": 2147483648
+  },
+  "gate_a": {
+    "minimum_recall_at_10": 0.9,
+    "minimum_relative_ndcg_at_10": 0.95,
+    "maximum_p95_slowdown": 1.1,
+    "minimum_storage_ratio": 2.0,
+    "minimum_scale": 10000
+  },
+  "gate_b": {
+    "minimum_source_accuracy": 0.95,
+    "page_provenance_required": true,
+    "absent_answer_no_material_regression": true,
+    "mixed_pdf_required": true,
+    "cancellation_recovery_required": true,
+    "incomplete_index_rejection_required": true,
+    "generated_answer_quality_evaluated": false
+  }
+}
