@@ -1,0 +1,73 @@
+{
+  "schema_version": "2.0",
+  "campaign_id": "turbovec-production-scale-final-evaluation-v2",
+  "experiment_id": "EXP-TV-COMP-001",
+  "base": {
+    "branch": "test/ucl-turbovec-pdf-feasibility-v1",
+    "commit": "07998fb7766887689a222dd0c8726d821fa33169",
+    "tree": "ed68db942aa26c2e66218c10012c914a0e3c361e"
+  },
+  "execution_branch": "test/turbovec-production-scale-final-evaluation-v2",
+  "governing_request": {
+    "bytes": 19718,
+    "sha256": "b160db803175b71f6edb2b6a5beb922cc6a17bfb070f7cf800bb729119a5965a"
+  },
+  "dependencies": {
+    "turbovec": {
+      "version": "1.0.0",
+      "commit": "ccab9f325e6ce2a270a87daf01ae4e443bcf2d49",
+      "tree": "0a7141836d01da61e6f3cf53b5c60916b741d811",
+      "wheel_bytes": 611788,
+      "wheel_sha256": "cd855e0b318a57dc57c733f9a62ae98de5192f4f6c2c760e305523e8ceb1b090"
+    },
+    "embedding_model": {
+      "repository": "ibm-granite/granite-embedding-small-english-r2",
+      "revision": "2ab6fa8ea2d674564defd37171ae19079b864b33",
+      "dimension": 384,
+      "tree_sha256": "c050a0106ab7c2a77f1767f123438a206d18216d17012ed15e1bff95add636b2"
+    },
+    "runtime": {
+      "python": "3.12.10",
+      "numpy": "2.5.2",
+      "openvino": "2026.3.1",
+      "openvino_genai": "2026.3.0.0",
+      "psutil": "7.2.2"
+    }
+  },
+  "baseline_tests": {
+    "controlled_python": {
+      "historical_reported": 31,
+      "current_discovered": 39,
+      "executed": 39,
+      "passed": 39,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    "pdf_direct": {
+      "discovered": 5,
+      "executed": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    "pdf_dotnet_bridge": {
+      "discovered": 0,
+      "executed": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 5,
+      "classification": "dotnet-test Microsoft Testing Platform bridge discovery failure"
+    }
+  },
+  "diagnostic_reproduction": {
+    "run_id": "EXP-TV-COMP-001-20260904T025427Z-090",
+    "quality_and_storage_match": true,
+    "formal_timing_evidence": false,
+    "terminal_sha256": "b773055fa6d99bcc23e3df0c81c1c60ba6a0621da2f95fd9966e4fabef0b546c",
+    "summary_sha256": "dcefa2c4c8a1b695238bd7ba203a19f0c1f05329cee9bd259c3e96ba8f8930aa",
+    "pdf_trx_sha256": "c6621789e7a88a5f3385e03bbb08edd68a56f4e9f2f8ccc21c9d81e0eaf5f62e"
+  }
+}
