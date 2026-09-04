@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import statistics
 import subprocess
@@ -22,6 +24,27 @@ REQUIRED_CONDITIONS = frozenset({
     "no_browser_or_media_workload", "previous_candidate_processes_terminated",
     "previous_index_unloaded", "temporary_resources_cleaned", "security_protections_enabled",
 })
+
+
+def _committed_memory_bytes() -> int:
+    if os.name == "nt":
+        class PerformanceInformation(ctypes.Structure):
+            _fields_ = [
+                ("cb", ctypes.c_ulong),
+                ("CommitTotal", ctypes.c_size_t), ("CommitLimit", ctypes.c_size_t),
+                ("CommitPeak", ctypes.c_size_t), ("PhysicalTotal", ctypes.c_size_t),
+                ("PhysicalAvailable", ctypes.c_size_t), ("SystemCache", ctypes.c_size_t),
+                ("KernelTotal", ctypes.c_size_t), ("KernelPaged", ctypes.c_size_t),
+                ("KernelNonpaged", ctypes.c_size_t), ("PageSize", ctypes.c_size_t),
+                ("HandleCount", ctypes.c_ulong), ("ProcessCount", ctypes.c_ulong),
+                ("ThreadCount", ctypes.c_ulong),
+            ]
+        information = PerformanceInformation()
+        information.cb = ctypes.sizeof(information)
+        if ctypes.windll.psapi.GetPerformanceInfo(ctypes.byref(information), information.cb):
+            return int(information.CommitTotal * information.PageSize)
+    virtual = psutil.virtual_memory()
+    return int(virtual.used + psutil.swap_memory().used)
 
 
 @dataclass(frozen=True)
@@ -126,7 +149,7 @@ def capture_sample(process: psutil.Process) -> MachineSample:
         timestamp_utc=datetime.now(timezone.utc).isoformat(),
         total_physical_ram_bytes=int(virtual.total),
         available_physical_ram_bytes=int(virtual.available),
-        committed_memory_bytes=int(virtual.used + swap.used),
+        committed_memory_bytes=_committed_memory_bytes(),
         pagefile_used_bytes=int(swap.used),
         experiment_process_working_set_bytes=int(process.memory_info().rss),
         system_cpu_percent=float(psutil.cpu_percent(interval=None)),

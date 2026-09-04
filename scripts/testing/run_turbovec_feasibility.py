@@ -17,6 +17,7 @@ sys.path.insert(0, str(REPOSITORY_ROOT))
 from scripts.testing.turbovec.embedding import DeterministicEmbeddingProvider, OpenVinoGraniteEmbeddingProvider, lock_model_assets
 from scripts.testing.turbovec.artifacts import generate_embedding_artifact, load_embedding_artifact
 from scripts.testing.turbovec.dataset import SUPPORTED_SCALES, build_frozen_dataset
+from scripts.testing.turbovec.formal import run_formal_scale
 from scripts.testing.turbovec.runner import run_fixture_campaign, run_live_campaign, write_processed_results
 
 
@@ -36,6 +37,12 @@ def parser() -> argparse.ArgumentParser:
     verify=commands.add_parser("verify-embeddings")
     verify.add_argument("--scale",type=int,choices=SUPPORTED_SCALES,required=True)
     verify.add_argument("--artifact-root",type=Path,required=True)
+    formal=commands.add_parser("formal-scale")
+    formal.add_argument("--artifact-root",type=Path,required=True)
+    formal.add_argument("--readiness-root",type=Path,required=True)
+    formal.add_argument("--scale",type=int,choices=SUPPORTED_SCALES,required=True)
+    formal.add_argument("--output-root",type=Path,required=True)
+    formal.add_argument("--seed",type=int,required=True)
     return result
 
 
@@ -63,6 +70,10 @@ def main(argv=None) -> int:
         dataset=build_frozen_dataset(args.scale)
         documents,queries,manifest=load_embedding_artifact(args.artifact_root/f"scale-{args.scale}",dataset)
         print(json.dumps({"status":"verified","scale":args.scale,"document_rows":len(documents),"query_rows":len(queries),"files":manifest["files"]},sort_keys=True)); return 0
+    if args.command=="formal-scale":
+        identity={"source_commit":subprocess.check_output(["git","rev-parse","HEAD"],cwd=REPOSITORY_ROOT,text=True).strip(),"source_tree":subprocess.check_output(["git","rev-parse","HEAD^{tree}"],cwd=REPOSITORY_ROOT,text=True).strip()}
+        run_formal_scale(args.artifact_root/f"scale-{args.scale}",args.readiness_root,args.output_root,scale=args.scale,seed=args.seed,identity=identity)
+        return 0
     if args.command=="measured":
         provider=OpenVinoGraniteEmbeddingProvider(args.model_root)
         manifest=json.loads((REPOSITORY_ROOT/"experiments/manifests/turbovec/feasibility-v1.json").read_text(encoding="utf-8"))
