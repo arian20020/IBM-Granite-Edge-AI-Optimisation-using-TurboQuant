@@ -52,6 +52,7 @@ def run_formal_scale(
     repetitions: int = 5,
     warmup_batches: int = 5,
     measured_batches: int = 30,
+    enforce_recovery: bool = True,
     identity: Mapping[str, object] | None = None,
 ) -> Path:
     readiness_path = Path(readiness_root) / "decision.json"
@@ -70,6 +71,7 @@ def run_formal_scale(
             scale=scale, schedule=build_schedule(seed=seed, repetitions=repetitions, query_count=len(queries)),
             output_root=destination / "scratch", warmup_batches=warmup_batches,
             measured_batches=measured_batches, shared_document_metadata_bytes=_metadata_bytes(dataset),
+            enforce_recovery=enforce_recovery,
         )
         (destination / "scratch").rmdir()
         evaluated = []

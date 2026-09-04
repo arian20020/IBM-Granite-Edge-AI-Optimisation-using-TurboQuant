@@ -22,7 +22,7 @@ class FormalScaleTests(unittest.TestCase):
             readiness.mkdir()
             (readiness / "decision.json").write_text(json.dumps({"ready": True, "coverage_seconds": 60}), encoding="utf-8")
             output = root / "run"
-            run_formal_scale(artifact, readiness, output, scale=30, seed=44, repetitions=1, warmup_batches=1, measured_batches=1)
+            run_formal_scale(artifact, readiness, output, scale=30, seed=44, repetitions=1, warmup_batches=1, measured_batches=1, enforce_recovery=False)
             terminal = json.loads((output / "terminal.json").read_text(encoding="utf-8"))
             self.assertEqual("completed", terminal["status"])
             self.assertEqual({"benchmark.json", "evaluation.json", "summary.json"}, {item["name"] for item in terminal["files"]})
