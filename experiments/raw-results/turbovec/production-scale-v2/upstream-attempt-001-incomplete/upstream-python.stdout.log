@@ -1,0 +1,163 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\R4-TV1-assets\turbovec-src\turbovec-python
+configfile: pyproject.toml
+collected 475 items / 4 skipped
+
+turbovec-python\tests\test_argument_errors.py .......................... [  5%]
+....                                                                     [  6%]
+turbovec-python\tests\test_async_offload.py ssssssssssssssssssssss       [ 10%]
+turbovec-python\tests\test_calibration.py ............                   [ 13%]
+turbovec-python\tests\test_dedup.py .......                              [ 14%]
+turbovec-python\tests\test_filtering.py ...................              [ 18%]
+turbovec-python\tests\test_fork_safety.py .ssssssssssss...s              [ 22%]
+turbovec-python\tests\test_gil_release.py ..s..s....                     [ 24%]
+turbovec-python\tests\test_id_map.py ...............................     [ 31%]
+turbovec-python\tests\test_index.py .................................... [ 38%]
+.....ss                                                                  [ 40%]
+turbovec-python\tests\test_interruptible.py ...........s................ [ 46%]
+..                                                                       [ 46%]
+turbovec-python\tests\test_object_model.py ............................. [ 52%]
+...................                                                      [ 56%]
+turbovec-python\tests\test_persist.py ...............s...F.............. [ 63%]
+.ss.......                                                               [ 65%]
+turbovec-python\tests\test_pickle_copy.py .....sssssssssssssssssssssssss [ 72%]
+s                                                                        [ 72%]
+turbovec-python\tests\test_rayon_env.py ....                             [ 73%]
+turbovec-python\tests\test_remove_fast_path.py ....                      [ 74%]
+turbovec-python\tests\test_security.py .......................           [ 78%]
+turbovec-python\tests\test_similarity_modes.py sssssssssssssssssssssssss [ 84%]
+sssssssssss                                                              [ 86%]
+turbovec-python\tests\test_snap_retention.py ....                        [ 87%]
+turbovec-python\tests\test_store_thread_safety.py ssssssssssssssssssssss [ 92%]
+ssssss.....ssssssssssssssssssss                                          [ 98%]
+turbovec-python\tests\test_sync.py ....                                  [ 99%]
+turbovec-python\tests\test_version.py ...                                [100%]
+
+================================== FAILURES ===================================
+______________ test_atomic_save_round_trips_a_long_sidecar_name _______________
+turbovec-python\tests\test_persist.py:436: in test_atomic_save_round_trips_a_long_sidecar_name
+    atomic_save(idx, index_path, {"docs": [1, 2, 3]}, sidecar_path)
+..\controlled-py312\Lib\site-packages\turbovec\_persist.py:404: in atomic_save
+    with open(index_tmp, "rb+") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Student\\AppData\\Local\\Temp\\pytest-of-Student\\pytest-698\\test_atomic_save_round_trips_a0\\ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss.tvim.tmp.2584.111.18afe5cf'
+=========================== short test summary info ===========================
+SKIPPED [1] turbovec-python\tests\test_agno.py:10: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_haystack.py:7: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_langchain.py:6: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_llama_index.py:7: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [9] turbovec-python\tests\test_async_offload.py:104: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [7] turbovec-python\tests\test_async_offload.py:269: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [6] turbovec-python\tests\test_async_offload.py:333: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:459: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:465: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:473: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:479: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:487: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:493: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:499: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:505: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:511: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:518: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:527: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:535: fork-safety is a Linux concern; macOS aborts a forked child after framework (Accelerate) init and defaults multiprocessing to spawn, so these fork cases only run on the Linux CI gate
+SKIPPED [1] turbovec-python\tests\test_fork_safety.py:649: thread census via /proc is Linux-only
+SKIPPED [1] turbovec-python\tests\test_gil_release.py:146: add finished before len() could block; nothing to measure
+SKIPPED [1] turbovec-python\tests\test_gil_release.py:311: first remove after load took only 5.2 ms; below 50 ms the ticker's own scheduling noise is the same order as the signal, so the ratio cannot discriminate on this machine
+SKIPPED [1] turbovec-python\tests\test_index.py:356: POSIX directory permissions
+SKIPPED [1] turbovec-python\tests\test_index.py:438: POSIX directory permissions
+SKIPPED [1] turbovec-python\tests\test_interruptible.py:192: delivering a real SIGINT from a helper thread is Unix-only; Windows only routes Ctrl-C (CTRL_C_EVENT) to the main thread. The chunking feature works cross-platform and is covered by the deterministic __wrapped__-based interrupt tests above.
+SKIPPED [1] turbovec-python\tests\test_persist.py:303: POSIX directory permissions
+SKIPPED [1] turbovec-python\tests\test_persist.py:666: no directory-fsync equivalent on Windows
+SKIPPED [1] turbovec-python\tests\test_persist.py:717: no directory-fsync equivalent on Windows
+SKIPPED [4] turbovec-python\tests\test_pickle_copy.py:192: could not import 'llama_index': No module named 'llama_index'
+SKIPPED [5] turbovec-python\tests\test_pickle_copy.py:155: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [3] turbovec-python\tests\test_pickle_copy.py:172: could not import 'haystack': No module named 'haystack'
+SKIPPED [3] turbovec-python\tests\test_pickle_copy.py:221: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_pickle_copy.py:317: could not import 'agno': No module named 'agno'
+SKIPPED [2] turbovec-python\tests\test_pickle_copy.py:469: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [2] turbovec-python\tests\test_pickle_copy.py:483: could not import 'haystack': No module named 'haystack'
+SKIPPED [2] turbovec-python\tests\test_pickle_copy.py:505: could not import 'llama_index': No module named 'llama_index'
+SKIPPED [2] turbovec-python\tests\test_pickle_copy.py:531: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_pickle_copy.py:570: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_pickle_copy.py:604: could not import 'haystack': No module named 'haystack'
+SKIPPED [6] turbovec-python\tests\test_similarity_modes.py:86: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:156: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:206: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:226: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:241: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:250: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:268: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:312: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:325: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:343: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:360: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:379: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:392: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:405: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:421: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:447: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:464: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:493: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:516: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:544: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:555: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:575: could not import 'haystack': No module named 'haystack'
+SKIPPED [3] turbovec-python\tests\test_similarity_modes.py:588: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:654: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:692: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:714: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:738: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:766: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_similarity_modes.py:783: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:476: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:476: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:476: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:476: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:519: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:519: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:519: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:519: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:524: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:524: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:524: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:524: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:529: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:529: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:529: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:529: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:561: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:561: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:561: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:561: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:596: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:596: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:596: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:596: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:626: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:626: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:626: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:626: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:833: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:833: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:833: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:833: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:859: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:859: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:859: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:859: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:890: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:890: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:890: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:890: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:942: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:942: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:942: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:942: could not import 'agno': No module named 'agno'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:967: could not import 'langchain_core': No module named 'langchain_core'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:967: could not import 'haystack': No module named 'haystack'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:967: could not import 'llama_index.core': No module named 'llama_index'
+SKIPPED [1] turbovec-python\tests\test_store_thread_safety.py:967: could not import 'agno': No module named 'agno'
+FAILED turbovec-python\tests\test_persist.py::test_atomic_save_round_trips_a_long_sidecar_name
+================= 1 failed, 321 passed, 157 skipped in 27.48s =================

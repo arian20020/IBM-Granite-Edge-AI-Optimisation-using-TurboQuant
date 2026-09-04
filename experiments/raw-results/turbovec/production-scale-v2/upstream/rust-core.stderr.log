@@ -1,0 +1,56 @@
+warning: function `write_good_tv` is never used
+  --> turbovec\tests\tmp_sweep.rs:61:4
+   |
+61 | fn write_good_tv(path: &PathBuf) {
+   |    ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `sync_index` is never used
+   --> turbovec\tests\tmp_sweep.rs:105:4
+    |
+105 | fn sync_index(idx: &mut turbovec::TurboQuantIndex, path: &PathBuf) {
+    |    ^^^^^^^^^^
+
+warning: `turbovec` (test "tmp_sweep") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 2.01s
+     Running unittests src\lib.rs (target\release\deps\turbovec-2d8f31f635eb2067.exe)
+     Running tests\adversarial_durability.rs (target\release\deps\adversarial_durability-99e8d65e41ad04dc.exe)
+     Running tests\adversarial_durability_edges.rs (target\release\deps\adversarial_durability_edges-0ca405169a9de0fc.exe)
+     Running tests\adversarial_durability_fuzz.rs (target\release\deps\adversarial_durability_fuzz-838770110cf12676.exe)
+     Running tests\adversarial_durability_round2.rs (target\release\deps\adversarial_durability_round2-779ae05bc7e34dc9.exe)
+     Running tests\adversarial_gen_reuse.rs (target\release\deps\adversarial_gen_reuse-80f671305ef19dbe.exe)
+     Running tests\adversarial_load_memory.rs (target\release\deps\adversarial_load_memory-1a3a22953eddfb6c.exe)
+     Running tests\allocation_hot_paths.rs (target\release\deps\allocation_hot_paths-32d545ae2a31df5c.exe)
+     Running tests\avx512_tail_simulation.rs (target\release\deps\avx512_tail_simulation-cc48338fc43284c7.exe)
+     Running tests\batch_matches_single.rs (target\release\deps\batch_matches_single-a2e95cf6bb6a3395.exe)
+     Running tests\bytes_io.rs (target\release\deps\bytes_io-1c70711941a0f6cc.exe)
+     Running tests\calibration_bounds.rs (target\release\deps\calibration_bounds-b0bb9a418b049f46.exe)
+     Running tests\codebook_determinism.rs (target\release\deps\codebook_determinism-024b95450be0b1c9.exe)
+     Running tests\concurrent_search.rs (target\release\deps\concurrent_search-4b50feeafefa7aee.exe)
+     Running tests\convert_versions.rs (target\release\deps\convert_versions-7e159e1e94a793e7.exe)
+     Running tests\crate_api.rs (target\release\deps\crate_api-8d1c7cf92078121f.exe)
+     Running tests\encode_fingerprint.rs (target\release\deps\encode_fingerprint-5577bc7311efe6a1.exe)
+     Running tests\explicit_calibration.rs (target\release\deps\explicit_calibration-da643af7a699d7a0.exe)
+     Running tests\filtering.rs (target\release\deps\filtering-6926df6e866a22d0.exe)
+     Running tests\from_parts.rs (target\release\deps\from_parts-8a48ee71740c752d.exe)
+     Running tests\id_map.rs (target\release\deps\id_map-37fbf08aa13d6340.exe)
+     Running tests\input_validation.rs (target\release\deps\input_validation-23cc7a7e501273a3.exe)
+     Running tests\input_validation_reporting.rs (target\release\deps\input_validation_reporting-7176c6405dd0ff13.exe)
+     Running tests\kernel_correctness.rs (target\release\deps\kernel_correctness-13e91aa838b40c1c.exe)
+     Running tests\lazy_init.rs (target\release\deps\lazy_init-c5ae919b0e126bd7.exe)
+     Running tests\query_scale_invariance.rs (target\release\deps\query_scale_invariance-a1c6ebbe54c3ef18.exe)
+     Running tests\recall_sanity.rs (target\release\deps\recall_sanity-bc498395e9d75c4b.exe)
+     Running tests\rotation.rs (target\release\deps\rotation-b5693b36f4334bce.exe)
+     Running tests\rotation_determinism.rs (target\release\deps\rotation_determinism-8fe193de65f42088.exe)
+     Running tests\state_sequences.rs (target\release\deps\state_sequences-a86fceb57c99d761.exe)
+     Running tests\swap_remove.rs (target\release\deps\swap_remove-db51d7513676ecef.exe)
+     Running tests\sync_v7.rs (target\release\deps\sync_v7-1226af5f0d678f6a.exe)
+     Running tests\sync_v7_idmap.rs (target\release\deps\sync_v7_idmap-f09707690f0b6d90.exe)
+     Running tests\tmp_sweep.rs (target\release\deps\tmp_sweep-6ef1d6a12c2e0bcb.exe)
+     Running tests\tqplus_calibration.rs (target\release\deps\tqplus_calibration-7eedff9536d24f92.exe)
+     Running tests\v7_bytes_entry_points.rs (target\release\deps\v7_bytes_entry_points-971df15668d990a7.exe)
+     Running tests\v7_only.rs (target\release\deps\v7_only-de6f2496711af544.exe)
+     Running tests\warning_hook.rs (target\release\deps\warning_hook-c9c7e7d8b6d663d3.exe)
+     Running tests\write_path.rs (target\release\deps\write_path-6dbe075738b2f9cd.exe)
+   Doc-tests turbovec

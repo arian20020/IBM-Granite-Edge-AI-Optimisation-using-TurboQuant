@@ -1,0 +1,454 @@
+    Checking turbovec v1.0.0 (C:\R4-TV1-assets\turbovec-src\turbovec)
+error: empty line after doc comment
+   --> turbovec\src\search.rs:122:1
+    |
+122 | / /// rayon here either.
+123 | |
+    | |_^
+124 |   #[inline]
+125 |   fn n_block_ranges(
+    |   ----------------- the comment documents this function
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#empty_line_after_doc_comments
+    = note: `-D clippy::empty-line-after-doc-comments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::empty_line_after_doc_comments)]`
+    = help: if the empty line is unintentional, remove it
+
+error: empty line after doc comment
+    --> turbovec\src\search.rs:2703:1
+     |
+2703 | / /// Per-query nibble LUTs for NEON scoring (works for 2-bit and 4-bit).
+2704 | |
+     | |_^
+2705 |   pub(crate) struct QueryNeonLut {
+     |   ------------------------------ the comment documents this struct
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#empty_line_after_doc_comments
+     = help: if the empty line is unintentional, remove it
+
+error: very complex type used. Consider factoring parts into `type` definitions
+  --> turbovec\src\codebook.rs:33:14
+   |
+33 | static MEMO: Mutex<Option<HashMap<(usize, usize), (Vec<f32>, Vec<f32>)>>> = Mutex::new(None);
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#type_complexity
+   = note: `-D clippy::type-complexity` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: this function has too many arguments (9/7)
+   --> turbovec\src\codebook.rs:223:1
+    |
+223 | / fn adaptive_simpson_rec<F: Fn(f64) -> f64>(
+224 | |     f: &F,
+225 | |     a: f64,
+226 | |     b: f64,
+...   |
+232 | |     depth: usize,
+233 | | ) -> f64 {
+    | |________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments
+    = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: the loop variable `j` is used to index `chunk`
+   --> turbovec\src\encode.rs:142:22
+    |
+142 |             for j in g * 8..n {
+    |                      ^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+    = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator and enumerate()
+    |
+142 -             for j in g * 8..n {
+142 +             for (j, <item>) in chunk.iter().enumerate().take(n).skip(g * 8) {
+    |
+
+error: the use of negated comparison operators on partially ordered types produces code that is hard to read and refactor, please consider using the `partial_cmp` method instead, to make it clear that the two values could be incomparable
+   --> turbovec\src\encode.rs:144:20
+    |
+144 |                 if !(v.abs() < max_magnitude) {
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#neg_cmp_op_on_partial_ord
+    = note: `-D clippy::neg-cmp-op-on-partial-ord` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::neg_cmp_op_on_partial_ord)]`
+
+error: the loop variable `j` is used to index `chunk`
+   --> turbovec\src\encode.rs:151:14
+    |
+151 |     for j in groups * 8..n {
+    |              ^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+151 -     for j in groups * 8..n {
+151 +     for (j, <item>) in chunk.iter().enumerate().take(n).skip(groups * 8) {
+    |
+
+error: the use of negated comparison operators on partially ordered types produces code that is hard to read and refactor, please consider using the `partial_cmp` method instead, to make it clear that the two values could be incomparable
+   --> turbovec\src\encode.rs:153:12
+    |
+153 |         if !(v.abs() < max_magnitude) {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#neg_cmp_op_on_partial_ord
+
+error: this function has too many arguments (11/7)
+   --> turbovec\src\encode.rs:510:1
+    |
+510 | / pub(crate) fn encode(
+511 | |     vectors: &[f32],
+512 | |     n: usize,
+513 | |     dim: usize,
+...   |
+521 | |     scales_out: &mut Vec<f32>,
+522 | | ) {
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments
+
+error: the loop variable `bi` is only used to index `boundaries`
+    --> turbovec\src\encode.rs:1328:23
+     |
+1328 |             for bi in 0..(1usize << BITS) - 1 {
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator
+     |
+1328 -             for bi in 0..(1usize << BITS) - 1 {
+1328 +             for <item> in boundaries.iter().take((1usize << BITS) - 1) {
+     |
+
+error: the loop variable `bi` is only used to index `boundaries`
+    --> turbovec\src\encode.rs:1449:23
+     |
+1449 |             for bi in 0..(1usize << BITS) - 1 {
+     |                       ^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator
+     |
+1449 -             for bi in 0..(1usize << BITS) - 1 {
+1449 +             for <item> in boundaries.iter().take((1usize << BITS) - 1) {
+     |
+
+error: manually reimplementing `div_ceil`
+   --> turbovec\src\pack.rs:255:20
+    |
+255 |     let n_blocks = (n_vectors + BLOCK - 1) / BLOCK;
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.div_ceil()`: `n_vectors.div_ceil(BLOCK)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_div_ceil
+    = note: `-D clippy::manual-div-ceil` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_div_ceil)]`
+
+error: the loop variable `lane` is used to index `o`
+   --> turbovec\src\pack.rs:719:25
+    |
+719 |             for lane in 0..BLOCK {
+    |                         ^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+719 -             for lane in 0..BLOCK {
+719 +             for (lane, <item>) in o.iter_mut().enumerate().take(BLOCK) {
+    |
+
+error: this function has too many arguments (9/7)
+   --> turbovec\src\search.rs:125:1
+    |
+125 | / fn n_block_ranges(
+126 | |     nq: usize,
+127 | |     n_quads: usize,
+128 | |     n_blocks: usize,
+...   |
+134 | |     serial: bool,
+135 | | ) -> usize {
+    | |__________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments
+
+error: this function has too many arguments (15/7)
+   --> turbovec\src\search.rs:467:1
+    |
+467 | / unsafe fn search_multi_query_avx2(
+468 | |     blocked_codes: &[u8],
+469 | |     luts: &[&[u8]],
+470 | |     scales: &[f32],
+...   |
+482 | |     heap_min_idxs: &mut [usize],
+483 | | ) {
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments
+
+error: manually reimplementing `div_ceil`
+   --> turbovec\src\search.rs:486:20
+    |
+486 |     let n_blocks = (n_vectors + BLOCK - 1) / BLOCK;
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.div_ceil()`: `n_vectors.div_ceil(BLOCK)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_div_ceil
+
+error: manually reimplementing `div_ceil`
+   --> turbovec\src\search.rs:529:25
+    |
+529 |         let n_batches = (n_byte_groups + FLUSH_EVERY - 1) / FLUSH_EVERY;
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.div_ceil()`: `n_byte_groups.div_ceil(FLUSH_EVERY)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_div_ceil
+
+error: the loop variable `lane` is used to index `block_out`
+   --> turbovec\src\search.rs:606:29
+    |
+606 |                 for lane in 0..(end - base_vec) {
+    |                             ^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+606 -                 for lane in 0..(end - base_vec) {
+606 +                 for (lane, <item>) in block_out.iter_mut().enumerate().take((end - base_vec)) {
+    |
+
+error: the loop variable `lane` is only used to index `block_out`
+   --> turbovec\src\search.rs:609:29
+    |
+609 |                 for lane in (end - base_vec)..BLOCK {
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator
+    |
+609 -                 for lane in (end - base_vec)..BLOCK {
+609 +                 for <item> in block_out.iter_mut().take(BLOCK).skip((end - base_vec)) {
+    |
+
+error: the loop variable `lane` is used to index `block_out`
+   --> turbovec\src\search.rs:621:29
+    |
+621 |                 for lane in 0..(end - base_vec) {
+    |                             ^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+621 -                 for lane in 0..(end - base_vec) {
+621 +                 for (lane, <item>) in block_out.iter().enumerate().take((end - base_vec)) {
+    |
+
+error: the loop variable `lane` is used to index `block_out`
+   --> turbovec\src\search.rs:653:33
+    |
+653 |                     for lane in chunk_start..chunk_end {
+    |                                 ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+653 -                     for lane in chunk_start..chunk_end {
+653 +                     for (lane, <item>) in block_out.iter().enumerate().take(chunk_end).skip(chunk_start) {
+    |
+
+error: this function has too many arguments (15/7)
+   --> turbovec\src\search.rs:697:1
+    |
+697 | / unsafe fn search_multi_query_avx512bw(
+698 | |     blocked_codes: &[u8],
+699 | |     luts: &[&[u8]],
+700 | |     scales: &[f32],
+...   |
+712 | |     heap_min_idxs: &mut [usize],
+713 | | ) {
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments
+
+error: manually reimplementing `div_ceil`
+   --> turbovec\src\search.rs:716:20
+    |
+716 |     let n_blocks = (n_vectors + BLOCK - 1) / BLOCK;
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.div_ceil()`: `n_vectors.div_ceil(BLOCK)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_div_ceil
+
+error: `debug_assert!(true)` will be optimized out by the compiler
+   --> turbovec\src\search.rs:769:9
+    |
+769 |         debug_assert!(FLUSH_EVERY % 2 == 0);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: remove it
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#assertions_on_constants
+    = note: `-D clippy::assertions-on-constants` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::assertions_on_constants)]`
+
+error: manually reimplementing `div_ceil`
+   --> turbovec\src\search.rs:770:25
+    |
+770 |         let n_batches = (n_byte_groups + FLUSH_EVERY - 1) / FLUSH_EVERY;
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.div_ceil()`: `n_byte_groups.div_ceil(FLUSH_EVERY)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_div_ceil
+
+error: the loop variable `qi` is used to index `fa`
+   --> turbovec\src\search.rs:895:23
+    |
+895 |             for qi in 0..nq {
+    |                       ^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+895 -             for qi in 0..nq {
+895 +             for (qi, <item>) in fa.iter().enumerate().take(nq) {
+    |
+
+error: manually reimplementing `div_ceil`
+   --> turbovec\src\search.rs:933:25
+    |
+933 |         let n_batches = (n_byte_groups + FLUSH_EVERY - 1) / FLUSH_EVERY;
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `.div_ceil()`: `n_byte_groups.div_ceil(FLUSH_EVERY)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_div_ceil
+
+error: the loop variable `qi` is used to index `fa`
+   --> turbovec\src\search.rs:967:19
+    |
+967 |         for qi in 0..nq {
+    |                   ^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+    |
+967 -         for qi in 0..nq {
+967 +         for (qi, <item>) in fa.iter().enumerate().take(nq) {
+    |
+
+error: the loop variable `h` is used to index `a`
+    --> turbovec\src\search.rs:1314:26
+     |
+1314 |                 for h in 0..2 {
+     |                          ^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+     |
+1314 -                 for h in 0..2 {
+1314 +                 for (h, <item>) in a.iter_mut().enumerate() {
+     |
+
+error: this function has too many arguments (12/7)
+    --> turbovec\src\search.rs:1608:1
+     |
+1608 | / unsafe fn avx2_post_flush_heap_update(
+1609 | |     fa: &[std::arch::x86_64::__m256; 4],
+1610 | |     base_vec: usize,
+1611 | |     end: usize,
+...    |
+1620 | |     heap_min_idxs: &mut [usize],
+1621 | | ) {
+     | |_^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments
+
+error: the loop variable `lane` is used to index `block_out`
+    --> turbovec\src\search.rs:1688:21
+     |
+1688 |         for lane in 0..end_lane {
+     |                     ^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+     |
+1688 -         for lane in 0..end_lane {
+1688 +         for (lane, <item>) in block_out.iter_mut().enumerate().take(end_lane) {
+     |
+
+error: the loop variable `lane` is only used to index `block_out`
+    --> turbovec\src\search.rs:1691:21
+     |
+1691 |         for lane in end_lane..BLOCK {
+     |                     ^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator
+     |
+1691 -         for lane in end_lane..BLOCK {
+1691 +         for <item> in block_out.iter_mut().take(BLOCK).skip(end_lane) {
+     |
+
+error: the loop variable `lane` is used to index `block_out`
+    --> turbovec\src\search.rs:1697:21
+     |
+1697 |         for lane in 0..end_lane {
+     |                     ^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+     |
+1697 -         for lane in 0..end_lane {
+1697 +         for (lane, <item>) in block_out.iter().enumerate().take(end_lane) {
+     |
+
+error: the loop variable `lane` is used to index `block_out`
+    --> turbovec\src\search.rs:1729:25
+     |
+1729 |             for lane in chunk_start..chunk_end {
+     |                         ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+help: consider using an iterator and enumerate()
+     |
+1729 -             for lane in chunk_start..chunk_end {
+1729 +             for (lane, <item>) in block_out.iter().enumerate().take(chunk_end).skip(chunk_start) {
+     |
+
+error: this function has too many arguments (14/7)
+    --> turbovec\src\search.rs:3206:1
+     |
+3206 | / pub(crate) fn search(
+3207 | |     queries: &[f32],    // (nq, dim) row-major
+3208 | |     nq: usize,
+3209 | |     rotation: &Rotation,
+...    |
+3220 | |     mask: Option<&[u64]>,
+3221 | | ) -> (Vec<f32>, Vec<i64>) {
+     | |_________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#too_many_arguments
+
+error: very complex type used. Consider factoring parts into `type` definitions
+    --> turbovec\src\search.rs:4048:27
+     |
+4048 |         let tile_results: Vec<(usize, Vec<Vec<(f32, u64)>>)> = tiles
+     |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#type_complexity
+
+error: this `repeat().take()` can be written more concisely
+    --> turbovec\src\search.rs:4347:27
+     |
+4347 |         all_scores.extend(std::iter::repeat(f32::NEG_INFINITY).take(pad));
+     |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `repeat_n()` instead: `std::iter::repeat_n(f32::NEG_INFINITY, pad)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_repeat_n
+     = note: `-D clippy::manual-repeat-n` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::manual_repeat_n)]`
+
+error: this `repeat().take()` can be written more concisely
+    --> turbovec\src\search.rs:4349:28
+     |
+4349 |         all_indices.extend(std::iter::repeat(0i64).take(pad));
+     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using `repeat_n()` instead: `std::iter::repeat_n(0i64, pad)`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#manual_repeat_n
+
+error: could not compile `turbovec` (lib) due to 38 previous errors
