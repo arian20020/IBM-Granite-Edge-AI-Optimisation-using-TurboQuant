@@ -1,0 +1,64 @@
+{
+  "schema_version": "2.0",
+  "campaign_id": "turbovec-production-scale-final-evaluation-v2",
+  "experiment_id": "EXP-TV-COMP-001",
+  "disposition": "BLOCKED",
+  "base": {
+    "commit": "07998fb7766887689a222dd0c8726d821fa33169",
+    "tree": "ed68db942aa26c2e66218c10012c914a0e3c361e"
+  },
+  "report_generation_parent": {
+    "commit": "cbb7f50118edee05cda3570a4849e3ab65ad2616",
+    "tree": "5b31b65c1f762415b8a0380334c4433046595707"
+  },
+  "formal_runs": [
+    {
+      "run_id": "EXP-TV-COMP-001-20260904T051500Z-101",
+      "scale": 30,
+      "status": "completed",
+      "valid_repetitions": 5,
+      "summary_bytes": 14559,
+      "summary_sha256": "bffdbe8f5c7d11a376ca8554b60e7a84e5159d3c6ead926813246afd25c9ac89",
+      "evaluation_bytes": 12877,
+      "evaluation_sha256": "8c329c03fc16a10af51d2d8669a71275b79603448d84458a983fd343653d644a",
+      "benchmark_bytes": 595458,
+      "benchmark_sha256": "4526f15e6cf1bb9daba365f7542022702ed1ee9c44c72b96e55a76be51ff8c79"
+    },
+    {"scale": 1000, "status": "blocked", "readiness_attempts": 8},
+    {"scale": 10000, "status": "unexecuted", "reason": "preceding formal block not admitted"},
+    {"scale": 100000, "status": "unexecuted", "reason": "10,000-scale safety evidence unavailable"}
+  ],
+  "external_artifact_roots": {
+    "embedding_artifacts": "C:\\R4-TV1-assets\\production-v2-embeddings-20260904",
+    "pdf_evidence": "C:\\R4-TV1-assets\\pdf-campaign-v2-final-20260904",
+    "controlled_python": "C:\\R4-TV1-assets\\controlled-py312\\Scripts\\python.exe"
+  },
+  "embedding_artifacts": [
+    {"scale": 30, "manifest_bytes": 953, "manifest_sha256": "e4d7b5dca78cee3aa9eb5de659c6eec2ebaef6896546287402f822505baba0a5"},
+    {"scale": 1000, "manifest_bytes": 959, "manifest_sha256": "2fae507ffb15601a7527cf075821565e98d98d9da80543e6210c1585a1e4f859"},
+    {"scale": 10000, "manifest_bytes": 962, "manifest_sha256": "3452c608c7092e3591d0e48aa43348904555efe031516fd6e7be9cc657a5d23c"},
+    {"scale": 100000, "manifest_bytes": 965, "manifest_sha256": "a8788a931dabca2917a101803996662e2defd07b5b644aa0601d25d48a799b0e"}
+  ],
+  "verification": {
+    "campaign_python": {"passed": 76, "failed": 0, "subtests_passed": 23},
+    "repository_baseline": {"passed": 111, "failed": 0},
+    "pdf": {"passed": 10, "failed": 0},
+    "upstream_python": {"discovered": 479, "executed": 322, "passed": 321, "failed": 1, "skipped": 157},
+    "rust_core": {"passed": 475, "failed": 0},
+    "rust_python": {"passed": 6, "failed": 0},
+    "strict_clippy": {"passed": 0, "failed": 1, "diagnostics": 38}
+  },
+  "supporting_manifests": {
+    "upstream": {
+      "path": "experiments/raw-results/turbovec/production-scale-v2/upstream/manifest.json",
+      "bytes": 5609,
+      "sha256": "f633abecbcc87ac64bec4ebc76241a09a38bb683018f0ec82222ac7c967e759e"
+    },
+    "pdf": {
+      "path": "C:\\R4-TV1-assets\\pdf-campaign-v2-final-20260904\\manifest.json",
+      "bytes": 821,
+      "sha256": "a5bbb16aecf783984e3e8c757a7c9a26951d0b3060c7c3c90ddd8074250a7f4d"
+    }
+  },
+  "application_integration": false
+}
