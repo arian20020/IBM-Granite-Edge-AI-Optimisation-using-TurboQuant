@@ -9,6 +9,7 @@
 - **Evaluation scope:** relevance labels are independent of candidate output, but generated-answer quality and human usability were not measured.
 - **Memory noise:** process working-set increments at 30 vectors are near allocator/measurement noise.
 - **Toolchain:** strict Clippy fails on 38 pinned-upstream warnings; one upstream Windows long-path test fails under the recorded host policy.
+- **Raw-log whitespace:** three upstream Rust stdout logs end with a blank line and therefore trigger whole-branch `git diff --check` warnings. They are byte-for-byte, SHA-256-bound evidence and were deliberately not reformatted; source/report changes themselves pass the whitespace check.
 - **Order bias:** a rotating schedule reduced order bias, but repetition 5 necessarily repeats one order in a five-repetition/four-format design.
 
 Review found no hidden candidate failure, favourable-run removal, corpus duplication, ground-truth leakage, unequal embedding input, storage-field mismatch, warm/cold conflation, threshold change, unsupported product claim, privacy exposure or production integration. The unresolved external-load restriction is material and determines `BLOCKED`.
