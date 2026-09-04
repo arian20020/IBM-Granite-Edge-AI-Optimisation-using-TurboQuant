@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
 
 namespace TurboVec.PdfExtractionSpike;
@@ -19,10 +21,14 @@ public sealed class PdfExtractor
                 if (!string.Equals(actual, request.ExpectedSha256, StringComparison.Ordinal))
                     return PdfExtractionResult.Failure("hash_mismatch");
             }
+            var structuralText = Encoding.Latin1.GetString(File.ReadAllBytes(request.InputPath));
+            if (Regex.IsMatch(structuralText, @"/Encrypt\s+\d+\s+\d+\s+R", RegexOptions.CultureInvariant))
+                return PdfExtractionResult.Failure("encrypted_pdf");
 
             using var stream = new FileStream(request.InputPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var document = PdfDocument.Open(stream);
             if (document.NumberOfPages > request.MaxPages) return PdfExtractionResult.Failure("page_limit", document.NumberOfPages);
+            if (document.NumberOfPages == 0) return PdfExtractionResult.Failure("empty_pdf");
             var pages = new List<ExtractedPage>(document.NumberOfPages);
             var totalScalars = 0;
             for (var number = 1; number <= document.NumberOfPages; number++)
@@ -32,7 +38,8 @@ public sealed class PdfExtractor
                 var scalars = text.EnumerateRunes().Count();
                 totalScalars = checked(totalScalars + scalars);
                 if (totalScalars > request.MaxScalars) return PdfExtractionResult.Failure("text_limit", document.NumberOfPages, pages);
-                pages.Add(new ExtractedPage(number, text, scalars));
+                var contentSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
+                pages.Add(new ExtractedPage(number, text, scalars, contentSha256));
             }
             if (pages.Count > 0 && pages.All(page => string.IsNullOrWhiteSpace(page.Text)))
                 return PdfExtractionResult.Failure("ocr_required", pages.Count, pages);
