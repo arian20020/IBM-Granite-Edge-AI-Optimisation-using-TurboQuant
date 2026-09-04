@@ -34,4 +34,3 @@ class FrozenDataset:
     corpus_sha256: str
     query_sha256: str
     relevance_sha256: str
-
