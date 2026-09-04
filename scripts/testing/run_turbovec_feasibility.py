@@ -15,6 +15,8 @@ sys.path[:] = [entry for entry in sys.path if Path(entry or ".").resolve() != SC
 sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from scripts.testing.turbovec.embedding import DeterministicEmbeddingProvider, OpenVinoGraniteEmbeddingProvider, lock_model_assets
+from scripts.testing.turbovec.artifacts import generate_embedding_artifact, load_embedding_artifact
+from scripts.testing.turbovec.dataset import SUPPORTED_SCALES, build_frozen_dataset
 from scripts.testing.turbovec.runner import run_fixture_campaign, run_live_campaign, write_processed_results
 
 
@@ -26,6 +28,14 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("validate").add_argument("--run-directory",type=Path,required=True)
     evaluate=commands.add_parser("evaluate"); evaluate.add_argument("--run-directory",type=Path,required=True); evaluate.add_argument("--processed-root",type=Path,required=True)
     commands.add_parser("embedding-smoke").add_argument("--model-root",type=Path,required=True)
+    generate=commands.add_parser("generate-embeddings")
+    generate.add_argument("--model-root",type=Path,required=True)
+    generate.add_argument("--scale",type=int,choices=SUPPORTED_SCALES,required=True)
+    generate.add_argument("--artifact-root",type=Path,required=True)
+    generate.add_argument("--batch-size",type=int,default=16)
+    verify=commands.add_parser("verify-embeddings")
+    verify.add_argument("--scale",type=int,choices=SUPPORTED_SCALES,required=True)
+    verify.add_argument("--artifact-root",type=Path,required=True)
     return result
 
 
@@ -36,6 +46,23 @@ def main(argv=None) -> int:
     if args.command=="embedding-smoke":
         provider=OpenVinoGraniteEmbeddingProvider(args.model_root); values=provider.embed_documents(["Controlled Granite embedding smoke test."])
         print(json.dumps({"shape":list(values.shape),"finite":True,"norm":float((values[0]@values[0])**0.5),"device":provider.actual_device},sort_keys=True)); return 0
+    if args.command=="generate-embeddings":
+        dataset=build_frozen_dataset(args.scale)
+        locked=lock_model_assets(args.model_root)
+        tokenizer=next(item["sha256"] for item in locked["files"] if item["path"]=="tokenizer.json")
+        identity={
+            "repository":locked["repository"], "revision":locked["revision"],
+            "tree_sha256":locked["tree_sha256"], "dimension":locked["dimension"],
+            "dtype":"float32", "normalization":"l2", "device":"CPU",
+            "tokenizer_sha256":tokenizer,
+        }
+        provider=OpenVinoGraniteEmbeddingProvider(args.model_root)
+        output=generate_embedding_artifact(provider,dataset,args.artifact_root/f"scale-{args.scale}",identity,batch_size=args.batch_size)
+        print(json.dumps({"status":"completed","scale":args.scale,"artifact":output.name},sort_keys=True)); return 0
+    if args.command=="verify-embeddings":
+        dataset=build_frozen_dataset(args.scale)
+        documents,queries,manifest=load_embedding_artifact(args.artifact_root/f"scale-{args.scale}",dataset)
+        print(json.dumps({"status":"verified","scale":args.scale,"document_rows":len(documents),"query_rows":len(queries),"files":manifest["files"]},sort_keys=True)); return 0
     if args.command=="measured":
         provider=OpenVinoGraniteEmbeddingProvider(args.model_root)
         manifest=json.loads((REPOSITORY_ROOT/"experiments/manifests/turbovec/feasibility-v1.json").read_text(encoding="utf-8"))
