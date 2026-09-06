@@ -1,0 +1,72 @@
+{
+  "accepted_sample_count": 3,
+  "accepted_samples": [
+    {
+      "accepted": true,
+      "attempt_number": 1,
+      "campaign_identity_sha256": "8dcb2095959cfa5d8f8290adfff34321cb447659caff7860a3efbc0ed5bacb92",
+      "role": "sample-1",
+      "runtime_record_path": "attempts/sample-1/attempt-001/run/attempt.json",
+      "runtime_record_sha256": "03ca39a1d1f64e30264f6ff9189a4829f4cd78a331d93476fbb4ed95b4862daf",
+      "schema": "official-openvino-wb04-sequence-receipt/v1",
+      "spec_file_sha256": "f2fb9e9e8a54c6ac9a2c4e15293d019390b7243b1c012a61404bd08f0b4ed465",
+      "spec_path": "attempts/sample-1/attempt-001/spec.json",
+      "spec_sha256": "a2d273502c73d860989d426c98018369f08cd7a55d443e35afb6860c2f8fd2c5"
+    },
+    {
+      "accepted": true,
+      "attempt_number": 1,
+      "campaign_identity_sha256": "8dcb2095959cfa5d8f8290adfff34321cb447659caff7860a3efbc0ed5bacb92",
+      "role": "sample-2",
+      "runtime_record_path": "attempts/sample-2/attempt-001/run/attempt.json",
+      "runtime_record_sha256": "71fd43fc84907a7b85b12e1d79c012082a3c39d1f0f0d423b71369f0afae964e",
+      "schema": "official-openvino-wb04-sequence-receipt/v1",
+      "spec_file_sha256": "f55e4dd6513ab59f8c7be8c3eecab00220e33a3b2ea8b846b0a52cb4c8c9799b",
+      "spec_path": "attempts/sample-2/attempt-001/spec.json",
+      "spec_sha256": "6b5f3b0d14d2741aebf450b3bc82e63202bf10657fe410f2ad72d371f10ad741"
+    },
+    {
+      "accepted": true,
+      "attempt_number": 1,
+      "campaign_identity_sha256": "8dcb2095959cfa5d8f8290adfff34321cb447659caff7860a3efbc0ed5bacb92",
+      "role": "sample-3",
+      "runtime_record_path": "attempts/sample-3/attempt-001/run/attempt.json",
+      "runtime_record_sha256": "c3088313a7cd3d6e596b12d7e8868819573bea914ced51812ecc618c508e3e49",
+      "schema": "official-openvino-wb04-sequence-receipt/v1",
+      "spec_file_sha256": "68fdcc4bc4f9350c6edd86a98fc678dcd616a086990c74e4bd2b2222e2a9bfce",
+      "spec_path": "attempts/sample-3/attempt-001/spec.json",
+      "spec_sha256": "4a25013d86c13b7fdd6015e667dc21e884f7c629b1ccae57a93e266d038060de"
+    }
+  ],
+  "campaign_identity_sha256": "8dcb2095959cfa5d8f8290adfff34321cb447659caff7860a3efbc0ed5bacb92",
+  "cleanup_process_count": 0,
+  "measurement_summary_path": "measurement-summary.json",
+  "measurement_summary_sha256": "3aea0c66a05faa64283cec1e59c16a9669fcbcb2c8520bfb3f5fadae0e0e5747",
+  "pilot": {
+    "accepted": true,
+    "attempt_number": 1,
+    "campaign_identity_sha256": "8dcb2095959cfa5d8f8290adfff34321cb447659caff7860a3efbc0ed5bacb92",
+    "role": "pilot",
+    "runtime_record_path": "attempts/pilot/attempt-001/run/attempt.json",
+    "runtime_record_sha256": "e9db2c84baafb1904e8eb9c4ad35c4e0421fc916c3e0d77ac022234c36d59092",
+    "schema": "official-openvino-wb04-sequence-receipt/v1",
+    "spec_file_sha256": "a520d10b2129a0c6744c13bf5979cedf500c7056fc683b9d1dbc807bf535e9cf",
+    "spec_path": "attempts/pilot/attempt-001/spec.json",
+    "spec_sha256": "a6e5a62189d58d5724bbe380b8d188de72ac08f77a03d487071c2567d1f17df7"
+  },
+  "pilot_passed": true,
+  "schema": "official-openvino-wb04-attempt-sequence/v1",
+  "warmup": {
+    "accepted": true,
+    "attempt_number": 1,
+    "campaign_identity_sha256": "8dcb2095959cfa5d8f8290adfff34321cb447659caff7860a3efbc0ed5bacb92",
+    "role": "warmup",
+    "runtime_record_path": "attempts/warmup/attempt-001/run/attempt.json",
+    "runtime_record_sha256": "98c563fe4073e33c09551a8c14394836aaf9ccd14347b9c9d813a4b8d056101e",
+    "schema": "official-openvino-wb04-sequence-receipt/v1",
+    "spec_file_sha256": "e8a19637c2624b1db83e32a4f7d3610c5dbf373bbe63545788b72f8ae9935c07",
+    "spec_path": "attempts/warmup/attempt-001/spec.json",
+    "spec_sha256": "f6dbcc19dec1f301a39e84889b0d5805d0e4ce2bfc1ccf86797631f177c55572"
+  },
+  "warmup_excluded": true
+}

@@ -1,0 +1,26 @@
+{
+  "apply_chat_template": false,
+  "campaign_identity_sha256": "c67c9164e1afd8720fb334b6ef2c32abb946259fcba04aed037e35617b4f3882",
+  "context": 512,
+  "controlled_test_id": "OV-TQ-13",
+  "device": "CPU",
+  "expected_input_tokens": 512,
+  "ignore_eos": true,
+  "max_new_tokens": 4,
+  "model_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\models\\openvino\\granite-4.1-3b-int8-ov-f858c9e",
+  "prompt": " test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test",
+  "properties": {
+    "ATTENTION_BACKEND": "SDPA",
+    "CACHE_DIR": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\cache\\openvino-turboquant\\formal-u8-00edae3b-dbbb784\\OV-TQ-13\\context-512",
+    "ENABLE_CPU_PINNING": false,
+    "INFERENCE_NUM_THREADS": 1,
+    "NUM_STREAMS": 1,
+    "PERFORMANCE_HINT": "LATENCY",
+    "TURBOQUANT_KEY_ALGORITHM": "TBQ4",
+    "TURBOQUANT_NORM_CORRECTION": true,
+    "TURBOQUANT_VALUE_ALGORITHM": "TBQ4"
+  },
+  "role": "sample-3",
+  "schema": "official-openvino-wb04-worker-spec/v1",
+  "seed": 42
+}

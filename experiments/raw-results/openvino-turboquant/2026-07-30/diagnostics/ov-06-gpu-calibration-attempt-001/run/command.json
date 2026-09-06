@@ -1,0 +1,15 @@
+{
+  "command": [
+    "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "-m",
+    "scripts.testing.official_openvino.measurement_worker",
+    "--spec",
+    "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\campaign-specs\\OV-06\\context-4096\\spec.json"
+  ],
+  "minimum_available_ram_bytes": 2147483648,
+  "role": "pilot",
+  "sample_interval_seconds": 0.25,
+  "sampler_script": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\scripts\\testing\\collect_openvino_runtime_utilization.ps1",
+  "timeout_seconds": 900.0,
+  "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
+}

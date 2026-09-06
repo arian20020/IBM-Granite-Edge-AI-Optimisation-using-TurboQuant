@@ -1,0 +1,81 @@
+﻿{
+    "schema_version":  "1.0",
+    "environment_id":  "ENV-20260730-INTEL-LAPTOP-01-WB04",
+    "captured_at_utc":  "2026-07-31T01:29:00.1958929Z",
+    "captured_at_local":  "2026-07-31T02:29:00.2074768+01:00",
+    "timezone":  "GMT Standard Time",
+    "machine":  {
+                    "name":  "LENOVO-PF4HMD0T",
+                    "role":  "target-windows-intel-laptop",
+                    "manufacturer":  "LENOVO",
+                    "model":  "83ER",
+                    "windows_caption":  "Microsoft Windows 11 Home",
+                    "windows_version":  "10.0.26200",
+                    "windows_build":  "26200",
+                    "architecture":  "64-bit"
+                },
+    "cpu":  [
+                {
+                    "model":  "12th Gen Intel(R) Core(TM) i5-12450H",
+                    "physical_cores":  8,
+                    "logical_processors":  12,
+                    "max_clock_mhz":  2000
+                }
+            ],
+    "gpu":  [
+                {
+                    "model":  "Intel(R) UHD Graphics",
+                    "driver":  "32.0.101.7076",
+                    "adapter_ram_bytes":  2147479552,
+                    "status":  "OK",
+                    "memory_model":  "integrated-shared",
+                    "static_memory_method":  "Win32_VideoController.AdapterRAM",
+                    "runtime_memory_method":  "Windows GPU Adapter Memory counters",
+                    "vulkan_instance_version":  "1.4.350",
+                    "vulkan_device_api_version":  "1.4.323",
+                    "vulkan_driver_version":  "101.7076",
+                    "vulkan_device_type":  "PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU"
+                }
+            ],
+    "npu":  {
+                "detected":  false,
+                "method":  "Win32_PnPEntity exact-name scan for NPU, Neural, AI Boost, or Gaussian",
+                "driver":  "not-present"
+            },
+    "memory":  {
+                   "installed_ram_bytes":  16857817088,
+                   "available_ram_at_capture_bytes":  10795900928
+               },
+    "storage":  {
+                    "volume":  "C:",
+                    "free_bytes":  144180695040,
+                    "size_bytes":  511143047168
+                },
+    "operating_conditions":  {
+                                 "power_mode":  "Balanced (381b4222-f694-41f0-9685-ff5bb260df2e)",
+                                 "power_source":  "AC online; BatteryStatus PowerOnline=true, Charging=false, Discharging=false",
+                                 "thermal_state":  "not measured; root/wmi MSAcpi_ThermalZoneTemperature returned Access denied",
+                                 "background_load_notes":  "Captured after governed quality worker cleanup with no OpenVINO model inference active"
+                             },
+    "toolchain":  {
+                      "git":  "git version 2.53.0.windows.3",
+                      "cmake":  "",
+                      "ninja":  "",
+                      "python":  "Python 3.11.9",
+                      "controlled_python":  "Python 3.13.14",
+                      "controlled_python_path":  "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+                      "powershell":  "5.1.26100.8875",
+                      "cl":  "",
+                      "openvino":  "2026.2.1-21919-ede283a88e3-releases/2026/2",
+                      "openvino_genai":  "2026.2.1.0-2-00edae3bfd4-project/turboquant-wb04",
+                      "openvino_genai_build_commit":  "00edae3bfd40a968c964ea4878128dceeeb22d1a",
+                      "vulkaninfo":  "Vulkan Instance 1.4.350; Intel UHD Graphics API 1.4.323; driver 101.7076",
+                      "oneapi_sycl":  "sycl-ls not on PATH"
+                  },
+    "capture_files":  [
+                          "machine-manifest.json",
+                          "Get-ComputerInfo.txt"
+                      ],
+    "review_required":  [],
+    "notes":  "GPU memory is dynamic shared memory on this integrated adapter; do not treat AdapterRAM as a discrete-VRAM limit. Thermal state was not available from the selected Windows CIM provider. OpenVINO GenAI version was read from the patched build DLL; OpenVINO version was read from the controlled Python environment."
+}

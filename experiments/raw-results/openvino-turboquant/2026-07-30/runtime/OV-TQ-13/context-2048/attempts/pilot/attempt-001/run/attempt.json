@@ -1,0 +1,64 @@
+{
+  "activation": null,
+  "available_ram_bytes": {
+    "after": 10392756224,
+    "before": 10276454400,
+    "minimum": 2129571840
+  },
+  "cleanup_process_count": 0,
+  "command": [
+    "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "-m",
+    "scripts.testing.official_openvino.measurement_worker",
+    "--spec",
+    "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-30\\runtime\\OV-TQ-13\\context-2048\\attempts\\pilot\\attempt-001\\spec.json"
+  ],
+  "cpu_percent": null,
+  "elapsed_seconds": 101.9673882000061,
+  "emergency_actions": [],
+  "ended_utc": "2026-07-30T22:40:18.977646Z",
+  "exit_code": 137,
+  "gpu_dedicated_memory_peak_mb": null,
+  "gpu_engine_count": null,
+  "gpu_memory_peak_mb": null,
+  "gpu_percent": null,
+  "gpu_shared_memory_peak_mb": null,
+  "low_memory_stop": true,
+  "memory_sample_count": 379,
+  "minimum_available_ram_bytes": 2147483648,
+  "observed_pids": [
+    12108
+  ],
+  "output_sha256": null,
+  "peak_private_bytes": 5681156096,
+  "peak_working_set_bytes": 8201117696,
+  "role": "pilot",
+  "root_pid": 12108,
+  "run_nonce": "5571daa78fde85c66fd634480946bda2",
+  "sampler_exit_code": 0,
+  "sampler_job": {
+    "queried_active_process_count_after_cleanup": 0,
+    "query_ok": true,
+    "setup_ok": true,
+    "survivor_pids_after_cleanup": [],
+    "terminate_job_called": false
+  },
+  "schema": "official-openvino-wb04-governed-run/v1",
+  "started_utc": "2026-07-30T22:38:37.009489Z",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "telemetry_sha256": null,
+  "timed_out": false,
+  "valid": false,
+  "validation_errors": [
+    "workload did not exit successfully"
+  ],
+  "worker": null,
+  "workload_job": {
+    "queried_active_process_count_after_cleanup": 0,
+    "query_ok": true,
+    "setup_ok": true,
+    "survivor_pids_after_cleanup": [],
+    "terminate_job_called": false
+  }
+}

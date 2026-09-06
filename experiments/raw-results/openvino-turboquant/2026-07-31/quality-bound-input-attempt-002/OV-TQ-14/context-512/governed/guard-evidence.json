@@ -1,0 +1,83 @@
+{
+  "bound_inputs": [
+    {
+      "name": "quality_worker_spec",
+      "path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-31\\quality-bound-input-attempt-002\\OV-TQ-14\\context-512\\governed\\worker-spec.json",
+      "sha256": "eba70f4801453a864e35404e75e2a51256b27beae48d611d4e1e3773ca092fb5"
+    }
+  ],
+  "child_process_observed": false,
+  "cleanup_process_count": 0,
+  "cleanup_timeout_seconds": 15.0,
+  "command": [
+    "C:\\Users\\Student\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+    "-m",
+    "scripts.testing.official_openvino.quality_worker",
+    "--spec",
+    "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-31\\quality-bound-input-attempt-002\\OV-TQ-14\\context-512\\governed\\worker-spec.json",
+    "--result",
+    "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-31\\quality-bound-input-attempt-002\\OV-TQ-14\\context-512\\governed\\worker-result.json"
+  ],
+  "configured_minimum_available_ram_bytes": 2147483648,
+  "elapsed_seconds": 420.70299999999406,
+  "emergency_actions": [],
+  "ended_utc": "2026-07-31T04:19:39.296747Z",
+  "environment_sha256": "d1890a78b62f689a2dfb2aef194cb189aef3cf71930ccf17d07bdb708225a96e",
+  "evidence_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-31\\quality-bound-input-attempt-002\\OV-TQ-14\\context-512\\governed\\guard-evidence.json",
+  "exit_code": 1,
+  "expected_exit": "zero",
+  "job_object": {
+    "queried_active_process_count_after_cleanup": 0,
+    "query_ok": true,
+    "setup_ok": true,
+    "survivor_pids_after_cleanup": [],
+    "terminate_job_called": true
+  },
+  "launch_governance": {
+    "assigned_before_resume": true,
+    "cpu_affinity_mask": null,
+    "cpu_rate_hard_cap_percent": null,
+    "created_suspended": true
+  },
+  "log_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-31\\quality-bound-input-attempt-002\\OV-TQ-14\\context-512\\governed\\worker.log",
+  "log_sha256": "9c7ecd882d74afdc256fa8bf89dca361798e53e3dcedcb806d5fb52241c89d55",
+  "low_memory_stop": true,
+  "maximum_runtime_seconds": 2400.0,
+  "memory_query_failed_pids": [],
+  "memory_sample_count": 1636,
+  "msbuild_disable_node_reuse": "1",
+  "observed_available_ram_bytes": {
+    "after": 10624688128,
+    "before": 10688593920,
+    "minimum": 2113466368
+  },
+  "observed_pids": [
+    16836
+  ],
+  "path_identity_verified": {
+    "evidence_path": true,
+    "log_path": true,
+    "working_directory": true
+  },
+  "peak_private_bytes": 6226026496,
+  "peak_working_set_bytes": 8544915456,
+  "poll_interval_seconds": 0.25,
+  "requested_path_provenance": {
+    "evidence_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-31\\quality-bound-input-attempt-002\\OV-TQ-14\\context-512\\governed\\guard-evidence.json",
+    "log_path": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\experiments\\raw-results\\openvino-turboquant\\2026-07-31\\quality-bound-input-attempt-002\\OV-TQ-14\\context-512\\governed\\worker.log",
+    "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
+  },
+  "root_pid": 16836,
+  "run_id": "746398ef33515f514feb250265ddaa296f3c7fe433305704a0a39cfa3e6eabea",
+  "schema": "official-openvino-owned-process-guard/v1",
+  "started_utc": "2026-07-31T04:12:38.598410Z",
+  "termination_reason": "minimum_available_ram",
+  "timed_out": false,
+  "valid": false,
+  "validation_errors": [
+    "available RAM fell below the configured floor",
+    "child exit code did not match expected_exit=zero",
+    "measured available RAM did not satisfy the floor"
+  ],
+  "working_directory": "C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery"
+}

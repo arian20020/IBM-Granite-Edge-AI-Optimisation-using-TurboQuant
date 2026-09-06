@@ -1,0 +1,18 @@
+{"schema":"official-openvino-wb04-worker/v1","worker_error":"RuntimeError: Check 'xml.good() && bin.good() && !xml.str().empty()' failed at C:\\Users\\Student\\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\\.worktrees\\openvino-turboquant-recovery\\external\\official-openvino\\2026-07-29\\genai-tq-replay\\src\\cpp\\src\\llm\\pipeline_stateful.cpp:91:\nFailed to serialize transformed TurboQuant model for hashing\n"}
+Traceback (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\scripts\testing\official_openvino\measurement_worker.py", line 278, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\scripts\testing\official_openvino\measurement_worker.py", line 261, in main
+    result = execute(_load_spec(args.spec))
+  File "C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\scripts\testing\official_openvino\measurement_worker.py", line 192, in execute
+    pipeline = ov_genai.LLMPipeline(
+        spec["model_path"],
+        spec["device"],
+        **properties,
+    )
+RuntimeError: Check 'xml.good() && bin.good() && !xml.str().empty()' failed at C:\Users\Student\IBM-Granite-Edge-AI-Optimisation-using-TurboQuant\.worktrees\openvino-turboquant-recovery\external\official-openvino\2026-07-29\genai-tq-replay\src\cpp\src\llm\pipeline_stateful.cpp:91:
+Failed to serialize transformed TurboQuant model for hashing
+

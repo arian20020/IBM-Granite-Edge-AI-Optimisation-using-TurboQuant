@@ -1,0 +1,13 @@
+{
+  "accepted": false,
+  "attempt_number": 2,
+  "campaign_identity_sha256": "412be90fb4b9e67860f9e9dd945f42b6342869712bc442839dc30a94741acef1",
+  "controller_error": "runtime activation contradicts matrix: runtime activation evidence is missing",
+  "role": "pilot",
+  "runtime_record_path": "attempts/pilot/attempt-002/run/attempt.json",
+  "runtime_record_sha256": "549dbce9735b5392f37439a75f9f376555b72a2a82adb258e2bc7bf8174a69c4",
+  "schema": "official-openvino-wb04-sequence-receipt/v1",
+  "spec_file_sha256": "173ea563519338dc7c5812550a62ba970c1473e18498707c0cf8856533b5a7b6",
+  "spec_path": "attempts/pilot/attempt-002/spec.json",
+  "spec_sha256": "4d5676e8d4a0a91a87ee890d9003bb6d1bb0255f5c5aba4c801147309655d3b3"
+}
