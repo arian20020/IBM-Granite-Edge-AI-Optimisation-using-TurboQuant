@@ -39,6 +39,8 @@ RTM Planned Evidence Path
 
 This folder contains processed outputs for the TurboVec matched-retrieval feasibility experiment. Its latest formal interpretation remains `DEMONSTRATOR_ONLY`; these results do not establish product readiness.
 
+The production-scale v2 [supporting rerun from 11 September 2026](production-scale-v2/supporting-rerun-2026-09-11/README.md) completed quiet-host comparisons at 1,000 and 10,000 documents. It retained a `DEMONSTRATOR_ONLY` disposition and recommends no application integration because every TurboVec format failed the locked retrieval-quality thresholds. Its documented Python/model-export deviation means it supplements rather than replaces the historical formal record.
+
 ### Start here
 
 This is a navigation or evidence container. Use the folder explanations below to choose the next level.

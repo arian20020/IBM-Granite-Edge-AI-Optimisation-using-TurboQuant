@@ -1,0 +1,33 @@
+{
+  "schema_version": "2.0-supporting",
+  "campaign_id": "turbovec-production-scale-final-evaluation-v2",
+  "experiment_id": "EXP-TV-COMP-001",
+  "classification": "supporting feasibility rerun",
+  "disposition": "DEMONSTRATOR_ONLY",
+  "application_recommendation": "DO_NOT_INTEGRATE",
+  "selected_configuration": null,
+  "qualifiers": [],
+  "required_scales_completed": [1000, 10000],
+  "conditional_scale_100000": {
+    "status": "not_run",
+    "reason": "No candidate passed the locked 10000-document Gate A quality thresholds."
+  },
+  "gate_a_thresholds": {
+    "recall_at_10": ">=0.90",
+    "relative_ndcg_at_10": ">=0.95",
+    "p95_slowdown_vs_exact": "<=1.10",
+    "storage_ratio": ">=2.00"
+  },
+  "gate_a_10000": {
+    "tq2": {"recall_at_10": 0.101190476, "relative_ndcg_at_10": 0.412515330, "p95_slowdown_vs_exact": 0.029776279, "storage_ratio": 4.768627012, "passed": false},
+    "tq3": {"recall_at_10": 0.160714286, "relative_ndcg_at_10": 0.756074986, "p95_slowdown_vs_exact": 0.040680026, "storage_ratio": 3.635181097, "passed": false},
+    "tq4": {"recall_at_10": 0.130952381, "relative_ndcg_at_10": 0.738156048, "p95_slowdown_vs_exact": 0.049756551, "storage_ratio": 3.635133470, "passed": false}
+  },
+  "environment_deviation": {
+    "formal_python": "3.12.10",
+    "observed_python": "3.13.15",
+    "model_export_byte_identical": false,
+    "model_weight_sha256_matched_prior_export": true
+  },
+  "claim_boundary": "This supporting rerun rejects application integration under the measured pipeline. It is not a universal claim that TurboVec is technically defective, and it did not evaluate generated-answer quality."
+}

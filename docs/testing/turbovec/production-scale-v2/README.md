@@ -4,6 +4,10 @@ This folder is the human-readable index for campaign `turbovec-production-scale-
 
 Start with [final-research-report.md](final-research-report.md). The machine-readable records are under `experiments/raw-results/turbovec/production-scale-v2`, while frozen corpus, query and relevance inputs are under `experiments/protocols/turbovec`.
 
+## Later supporting rerun
+
+The [11 September 2026 supporting feasibility rerun](../../../../experiments/processed-results/EXP-TV-COMP-001/production-scale-v2/supporting-rerun-2026-09-11/README.md) completed the 1,000- and 10,000-document comparisons after two quiet-host readiness passes. It does not rewrite this campaign's historical formal `BLOCKED` decision because its Python and model-export environment was not byte-identical. As supporting evidence, it found that TQ2, TQ3 and TQ4 all failed the locked 10,000-document retrieval-quality thresholds, so the application recommendation is not to integrate a TurboVec candidate.
+
 | Need | Read |
 |---|---|
 | Overall outcome and scope | `final-research-report.md` |
