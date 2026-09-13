@@ -70,18 +70,18 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             (byte)'F'
         };
 
-        // Optional internal checkpoint used to coordinate cancellation after the file is open.
+        // optional internal checkpoint used to coordinate cancellation after the file is open
         private readonly Func<ValueTask>? _scanStartedCheckpointAsync;
 
         /// <summary>
-        /// Creates the production scanner without an external scan checkpoint.
+        /// creates the production scanner without an external scan checkpoint
         /// </summary>
         internal GgufQuickScanner()
         {
         }
 
         /// <summary>
-        /// Creates a scanner with a controlled checkpoint immediately after file opening.
+        /// creates a scanner with a controlled checkpoint immediately after file opening
         /// </summary>
         internal GgufQuickScanner(
             Func<ValueTask> scanStartedCheckpointAsync)
@@ -97,10 +97,10 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             string modelFilePath,
             CancellationToken cancellationToken)
         {
-            // Reject a null, empty, or whitespace-only path.
+            // reject a null, empty, or whitespace-only path
             ArgumentException.ThrowIfNullOrWhiteSpace(modelFilePath);
 
-            // Stop immediately when cancellation was already requested.
+            // Stop immediately when cancellation was already requested
             cancellationToken.ThrowIfCancellationRequested();
 
             FileStream stream;
@@ -111,13 +111,13 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     modelFilePath,
                     new FileStreamOptions
                     {
-                        // The selected file must already exist.
+                        // the selected file must already exist
                         Mode = FileMode.Open,
 
-                        // The scanner may inspect but not alter the model.
+                        // the scanner may inspect but not alter the model
                         Access = FileAccess.Read,
 
-                        // Allow another process to read the model simultaneously.
+                        // allow another process to read the model simultaneously
                         Share = FileShare.Read,
 
                         // Prepare for asynchronous, beginning-to-end reading.
@@ -159,6 +159,11 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             {
                 try
                 {
+                    // capture the scan-time write timestamp while the open
+                    // read handle continues to exclude writers and replacement
+                    DateTimeOffset fileLastWriteTimeUtc = new(
+                        File.GetLastWriteTimeUtc(modelFilePath));
+
                     if (_scanStartedCheckpointAsync is not null)
                     {
                         await _scanStartedCheckpointAsync();
@@ -167,6 +172,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     return await ScanOpenedFileAsync(
                         stream,
                         modelFilePath,
+                        fileLastWriteTimeUtc,
                         cancellationToken);
                 }
                 catch (GgufFormatException exception)
@@ -183,12 +189,13 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         private static async Task<ModelQuickScanResult> ScanOpenedFileAsync(
             FileStream stream,
             string modelFilePath,
+            DateTimeOffset fileLastWriteTimeUtc,
             CancellationToken cancellationToken)
         {
             // Read and validate all 24 bytes of the fixed GGUF header.
             GgufHeader header = await ReadHeaderAsync(stream, cancellationToken);
 
-            // Reject versions whose structure this scanner cannot interpret.
+            // reject versions whose structure this scanner cannot interpret
             if (header.Version == 1)
             {
                 return ModelQuickScanResult.CreateFailure(
@@ -213,7 +220,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         $"{header.Version}; supported versions are 2 and 3.");
             }
 
-            // Reject an unreasonable top-level loop before reading any entry.
+            // reject an unreasonable top-level loop before reading any entry
             if (header.MetadataEntryCount > MaxMetadataEntryCount)
             {
                 return ModelQuickScanResult.CreateFailure(
@@ -232,7 +239,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 header.MetadataEntryCount,
                 cancellationToken);
 
-            // A blank architecture is as unusable as an absent architecture.
+            // a blank architecture is as unusable as an absent architecture
             if (string.IsNullOrWhiteSpace(scanState.Architecture))
             {
                 string architectureDiagnostic =
@@ -252,15 +259,20 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         $"but {architectureDiagnostic}");
             }
 
-            // A missing or blank optional name falls back to the selected file name.
+            // a missing or blank optional name falls back to the selected file name
             string modelName = string.IsNullOrWhiteSpace(scanState.ModelName)
                 ? Path.GetFileName(modelFilePath)
                 : scanState.ModelName;
-            return CreateSuccessResult(stream, header, scanState, modelName);
+            return CreateSuccessResult(
+                stream,
+                header,
+                scanState,
+                modelName,
+                fileLastWriteTimeUtc);
         }
 
         /// <summary>
-        /// Creates one controlled result for an exception raised while opening the file.
+        /// creates one controlled result for an exception raised while opening the file
         /// </summary>
         private static ModelQuickScanResult CreateFileOpenFailure(
             string failureCode,
@@ -275,7 +287,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         }
 
         /// <summary>
-        /// Creates one controlled result for a scanner-local structural failure.
+        /// creates one controlled result for a scanner-local structural failure
         /// </summary>
         private static ModelQuickScanResult CreateFormatFailure(
             GgufFormatException exception)
@@ -293,7 +305,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             FileStream stream,
             CancellationToken cancellationToken)
         {
-            // Read the required signature before decoding any numeric header field.
+            // read the required signature before decoding any numeric header field
             byte[] actualMagic = new byte[GgufMagicLength];
             await ReadHeaderFieldAsync(
                 stream,
@@ -302,7 +314,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 fieldOffset: GgufMagicOffset,
                 cancellationToken);
 
-            // Read every remaining fixed-header field before classifying complete input.
+            // read every remaining fixed-header field before classifying complete input
             uint version = await ReadUInt32Async(
                 stream,
                 fieldName: "version",
@@ -331,7 +343,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         $"{BitConverter.ToString(actualMagic)}.");
             }
 
-            // Return the decoded header without reading tensor descriptors or metadata values.
+            // return the decoded header without reading tensor descriptors or metadata values
             return new GgufHeader(version, tensorCount, metadataEntryCount);
         }
 
@@ -343,7 +355,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             ulong metadataEntryCount,
             CancellationToken cancellationToken)
         {
-            // Keep retained display metadata and the aggregate array budget local to this scan.
+            // keep retained display metadata and the aggregate array budget local to this scan
             GgufScanState scanState = new();
             ulong totalArrayElementCount = 0;
             ulong totalMetadataKeyByteLength = 0;
@@ -397,7 +409,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 fieldOffset,
                 cancellationToken);
 
-            // Decode the wire-format bytes explicitly rather than relying on machine endianness.
+            // decode the wire-format bytes explicitly rather than relying on machine endianness
             return BinaryPrimitives.ReadUInt32LittleEndian(buffer);
         }
 
@@ -419,7 +431,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 fieldOffset,
                 cancellationToken);
 
-            // Decode the wire-format bytes explicitly rather than relying on machine endianness.
+            // decode the wire-format bytes explicitly rather than relying on machine endianness
             return BinaryPrimitives.ReadUInt64LittleEndian(buffer);
         }
 
@@ -435,7 +447,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         {
             try
             {
-                // Read exactly the bytes required by the fixed header field.
+                // read exactly the bytes required by the fixed header field
                 await stream.ReadExactlyAsync(buffer, cancellationToken);
             }
             catch (EndOfStreamException exception)
@@ -446,7 +458,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     0,
                     buffer.Length);
 
-                // Preserve field context so the result identifies the malformed input.
+                // preserve field context so the result identifies the malformed input
                 throw new GgufFormatException(
                     failureCode: "truncated-header",
                     userMessage: "The selected GGUF file has an incomplete header.",
@@ -502,7 +514,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         $"key limit is {MaxMetadataKeyByteLength:N0} bytes.");
             }
 
-            // Compare by subtraction before allocation so aggregate work cannot overflow.
+            // compare by subtraction before allocation so aggregate work cannot overflow
             if (totalMetadataKeyByteLength > MaxTotalMetadataKeyByteLength ||
                 keyByteLength >
                     MaxTotalMetadataKeyByteLength - totalMetadataKeyByteLength)
@@ -645,7 +657,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         }
 
         /// <summary>
-        /// Creates a safe diagnostic for a leading, trailing, or adjacent dot.
+        /// creates a safe diagnostic for a leading, trailing, or adjacent dot
         /// </summary>
         private static GgufFormatException CreateInvalidKeySegmentException(
             ulong entryIndex,
@@ -959,7 +971,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     return totalArrayElementCount;
             }
 
-            // Once architecture is known, process its exact context key immediately.
+            // once architecture is known, process its exact context key immediately
             if (scanState.HasArchitectureMetadata &&
                 scanState.Architecture is not null &&
                 IsArchitectureContextLengthKey(key, scanState.Architecture))
@@ -985,7 +997,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     cancellationToken);
             }
 
-            // Before architecture is known, retain only possible context candidates.
+            // before architecture is known, retain only possible context candidates
             if (!scanState.HasArchitectureMetadata &&
                 key.EndsWith(ContextLengthMetadataKeySuffix, StringComparison.Ordinal))
             {
@@ -1154,7 +1166,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         }
 
         /// <summary>
-        /// Creates the stable failure used when an exact context key has a wrong type.
+        /// creates the stable failure used when an exact context key has a wrong type
         /// </summary>
         private static GgufFormatException CreateInvalidContextTypeException(
             string key,
@@ -1177,8 +1189,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             string key,
             string architecture)
         {
-            // Check length and suffix first so a retained multi-megabyte architecture
-            // cannot force a matching-size allocation or prefix comparison per later entry.
+            // check length and suffix first so a retained multi-megabyte architecture
+            // cannot force a matching-size allocation or prefix comparison per later entry
             if (key.Length != architecture.Length + ContextLengthMetadataKeySuffix.Length ||
                 !key.EndsWith(
                     ContextLengthMetadataKeySuffix,
@@ -1289,13 +1301,14 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         }
 
         /// <summary>
-        /// Creates the completed success result from one scan's retained state.
+        /// creates the completed success result from one scan's retained state
         /// </summary>
         private static ModelQuickScanResult CreateSuccessResult(
             FileStream stream,
             GgufHeader header,
             GgufScanState scanState,
-            string modelName)
+            string modelName,
+            DateTimeOffset fileLastWriteTimeUtc)
         {
             return ModelQuickScanResult.CreateSuccess(
                 modelName,
@@ -1306,7 +1319,8 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                     : null,
                 stream.Length,
                 scanState.ContextLength,
-                header.Version);
+                header.Version,
+                fileLastWriteTimeUtc);
         }
 
         /// <summary>
@@ -1442,7 +1456,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                         $"{MaxArrayElementCount:N0}.");
             }
 
-            // Compare by subtraction so attacker-controlled addition cannot overflow.
+            // compare by subtraction so attacker-controlled addition cannot overflow
             if (totalArrayElementCount > MaxTotalArrayElementCount ||
                 elementCount >
                     MaxTotalArrayElementCount - totalArrayElementCount)
@@ -1968,7 +1982,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         }
 
         /// <summary>
-        /// Creates a stable structural failure for incomplete metadata bytes.
+        /// creates a stable structural failure for incomplete metadata bytes
         /// </summary>
         private static GgufFormatException CreateTruncatedMetadataException(
             string key,
@@ -2110,10 +2124,10 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
                 Exception? innerException = null)
                 : base(technicalMessage, innerException)
             {
-                // Retain the stable failure code required by the result contract.
+                // retain the stable failure code required by the result contract
                 FailureCode = failureCode;
 
-                // Retain the concise message intended for the quick-scan caller.
+                // retain the concise message intended for the quick-scan caller
                 UserMessage = userMessage;
 
                 // Retain precise parser diagnostics without exposing them to the UI directly.

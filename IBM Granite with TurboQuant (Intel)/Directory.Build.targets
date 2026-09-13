@@ -1,0 +1,6 @@
+<Project>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'IBM Granite with TurboQuant (Intel)' and '$(Platform)' == 'x64'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\shared\GraniteEdgeAI.ModelDownload.Authority\GraniteEdgeAI.ModelDownload.Authority.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\shared\GraniteEdgeAI.CrossFeature.Contracts\GraniteEdgeAI.CrossFeature.Contracts.csproj" />
+  </ItemGroup>
+</Project>

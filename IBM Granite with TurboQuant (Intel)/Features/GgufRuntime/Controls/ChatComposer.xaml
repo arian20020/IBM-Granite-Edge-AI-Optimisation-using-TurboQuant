@@ -1,0 +1,552 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="GraniteEdgeAI.Features.GgufRuntime.Controls.ChatComposer"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:attachments="using:GraniteEdgeAI.Features.GgufRuntime.Attachments"
+    xmlns:presentation="using:GraniteEdgeAI.Features.GgufRuntime.Presentation">
+    <UserControl.Resources>
+        <Style x:Key="AttachmentRemoveButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="MinWidth" Value="40" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Width="40" Height="40" Background="Transparent">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="AttachmentRemoveHoverSurface.Background" Value="{ThemeResource GgufChatSecondaryPointerOverBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="AttachmentRemoveHoverSurface.Background" Value="{ThemeResource GgufChatSecondaryPressedBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="AttachmentRemoveHoverSurface.Opacity" Value="0.45" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <Border
+                                x:Name="AttachmentRemoveHoverSurface"
+                                Width="28"
+                                Height="28"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                CornerRadius="7"
+                                IsHitTestVisible="False">
+                                <ContentPresenter
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Content="{TemplateBinding Content}"
+                                    Foreground="{TemplateBinding Foreground}" />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Grid x:Name="ComposerRoot">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ComposerWidthStates">
+                <VisualState x:Name="CompactComposer" />
+                <VisualState x:Name="RegularComposer">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="560" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="ChatComposerModelPill.MaxWidth" Value="180" />
+                        <Setter Target="ChatCurrentModelLabel.MaxWidth" Value="144" />
+                        <Setter Target="StopButton.MinWidth" Value="84" />
+                        <Setter Target="StopLabel.Visibility" Value="Visible" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <Border
+            x:Name="ComposerSurface"
+            Background="{ThemeResource GgufChatComposerBrush}"
+            BorderBrush="{ThemeResource GgufChatBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="20"
+            MinHeight="124"
+            Padding="14,10">
+            <Grid RowSpacing="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel
+                    x:Name="AttachmentPresentation"
+                    Margin="0,0,0,8"
+                    Spacing="6"
+                    Visibility="Collapsed">
+                    <ListView
+                        x:Name="AttachmentItems"
+                        Visibility="Collapsed"
+                        IsTabStop="False"
+                        SelectionMode="None"
+                        AutomationProperties.AutomationId="SelectedAttachments"
+                        AutomationProperties.Name="Selected attachments"
+                        ContainerContentChanging="AttachmentItems_ContainerContentChanging">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0" />
+                                <Setter Property="IsTabStop" Value="False" />
+                                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ListView.ItemsPanel>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="attachments:KnowledgeAttachment">
+                                <Border
+                                    MaxWidth="360"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,8,4"
+                                    Padding="10,6,6,6"
+                                    Background="{ThemeResource GgufChatSecondarySurfaceBrush}"
+                                    BorderBrush="{ThemeResource GgufChatPanelBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    AutomationProperties.AccessibilityView="Raw">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="40" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock
+                                            MaxWidth="200"
+                                            VerticalAlignment="Center"
+                                            FontWeight="SemiBold"
+                                            Text="{x:Bind FileName}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            FontSize="11"
+                                            Foreground="{ThemeResource GgufChatMutedBrush}"
+                                            Text="{x:Bind StateText}" />
+                                        <Button
+                                            Grid.Column="2"
+                                            Style="{StaticResource AttachmentRemoveButtonStyle}"
+                                            VerticalAlignment="Center"
+                                            CommandParameter="{x:Bind}"
+                                            AutomationProperties.AutomationId="RemoveAttachmentButton"
+                                            AutomationProperties.Name="{x:Bind FileName}"
+                                            AutomationProperties.HelpText="Remove this attached knowledge file"
+                                            ToolTipService.ToolTip="Remove knowledge file"
+                                            Click="RemoveAttachment_Click"
+                                            Loaded="RemoveAttachmentButton_Loaded">
+                                            <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock
+                        x:Name="RejectionSummaryText"
+                        IsHitTestVisible="False"
+                        Visibility="Collapsed"
+                        TextWrapping="Wrap"
+                        Foreground="{ThemeResource GgufChatMutedBrush}"
+                        AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+
+                <Grid
+                    x:Name="PromptRow"
+                    Grid.Row="1"
+                    MinHeight="40"
+                    ColumnSpacing="10"
+                    VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Button
+                        x:Name="AttachmentButton"
+                        Grid.Row="1"
+                        Width="44"
+                        Height="44"
+                        MinHeight="44"
+                        CornerRadius="22"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource GgufChatSecondaryButtonStyle}"
+                        AutomationProperties.AutomationId="AttachmentButton"
+                        AutomationProperties.Name="Attach files"
+                        AutomationProperties.HelpText="Attach a supported local text or Markdown knowledge file"
+                        ToolTipService.ToolTip="Attach files">
+                        <Button.Flyout>
+                            <Flyout Placement="TopEdgeAlignedLeft">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="BorderThickness" Value="0" />
+                                        <Setter Property="CornerRadius" Value="14" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+                                <Border
+                                    MinWidth="260"
+                                    Padding="8"
+                                    Background="{ThemeResource GgufChatFlyoutBrush}"
+                                    CornerRadius="14"
+                                    Shadow="{ThemeResource GgufChatPanelShadow}"
+                                    Translation="0,0,12">
+                                    <Button
+                                        x:Name="AddFilesFlyoutButton"
+                                        HorizontalAlignment="Stretch"
+                                        Style="{StaticResource GgufChatFlyoutActionStyle}"
+                                        AutomationProperties.Name="Add files"
+                                        Click="AddKnowledgeFiles_Click">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="32" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Glyph="&#xE8B7;"
+                                                FontSize="16" />
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock
+                                                    Text="Add files"
+                                                    FontWeight="SemiBold" />
+                                                <TextBlock
+                                                    x:Name="AddFilesHintText"
+                                                    Text="Text or Markdown · Not indexed"
+                                                    FontSize="12"
+                                                    Foreground="{ThemeResource GgufChatMutedBrush}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Button>
+                                </Border>
+                            </Flyout>
+                        </Button.Flyout>
+                        <FontIcon Glyph="&#xE710;" FontSize="16" />
+                    </Button>
+                    <Border x:Name="LocalOnlyIndicator" Grid.Row="1" Grid.Column="1" Width="44" Height="44"
+                        Background="{ThemeResource GgufChatSecondarySurfaceBrush}" BorderBrush="{ThemeResource GgufChatBorderBrush}"
+                        BorderThickness="1" CornerRadius="22" ToolTipService.ToolTip="Local-only · Not indexed"
+                        AutomationProperties.Name="Local-only processing. Files are not indexed.">
+                        <FontIcon Glyph="&#xEA18;" FontSize="16" Foreground="{ThemeResource GgufChatMutedBrush}" AutomationProperties.AccessibilityView="Raw" />
+                    </Border>
+                    <TextBox
+                        x:Name="PromptTextBox"
+                        Grid.Column="0"
+                        Grid.ColumnSpan="5"
+                        MinHeight="48"
+                        MaxHeight="160"
+                        AcceptsReturn="True"
+                        Padding="0,4"
+                        Margin="0,0,0,8"
+                        Style="{StaticResource GgufChatComposerTextBoxStyle}"
+                        VerticalAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        TextWrapping="Wrap"
+                        PlaceholderText="Message Granite Edge AI"
+                        AutomationProperties.Name="Message"
+                        GettingFocus="PromptTextBox_GettingFocus"
+                        LosingFocus="PromptTextBox_LosingFocus"
+                        PreviewKeyDown="PromptTextBox_PreviewKeyDown"
+                        TextChanged="PromptTextBox_TextChanged"
+                        SizeChanged="PromptTextBox_SizeChanged">
+                        <TextBox.Resources>
+                            <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent" />
+                        </TextBox.Resources>
+                    </TextBox>
+                    <Button
+                        x:Name="ChatComposerModelPill"
+                        Grid.Row="1"
+                        Grid.Column="3"
+                        MaxWidth="84"
+                        MinHeight="44"
+                        Padding="12,0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource GgufChatSecondaryButtonStyle}"
+                        CornerRadius="20"
+                        AutomationProperties.AutomationId="ChatComposerModelPill"
+                        AutomationProperties.Name="Choose a chat model"
+                        AutomationProperties.HelpText="Choose from ready imported local models">
+                        <Button.Flyout>
+                            <Flyout
+                                x:Name="ChatModelFlyout"
+                                Placement="TopEdgeAlignedRight"
+                                ShouldConstrainToRootBounds="True">
+                                <Flyout.FlyoutPresenterStyle>
+                                    <Style TargetType="FlyoutPresenter">
+                                        <Setter Property="MinWidth" Value="0" />
+                                        <Setter Property="MaxWidth" Value="320" />
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Background" Value="{ThemeResource GgufChatSurfaceBrush}" />
+                                        <Setter Property="BorderBrush" Value="{ThemeResource GgufChatBorderBrush}" />
+                                        <Setter Property="BorderThickness" Value="1" />
+                                        <Setter Property="CornerRadius" Value="14" />
+                                    </Style>
+                                </Flyout.FlyoutPresenterStyle>
+                                <StackPanel MaxWidth="300" Padding="14,12" Spacing="8">
+                                    <TextBlock
+                                        Text="Models"
+                                        FontSize="16"
+                                        FontWeight="SemiBold"
+                                        Foreground="{ThemeResource GgufChatTextBrush}"
+                                        AutomationProperties.HeadingLevel="Level2" />
+                                    <TextBlock
+                                        Margin="2,2,0,0"
+                                        Text="IMPORTED MODELS"
+                                        FontSize="11"
+                                        FontWeight="SemiBold"
+                                        CharacterSpacing="70"
+                                        Foreground="{ThemeResource GgufChatMutedBrush}" />
+                                    <TextBlock
+                                        x:Name="ChatModelEmptyMessage"
+                                        Text="No imported models are available here yet. Import a model to get started."
+                                        TextWrapping="Wrap"
+                                        Foreground="{ThemeResource GgufChatMutedBrush}" />
+                                    <ItemsControl
+                                        x:Name="ChatModelItems"
+                                        IsTabStop="False"
+                                        AutomationProperties.Name="Ready imported models">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="presentation:ChatModelSelectorItem">
+                                                <Button
+                                                    MinHeight="64"
+                                                    Padding="10,8"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Style="{StaticResource GgufChatFlyoutActionStyle}"
+                                                    CommandParameter="{x:Bind}"
+                                                    IsEnabled="{x:Bind IsSelectable}"
+                                                    AutomationProperties.AutomationId="{x:Bind AutomationId}"
+                                                    AutomationProperties.Name="{x:Bind AutomationName}"
+                                                    Click="ChatModelOption_Click"
+                                                    Loaded="ChatModelOption_Loaded"
+                                                    Unloaded="ChatModelOption_Unloaded">
+                                                    <Grid ColumnSpacing="10">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Spacing="2">
+                                                            <TextBlock
+                                                                Text="{x:Bind DisplayName}"
+                                                                FontWeight="SemiBold"
+                                                                Foreground="{ThemeResource GgufChatTextBrush}"
+                                                                TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock
+                                                                Text="{x:Bind FormatLabel}"
+                                                                FontSize="12"
+                                                                Foreground="{ThemeResource GgufChatMutedBrush}" />
+                                                            <TextBlock
+                                                                Text="{x:Bind RuntimeLabel}"
+                                                                FontSize="11"
+                                                                Foreground="{ThemeResource GgufChatMutedBrush}"
+                                                                TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <StackPanel
+                                                            Grid.Column="1"
+                                                            Orientation="Horizontal"
+                                                            Spacing="6"
+                                                            VerticalAlignment="Center">
+                                                            <TextBlock
+                                                                Text="Ready"
+                                                                FontSize="12"
+                                                                Foreground="{ThemeResource GgufChatPrimaryBrush}" />
+                                                            <FontIcon
+                                                                Glyph="{x:Bind SelectedGlyph}"
+                                                                FontSize="12"
+                                                                Foreground="{ThemeResource GgufChatPrimaryBrush}"
+                                                                AutomationProperties.AccessibilityView="Raw" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <StackPanel
+                                        x:Name="ChatModelSwitchFeedback"
+                                        Spacing="8"
+                                        Visibility="Collapsed">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <ProgressRing
+                                                x:Name="ChatModelSwitchProgress"
+                                                Width="20"
+                                                Height="20"
+                                                IsActive="False"
+                                                AutomationProperties.Name="Switching model" />
+                                            <TextBlock
+                                                x:Name="ChatModelSwitchStatus"
+                                                Grid.Column="1"
+                                                VerticalAlignment="Center"
+                                                TextWrapping="Wrap"
+                                                FontSize="12"
+                                                Foreground="{ThemeResource GgufChatMutedBrush}"
+                                                AutomationProperties.AutomationId="ChatModelSwitchStatus"
+                                                AutomationProperties.LiveSetting="Polite" />
+                                            <Button
+                                                x:Name="ChatModelSwitchCancelButton"
+                                                Grid.Column="2"
+                                                MinWidth="72"
+                                                Content="Cancel"
+                                                Style="{StaticResource GgufChatSecondaryButtonStyle}"
+                                                AutomationProperties.AutomationId="ChatModelSwitchCancelButton"
+                                                AutomationProperties.Name="Cancel model switch"
+                                                Click="ChatModelSwitchCancelButton_Click" />
+                                        </Grid>
+                                    </StackPanel>
+                                    <Border
+                                        Margin="0,4,0,0"
+                                        BorderBrush="{ThemeResource GgufChatBorderBrush}"
+                                        BorderThickness="0,1,0,0" />
+                                    <Button
+                                        x:Name="GetMoreLocalModelsButton"
+                                        MinHeight="44"
+                                        HorizontalAlignment="Stretch"
+                                        Style="{StaticResource GgufChatFlyoutActionStyle}"
+                                        Content="Get more local models"
+                                        AutomationProperties.AutomationId="BtnGetMoreLocalModels"
+                                        AutomationProperties.Name="Get more local models"
+                                        Click="GetMoreLocalModelsButton_Click" />
+                                    <Button
+                                        x:Name="ImportAnotherModelButton"
+                                        MinHeight="44"
+                                        HorizontalAlignment="Stretch"
+                                        Style="{StaticResource GgufChatFlyoutActionStyle}"
+                                        Content="Import another model"
+                                        AutomationProperties.AutomationId="BtnImportAnotherModel"
+                                        AutomationProperties.Name="Import another model"
+                                        Click="ImportAnotherModelButton_Click" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                        <Grid ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                x:Name="ChatCurrentModelLabel"
+                                MaxWidth="48"
+                                VerticalAlignment="Center"
+                                Text="Choose model"
+                                FontSize="12"
+                                FontWeight="SemiBold"
+                                TextTrimming="CharacterEllipsis"
+                                Foreground="{ThemeResource GgufChatTextBrush}" />
+                            <FontIcon
+                                Grid.Column="1"
+                                Glyph="&#xE70D;"
+                                FontSize="10"
+                                Foreground="{ThemeResource GgufChatMutedBrush}"
+                                AutomationProperties.AccessibilityView="Raw" />
+                        </Grid>
+                    </Button>
+                    <Button
+                        x:Name="SendButton"
+                        Grid.Row="1"
+                        Grid.Column="4"
+                        Width="44"
+                        Height="44"
+                        MinHeight="44"
+                        CornerRadius="22"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource GgufChatPrimaryButtonStyle}"
+                        AutomationProperties.Name="Send message"
+                        Click="SendButton_Click">
+                        <FontIcon Glyph="&#xE72A;" />
+                    </Button>
+                    <Button
+                        x:Name="StopButton"
+                        Grid.Row="1"
+                        Grid.Column="4"
+                        MinWidth="44"
+                        Height="44"
+                        MinHeight="44"
+                        Padding="8,0"
+                        CornerRadius="22"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource GgufChatPrimaryButtonStyle}"
+                        AutomationProperties.Name="Stop generation"
+                        Visibility="Collapsed"
+                        Click="StopButton_Click">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Width="16" Height="16">
+                                <Rectangle
+                                    x:Name="StopSquare"
+                                    Width="7"
+                                    Height="7"
+                                    Fill="{ThemeResource GgufChatPrimaryForegroundBrush}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                            </Grid>
+                            <TextBlock
+                                x:Name="StopLabel"
+                                Visibility="Collapsed"
+                                Grid.Column="1"
+                                Text="Stop"
+                                VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+                </Grid>
+            </Grid>
+        </Border>
+        <Border
+            x:Name="ComposerFocusVisual"
+            Margin="-2"
+            BorderBrush="{ThemeResource GgufChatComposerFocusedBorderBrush}"
+            BorderThickness="2"
+            CornerRadius="22"
+            IsHitTestVisible="False"
+            Visibility="Collapsed" />
+    </Grid>
+</UserControl>

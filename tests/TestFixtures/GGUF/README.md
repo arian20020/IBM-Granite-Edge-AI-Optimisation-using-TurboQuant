@@ -14,6 +14,7 @@ header and metadata leaves in order.
 | ID | File | Bytes | Purpose |
 |---|---|---:|---|
 | H-001 | `H-001-valid-v3-header.gguf` | 24 | Complete v3 header with no metadata |
+| N-001 | `N-001-vocab-only-spm.gguf` | 800 | Zero-tensor native VocabOnly fixture with an eight-token SentencePiece vocabulary, deterministic `Hello` smoke token, and fixed chat template |
 | V-001 | `V-001-complete-metadata-v3.gguf` | 320 | Complete representative Granite metadata |
 | V-002 | `V-002-missing-name.gguf` | 288 | Filename fallback |
 | V-003 | `V-003-missing-context.gguf` | 288 | Optional context omitted |
@@ -30,3 +31,7 @@ header and metadata leaves in order.
 Exact SHA-256 values and byte lengths are generated into
 `../fixture-manifest.json`. Successful result expectations are stored
 separately under `../ExpectedMetadata`.
+
+`N-001` is deliberately outside the V-series because it proves the contained
+native LLamaSharp/llama.cpp path rather than adding another quick-scanner
+expectation. It contains no usable tensors and cannot perform inference.

@@ -83,7 +83,7 @@ def main() -> int:
                       "Processed_Result_Path": str(summary_path.relative_to(ROOT)).replace("\\", "/"), "Result": "Passed",
                       "Result_Reason": "Pilot, excluded warm-up and three measured repetitions passed.",
                       "Workbook_Update_Status": "Complete in WB-02 v1.4", "Workbook_Section": "7", "Evidence_Commit": "Pending PR",
-                      "Reviewer": "Codex evidence reconciliation", "Review_Date": "2026-07-16"})
+                      "Reviewer": "project tooling evidence reconciliation", "Review_Date": "2026-07-16"})
     rewrite("Performance-Measurement-Register.csv", perf, lambda r: r.get("Route") == ROUTE)
     rewrite("Test-Run-Register.csv", tests, lambda r: r.get("Route") == ROUTE and r.get("Run_ID", "").endswith("-FORMAL"))
 
@@ -124,7 +124,7 @@ def main() -> int:
             "Supported_KV_Formats": "f16; q8_0; turbo2; turbo3; turbo4", "Supported_Device_Flags": "-ctk; -ctv; -ngl",
             "Known_Limitations": "Device Guard blocks test-barrier; 16 GB safety gates; specialised Vulkan turbo3 FA shader generation disabled; GPU percent counter unavailable",
             "Manifest_Path": "experiments/raw-results/atomicbot-turboquant/2026-07-16/acquisition/results/AtomicBot_Environment_Manifest.json",
-            "Validation_Status": "Validated with limitations", "Evidence_Commit": "Pending PR", "Reviewer": "Codex evidence reconciliation",
+            "Validation_Status": "Validated with limitations", "Evidence_Commit": "Pending PR", "Reviewer": "project tooling evidence reconciliation",
             "Review_Date": "2026-07-16", "Notes": "Exact clean pinned checkout."}
     rewrite("Repository-Register.csv", [repo], lambda r: r.get("Route") == ROUTE)
 
@@ -167,7 +167,7 @@ def main() -> int:
                                  "Stability_and_Integrity_0_to_10": dims[4], "Weighted_Score_0_to_10": score,
                                  "Critical_Cap_Applied": "Yes" if score in {0.0, 4.0} else "No", "Critical_Cap_Reason": reason,
                                  "Blind_Label": blind, "Pairwise_Order": "A then B; reverse-order check completed",
-                                 "Judge_or_Reviewer": "Codex deterministic gates plus manual adjudication", "Manual_Adjudication_Required": "Yes",
+                                 "Judge_or_Reviewer": "project tooling deterministic gates plus manual adjudication", "Manual_Adjudication_Required": "Yes",
                                  "Manual_Adjudication_Result": reason, "Result": gate, "Evidence_Commit": "Pending PR",
                                  "Notes": "Configuration identity was concealed during output review; objective gates override fluency."})
     rewrite("Quality-Evaluation-Register.csv", quality_rows, lambda r: r.get("Route") == ROUTE)
@@ -180,8 +180,8 @@ def main() -> int:
                            "Source_Run_IDs": "AB-B01-AB-B08; AB-01-AB-15M; P1-P6", "Source_Result_Path": "experiments/raw-results/atomicbot-turboquant/2026-07-16/",
                            "Completion_Status": "Complete with explicit N/A/Blocked classifications", "Missing_Data_Code": "None",
                            "Missing_Data_Reason": "No blank workbook cells; unsupported, blocked and unavailable measures are explicitly classified",
-                           "Evidence_Checked": "True", "Updated_Date": "2026-07-16", "Updated_By": "Student and Codex",
-                           "Evidence_Commit": "Pending PR", "Reviewer": "Codex evidence reconciliation", "Review_Date": "2026-07-16",
+                           "Evidence_Checked": "True", "Updated_Date": "2026-07-16", "Updated_By": "Student and project tooling",
+                           "Evidence_Commit": "Pending PR", "Reviewer": "project tooling evidence reconciliation", "Review_Date": "2026-07-16",
                            "Remaining_Action": "None before PR review", "Notes": "Section values reconciled to raw JSON/log evidence."})
     rewrite("Workbook-Completion-Register.csv", completion, lambda r: r.get("Workbook_ID") == WB)
 
@@ -196,7 +196,7 @@ def main() -> int:
                    "Other_Tool_Versions_JSON": '{"jinja2":"3.1.6"}',
                    "System_Capture_Path": "experiments/raw-results/atomicbot-turboquant/2026-07-16/acquisition/results/AtomicBot_Environment_Manifest.json",
                    "Evidence_Commit": "Pending PR", "Validation_Status": "Validated for WB-02 with recorded unavailable sensor fields",
-                   "Reviewer": "Codex evidence reconciliation", "Review_Date": "2026-07-16",
+                   "Reviewer": "project tooling evidence reconciliation", "Review_Date": "2026-07-16",
                    "Notes": "Thermal and GPU engine percentage fields are not inferred where dependable counters were unavailable."}
     rewrite("Environment-Register.csv", [environment], lambda r: r.get("Environment_ID") == environment["Environment_ID"])
 
@@ -216,7 +216,7 @@ def main() -> int:
                        "Errors": "Device Guard blocks test-barrier" if backend == "CPU" else "None after UI asset repair",
                        "Result": "Passed with external-policy limitation" if backend == "CPU" else "Passed",
                        "Result_Reason": "Fresh build completed and required binaries executed.", "Failure_IDs": "FAIL-AB-DEVICE-GUARD" if backend == "CPU" else "FAIL-AB-UI-ASSET",
-                       "Evidence_Path": base, "Evidence_Commit": "Pending PR", "Reviewer": "Codex evidence reconciliation", "Review_Date": "2026-07-16",
+                       "Evidence_Path": base, "Evidence_Commit": "Pending PR", "Reviewer": "project tooling evidence reconciliation", "Review_Date": "2026-07-16",
                        "Notes": "Pinned loading.html copied into generated UI dist only; source checkout remained clean."})
     rewrite("Build-Register.csv", builds, lambda r: r.get("Route") == ROUTE)
 
@@ -238,7 +238,7 @@ def main() -> int:
                          "Root_Cause": symptom, "Fix_or_Workaround": workaround, "Final_Status": status,
                          "Missing_Workbook_Fields": "None; explicit status/reason recorded", "Next_Action": "External policy/hardware change required" if status.startswith("Open") else "None",
                          "Raw_Evidence_Path": "experiments/raw-results/atomicbot-turboquant/2026-07-16/", "Evidence_Commit": "Pending PR",
-                         "Reviewer": "Codex evidence reconciliation", "Review_Date": "2026-07-16", "Notes": "No pass was inferred from a blocked or timed-out condition."})
+                         "Reviewer": "project tooling evidence reconciliation", "Review_Date": "2026-07-16", "Notes": "No pass was inferred from a blocked or timed-out condition."})
     rewrite("Failure-Register.csv", failures, lambda r: r.get("Route") == ROUTE)
     return 0
 

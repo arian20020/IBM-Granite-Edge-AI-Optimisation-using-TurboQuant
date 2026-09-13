@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "component": "openvino-cpu-sdpa-turboquant",
+  "implementationRoute": "recovered-upstream",
+  "repository": "https://github.com/openvinotoolkit/openvino.git",
+  "releaseTag": "main-f5f594dc0c9",
+  "releaseCommit": "f5f594dc0c9e5961785f0d17743486d52eac87e7",
+  "implementationCommit": "b9a1f201c109e0bed74763934f79483cf6c4cbf4",
+  "pullRequest": 35853,
+  "pullRequestUrl": "https://github.com/openvinotoolkit/openvino/pull/35853",
+  "compatibleGenAi": {
+    "repository": "https://github.com/openvinotoolkit/openvino.genai.git",
+    "releaseTag": "main-6fbc103538d",
+    "releaseCommit": "6fbc103538d30d42da4b0b5130a4792a20f728ba"
+  },
+  "acceptedModel": "ibm-granite/granite-4.1-3b",
+  "acceptedHeadDimension": 64,
+  "acceptedDevice": "CPU",
+  "acceptedAttentionPath": "SDPA",
+  "acceptedKeyCodec": "TBQ4",
+  "acceptedValueCodec": "TBQ4",
+  "additionalAcceptedCodecs": [
+    "TBQ3"
+  ],
+  "runtimeProperties": {
+    "KEY_CACHE_QUANT_ALG": "TURBO",
+    "VALUE_CACHE_QUANT_ALG": "TURBO",
+    "KEY_CACHE_PRECISION": "u4",
+    "VALUE_CACHE_PRECISION": "u4"
+  },
+  "excludedCapabilities": [
+    "QJL",
+    "PolarQuant",
+    "GPU",
+    "PagedAttention",
+    "prefillCompression"
+  ],
+  "sourceFiles": [
+    { "path": "src/inference/dev_api/openvino/runtime/internal_properties.hpp", "length": 9491, "sha256": "c05f93fb19f946b3368335f9b10cc46055273fb24c9aea040e0827934035a091" },
+    { "path": "src/plugins/intel_cpu/src/config.cpp", "length": 30370, "sha256": "1619cd2571bfd68d1157c2676190b89b4951cb743655e322a559064b2131eca6" },
+    { "path": "src/plugins/intel_cpu/src/config.h", "length": 5843, "sha256": "51a249838522465e98faa83394d350fffd8a5afdfca5e0931e316c19a141a3c2" },
+    { "path": "src/plugins/intel_cpu/src/memory_state.cpp", "length": 18455, "sha256": "3890addfb0d1c6ed8413ad92307506d5ecb42c62ee18631fda24d5c31165df8e" },
+    { "path": "src/plugins/intel_cpu/src/nodes/memory.cpp", "length": 49101, "sha256": "822ebcc049b13615174217d6bb674a619f0503fc76d36ed258c3fe00064d803a" },
+    { "path": "src/plugins/intel_cpu/src/nodes/scaled_attn.cpp", "length": 145167, "sha256": "818329cdd30b725f85a3f3cc356d4011e203c8bafa14011f13ab4468a7f3c6b9" },
+    { "path": "src/plugins/intel_cpu/src/nodes/scaled_attn.h", "length": 5798, "sha256": "67ad858249ecfa910638057e136646800a34466640fc128fdf37684c54064b4c" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/cache_spec.hpp", "length": 534, "sha256": "c10e37c01323574a9dcf5d73c049df1f85ca84e2032e7ab5494a6f95a3c756e4" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/codecs/codecs.hpp", "length": 17492, "sha256": "8542596dc8abc2afa9ed43e880577205b224e2ceff3f9c13dd6cd465904aa367" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/codecs/turboq_codec.hpp", "length": 4051, "sha256": "0c029e6ddc18e59fef251a8c61452b624e29cc9af51c07f66e2642b4fdb30e62" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/codecs/turboq_quantize.cpp", "length": 6998, "sha256": "c0c2cd8bb13f8bfa294ac01fae4838180f6391122c4d4c6f4597cf0006a1aae9" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/codecs/turboq_quantize.hpp", "length": 1989, "sha256": "ecd02c31d115ee06452d51c4d0c922b38c34b9964fd43cc32f15d64e9e5a8203" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/codecs/turboq_rotation.cpp", "length": 955, "sha256": "eb5c2de123cdc07158889d72c86e630a46085a8d523fc409088228fb7cb7fe81" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/codecs/turboq_rotation.hpp", "length": 3078, "sha256": "db014a3bf0fcc3e628e95d0a18fc8a04650e7259ffe1c6e40e437c0348481fbc" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/codecs/turboq_tables.hpp", "length": 11595, "sha256": "ea4b8ecc3cc255662da4479d5610f71f669c1ebc2bb5151e95c4d5cfd3f2d96b" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/mha_kv_cache_codec.cpp", "length": 36603, "sha256": "c1044fdb4afa8c92ad247452b3f8058a105db80edd5455a6911a0c4d431480fa" },
+    { "path": "src/plugins/intel_cpu/src/nodes/kernels/scaled_attn/mha_kv_cache_codec.hpp", "length": 2328, "sha256": "ae46475b82dc658a04c357cc1094afa4564a445216971ffd61956e0fc280b848" },
+    { "path": "src/plugins/intel_cpu/tests/functional/custom/subgraph_tests/src/x64/concat_sdp.cpp", "length": 2820, "sha256": "a9cdb77d437d13fb8e6c863be5f3c3066b1e5d9dfac6d6a557a5cde79d99d253" }
+  ],
+  "license": "Apache-2.0",
+  "sourceDisposition": "exact pinned upstream main source; no project patch applied",
+  "discoveredAtUtc": "2026-08-22T00:00:00Z"
+}

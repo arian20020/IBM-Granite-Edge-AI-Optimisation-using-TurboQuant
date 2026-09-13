@@ -1,0 +1,331 @@
+# Model Inspection architecture
+
+**Status:** Ordinary packaged implementation verified locally; strict pixel, controlled OS, manual Narrator, and hosted exact-head evidence remain open
+**Last reviewed:** 2026-08-16
+
+[Back to application feature architecture](../README.md)
+
+## Purpose
+
+Model Inspection is onboarding stage two. It receives one immutable validated
+GGUF selection, runs lightweight core-runtime inspection in a protected worker,
+and presents one controlled application result before any Hardware Fit work.
+
+```text
+Validated Model Import
+    -> exact ModelInspectionRequest
+ModelInspectionPage / ModelInspectionViewModel
+    -> ModelInspectionService
+    -> WorkerProcessLlamaModelProbe
+    -> protected x64 worker process
+    -> LLamaSharp 0.27.0 / matched llama.cpp CPU VocabOnly
+    -> trusted application evidence
+    -> ModelInspectionClassifier
+    -> Ready or ReadyWithWarnings
+    -> terminal page presentation
+```
+
+The application and worker remain separated by versioned contracts and bounded
+redirected streams. LLamaSharp and native CPU libraries stay in the fixed child
+worker subtree; they are not loaded into the WinUI process.
+
+## Accepted architecture
+
+- [ADR-001 - matched LLamaSharp application runtime](../../../docs/architecture/decisions/ADR-001-llamasharp-application-runtime.md)
+- [ADR-002 - core inspection versus backend verification](../../../docs/architecture/decisions/ADR-002-core-inspection-versus-backend-verification.md)
+- [ADR-003 - protected Model Inspection worker](../../../docs/architecture/decisions/ADR-003-protected-model-inspection-worker.md)
+
+Application ownership is intentionally layered:
+
+```text
+Page
+    -> ViewModel (attempt identity, commands, stale suppression)
+    -> Service (orchestration and terminal semantics)
+    -> Classifier (reliable evidence only)
+    -> Runtime adapter (application/worker mapping)
+    -> Infrastructure (fixed root and manifest-verifying client)
+    -> Worker / production LLamaSharp runtime
+```
+
+## Current capability
+
+| Capability | Status |
+|---|---|
+| immutable Model Import request and exact-instance handoff | Implemented |
+| automatic page start once per navigation | Implemented |
+| five live progress stages around five real operation boundaries | Implemented |
+| immediate secure-start feedback and UI-only milestone pacing | Implemented |
+| functional Cancel with confirmed-cancellation semantics | Implemented |
+| retry same request as a fresh attempt | Implemented |
+| choose another model and fresh onboarding reset | Implemented |
+| stale callback suppression across replacement/navigation | Implemented |
+| request/progress/evidence/result contracts | Implemented |
+| worker-to-application request/result mappers | Implemented |
+| deterministic classifier and application service | Implemented |
+| privacy-safe initial/progress/terminal presentation | Implemented |
+| fixed manifest-verified x64 worker closure | Implemented in build/test package |
+| real N-001 packaged page journey through all five stages | Implemented and locally tested |
+| Hardware Fit or conversion execution | Not implemented in this feature slice |
+| isolated local MSIX build/extraction/content scan | Passed locally |
+| release notice approval, installed/deployed MSIX acceptance, and hosted exact-head attestation | Pending |
+
+## Source hierarchy
+
+```text
+Features/ModelInspection/
+|-- ModelInspectionPage.xaml(.cs)  page lifecycle and delta application to stable controls
+|-- Contracts/                     framework-neutral application language
+|-- Runtime/                       worker request/result adapter
+|-- Classification/                reliable-evidence outcome policy
+|-- Services/                      use-case orchestration and x64 entry point
+|-- ViewModels/                    async attempt and command lifecycle
+|-- Presentation/                  privacy-safe state mapping, render coordination and motion
+|-- Models/                        WinUI presentation shapes
+|-- Controls/                      four stable card controls and reusable disclosure
+`-- Infrastructure/                fixed worker root/client composition
+```
+
+Shared protocol/transport, worker host, client, and production LLamaSharp
+runtime remain separate repository projects.
+
+## Page lifecycle
+
+`ModelInspectionPage.OnNavigatedTo` requires the exact
+`ModelInspectionRequest`, retires any prior ViewModel, creates a fresh
+navigation-owned ViewModel, subscribes to property/command/event changes, and
+binds one stable four-control visual tree to the initial presentation.
+
+The first `Loaded` event starts at most one automatic attempt for that
+navigation. The first frame says `Starting secure inspection…` while manifest
+verification and worker launch continue; all five rows remain waiting until the
+worker reports the genuine Stage 1 boundary. `ModelInspectionRenderCoordinator`
+coalesces snapshot notifications,
+rejects stale render/interaction keys, and applies only changed regions. The
+four controls and five progress-row instances retain identity while progress,
+commands, disclosure, footer, and terminal state change. `OnNavigatedFrom`
+invalidates page ownership before cancellation, unsubscribes,
+deactivates/disposes the ViewModel, and prevents retired callbacks or motion
+completions from repainting the page.
+
+Completed results offer Choose another model. Cancellation or operational
+failure offers Retry and Choose another. The page reports choose-another intent
+to the onboarding shell; it does not manipulate the shell frame itself.
+
+## Five user-visible stages
+
+```text
+1. Check model package
+2. Read model configuration
+3. Validate tokenizer and chat setup
+4. Validate model structure
+5. Confirm core runtime compatibility
+```
+
+The labels correspond to real work: Stage 1 captures and hashes the initial
+file snapshot; Stage 2 configures the pinned CPU backend, performs the
+`VocabOnly` load, and collects configuration; Stage 3 collects tokenizer/chat
+evidence and performs the tokenizer smoke check; Stage 4 collects structure,
+disposes the native handle, and verifies the final file snapshot; Stage 5 maps
+and validates the completed runtime evidence. No worker, service, or runtime
+sleep fabricates pacing or progress.
+
+The page-owned milestone sequencer gives each genuinely reached Active stage a
+550 ms minimum from its presented acknowledgement in normal motion. Genuine
+work that has already remained visible that long receives no added dwell.
+Cancellation, operational failure, retry/restart, choose-another, navigation,
+disposal, stale-generation invalidation, and reduced-motion transitions remain
+immediate. Every active stage uses the same 1,050 ms linear Precision Orbit;
+Stage 2's genuine fraction appears only as restrained trailing text and never
+changes or restarts the orbit.
+
+## Polished visual system
+
+Shared vector status glyphs provide complete, optically centred success,
+warning, error, information, waiting, not-complete, and active marks. The page
+uses a 24 px header-to-first-card gap, 16 px visible-card gaps, five 48 px
+default-scale progress rows that grow naturally for wrapping/text scale, and
+no connector tail after Stage 5. Terminal states use the Balanced Centre
+layout, natural card heights, centred short-form metadata and outcome copy,
+and responsive one-, two-, or three-action arrangements without empty slots.
+The same treatment applies to warning, conversion, incomplete, unsupported,
+invalid, cancelled, and operational-failure pages.
+
+The Debug gallery remains the exact 50-fixture `MI-001` through `MI-050`
+catalogue, including `MI-050`. Hardware Inspection is not implemented by this
+branch; it remains a separate future feature.
+
+### Final progress-polish evidence
+
+The serialized local final ladder passed on 2026-08-16 against source commit
+`27934be2687418d7890b677cfcdabf22f059633d`. Runtime passed 189/189
+(`C5916E795839D9C3DB2A2BA810C1B71E8C2B2363E4D3305A4D80C14C96CB643A`)
+and Worker passed 77/77
+(`2BE31A252D2063716053D545C29FF582DE10BE5618C349CABE414D183703398B`).
+Debug passed Interaction/Lifetime 19/19, the exact nine-class fixture catalogue
+220/220, and focused progress polish 322/322. Release passed the ordinary
+two-category filtered suite 717/717, including the unchanged 31-class,
+497-execution protected map and all 39 navigation executions, followed by the
+exact N-001 journey 1/1.
+
+Every TRX had matching total/executed/passed and definition/result counts, with
+all adverse counters zero. The Debug and Release packaged-recipe SHA-256 values
+were `DFDE99F0D0B56200B3E67B2209816C42F634461EFCE4F2619E6CE03D284D8CA8`
+and `5D08ADBF554AE4C57F8AB7FA84D806DCDA3377A33A03FC3095D71FA697E7DC62`.
+All three phases preserved the frozen source/status snapshot, recorded zero
+scoped WER delta, and ended with zero relevant app, worker, or test processes.
+Release isolation passed with 112 scanned files and zero forbidden
+path/token/metadata hits; its external evidence SHA-256 was
+`2B2907FFADA8B5D13D96256FF07C1F366FD7E7EEB0D84FCC8CD6A21D20FEB1B7`.
+
+The raw identity-bearing TRX/logs remain local, untracked, and
+do-not-stage/upload. This is local semantic/build evidence, not strict
+Figma-pixel, real Narrator, controlled-OS, manual visual, or hosted exact-head
+evidence. Hardware Inspection remains outside this branch.
+
+## Outcome policy
+
+Execution state and model outcome remain distinct:
+
+```text
+Completed
+    -> reliable evidence
+    -> Ready when tokenizer smoke passed and chat template is present
+    -> ReadyWithWarnings when tokenizer smoke passed and template is absent
+
+Cancelled
+    -> only a cooperative worker terminal proves cancellation
+
+OperationalFailure
+    -> no reliable model classification is invented
+```
+
+The presentation layer supports all six domain model outcomes for future
+classifier policies, but the current protected GGUF route produces only
+`Ready` or `ReadyWithWarnings` from completed evidence.
+
+## Runtime and package identity
+
+```text
+Protocol version:          1
+Worker ID:                 GraniteEdgeAI.ModelInspection.Worker
+Runtime profile:           llamasharp-0.27.0-cpu-win-x64-vocab-only-v1
+LLamaSharp:                0.27.0
+CPU backend package:       0.27.0
+Mapped llama.cpp commit:   3f7c29d318e317b63f54c558bc69803963d7d88c
+Process architecture:      x64
+Inspection mode:           VocabOnly
+```
+
+The fixed worker subtree is resolved only from the installed package root or
+controlled unpackaged `AppContext.BaseDirectory`. A detached manifest is
+checked against the embedded trusted manifest, then every staged path, length,
+and SHA-256 digest is verified before launch. No current-directory or `PATH`
+fallback exists.
+
+## Tests and evidence
+
+Focused packaged tests cover contracts, application boundary fitness, mapper,
+classifier, service, ViewModel snapshots, all 13 presentation identities,
+stable render coordination, motion, all four controls, disclosure,
+deterministic 1440 x 1024 rendering, accessibility structure, page lifecycle,
+onboarding shell lifecycle, and manifest-verifying composition. A real
+packaged N-001 page journey reaches all five ordered stages and final `Ready`
+through the actual protected worker/service path.
+
+Historical pre-progress-polish evidence: the local hosted-equivalent
+Release/x64 candidate based on
+`5f90a5d9299363214f11454f548ff8571d98b1a5` passed 686/686 with the permanent
+`ModelInspectionVisualRegression` and `ModelInspectionControlledOs` category
+exclusions and zero non-passing results. The raw identity-bearing TRX remains
+local and untracked. This is ordinary packaged candidate evidence, not strict
+Figma-pixel, actual High Contrast/200% text-scale, manual Narrator,
+extracted-MSIX, or hosted exact-head closure.
+
+The historical Task 10 local hosted-equivalent candidate retained the same filter
+and 686 minimum and passed 691/691. Its exact protected map contains 31 classes
+and 497 executions, including 39 page-navigation executions; the Release TRX
+SHA-256 was
+`E6C1EF3B00A238ED14BE33AE513A8D7E3AC06382F07AAF62A0404EC73B5F255F`.
+The focused N-001 page journey then passed 1/1 with TRX SHA-256
+`19257734B69EFDA98AC84FCAFB5C18E76C907ECB0B25B9800C24FFFA10D20422`.
+These local results do not claim a hosted GitHub exact-head run.
+
+N-001 is a controlled zero-tensor tokenizer fixture. It proves the lightweight
+VocabOnly journey and native closure, not trusted Granite inference, quality,
+or performance.
+
+### Debug fixture gallery
+
+For deterministic inspection of the presentation and lifecycle routes, build
+and launch the packaged application as `Debug`/`x64`, then click
+`Fixture gallery` on the onboarding shell. The gallery exposes the exact
+`MI-001` through `MI-050` synthetic catalogue. Its stable filename contract is
+`MI-NNN-<target-condition>[-<variant>].fixture.json`, with lowercase
+hyphenated slugs and an ID prefix that matches the descriptor.
+
+Search, category filtering, fixture selection/switching, declared Cancel,
+Retry, Restart, Choose another, disclosure expand/collapse, Reset fixture, and
+Close are safe gallery interactions. Actions that are not declared for the
+selected state are absent; future report, conversion, and Hardware Fit actions
+stay disabled with `Coming later` and do not dispatch.
+
+The gallery reads its allowlisted schema, policy, and descriptors only from
+the fixed, deployment-safe packaged `ms-appx:///Fixtures/` root. It
+does not open a model, start the production worker, use network or
+current-directory fallbacks, or treat synthetic results as worker evidence.
+Preview presets for High Contrast, 200% text, width, and reduced motion are
+deterministic in-app projections, not strict Figma PNG, actual OS High
+Contrast/200%, or Narrator evidence. Those controlled gates and real-worker
+coverage of synthetic outcome variants remain open. The catalogue links
+MI-002/MI-003 to the separate N-001 production-worker/page journey; that
+external join is the only real-worker link and proves only the bounded N-001
+Ready route.
+
+Historical Task 10 fixture evidence: the local Debug/x64
+interaction/lifetime pair passed 19/19 (6 interaction
+and 13 lifetime), and the complete closed fixture category passed 220/220
+across its exact nine classes. The Debug build completed with zero errors and
+14 known warnings, with zero crash-report or test-process residue. Final local
+closure also passed Contracts 357/357 and Release isolation: the latter proved
+a ReadyToRun main assembly across 112 scanned package files, zero forbidden
+fixture/gallery path, token, or metadata hits, and zero surviving relevant
+processes, isolation children, or scoped crash events. Hosted exact-head
+evidence remains pending.
+
+## Strict scope and non-claims
+
+This completed feature slice is only local GGUF Model Inspection through the
+Windows x64 CPU LLamaSharp/llama.cpp `VocabOnly` path.
+
+It does not perform or prove:
+
+- OpenVINO;
+- TurboQuant;
+- Vulkan or GPU initialization/offload;
+- full inference or context creation;
+- performance or quality benchmarking;
+- model conversion execution;
+- Hardware Fit execution/navigation;
+- chat execution;
+- non-x64 inspection;
+- release notice approval;
+- installed/deployed MSIX manual acceptance;
+- hosted exact-head release evidence.
+
+Those are downstream product/release gates and must not be folded into the
+meaning of Model Inspection completion.
+
+## Related documentation
+
+- [Application contracts](./Contracts/README.md)
+- [Runtime adapter](./Runtime/README.md)
+- [Classification](./Classification/README.md)
+- [Application service](./Services/README.md)
+- [ViewModel](./ViewModels/README.md)
+- [Presentation](./Presentation/README.md)
+- [Controls](./Controls/README.md)
+- [Infrastructure](./Infrastructure/README.md)
+- [Completeness matrix](../../../docs/testing/Model-Inspection-Test-Completeness-Matrix.md)
+- [Synthetic fixture catalogue](../../../docs/evidence/testing/Model-Inspection-Fixture-Catalog.md)
+- [Visual Studio Debug guide](../../../docs/development/Model-Inspection-Visual-Studio-Debug-Guide.md)
+- [Figma visual verification evidence](../../../docs/evidence/testing/Model-Inspection-Figma-Visual-Verification.md)

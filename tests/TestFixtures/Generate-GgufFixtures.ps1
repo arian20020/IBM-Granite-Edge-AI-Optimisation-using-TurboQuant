@@ -2,23 +2,23 @@
 
 <#
 .SYNOPSIS
-Recreates the complete controlled GGUF fixture set.
+recreates the complete controlled GGUF fixture set
 
 .DESCRIPTION
-This is the authoritative fixture-generation entry point. It removes every
+this is the authoritative fixture-generation entry point. it removes every
 script-owned GGUF binary, expected-result JSON file, and integrity manifest
-before invoking the header and metadata generators in order. Starting from an
+before invoking the header and metadata generators in order. starting from an
 empty generated-output set ensures removed or renamed writer calls cannot leave
-stale fixtures that appear reproducible.
+stale fixtures that appear reproducible
 #>
 
-# Use strict PowerShell behaviour so undeclared variables cause an error.
+# use strict PowerShell behaviour so undeclared variables cause an error
 Set-StrictMode -Version Latest
 
-# Stop immediately when cleanup or either leaf generator fails.
+# stop immediately when cleanup or either leaf generator fails
 $ErrorActionPreference = "Stop"
 
-# Resolve the TestFixtures directory from this script's own location.
+# resolve the TestFixtures directory from this script's own location
 $fixtureRoot =
 Split-Path `
     -Parent `
@@ -36,7 +36,7 @@ $fixtureRootFullPath.TrimEnd(
 
 <#
 .SYNOPSIS
-Confirms that a cleanup target is a child of TestFixtures.
+confirms that a cleanup target is a child of TestFixtures
 #>
 function Assert-FixtureChildPath {
     param
@@ -63,7 +63,7 @@ function Assert-FixtureChildPath {
 
 <#
 .SYNOPSIS
-Removes generated files matching one extension beneath a controlled directory.
+removes generated files matching one extension beneath a controlled directory
 #>
 function Remove-GeneratedFixtureFiles {
     param
@@ -103,7 +103,7 @@ function Remove-GeneratedFixtureFiles {
     }
 }
 
-# Clear every output owned by either leaf generator.
+# clear every output owned by either leaf generator
 Remove-GeneratedFixtureFiles `
     -Directory (
         Join-Path `
@@ -142,7 +142,7 @@ if (
         -Force
 }
 
-# Generate header fixtures first, then metadata fixtures and the final manifest.
+# generate header fixtures first, then metadata fixtures and the final manifest
 $headerGeneratorPath =
 Assert-FixtureChildPath `
     -Path (

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "historical-raw-admission-current-worker-compatibility",
+  "sourceModelSha256": "f07519a2fbb3bacdd267e2e05ed9d8693f03fd752f0a80d5366f318f6b13c632",
+  "sourceParameterCount": 3000000000,
+  "official": {"historicalManifest":"e6171b0e77b3b71356109e7529794b9a8a034d6b4f8576d3ad15c7ed4cd579bf","currentManifest":"f0089dae967a0b4249238f9bf49db02ba44e111c78b83ebff36778f6d0ddcbe2","identicalMembers":16,"totalMembers":17,"onlyChanged":"OpenVinoOfficial.Worker.exe"},
+  "turbo": {"historicalManifest":"2c8b77eba5f26d693fe3cbde164c8fe88f5d6d2496a6f79ea666eae0dd4271d5","currentManifest":"39a4eccc05d4677b59f7f882cc50f875591ee3d3f90f1037e61e17fe3a34c35e","identicalMembers":20,"totalMembers":21,"onlyChanged":"OpenVinoTurboQuant.Worker.exe"},
+  "admissionAuthority": "Existing VerifiedOpenVinoOptimizationEvidence raw records and exact E617/2C8B acceptance tests; D25B/7455 remain rejected",
+  "inheritedScores": {"official-int8-default":4,"official-int8-u8":4,"official-int8-u4":4,"official-int4-u8":4,"official-int4-u4":5.52,"turbo-int8-tbq3":4,"turbo-int8-tbq4":4,"turbo-mxfp4-tbq3":4,"turbo-mxfp4-tbq4":4,"turbo-int4-tbq3":5.19,"turbo-int4-tbq4":5.48},
+  "sourceCorroboration": {"historicalRevision":"edea9de9","currentSessionRevision":"80d7ee7b","oldExecutableSourceReceiptAvailable":false,"preGenerationPipelineConfigurationIdentical":true,"clampInertOnHistoricallyAcceptedContextDomain":true,"sectorOnlyObservedPromptMaximum":232,"sectorRequestedTokens":128,"sectorContext":4096},
+  "preserved": ["historical records","current retained INT4/D5F/U4","failed current default","current title and stop/cancel behavior","all source/version/patch/quality/resource/issuer guards"],
+  "newQualityMeasurement": false,
+  "newCompletedConversion": false,
+  "deploymentAdmitted": false
+}

@@ -10,33 +10,33 @@
   "task02_plan_sha256": "31dd6e1da46ef970e31d5ca672458adf0f6cabeb7afeae4943474de27d45818d",
   "roadmap_sha256": "9497cba857247af42bc7f889c17fc2e248edd6a02cf5703906aec23434504a3e",
   "boundary": {
-    "path": ".superpowers/sdd/task02-boundary.json",
+    "path": "external-design-records/task02-boundary.json",
     "bytes": 11566,
     "sha256": "f76d33abdf2563f111d8db1ad408008d1e182519231d3a0c5f0301eaa1aa72e7"
   },
   "control_scripts": {
     "controller": {
-      "path": ".superpowers/sdd/task02-attempt004-controller.ps1",
+      "path": "external-design-records/task02-attempt004-controller.ps1",
       "bytes": 84750,
       "sha256": "fe38bc06070167089c2175074431d2a08c32e8108993079807cf629aea4fbf5f"
     },
     "launcher": {
-      "path": ".superpowers/sdd/task02-attempt004-launcher.ps1",
+      "path": "external-design-records/task02-attempt004-launcher.ps1",
       "bytes": 8801,
       "sha256": "2987945ab8e0f3469aa36aca777f77f08d427ba40f7e1f969b4a1f013f245382"
     },
     "green_signal": {
-      "path": ".superpowers/sdd/task02-attempt004-green-signal.ps1",
+      "path": "external-design-records/task02-attempt004-green-signal.ps1",
       "bytes": 7991,
       "sha256": "8261e3518506713962e411c3e12304db381fac215f46c1a3c662a8d4191beb06"
     },
     "pre_red_diagnostic": {
-      "path": ".superpowers/sdd/task02-attempt004-pre-red-diagnostic.ps1",
+      "path": "external-design-records/task02-attempt004-pre-red-diagnostic.ps1",
       "bytes": 58459,
       "sha256": "6799b8865fec24afd529e39885258e4e2ae5172a60c31511c96c56042d690e05"
     },
     "cap_feasibility_helper": {
-      "path": ".superpowers/sdd/task02-link-working-set-cap.ps1",
+      "path": "external-design-records/task02-link-working-set-cap.ps1",
       "bytes": 5297,
       "sha256": "5b8a27dfe73d94092cede5e52c003345e5b7dcf160087db0deeda5980371ea77"
     }
@@ -197,7 +197,7 @@
       "cap_verified": true,
       "survivor_pids_after_cleanup": [],
       "helper": {
-        "path": ".superpowers/sdd/task02-link-working-set-cap.ps1",
+        "path": "external-design-records/task02-link-working-set-cap.ps1",
         "bytes": 5297,
         "sha256": "5b8a27dfe73d94092cede5e52c003345e5b7dcf160087db0deeda5980371ea77"
       },

@@ -218,7 +218,7 @@ public sealed class GgufQuickScannerTests
         GgufQuickScanner scanner = new();
 
         // Arrange: build the full path to the invalid-magic fixture
-        // that should be copied into the compiled test output.
+        // that should be copied into the compiled test output
         string fixturePath = Path.Combine(
             AppContext.BaseDirectory,
             "TestFixtures",
@@ -227,7 +227,7 @@ public sealed class GgufQuickScannerTests
 
         // Arrange: verify that the test input was deployed correctly.
         //
-        // Without this assertion, a missing fixture could produce a
+        // without this assertion, a missing fixture could produce a
         // FileNotFoundException and make it look like the scanner is broken.
         Assert.IsTrue(
             File.Exists(fixturePath),
@@ -281,7 +281,7 @@ public sealed class GgufQuickScannerTests
         GgufQuickScanner scanner = new();
 
         // Arrange: build the path to the fixture copied into
-        // the compiled test project's output directory.
+        // the compiled test project's output directory
         //
         // This fixture begins with valid GGUF magic but contains version 99.
         string fixturePath = Path.Combine(
@@ -292,8 +292,8 @@ public sealed class GgufQuickScannerTests
 
         // Arrange: verify that the fixture was copied correctly.
         //
-        // This gives a clear test-setup failure rather than making a missing
-        // fixture look like a defect in the production scanner.
+        // this gives a clear test-setup failure rather than making a missing
+        // fixture look like a defect in the production scanner
         Assert.IsTrue(
             File.Exists(fixturePath),
             $"The unsupported-version GGUF fixture was not found at: {fixturePath}");
@@ -1446,7 +1446,7 @@ public sealed class GgufQuickScannerTests
                 result.TechnicalMessage ?? string.Empty,
                 "is 1");
 
-            // Failure results must not expose partially parsed success metadata.
+            // failure results must not expose partially parsed success metadata
             Assert.IsNull(result.ModelName);
             Assert.IsNull(result.Architecture);
             Assert.IsNull(result.ParameterSizeLabel);
@@ -1471,7 +1471,7 @@ public sealed class GgufQuickScannerTests
     public async Task ScanAsync_FutureVersion_ReturnsUnsupportedVersionFailure()
     {
         // Arrange: version 4 represents the first version newer than
-        // the application's maximum currently supported version.
+        // the application's maximum currently supported version
         GgufQuickScanner scanner = new();
         string fixturePath =
             await CreateCompleteMetadataVersionVariantAsync(version: 4);
@@ -1510,8 +1510,8 @@ public sealed class GgufQuickScannerTests
                 result.TechnicalMessage ?? string.Empty,
                 "is 4");
 
-            // Failure results must not expose partially parsed success metadata.
-            // Failure results must not expose partially parsed success metadata.
+            // failure results must not expose partially parsed success metadata
+            // failure results must not expose partially parsed success metadata
             Assert.IsNull(result.ModelName);
             Assert.IsNull(result.Architecture);
             Assert.IsNull(result.ParameterSizeLabel);
@@ -1655,6 +1655,9 @@ public sealed class GgufQuickScannerTests
         Assert.AreEqual(expected.ExpectedMetadata.ParameterSizeLabel, result.ParameterSizeLabel);
         Assert.AreEqual(expected.ExpectedMetadata.Quantization, result.Quantization);
         Assert.AreEqual(expected.ExpectedMetadata.FileSizeBytes, result.FileSizeBytes);
+        Assert.AreEqual(
+            new DateTimeOffset(File.GetLastWriteTimeUtc(fixturePath)),
+            result.FileLastWriteTimeUtc);
         Assert.AreEqual(expected.ExpectedMetadata.ContextLength, result.ContextLength);
         Assert.AreEqual(expected.ExpectedMetadata.GgufVersion, result.GgufVersion);
         Assert.IsNull(result.FailureCode);

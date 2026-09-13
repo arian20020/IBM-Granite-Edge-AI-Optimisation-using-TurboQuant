@@ -1345,7 +1345,7 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=Path,
         default=(
             repository
-            / ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/"
+            / "external-design-records/2026-07-19-openvino-turboquant-recovery/"
             "wb04-static-sections-draft.md"
         ),
     )

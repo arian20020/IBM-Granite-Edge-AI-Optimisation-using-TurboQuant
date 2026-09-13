@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "TinySyntheticV1",
+  "license": "MIT",
+  "files": [
+    {
+      "path": "package/config.json",
+      "length": 387,
+      "sha256": "edc6eff08c710ce8992807b391da2ac15fe4be58e40806c8463e066ac246def9"
+    },
+    {
+      "path": "package/generation_config.json",
+      "length": 111,
+      "sha256": "8ac32a8c221d59af0137acfd2d6e1348fde7f8ea9ea65de37f68a76d11fef214"
+    },
+    {
+      "path": "package/openvino_detokenizer.bin",
+      "length": 144,
+      "sha256": "bf78801beb2fd6fe6aa6e7d08e722261aa37829af1f0b50957e2f6ce336013be"
+    },
+    {
+      "path": "package/openvino_detokenizer.xml",
+      "length": 9025,
+      "sha256": "e2072dd89d089fe77f42c4d766c44338573cff99b20fdbd7b92139dd466c66ff"
+    },
+    {
+      "path": "package/openvino_model.bin",
+      "length": 88,
+      "sha256": "894dd0aac21e588d5cf78994d90aa0dcba8284626c976a4e0c89c0273b452c1c"
+    },
+    {
+      "path": "package/openvino_model.xml",
+      "length": 8446,
+      "sha256": "ca930d8b33322f2db7e460631cc0ab6ad3c6d3374dc3d417ff29ca74e502760a"
+    },
+    {
+      "path": "package/openvino_tokenizer.bin",
+      "length": 260,
+      "sha256": "e0c6a55fed60d29a8a6c339a0a0fb1073e5c219e93a59d0605d66bb8d4251f83"
+    },
+    {
+      "path": "package/openvino_tokenizer.xml",
+      "length": 20925,
+      "sha256": "f4c5d7eec91200bf6af831cbda077fe50931be0413fc5eb58fdb58047b446daa"
+    },
+    {
+      "path": "package/tokenizer_config.json",
+      "length": 206,
+      "sha256": "d8ac4b18a6987bad9f7834c16d43a699c3e969479ff344969a34f96f74951ce9"
+    }
+  ]
+}

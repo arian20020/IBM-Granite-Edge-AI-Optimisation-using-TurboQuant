@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "declarationKind": "historical-quality-current-runtime-compatibility-bridge-v1",
+  "evidenceId": "GGUF-CURRENT-08EF-CPU-TURBO3-COMPAT-01",
+  "originalEvidenceId": "GGUF-V4-CPU-TURBO3-01",
+  "originalQualityMean": 5.683333333333333,
+  "newQualityMeasurement": false,
+  "originalEvidenceDigestSha256": "49D2B41B1386FAE26A7C60D6C0108AA6A9142499136E8603FDB7E164201096F2",
+  "originalRuntimeManifestSha256": "93FA840C3DB0B623DDA3DAEBE27FE51564DCD292A420A9CF5A9A96D990E19DAA",
+  "currentRuntimeManifestSha256": "08EF00CF8CD425BC5409071A77C12BE5A90292C121A5109EDDE63BB109B3B7C4",
+  "source": {
+    "sha256": "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29",
+    "length": 2099501664,
+    "parameterCount": 3402836480
+  },
+  "profile": {
+    "backend": "Cpu", "contextSize": 4096, "gpuLayerCount": 0,
+    "keyCacheType": "Turbo3", "valueCacheType": "Turbo3",
+    "threadCount": 4, "batchSize": 512, "flashAttention": true,
+    "maximumGeneratedTokens": 256, "support": "Experimental", "requiresConsent": true
+  },
+  "targetedEvidence": [
+    { "path": "gguf-managed-bridge/comparison03.json", "sha256": "EA44206AC74BD4CCBBBC005BF72DA73B3E37C2A95ADEAC0C0EC12DB66D781386", "meaning": "Binary-bound request/argument comparisons and complete Stop/Length Unicode SSE/history checks; not whole-assembly equivalence" },
+    { "path": "token-count-01/counts.json", "sha256": "A607C20EB116179D683DF9A53A94CE12553A262117FDC6977C145E6D5363C0CA", "meaning": "Nine exact count-only requests cover all eighteen historical cases and actual P6 histories; maximum1832, all retain256 output tokens" }
+  ],
+  "evidenceRoot": "external-retained-evidence/q03-discriminator",
+  "limitations": "Current cancellation, titles and near-capacity behavior are intentionally preserved, not asserted historically equivalent. No full quality rerun, no blanket approval transfer, no BF16 or eight-thread profile admission. Normal issuer/resource/consent and lifecycle checks remain required.",
+  "releaseProof": false
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "declarationKind": "external-evidence-digest-manifest-reference-v1",
+  "scope": "Exact retained Granite 4.1 3B Q4_K_M, current 08EF AtomicBot CPU closure, four-thread Turbo4 K/V at 4096 context. Fresh quality and native activation evidence only; normal production profile/export/reload lifecycle remains pending. This record remains experimental and requires explicit evidence consent. No historical eight-thread score or admission is transferred.",
+  "lifecyclePending": true,
+  "deploymentAdmitted": false,
+  "externalEvidenceDigestManifest": {
+    "fileName": "current-08ef-turbo4-custody.json",
+    "retainedPath": "external-retained-evidence/q03-discriminator/current-08ef-turbo4-custody.json",
+    "sha256": "0A786E8E0BC9BAA62BD6C080542FB0F17DA1D10819B9F3B8B4A875EAB2F6A6E5",
+    "length": 24164,
+    "memberCount": 51,
+    "meaning": "Frozen exact capture/configuration, scorer and adjudication, unchanged methodology and harness references, native activation and current runtime/source custody. All 18 captures passed output-health checks; quality mean is independently adjudicated, not borrowed from earlier closures."
+  },
+  "source": {
+    "modelSha256": "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29",
+    "modelLengthBytes": 2099501664,
+    "parameterCount": 3402836480,
+    "sourceWeights": "q4_k_m",
+    "targetWeights": "q4_k_m"
+  },
+  "runtime": {
+    "manifestSha256": "08EF00CF8CD425BC5409071A77C12BE5A90292C121A5109EDDE63BB109B3B7C4",
+    "runtimePackageIdentity": "atomicbot-cpu-current-08ef00cf8cd425bc",
+    "runtimeBuildId": "atomicbot-519f0c594a8e31467d2e2f2cf17054c9e7e11536-cpu-vulkan",
+    "runtimeSourceCommit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536"
+  },
+  "configuration": {
+    "evidenceId": "GGUF-CURRENT-08EF-CPU-TURBO4-01",
+    "backend": "cpu",
+    "device": "CPU",
+    "profile": "cpu",
+    "contextTokens": 4096,
+    "keyCache": "turbo4",
+    "valueCache": "turbo4",
+    "gpuLayers": 0,
+    "flashAttention": true,
+    "threads": 4,
+    "batchSize": 512,
+    "maximumGeneratedTokens": 256,
+    "qualityRepetitions": 3,
+    "qualityMean": 5.3166666666666664,
+    "healthyCaptures": 18,
+    "methodologyIdentity": "granite-gguf-app-4k-runtime-v4-600s-v2",
+    "methodologySha256": "7ED619DD8BA8256E175C49B255CC06A1B4CCD21C6AA765C1590F0B0BB3D0B232",
+    "supportLevel": "Experimental",
+    "requiresEvidenceConsent": true
+  },
+  "exclusions": ["historical eight-thread profile transfer", "Turbo3", "Turbo2", "weight conversion", "other sources", "other runtime closures", "other backends", "other context sizes", "consent-free use"]
+}

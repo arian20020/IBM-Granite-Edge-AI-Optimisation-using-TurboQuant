@@ -1,0 +1,310 @@
+{
+  "$schema": "model-inspection-fixture.schema.json",
+  "schemaVersion": 1,
+  "id": "MI-009",
+  "targetCondition": "unsupported-model-architecture",
+  "variant": null,
+  "title": "MI-009 unsupported model architecture",
+  "category": "screen",
+  "coverage": {
+    "figmaStates": [
+      "unsupported"
+    ],
+    "stages": [],
+    "stageStatuses": [],
+    "outcomes": [
+      "unsupported"
+    ],
+    "interactions": [
+      "chooseAnother",
+      "reset"
+    ],
+    "lifecycleTags": [],
+    "failureProfiles": [],
+    "stressTags": []
+  },
+  "input": {
+    "request": {
+      "displayName": "Granite Fixture Model",
+      "displayFileName": "granite-fixture.gguf",
+      "evidenceProfile": "unsupportedArchitecture"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "serviceSteps": [
+          {
+            "trigger": {
+              "kind": "checkpoint",
+              "checkpoint": "terminal"
+            },
+            "effect": {
+              "kind": "completed",
+              "progress": null,
+              "outcome": "unsupported",
+              "evidenceProfile": "unsupportedArchitecture",
+              "failureProfile": null,
+              "failureDetailProfile": null,
+              "deferredCheckpoint": null
+            }
+          }
+        ]
+      }
+    ],
+    "setupSteps": [
+      {
+        "kind": "release-service-checkpoint",
+        "attempt": 1,
+        "checkpoint": "terminal",
+        "interactionId": null
+      },
+      {
+        "kind": "observe",
+        "attempt": null,
+        "checkpoint": "observed",
+        "interactionId": null
+      }
+    ],
+    "observationCheckpoint": "observed"
+  },
+  "expected": {
+    "figma": {
+      "state": "unsupported",
+      "geometryProfile": "canonical"
+    },
+    "outcome": {
+      "visible": true,
+      "kind": "unsupported",
+      "tone": "error",
+      "badge": null,
+      "title": {
+        "copyKey": "fixture.outcome.unsupported.title",
+        "defaultText": "Model is not supported"
+      },
+      "supportingText": {
+        "copyKey": "fixture.outcome.unsupported.supporting",
+        "defaultText": "The selected model is not supported by this inspection route."
+      }
+    },
+    "model": {
+      "visible": true,
+      "mode": "compact",
+      "badge": "unsupported",
+      "displayName": {
+        "copyKey": "fixture.model.name",
+        "defaultText": "Granite Fixture Model"
+      },
+      "displayFileName": {
+        "copyKey": "fixture.model.file",
+        "defaultText": "granite-fixture.gguf"
+      },
+      "metadata": [],
+      "checks": [],
+      "disclosureExpanded": false
+    },
+    "content": {
+      "visible": true,
+      "mode": "unsupported",
+      "disclosureExpanded": false,
+      "heading": {
+        "copyKey": "fixture.content.unsupported.heading",
+        "defaultText": "Unsupported model"
+      },
+      "rows": [
+        {
+          "id": "unsupported-model-row",
+          "primaryText": {
+            "copyKey": "fixture.content.unsupported.row",
+            "defaultText": "Runtime support was not reported for this model."
+          },
+          "secondaryText": {
+            "copyKey": "fixture.content.unsupported.detail",
+            "defaultText": "Choose another model."
+          },
+          "status": "error"
+        }
+      ]
+    },
+    "actions": {
+      "visible": true,
+      "mode": "result",
+      "items": [
+        {
+          "id": "technical-report",
+          "label": {
+            "copyKey": "fixture.action.technical-report",
+            "defaultText": "View technical report"
+          },
+          "visible": true,
+          "enabled": false,
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "choose-another",
+          "label": {
+            "copyKey": "fixture.action.choose-another",
+            "defaultText": "Choose another model"
+          },
+          "visible": true,
+          "enabled": true,
+          "helpText": null
+        }
+      ]
+    },
+    "footer": {
+      "status": "notComplete"
+    },
+    "focus": {
+      "target": "choose-another"
+    },
+    "automation": {
+      "controls": [
+        {
+          "id": "model-card",
+          "accessibleName": {
+            "copyKey": "fixture.model.name",
+            "defaultText": "Granite Fixture Model"
+          },
+          "controlType": "group",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "technical-report",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.technical-report",
+            "defaultText": "View technical inspection report"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.action.coming-later",
+            "defaultText": "Coming later"
+          }
+        },
+        {
+          "id": "choose-another",
+          "accessibleName": {
+            "copyKey": "fixture.automation.action.choose-another",
+            "defaultText": "Choose another model"
+          },
+          "controlType": "button",
+          "liveSetting": "off",
+          "helpText": null
+        },
+        {
+          "id": "content-list",
+          "accessibleName": {
+            "copyKey": "fixture.content.unsupported.heading",
+            "defaultText": "Unsupported model"
+          },
+          "controlType": "list",
+          "liveSetting": "polite",
+          "helpText": null
+        },
+        {
+          "id": "unsupported-model-row",
+          "accessibleName": {
+            "copyKey": "fixture.content.unsupported.row",
+            "defaultText": "Runtime support was not reported for this model."
+          },
+          "controlType": "listItem",
+          "liveSetting": "off",
+          "helpText": {
+            "copyKey": "fixture.content.unsupported.detail",
+            "defaultText": "Choose another model."
+          }
+        }
+      ]
+    },
+    "announcements": {
+      "count": 1,
+      "items": [
+        {
+          "copyKey": "fixture.announcement.unsupported",
+          "defaultText": "Model is not supported."
+        }
+      ]
+    },
+    "rowsAndScroll": {
+      "orderedRowIds": [
+        "unsupported-model-row"
+      ],
+      "scrollOwner": "content-list"
+    },
+    "retainedIdentities": {
+      "ids": [
+        "model-card",
+        "content-list",
+        "unsupported-model-row",
+        "technical-report",
+        "choose-another"
+      ]
+    }
+  },
+  "presetExpectations": {
+    "P01": {
+      "responsiveLayout": "desktop",
+      "minimumContentColumnWidth": 480,
+      "maximumContentColumnWidth": 960,
+      "noClipping": true,
+      "noOverlap": true,
+      "allRequiredContentReachable": true,
+      "textRoles": [
+        {
+          "id": "unsupported-model-row",
+          "behavior": "wrap"
+        }
+      ],
+      "scrollOwner": "content-list",
+      "minimumPointerTargetWidth": 44,
+      "minimumPointerTargetHeight": 44,
+      "logicalReadingOrder": [
+        "model-card",
+        "technical-report",
+        "choose-another",
+        "content-list",
+        "unsupported-model-row"
+      ],
+      "tabOrder": [
+        "choose-another"
+      ],
+      "focusTarget": "choose-another",
+      "resources": "light",
+      "textScale": "standard100",
+      "motion": "normal",
+      "semanticBrushesResolvedWithoutColorOnlyMeaning": true,
+      "finalGeometryAndSemanticsEquivalentToNormalMotion": true,
+      "minimumAnimationStarts": 1,
+      "maximumAnimationStarts": 1
+    }
+  },
+  "interactions": [
+    {
+      "id": "choose-another",
+      "kind": "chooseAnother",
+      "sourceCheckpoint": "observed",
+      "target": "gallery:no-active-fixture",
+      "expectedFocus": null,
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "notComplete",
+      "lifetimeEffect": "noActiveFixture"
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "sourceCheckpoint": "observed",
+      "target": "MI-009",
+      "expectedFocus": "choose-another",
+      "expectedAnnouncementCount": 0,
+      "expectedFooterStatus": "notComplete",
+      "lifetimeEffect": "retirePage"
+    }
+  ],
+  "presets": [
+    "P01"
+  ]
+}

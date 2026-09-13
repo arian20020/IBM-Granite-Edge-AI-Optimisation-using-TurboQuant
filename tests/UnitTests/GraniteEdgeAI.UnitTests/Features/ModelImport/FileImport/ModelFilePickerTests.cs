@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.FileImport.PickerRoute;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
@@ -132,21 +133,95 @@ public sealed class ModelFilePickerTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task OpenVinoSelection_CurrentlyDeferred_DoesNotOpenGgufPicker()
+    public async Task OpenVinoSelection_DoesNotOpenGgufPickerWhenFolderSelectionIsCancelled()
     {
         var pickerInteractionCount = 0;
+        var openVinoPickerInteractionCount = 0;
         var page = new ModelImportPage(
             () => Task.FromResult(ModelFormatSelection.OpenVino),
             () =>
             {
                 pickerInteractionCount++;
                 return Task.FromResult<string?>(null);
+            },
+            pickOpenVinoInputAsync: () =>
+            {
+                openVinoPickerInteractionCount++;
+                return Task.FromResult<ModelSelectionInput?>(null);
             });
 
         await page.BrowseFilesAsync();
 
         Assert.AreEqual(0, pickerInteractionCount);
+        Assert.AreEqual(1, openVinoPickerInteractionCount);
         Assert.IsNull(page.SelectedModelPath);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task ValidInjectedOpenVinoFolderUsesSharedSelectionRouteWithoutPathDisclosure()
+    {
+        const string privatePath = @"C:\Users\Private\models\selected-openvino";
+        const string safeDisplayName = "selected-openvino";
+        var classifier = new RecordingOpenVinoClassifier();
+        var ggufPickerInteractionCount = 0;
+        var conversionIntentCount = 0;
+        OpenVinoInspectionRequestedEventArgs? captured = null;
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.OpenVino),
+            () =>
+            {
+                ggufPickerInteractionCount++;
+                return Task.FromResult<string?>(null);
+            },
+            classifier: classifier,
+            pickOpenVinoInputAsync: () => Task.FromResult<ModelSelectionInput?>(
+                new ModelSelectionInput(privatePath, safeDisplayName, isFolder: true)));
+        page.OpenVinoInspectionRequested += (_, eventArguments) =>
+        {
+            captured = eventArguments;
+            eventArguments.AcceptNavigation();
+        };
+        page.SourceModelConversionRequested += (_, _) => conversionIntentCount++;
+
+        await page.BrowseFilesAsync();
+
+        Assert.AreEqual(0, ggufPickerInteractionCount);
+        Assert.IsNotNull(classifier.Input);
+        Assert.AreEqual(privatePath, classifier.Input.LocalPath);
+        Assert.AreEqual(ModelSelectionRoute.OpenVinoDirectory, page.CurrentRoute);
+        Assert.IsTrue(page.HasValidatedModel);
+        Assert.IsNull(page.SelectedModelPath);
+        Assert.IsTrue(page.TryRequestModelInspection());
+        Assert.AreEqual(0, conversionIntentCount);
+        Assert.IsNotNull(captured);
+        Assert.AreEqual(safeDisplayName, captured.DisplayName);
+        Assert.AreEqual(classifier.OperationId, captured.OperationId);
+        Assert.IsFalse(captured.GetType().GetProperties()
+            .Any(property => string.Equals(
+                property.GetValue(captured)?.ToString(),
+                privatePath,
+                StringComparison.Ordinal)));
+    }
+
+    private sealed class RecordingOpenVinoClassifier : IModelSelectionClassifier
+    {
+        internal ModelSelectionInput? Input { get; private set; }
+
+        internal ModelSelectionOperationId OperationId { get; private set; }
+
+        public Task<ModelSelectionResult> ClassifyAsync(
+            ModelSelectionOperationId id,
+            ModelSelectionInput input,
+            CancellationToken cancellationToken)
+        {
+            Input = input;
+            OperationId = id;
+            return Task.FromResult(ModelSelectionResult.Accepted(
+                id,
+                ModelSelectionRoute.OpenVinoDirectory,
+                input.DisplayName));
+        }
     }
 
     private static Button GetContinueButton(ModelImportPage page)

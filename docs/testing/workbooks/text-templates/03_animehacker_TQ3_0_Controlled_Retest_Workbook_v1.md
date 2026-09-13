@@ -26,7 +26,7 @@ Use this workbook while testing. Record exact versions, commands, logs and evide
 | Vulkan/SYCL path | Controlled SYCL build and reconciled 40/40 terminal tests passed; AH-08 standard partial runtime used OpenCL; recovered TQ3 rows used `ONEAPI_DEVICE_SELECTOR=level_zero:0`; supplementary Vulkan built but has no TQ3_0-specific source evidence |
 | CUDA-only dependencies | CUDA-specific implementation exists, but TQ3_0 is not source-level CUDA-only because CPU and SYCL paths are also present |
 | QJL residual correction present? | No - not implemented; fork commit 4381bdde corrects the description to PolarQuant without QJL, and no executable QJL projection/correction path was found |
-| Test operator | Codex controlled retest agent |
+| Test operator | project tooling controlled retest agent |
 | Test start date | 2026-07-18 |
 | Test end date | 2026-07-18 |
 | Overall status | Complete: 7 runnable rows passed runtime/quality evidence collection; 3 rows safety-classified; zero unresolved failures |

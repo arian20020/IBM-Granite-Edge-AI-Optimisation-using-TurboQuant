@@ -8,7 +8,7 @@
   "execution_plan": {
     "parent_head": "25fb4f39d328dcc52b21a5be1f0c15521ba1a4a6",
     "parent_tree": "57b85df4b73e45d88be59b4f5f76b72fc07018c0",
-    "task02_plan_path": "docs/superpowers/plans/2026-07-28-openvino-cpu-kv-allocation-observability-task-02.md",
+    "task02_plan_path": "external-design-records/plans/2026-07-28-openvino-cpu-kv-allocation-observability-task-02.md",
     "task02_plan_bytes": 397592,
     "task02_plan_blob": "b9df8feebd27062dccf99723fc72c28821240641",
     "task02_plan_sha256": "0fc614df0e555a8b0924a702a8ae0a6119b32eaac6512b1a3c8eb746ced39859",
@@ -16,28 +16,28 @@
   },
   "control_scripts": {
     "launcher": {
-      "path": ".superpowers/sdd/task02-attempt005-launcher.ps1",
+      "path": "external-design-records/task02-attempt005-launcher.ps1",
       "bytes": 46968,
       "sha256": "e05a8dd26e2f38c9f2e2a5ebb6fa3a5441834fbd6dfbc8282b111f2a1be0fbf8"
     },
     "controller": {
-      "path": ".superpowers/sdd/task02-attempt005-controller.ps1",
+      "path": "external-design-records/task02-attempt005-controller.ps1",
       "bytes": 158223,
       "sha256": "9dcb8798ebc65357f8f049d216ba595b2e590378eda67a5877b0580b6004674b"
     },
     "green_signal": {
-      "path": ".superpowers/sdd/task02-attempt005-green-signal.ps1",
+      "path": "external-design-records/task02-attempt005-green-signal.ps1",
       "bytes": 37175,
       "sha256": "9174b0c8bf89457f91e832b2b495caa19d8584f7e230205908fb1c9ba9c5664b"
     },
     "link_cap_supervisor": {
-      "path": ".superpowers/sdd/task02-attempt005-link-cap-supervisor.ps1",
+      "path": "external-design-records/task02-attempt005-link-cap-supervisor.ps1",
       "bytes": 38077,
       "sha256": "fd005d235b27a532ac5d0536ccb5b429e9c4f554efcd1f6ed5c9a5cf08e0f90b"
     }
   },
   "immutable_control_evidence": {
-    "path": ".superpowers/sdd/task02-attempt005-controller-job-ready.json",
+    "path": "external-design-records/task02-attempt005-controller-job-ready.json",
     "schema": "openvino-cpu-observer-task02-controller-job-ready/v2",
     "bytes": 1275,
     "sha256": "9d28749dafd80f40f914a82c59945fee91ab624d8fa32e10063c78915d8026a4",
@@ -56,11 +56,11 @@
     "line_format": "path|bytes|sha256",
     "count": 5,
     "lines": [
-      ".superpowers/sdd/task02-attempt005-controller-job-ready.json|1275|9d28749dafd80f40f914a82c59945fee91ab624d8fa32e10063c78915d8026a4",
-      ".superpowers/sdd/task02-attempt005-controller.ps1|158223|9dcb8798ebc65357f8f049d216ba595b2e590378eda67a5877b0580b6004674b",
-      ".superpowers/sdd/task02-attempt005-green-signal.ps1|37175|9174b0c8bf89457f91e832b2b495caa19d8584f7e230205908fb1c9ba9c5664b",
-      ".superpowers/sdd/task02-attempt005-launcher.ps1|46968|e05a8dd26e2f38c9f2e2a5ebb6fa3a5441834fbd6dfbc8282b111f2a1be0fbf8",
-      ".superpowers/sdd/task02-attempt005-link-cap-supervisor.ps1|38077|fd005d235b27a532ac5d0536ccb5b429e9c4f554efcd1f6ed5c9a5cf08e0f90b"
+      "external-design-records/task02-attempt005-controller-job-ready.json|1275|9d28749dafd80f40f914a82c59945fee91ab624d8fa32e10063c78915d8026a4",
+      "external-design-records/task02-attempt005-controller.ps1|158223|9dcb8798ebc65357f8f049d216ba595b2e590378eda67a5877b0580b6004674b",
+      "external-design-records/task02-attempt005-green-signal.ps1|37175|9174b0c8bf89457f91e832b2b495caa19d8584f7e230205908fb1c9ba9c5664b",
+      "external-design-records/task02-attempt005-launcher.ps1|46968|e05a8dd26e2f38c9f2e2a5ebb6fa3a5441834fbd6dfbc8282b111f2a1be0fbf8",
+      "external-design-records/task02-attempt005-link-cap-supervisor.ps1|38077|fd005d235b27a532ac5d0536ccb5b429e9c4f554efcd1f6ed5c9a5cf08e0f90b"
     ],
     "bytes": 625,
     "sha256": "16d230602d38ecaf9e8201d6aeb1d5ebc2c7f66c0caee78f1591692ece4e4587"
@@ -70,13 +70,13 @@
     "line_format": "path|ABSENT",
     "count": 8,
     "lines": [
-      ".superpowers/sdd/task02-attempt005-boundary.json|ABSENT",
-      ".superpowers/sdd/task02-attempt005-core-preview.patch|ABSENT",
-      ".superpowers/sdd/task02-attempt005-green-ready.json|ABSENT",
-      ".superpowers/sdd/task02-attempt005-patch-replay|ABSENT",
-      ".superpowers/sdd/task02-attempt005-receipt.json|ABSENT",
-      ".superpowers/sdd/task02-attempt005-red-ready.json|ABSENT",
-      ".superpowers/sdd/task02-attempt005-timeout-cleanup.json|ABSENT",
+      "external-design-records/task02-attempt005-boundary.json|ABSENT",
+      "external-design-records/task02-attempt005-core-preview.patch|ABSENT",
+      "external-design-records/task02-attempt005-green-ready.json|ABSENT",
+      "external-design-records/task02-attempt005-patch-replay|ABSENT",
+      "external-design-records/task02-attempt005-receipt.json|ABSENT",
+      "external-design-records/task02-attempt005-red-ready.json|ABSENT",
+      "external-design-records/task02-attempt005-timeout-cleanup.json|ABSENT",
       "experiments/raw-results/openvino-turboquant/2026-07-28/guards/task02-attempt-005|ABSENT"
     ],
     "bytes": 494,

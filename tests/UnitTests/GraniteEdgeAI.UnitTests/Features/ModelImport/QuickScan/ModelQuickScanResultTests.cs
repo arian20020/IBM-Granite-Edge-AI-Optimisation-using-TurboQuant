@@ -40,6 +40,7 @@ public sealed class ModelQuickScanResultTests
         Assert.IsNull(result.ParameterSizeLabel);
         Assert.IsNull(result.Quantization);
         Assert.IsNull(result.FileSizeBytes);
+        Assert.IsNull(result.FileLastWriteTimeUtc);
         Assert.IsNull(result.ContextLength);
         Assert.IsNull(result.GgufVersion);
 
@@ -62,6 +63,14 @@ public sealed class ModelQuickScanResultTests
         const long fileSizeBytes = 1_500_000_000L;
         const ulong contextLength = 131_072UL;
         const uint ggufVersion = 3U;
+        DateTimeOffset fileLastWriteTimeUtc = new(
+            2026,
+            8,
+            9,
+            0,
+            0,
+            0,
+            TimeSpan.Zero);
 
         // Act: create a successful result with the supplied metadata.
         ModelQuickScanResult result =
@@ -72,7 +81,8 @@ public sealed class ModelQuickScanResultTests
                 quantization,
                 fileSizeBytes,
                 contextLength,
-                ggufVersion);
+                ggufVersion,
+                fileLastWriteTimeUtc);
 
         // Assert: the result must explicitly report success.
         Assert.AreEqual(
@@ -89,6 +99,9 @@ public sealed class ModelQuickScanResultTests
         Assert.AreEqual(
             (long?)fileSizeBytes,
             result.FileSizeBytes);
+        Assert.AreEqual(
+            (DateTimeOffset?)fileLastWriteTimeUtc,
+            result.FileLastWriteTimeUtc);
         Assert.AreEqual(
             (ulong?)contextLength,
             result.ContextLength);
@@ -175,6 +188,7 @@ public sealed class ModelQuickScanResultTests
         Assert.IsNull(result.ParameterSizeLabel);
         Assert.IsNull(result.Quantization);
         Assert.IsNull(result.FileSizeBytes);
+        Assert.IsNull(result.FileLastWriteTimeUtc);
         Assert.IsNull(result.ContextLength);
         Assert.IsNull(result.GgufVersion);
     }
@@ -190,7 +204,7 @@ public sealed class ModelQuickScanResultTests
         string? blankUserMessage)
     {
         // Arrange: provide a valid diagnostic code and technical message,
-        // but deliberately provide a blank user message.
+        // but deliberately provide a blank user message
         const string failureCode = "invalid-magic";
         const string technicalMessage =
             "Expected the GGUF magic value at byte offset 0.";

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="GraniteAppCanvasBrush" Color="#F7F9FC" />
+            <SolidColorBrush x:Key="GraniteAppSurfaceBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="GraniteAppMutedSurfaceBrush" Color="#F3F6F9" />
+            <SolidColorBrush x:Key="GraniteAppStrokeBrush" Color="#D7E0EA" />
+            <SolidColorBrush x:Key="GraniteAppTextPrimaryBrush" Color="#161616" />
+            <SolidColorBrush x:Key="GraniteAppTextSecondaryBrush" Color="#525252" />
+            <SolidColorBrush x:Key="GraniteAppAccentBrush" Color="#0F62FE" />
+            <SolidColorBrush x:Key="GraniteAppAccentForegroundBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="GraniteAppAccentSurfaceBrush" Color="#EAF2FF" />
+            <SolidColorBrush x:Key="GraniteAppCompletedBrush" Color="#198038" />
+            <SolidColorBrush x:Key="GraniteAppCompletedSurfaceBrush" Color="#E8F6EC" />
+            <SolidColorBrush x:Key="GraniteAppPendingBrush" Color="#A8B2C1" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="GraniteAppCanvasBrush" Color="#101722" />
+            <SolidColorBrush x:Key="GraniteAppSurfaceBrush" Color="#182332" />
+            <SolidColorBrush x:Key="GraniteAppMutedSurfaceBrush" Color="#202D3E" />
+            <SolidColorBrush x:Key="GraniteAppStrokeBrush" Color="#3A485B" />
+            <SolidColorBrush x:Key="GraniteAppTextPrimaryBrush" Color="#F4F7FB" />
+            <SolidColorBrush x:Key="GraniteAppTextSecondaryBrush" Color="#C5CEDA" />
+            <SolidColorBrush x:Key="GraniteAppAccentBrush" Color="#78A9FF" />
+            <SolidColorBrush x:Key="GraniteAppAccentForegroundBrush" Color="#07111F" />
+            <SolidColorBrush x:Key="GraniteAppAccentSurfaceBrush" Color="#17335C" />
+            <SolidColorBrush x:Key="GraniteAppCompletedBrush" Color="#42BE65" />
+            <SolidColorBrush x:Key="GraniteAppCompletedSurfaceBrush" Color="#183A26" />
+            <SolidColorBrush x:Key="GraniteAppPendingBrush" Color="#697586" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="GraniteAppCanvasBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GraniteAppSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GraniteAppMutedSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GraniteAppStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GraniteAppTextPrimaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GraniteAppTextSecondaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GraniteAppAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="GraniteAppAccentForegroundBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+            <SolidColorBrush x:Key="GraniteAppAccentSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GraniteAppCompletedBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="GraniteAppCompletedSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="GraniteAppPendingBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <x:Double x:Key="GraniteJourneyActionHeight">46</x:Double>
+    <Thickness x:Key="GraniteJourneyActionPadding">18,10,18,10</Thickness>
+    <CornerRadius x:Key="GraniteJourneyActionCornerRadius">11</CornerRadius>
+
+    <SolidColorBrush x:Key="GraniteJourneyPrimaryBackgroundBrush" Color="{ThemeResource SystemAccentColor}" />
+    <SolidColorBrush x:Key="GraniteJourneyPrimaryPointerOverBrush" Color="{ThemeResource SystemAccentColorDark1}" />
+    <SolidColorBrush x:Key="GraniteJourneyPrimaryPressedBrush" Color="{ThemeResource SystemAccentColorDark2}" />
+    <SolidColorBrush x:Key="GraniteJourneyPrimaryForegroundBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+
+    <SolidColorBrush x:Key="GraniteJourneySecondaryBackgroundBrush" Color="{ThemeResource ControlFillColorDefault}" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryPointerOverBrush" Color="{ThemeResource ControlFillColorSecondary}" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryPressedBrush" Color="{ThemeResource ControlFillColorTertiary}" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryForegroundBrush" Color="{ThemeResource TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryBorderBrush" Color="{ThemeResource ControlStrokeColorDefault}" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryPointerOverBorderBrush" Color="{ThemeResource ControlStrokeColorSecondary}" />
+    <SolidColorBrush x:Key="GraniteJourneySecondaryPressedBorderBrush" Color="{ThemeResource SystemAccentColor}" />
+
+    <SolidColorBrush x:Key="GraniteJourneyDisabledBackgroundBrush" Color="{ThemeResource ControlFillColorDisabled}" />
+    <SolidColorBrush x:Key="GraniteJourneyDisabledForegroundBrush" Color="{ThemeResource TextFillColorDisabled}" />
+    <SolidColorBrush x:Key="GraniteJourneyDisabledBorderBrush" Color="{ThemeResource ControlStrokeColorDefault}" />
+</ResourceDictionary>

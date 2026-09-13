@@ -59,7 +59,7 @@ def main() -> int:
                 "Critical_Cap_Applied": "Yes" if caps else "No",
                 "Critical_Cap_Reason": adjudication["critical_cap_reason"],
                 "Blind_Label": f"response-{raw['output_sha256'][:12]}",
-                "Pairwise_Order": "Independently scored", "Judge_or_Reviewer": "Codex deterministic gates plus manual adjudication",
+                "Pairwise_Order": "Independently scored", "Judge_or_Reviewer": "project tooling deterministic gates plus manual adjudication",
                 "Manual_Adjudication_Required": "Yes",
                 "Manual_Adjudication_Result": adjudication["manual_result"],
                 "Result": "Pass" if adjudication["deterministic_pass"] else "Fail",

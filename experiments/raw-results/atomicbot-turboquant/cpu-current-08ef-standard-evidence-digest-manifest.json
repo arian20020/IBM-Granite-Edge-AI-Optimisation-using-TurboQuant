@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "declarationKind": "external-evidence-digest-manifest-reference-v1",
+  "scope": "Exact retained Granite 4.1 3B Q4_K_M and current AtomicBot CPU F16/Q8 profiles at 4096 context. Fresh quality and native activation passed. The Q8 production issuer, optimisation, export and reload lifecycle passed in the isolated packaged evidence host against frozen app B9A0BDBBADCC32E86F178AEFFBB253ECC7AB007F9AEC8D2A8D91B15B3D903B1F. This is not installed UI, deployment or full release proof.",
+  "lifecyclePending": false,
+  "deploymentAdmitted": false,
+  "externalEvidenceDigestManifest": {
+    "fileName": "current-08ef-qualified-lifecycle-digest.json",
+    "retainedPath": "external-retained-evidence/qualification-current-closures/current-08ef-qualified-lifecycle-digest.json",
+    "sha256": "384DCCEFE50CBBD8DAE7A996A755CD495659C7A0D05C968D71953E00C1496263",
+    "length": 41046,
+    "memberCount": 157,
+    "meaning": "Fresh per-file length/SHA256 closure of both corrected 18-request captures, outputs, adjudications, unchanged scorers/verifiers and methodology, runner dependencies, configurations, native activation records, plus actual Q8 issuer/export/reload receipts, packaged test result and frozen executed managed assemblies. Invalid f16-run01 is excluded. The single temporary model export was verified and removed; source and qualified runtime remained unchanged."
+  },
+  "source": {
+    "modelSha256": "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29",
+    "modelLengthBytes": 2099501664,
+    "parameterCount": 3402836480,
+    "sourceWeights": "q4_k_m"
+  },
+  "runtime": {
+    "manifestSha256": "08EF00CF8CD425BC5409071A77C12BE5A90292C121A5109EDDE63BB109B3B7C4",
+    "runtimePackageIdentity": "atomicbot-cpu-current-08ef00cf8cd425bc",
+    "runtimeBuildId": "atomicbot-519f0c594a8e31467d2e2f2cf17054c9e7e11536-cpu-vulkan",
+    "runtimeSourceCommit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536"
+  },
+  "configuration": {
+    "backend": "cpu",
+    "device": "CPU",
+    "contextTokens": 4096,
+    "gpuLayers": 0,
+    "flashAttention": true,
+    "threads": 4,
+    "batchSize": 512,
+    "maximumGeneratedTokens": 256,
+    "qualityRepetitions": 3,
+    "methodologyIdentity": "granite-gguf-app-4k-runtime-v4-600s-v2",
+    "methodologySha256": "7ED619DD8BA8256E175C49B255CC06A1B4CCD21C6AA765C1590F0B0BB3D0B232"
+  },
+  "profiles": [
+    {
+      "evidenceId": "GGUF-CURRENT-08EF-CPU-F16-01",
+      "keyCache": "f16",
+      "valueCache": "f16",
+      "qualityMean": 6.316666666666666,
+      "actualNativeCacheMiB": 320
+    },
+    {
+      "evidenceId": "GGUF-CURRENT-08EF-CPU-Q8-01",
+      "keyCache": "q8_0",
+      "valueCache": "q8_0",
+      "qualityMean": 5.783333333333334,
+      "actualNativeCacheMiB": 170
+    }
+  ],
+  "exclusions": ["invalid diagnostic f16-run01", "BF16 conversion", "Q2", "Q3", "TurboQuant caches", "Vulkan", "CUDA", "other models", "other context sizes", "historical score transfer"]
+}

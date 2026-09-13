@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+    Tokens for the Model/Hardware Compatibility screens.
+
+    The light values follow the approved compatibility design tokens. Its
+    semantic properties are the authority: ink, muted, subtle, blue,
+    blue-soft, blue-line, line, line-strong, surface, canvas, and
+    the warning and success triples.
+
+    Every value here is identical to the corresponding Model Inspection brush,
+    because both features render the same approved Direction B design system.
+    They are nonetheless declared separately rather than reused: this feature
+    must not depend on Model Inspection internals, and no shared design-system
+    project exists to hold them. If one is ever created, these move there and
+    both features point at it.
+
+    Dark and high-contrast follow the treatment already established for the
+    same palette — dark inverts surface and ink while keeping hue relationships,
+    and high contrast defers entirely to system colours rather than guessing at
+    an accessible pairing.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.ThemeDictionaries>
+
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="CompatibilityTextPrimaryBrush" Color="#111827" />
+            <SolidColorBrush x:Key="CompatibilityTextMutedBrush" Color="#5B677A" />
+            <SolidColorBrush x:Key="CompatibilityTextSubtleBrush" Color="#758196" />
+            <SolidColorBrush x:Key="CompatibilityTextControlBrush" Color="#344054" />
+            <SolidColorBrush x:Key="CompatibilityPrimaryBlueBrush" Color="#0F62FE" />
+            <SolidColorBrush x:Key="CompatibilityBlueSurfaceBrush" Color="#EDF4FF" />
+            <SolidColorBrush x:Key="CompatibilityBlueBorderBrush" Color="#8BB4FF" />
+            <SolidColorBrush x:Key="CompatibilitySuccessSurfaceBrush" Color="#ECF8F3" />
+            <SolidColorBrush x:Key="CompatibilitySuccessBorderBrush" Color="#A9DDCB" />
+            <SolidColorBrush x:Key="CompatibilitySuccessTextBrush" Color="#087A55" />
+            <SolidColorBrush x:Key="CompatibilityWarningSurfaceBrush" Color="#FFF7E8" />
+            <SolidColorBrush x:Key="CompatibilityWarningBorderBrush" Color="#E9C98B" />
+            <SolidColorBrush x:Key="CompatibilityWarningTextBrush" Color="#8A4B08" />
+            <SolidColorBrush x:Key="CompatibilityWarningAccentBrush" Color="#8A4B08" />
+            <SolidColorBrush x:Key="CompatibilityErrorSurfaceBrush" Color="#FFF1F0" />
+            <SolidColorBrush x:Key="CompatibilityErrorBorderBrush" Color="#F2B8B5" />
+            <SolidColorBrush x:Key="CompatibilityErrorTextBrush" Color="#B42318" />
+            <SolidColorBrush x:Key="CompatibilityCanvasBrush" Color="#F8FAFD" />
+            <SolidColorBrush x:Key="CompatibilitySurfaceBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="CompatibilityBorderLightBrush" Color="#D7E0EC" />
+            <SolidColorBrush x:Key="CompatibilityBorderStrongBrush" Color="#8BB4FF" />
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="CompatibilityTextPrimaryBrush" Color="#F9FAFB" />
+            <SolidColorBrush x:Key="CompatibilityTextMutedBrush" Color="#98A2B3" />
+            <SolidColorBrush x:Key="CompatibilityTextSubtleBrush" Color="#667085" />
+            <SolidColorBrush x:Key="CompatibilityTextControlBrush" Color="#EAECF0" />
+            <SolidColorBrush x:Key="CompatibilityPrimaryBlueBrush" Color="#78A9FF" />
+            <SolidColorBrush x:Key="CompatibilityBlueSurfaceBrush" Color="#102A56" />
+            <SolidColorBrush x:Key="CompatibilityBlueBorderBrush" Color="#4589FF" />
+            <SolidColorBrush x:Key="CompatibilitySuccessSurfaceBrush" Color="#12372E" />
+            <SolidColorBrush x:Key="CompatibilitySuccessBorderBrush" Color="#368F70" />
+            <SolidColorBrush x:Key="CompatibilitySuccessTextBrush" Color="#6FD2AE" />
+            <SolidColorBrush x:Key="CompatibilityWarningSurfaceBrush" Color="#3D2F12" />
+            <SolidColorBrush x:Key="CompatibilityWarningBorderBrush" Color="#9F762A" />
+            <SolidColorBrush x:Key="CompatibilityWarningTextBrush" Color="#FFE3A3" />
+            <SolidColorBrush x:Key="CompatibilityWarningAccentBrush" Color="#E6B84A" />
+            <SolidColorBrush x:Key="CompatibilityErrorSurfaceBrush" Color="#4A1D1A" />
+            <SolidColorBrush x:Key="CompatibilityErrorBorderBrush" Color="#D92D20" />
+            <SolidColorBrush x:Key="CompatibilityErrorTextBrush" Color="#FDA29B" />
+            <SolidColorBrush x:Key="CompatibilityCanvasBrush" Color="#0C111D" />
+            <SolidColorBrush x:Key="CompatibilitySurfaceBrush" Color="#101828" />
+            <SolidColorBrush x:Key="CompatibilityBorderLightBrush" Color="#344054" />
+            <SolidColorBrush x:Key="CompatibilityBorderStrongBrush" Color="#475467" />
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="CompatibilityTextPrimaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityTextMutedBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityTextSubtleBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityTextControlBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityPrimaryBlueBrush" Color="{ThemeResource SystemColorHotlightColor}" />
+            <SolidColorBrush x:Key="CompatibilityBlueSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CompatibilityBlueBorderBrush" Color="{ThemeResource SystemColorHotlightColor}" />
+            <SolidColorBrush x:Key="CompatibilitySuccessSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CompatibilitySuccessBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilitySuccessTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityWarningSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CompatibilityWarningBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityWarningTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityWarningAccentBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityErrorSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CompatibilityErrorBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityErrorTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityCanvasBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CompatibilitySurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CompatibilityBorderLightBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="CompatibilityBorderStrongBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+        </ResourceDictionary>
+
+    </ResourceDictionary.ThemeDictionaries>
+
+    <!--
+        Geometry. The design drives all vertical rhythm from one gap token, so
+        one value here drives it too: changing this changes the whole page's
+        spacing coherently, which is what stops the rhythm drifting card by card.
+    -->
+    <x:Double x:Key="CompatibilityGap">14</x:Double>
+    <Thickness x:Key="CompatibilityGapThickness">0,14,0,0</Thickness>
+    <Thickness x:Key="CompatibilityPageMargin">28,24,28,28</Thickness>
+    <Thickness x:Key="CompatibilitySectionCardPadding">20,19,20,19</Thickness>
+    <Thickness x:Key="CompatibilityMainFactsPadding">20</Thickness>
+    <Thickness x:Key="CompatibilityMiniCardPadding">18,17,18,17</Thickness>
+    <Thickness x:Key="CompatibilityOutcomePadding">20,17,20,17</Thickness>
+    <Thickness x:Key="CompatibilityFactPadding">15,13,15,13</Thickness>
+    <Thickness x:Key="CompatibilityDisclosurePadding">20,16,20,16</Thickness>
+
+    <CornerRadius x:Key="CompatibilityCardRadius">14</CornerRadius>
+    <CornerRadius x:Key="CompatibilityFactRadius">10</CornerRadius>
+    <CornerRadius x:Key="CompatibilityPillRadius">999</CornerRadius>
+    <CornerRadius x:Key="CompatibilityButtonRadius">9</CornerRadius>
+
+    <!--
+        Readable desktop type scale shared across the compatibility hierarchy.
+        The page scrolls when necessary rather than shrinking a complete
+        assessment below the scale used by the surrounding onboarding pages.
+    -->
+    <x:Double x:Key="CompatibilityTitleFontSize">28</x:Double>
+    <x:Double x:Key="CompatibilityLedeFontSize">14</x:Double>
+    <x:Double x:Key="CompatibilityOutcomeTitleFontSize">16</x:Double>
+    <x:Double x:Key="CompatibilityOutcomeBodyFontSize">13</x:Double>
+    <x:Double x:Key="CompatibilityCardTitleFontSize">15</x:Double>
+    <x:Double x:Key="CompatibilityFactLabelFontSize">11</x:Double>
+    <x:Double x:Key="CompatibilityFactValueFontSize">16</x:Double>
+    <x:Double x:Key="CompatibilityFactDetailFontSize">11.5</x:Double>
+    <x:Double x:Key="CompatibilityRowTitleFontSize">13.5</x:Double>
+    <x:Double x:Key="CompatibilityRowSubFontSize">11.5</x:Double>
+    <x:Double x:Key="CompatibilityPillFontSize">11</x:Double>
+    <x:Double x:Key="CompatibilityButtonFontSize">14</x:Double>
+    <x:Double x:Key="CompatibilityStepLabelFontSize">10.5</x:Double>
+
+</ResourceDictionary>

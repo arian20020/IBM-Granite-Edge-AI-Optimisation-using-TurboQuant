@@ -53,3 +53,8 @@ experiments/raw-results/openvino-turboquant/** -text whitespace=-blank-at-eol,-b
 # their exported bytes and do not treat that format syntax as trailing-space
 # source errors.
 experiments/patches/**/*.patch -text whitespace=-blank-at-eol,-blank-at-eof
+
+# Immutable application assets and deterministic runtime fixtures.
+"IBM Granite with TurboQuant (Intel)/Assets/Fonts/OFL.txt" -text
+tests/TestFixtures/OpenVINO/GenAI/TinySyntheticV1/** -text -eol whitespace=cr-at-eol
+tests/TestFixtures/OpenVINO/Converter/TinyGraniteV1/** -text -eol whitespace=cr-at-eol

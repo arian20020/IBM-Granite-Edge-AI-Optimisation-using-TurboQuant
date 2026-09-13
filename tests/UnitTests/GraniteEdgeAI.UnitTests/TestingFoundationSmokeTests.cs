@@ -19,7 +19,7 @@ public sealed class TestingFoundationSmokeTests
     public void TestAssembly_ShouldHaveExpectedName()
     {
         // Arrange and act:
-        // Read the name of the compiled assembly that contains this test.
+        // read the name of the compiled assembly that contains this test
         string? assemblyName =
             typeof(TestingFoundationSmokeTests).Assembly.GetName().Name;
 

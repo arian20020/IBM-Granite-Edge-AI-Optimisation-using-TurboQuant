@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using GraniteEdgeAI.UnitTests.Features.HardwareInspection.Acceptance;
 
 namespace GraniteEdgeAI.UnitTests;
 
@@ -14,6 +15,24 @@ public partial class UnitTestApp : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        if (HardwareInspectionGate9AcceptanceHost.TryParseActivation(
+                Environment.GetCommandLineArgs(),
+                out string gate9ResultToken))
+        {
+            StartHardwareInspectionAcceptance(() =>
+                HardwareInspectionGate9AcceptanceHost.RunAsync(gate9ResultToken));
+            return;
+        }
+
+        if (HardwareInspectionProcessAcceptanceHost.TryParseActivation(
+                Environment.GetCommandLineArgs(),
+                out string processResultToken))
+        {
+            StartHardwareInspectionAcceptance(() =>
+                HardwareInspectionProcessAcceptanceHost.RunAsync(processResultToken));
+            return;
+        }
+
         Microsoft.VisualStudio.TestPlatform.TestExecutor.UnitTestClient.CreateDefaultUI();
 
         _window = new UnitTestAppWindow();
@@ -22,5 +41,34 @@ public partial class UnitTestApp : Application
 
         Microsoft.VisualStudio.TestPlatform.TestExecutor.UnitTestClient.Run(
             Environment.CommandLine);
+    }
+
+    private void StartHardwareInspectionAcceptance(Func<Task<int>> run)
+    {
+        _window = new UnitTestAppWindow();
+        _window.Activate();
+        UITestMethodAttribute.DispatcherQueue = _window.DispatcherQueue;
+        _ = RunHardwareInspectionAcceptanceAsync(run);
+    }
+
+    private async Task RunHardwareInspectionAcceptanceAsync(Func<Task<int>> run)
+    {
+        int exitCode = 70;
+        try
+        {
+            exitCode = await run();
+        }
+        finally
+        {
+            try
+            {
+                _window?.Close();
+            }
+            finally
+            {
+                _window = null;
+                Environment.Exit(exitCode);
+            }
+        }
     }
 }

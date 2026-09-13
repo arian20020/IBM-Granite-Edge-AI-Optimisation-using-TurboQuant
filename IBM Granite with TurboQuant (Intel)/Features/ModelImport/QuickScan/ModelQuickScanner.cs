@@ -16,7 +16,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
         private readonly GgufQuickScanner _ggufQuickScanner;
 
         /// <summary>
-        /// Creates the normal production router.
+        /// creates the normal production router
         /// </summary>
         internal ModelQuickScanner()
             : this(new GgufQuickScanner())
@@ -46,7 +46,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             {
                 switch (format)
                 {
-                    // The user cancelled the format-selection dialog.
+                    // the user cancelled the format-selection dialog
                     case ModelFormatSelection.None:
                         return ModelQuickScanResult.CreateCancelled();
 
@@ -80,7 +80,7 @@ namespace GraniteEdgeAI.Features.ModelImport.QuickScan
             catch (OperationCanceledException)
                 when (cancellationToken.IsCancellationRequested)
             {
-                // Convert expected user cancellation into a normal result.
+                // convert expected user cancellation into a normal result
                 return ModelQuickScanResult.CreateCancelled();
             }
         }

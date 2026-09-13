@@ -2,10 +2,14 @@ using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using GraniteEdgeAI.Features.ModelImport.Selection;
+using Microsoft.UI;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 
 namespace GraniteEdgeAI.UnitTests;
@@ -133,7 +137,8 @@ public sealed class ImportModelCardTests
                         failureCode,
                         userMessage,
                         technicalMessage));
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -173,7 +178,8 @@ public sealed class ImportModelCardTests
                     ModelQuickScanResult.CreateFailure(
                         "GGUF_INVALID_MAGIC",
                         "The selected file does not contain a valid GGUF header.",
-                        "Unexpected bytes at offset zero.")));
+                        "Unexpected bytes at offset zero.")),
+            classifier: new AcceptedGgufClassifier());
         await page.BrowseFilesAsync();
         var card = (ImportModelCard)page.FindName(
             "ImportModelCardControl");
@@ -223,7 +229,8 @@ public sealed class ImportModelCardTests
             {
                 scanCancellationToken = cancellationToken;
                 return scanCompletion.Task;
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         Task browseTask = page.BrowseFilesAsync();
         var card = (ImportModelCard)page.FindName(
@@ -356,6 +363,33 @@ public sealed class ImportModelCardTests
             GetTextBlock(
                 card,
                 "SuccessDeclaredContextTextBlock").Text);
+
+        Button browse = (Button)card.FindName("ChooseModelFileButton");
+        Assert.AreEqual(46d, browse.Height);
+        Assert.AreEqual(new CornerRadius(11), browse.CornerRadius);
+        Assert.AreEqual(FontWeights.SemiBold.Weight, browse.FontWeight.Weight);
+        Assert.AreEqual(
+            Colors.White,
+            ((SolidColorBrush)browse.Foreground).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
+            ((SolidColorBrush)browse.Resources["ButtonBackground"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x1D, 0x4E, 0xD8),
+            ((SolidColorBrush)browse.Resources["ButtonBackgroundPointerOver"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x1E, 0x40, 0xAF),
+            ((SolidColorBrush)browse.Resources["ButtonBackgroundPressed"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0xE5, 0xE7, 0xEB),
+            ((SolidColorBrush)browse.Resources["ButtonBackgroundDisabled"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0x9C, 0xA3, 0xAF),
+            ((SolidColorBrush)browse.Resources["ButtonForegroundDisabled"]).Color);
+        Assert.AreEqual(
+            ColorHelper.FromArgb(0xFF, 0xD1, 0xD5, 0xDB),
+            ((SolidColorBrush)browse.Resources["ButtonBorderBrushDisabled"]).Color);
+        Assert.IsTrue(browse.UseSystemFocusVisuals);
     }
 
     [UITestMethod]
@@ -404,7 +438,8 @@ public sealed class ImportModelCardTests
 
                 return Task.FromResult(
                     successfulResult);
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -483,7 +518,8 @@ public sealed class ImportModelCardTests
                         contextLength:
                             131_072UL,
                         ggufVersion:
-                            3)));
+                            3)),
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
@@ -554,5 +590,17 @@ public sealed class ImportModelCardTests
         string elementName)
     {
         return (TextBlock)card.FindName(elementName);
+    }
+
+    private sealed class AcceptedGgufClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(
+            ModelSelectionOperationId operationId,
+            ModelSelectionInput input,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ModelSelectionResult.Accepted(
+                operationId,
+                ModelSelectionRoute.Gguf,
+                input.DisplayName));
     }
 }

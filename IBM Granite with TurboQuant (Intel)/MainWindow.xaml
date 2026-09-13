@@ -17,12 +17,12 @@
         <!--  mica backdrop is the background effect provided by windows  -->
     </Window.SystemBackdrop>
 
-    <Grid>
+    <Grid x:Name="WindowRoot" Background="{ThemeResource GraniteAppCanvasBrush}">
         <!--  Griddeals with where the UI element are placed on the screen  -->
         <Grid.RowDefinitions>
             <!--
-                This decides how many rows the grid has and how tall each row is
-                The more row definitions the more rows
+                this decides how many rows the grid has and how tall each row is
+                the more row definitions the more rows
             -->
             <!--  Title Bar  -->
             <RowDefinition
@@ -37,12 +37,48 @@
 
         <TitleBar
             x:Name="AppTitleBar"
-            Title="Granite Edge AI"
-            Grid.Row="0">
-            <TitleBar.IconSource>
-                <FontIconSource
-                    Glyph="&#xE8D4;" />
-            </TitleBar.IconSource>
+            Grid.Row="0"
+            Height="60"
+            Background="{ThemeResource GraniteAppSurfaceBrush}"
+            Visibility="Visible">
+            <TitleBar.LeftHeader>
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border
+                        Width="32"
+                        Height="32"
+                        VerticalAlignment="Center"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        CornerRadius="8">
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontFamily="Segoe UI Variable Display"
+                            FontSize="15"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                            Text="G" />
+                    </Border>
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Spacing="1">
+                        <TextBlock
+                            FontFamily="Segoe UI Variable Text"
+                            FontSize="15"
+                            FontWeight="SemiBold"
+                            Text="Granite" />
+                        <TextBlock
+                            Opacity="0.72"
+                            FontFamily="Segoe UI Variable Text"
+                            FontSize="12"
+                            Text="with TurboQuant" />
+                    </StackPanel>
+                </Grid>
+            </TitleBar.LeftHeader>
         </TitleBar>
 
         <!--  App content will go here later  -->

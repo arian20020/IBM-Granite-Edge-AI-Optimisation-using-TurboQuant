@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="GraniteEdgeAI.HardwareInspection.Foundation.Tests" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.ModelInspection.WorkerClient" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.ModelInspection.WorkerClient.Tests" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.OpenVino.WorkerClient" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.GgufQuantization.WorkerClient" />
+    <InternalsVisibleTo Include="GraniteEdgeAI.GgufRuntime.WorkerClient" />
+  </ItemGroup>
+</Project>

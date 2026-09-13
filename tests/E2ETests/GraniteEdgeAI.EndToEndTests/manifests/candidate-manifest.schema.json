@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sourceCommit", "sourceTree", "packageFamilyName", "applicationId", "executablePath", "executableSha256", "executableBytes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "sourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sourceTree": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "packageFamilyName": { "type": "string", "minLength": 3, "maxLength": 255, "pattern": "^[A-Za-z0-9._-]+$" },
+    "applicationId": { "type": "string", "minLength": 1, "maxLength": 255, "pattern": "^[A-Za-z0-9._-]+$" },
+    "executablePath": { "type": "string", "minLength": 1 },
+    "executableSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "executableBytes": { "type": "integer", "minimum": 1 }
+  }
+}

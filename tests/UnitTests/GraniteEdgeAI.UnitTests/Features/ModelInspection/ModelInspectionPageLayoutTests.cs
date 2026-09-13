@@ -1,0 +1,630 @@
+using GraniteEdgeAI.Features.ModelInspection;
+using GraniteEdgeAI.Features.ModelInspection.Views;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
+using Windows.Foundation;
+
+namespace GraniteEdgeAI.UnitTests.Features.ModelInspection;
+
+[TestClass]
+[DoNotParallelize]
+public sealed class ModelInspectionPageLayoutTests
+{
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task ExpandedReadyDisclosure_UsesFeatureOwnedVerticalScrollExtent(
+        bool useOpenVinoPreview)
+    {
+        var page = new ModelInspectionPage();
+        ScrollViewer scrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
+            page.FindName("InspectionScrollViewer"));
+        ContentControl previewHost = Assert.IsInstanceOfType<ContentControl>(
+            page.FindName("InspectionPreviewHost"));
+        StackPanel contentStack = Assert.IsInstanceOfType<StackPanel>(
+            page.FindName("InspectionContentStack"));
+        UserControl preview = useOpenVinoPreview
+            ? new ModelInspectionOpenVinoPreviewView()
+            : Assert.IsInstanceOfType<ModelInspectionGgufPreviewView>(
+                previewHost.Content);
+        previewHost.Content = preview;
+        FrameworkElement progressPanel = Assert.IsInstanceOfType<FrameworkElement>(
+            preview.FindName("InspectionProgressPanel"));
+        FrameworkElement readyPanel = Assert.IsInstanceOfType<FrameworkElement>(
+            preview.FindName("InspectionReadyPanel"));
+        Expander disclosure = Assert.IsInstanceOfType<Expander>(
+            preview.FindName("ReadyDetailsExpander"));
+        progressPanel.Visibility = Visibility.Collapsed;
+        readyPanel.Visibility = Visibility.Visible;
+        disclosure.IsExpanded = true;
+
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        page.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = page };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            double scale = page.XamlRoot.RasterizationScale;
+            window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
+                (int)Math.Round(760d * scale),
+                (int)Math.Round(420d * scale)));
+
+            await WaitForLayoutAsync(page, () =>
+                disclosure.ActualHeight > 0d &&
+                scrollViewer.ViewportHeight > 0d &&
+                scrollViewer.ScrollableHeight > 0d);
+
+            Assert.AreEqual(ScrollMode.Disabled, scrollViewer.HorizontalScrollMode);
+            Assert.AreEqual(
+                ScrollBarVisibility.Disabled,
+                scrollViewer.HorizontalScrollBarVisibility);
+            Assert.AreEqual(ScrollMode.Enabled, scrollViewer.VerticalScrollMode);
+            Assert.AreEqual(
+                ScrollBarVisibility.Auto,
+                scrollViewer.VerticalScrollBarVisibility);
+            Assert.AreEqual(ZoomMode.Disabled, scrollViewer.ZoomMode);
+            Assert.AreEqual(
+                VerticalAlignment.Top,
+                scrollViewer.VerticalContentAlignment);
+            SolidColorBrush background = Assert.IsInstanceOfType<SolidColorBrush>(
+                scrollViewer.Background);
+            Assert.AreEqual(0, background.Color.A);
+            Assert.AreEqual(HorizontalAlignment.Center,
+                contentStack.HorizontalAlignment);
+            Point stackOrigin = contentStack
+                .TransformToVisual(scrollViewer)
+                .TransformPoint(new Point());
+            Assert.AreEqual(
+                scrollViewer.ViewportWidth / 2d,
+                stackOrigin.X + contentStack.ActualWidth / 2d,
+                0.5,
+                "The inspection content must remain centred in the viewport.");
+            Assert.IsGreaterThan(
+                scrollViewer.ViewportHeight,
+                scrollViewer.ExtentHeight,
+                "The expanded disclosure must contribute to the page-owned extent.");
+            Assert.IsGreaterThan(
+                0d,
+                scrollViewer.ScrollableHeight,
+                $"A constrained loaded {(useOpenVinoPreview ? "OpenVINO" : "GGUF")} " +
+                "page must be able to reach expanded disclosure content.");
+
+            Assert.IsTrue(scrollViewer.ChangeView(
+                horizontalOffset: null,
+                verticalOffset: scrollViewer.ScrollableHeight,
+                zoomFactor: null,
+                disableAnimation: true));
+            await WaitForLayoutAsync(page, () => scrollViewer.VerticalOffset > 0d);
+            Assert.IsGreaterThan(0d, scrollViewer.VerticalOffset);
+            Assert.AreEqual(
+                scrollViewer.ScrollableHeight,
+                scrollViewer.VerticalOffset,
+                0.5,
+                "The bottom of the page-owned extent must be reachable.");
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task Desktop1000_UsesApprovedCenteredGeometry()
+    {
+        var page = new ModelInspectionPage();
+        ScrollViewer scrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
+            page.FindName("InspectionPageScrollViewer"));
+        Grid scrollContent =
+            Assert.IsInstanceOfType<Grid>(scrollViewer.Content);
+        FrameworkElement contentHost = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionContentHost"));
+        Assert.AreSame(contentHost, scrollContent.Children.Single());
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        page.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = page };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await ResizeClientAndWaitAsync(
+                window,
+                page,
+                contentHost,
+                effectiveWidth: 888,
+                effectiveHeight: 700,
+                expectedInset: 24);
+            await ResizeClientAndWaitAsync(
+                window,
+                page,
+                contentHost,
+                effectiveWidth: 1000,
+                effectiveHeight: 700,
+                expectedInset: 24);
+            TextBlock title = Descendants(page)
+                .OfType<TextBlock>()
+                .Single(text => text.Text == "Model inspection");
+            TextBlock subtitle = Descendants(page)
+                .OfType<TextBlock>()
+                .Single(text => text.Text.StartsWith(
+                    "We are checking that the model package",
+                    StringComparison.Ordinal));
+
+            Point contentOrigin = contentHost
+                .TransformToVisual(page)
+                .TransformPoint(new Point());
+            Assert.AreEqual(840d, contentHost.ActualWidth, 0.01, "desktop host width");
+            Assert.AreEqual(80d, contentOrigin.X, 0.01, "desktop host left edge");
+            Assert.AreEqual(32d, title.FontSize, 0.01, "page title size");
+            Assert.AreEqual(14d, subtitle.FontSize, 0.01, "page subtitle size");
+            Assert.AreEqual(TextAlignment.Center, title.TextAlignment);
+            Assert.AreEqual(TextAlignment.Center, subtitle.TextAlignment);
+            Assert.AreSame(
+                Application.Current.Resources["InspectionPageTitleFontFamily"],
+                title.FontFamily);
+            Assert.AreSame(
+                Application.Current.Resources["InspectionBodyFontFamily"],
+                subtitle.FontFamily);
+            Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
+            Assert.AreEqual(ElementTheme.Light, page.ActualTheme);
+            Assert.AreEqual(ElementTheme.Light, title.ActualTheme);
+            Assert.AreEqual(ElementTheme.Light, subtitle.ActualTheme);
+            Assert.AreSame(
+                ThemeResource("Light", "InspectionTextPrimaryBrush"),
+                title.Foreground);
+            Assert.AreSame(
+                ThemeResource("Light", "InspectionTextSecondaryMutedBrush"),
+                subtitle.Foreground);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task ResponsiveWidths_UseApprovedMarginsAndPreserveStableTree()
+    {
+        var page = new ModelInspectionPage();
+        ScrollViewer scrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
+            page.FindName("InspectionPageScrollViewer"));
+        Grid scrollContent =
+            Assert.IsInstanceOfType<Grid>(scrollViewer.Content);
+        FrameworkElement contentHost = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionContentHost"));
+        Assert.AreSame(contentHost, scrollContent.Children.Single());
+        FrameworkElement outcome =
+            (FrameworkElement)page.FindName("InspectionOutcomeCardControl");
+        FrameworkElement model =
+            (FrameworkElement)page.FindName("InspectionModelCardControl");
+        FrameworkElement content =
+            (FrameworkElement)page.FindName("InspectionContentCardControl");
+        FrameworkElement actions =
+            (FrameworkElement)page.FindName("InspectionActionCardControl");
+        FrameworkElement layoutRoot = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("LayoutRoot"));
+        (double Width, double Inset, double HostWidth)[] endpoints =
+        [
+            (888d, 24d, 840d),
+            (887d, 24d, 839d),
+            (600d, 24d, 552d),
+            (599d, 16d, 567d),
+            (480d, 16d, 448d)
+        ];
+        var loaded = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        page.Loaded += (_, _) => loaded.TrySetResult(true);
+        var window = new Window { Content = page };
+
+        try
+        {
+            window.Activate();
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+            foreach (var endpoint in endpoints)
+            {
+                await ResizeClientAndWaitAsync(
+                    window,
+                    page,
+                    contentHost,
+                    endpoint.Width,
+                    effectiveHeight: 700,
+                    expectedInset: endpoint.Inset);
+
+                Point origin = contentHost
+                    .TransformToVisual(page)
+                    .TransformPoint(new Point());
+                Assert.AreEqual(endpoint.Inset, origin.X, 1d);
+                Assert.AreEqual(
+                    endpoint.HostWidth,
+                    contentHost.ActualWidth,
+                    1d);
+                Assert.AreSame(
+                    outcome,
+                    page.FindName("InspectionOutcomeCardControl"));
+                Assert.AreSame(
+                    model,
+                    page.FindName("InspectionModelCardControl"));
+                Assert.AreSame(
+                    content,
+                    page.FindName("InspectionContentCardControl"));
+                Assert.AreSame(
+                    actions,
+                    page.FindName("InspectionActionCardControl"));
+                Assert.AreSame(
+                    scrollViewer,
+                    page.FindName("InspectionPageScrollViewer"));
+                Assert.AreEqual(0d, outcome.ActualHeight, 0.01d);
+                Assert.IsGreaterThan(0d, model.ActualHeight);
+                Assert.AreEqual(
+                    contentHost.ActualWidth,
+                    model.ActualWidth,
+                    1d,
+                    "every visible top-level card shares the content-host edges");
+                Assert.AreEqual(0d, content.ActualHeight, 0.01d);
+                Assert.AreEqual(0d, actions.ActualHeight, 0.01d);
+            }
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void ResponsiveStates_DeclareExactClientBreakpointsAndInsets()
+    {
+        var page = new ModelInspectionPage();
+        Grid layoutRoot = Assert.IsInstanceOfType<Grid>(
+            page.FindName("LayoutRoot"));
+        ScrollViewer pageScrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
+            page.FindName("InspectionPageScrollViewer"));
+        Grid scrollContent = Assert.IsInstanceOfType<Grid>(pageScrollViewer.Content);
+        Grid contentHost = Assert.IsInstanceOfType<Grid>(
+            page.FindName("InspectionContentHost"));
+        Grid reflowHost = Assert.IsInstanceOfType<Grid>(
+            page.FindName("InspectionReflowHost"));
+
+        Assert.AreSame(contentHost, scrollContent.Children.Single());
+        Assert.AreSame(reflowHost, contentHost.Children.Single());
+        Assert.AreEqual(ScrollMode.Enabled, pageScrollViewer.VerticalScrollMode);
+        Assert.AreEqual(
+            ScrollBarVisibility.Auto,
+            pageScrollViewer.VerticalScrollBarVisibility);
+        Assert.AreEqual(ScrollMode.Disabled, pageScrollViewer.HorizontalScrollMode);
+        Assert.AreEqual(
+            ScrollBarVisibility.Disabled,
+            pageScrollViewer.HorizontalScrollBarVisibility);
+        Assert.AreEqual(ZoomMode.Disabled, pageScrollViewer.ZoomMode);
+        Assert.IsFalse(reflowHost.Children.OfType<ScrollViewer>().Any());
+
+        FrameworkElement outcome = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionOutcomeCardControl"));
+        FrameworkElement model = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionModelCardControl"));
+        FrameworkElement content = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionContentCardControl"));
+        FrameworkElement outgoing = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("OutgoingProgressContentCard"));
+        FrameworkElement actions = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("InspectionActionCardControl"));
+        Assert.AreEqual(2, Grid.GetRow(outcome));
+        Assert.AreEqual(4, Grid.GetRow(model));
+        Assert.AreEqual(6, Grid.GetRow(content));
+        Assert.AreEqual(6, Grid.GetRow(outgoing));
+        Assert.AreEqual(8, Grid.GetRow(actions));
+        Assert.IsTrue(
+            reflowHost.Children.IndexOf(outcome) <
+            reflowHost.Children.IndexOf(model));
+        Assert.IsTrue(
+            reflowHost.Children.IndexOf(model) <
+            reflowHost.Children.IndexOf(content));
+        Assert.IsTrue(
+            reflowHost.Children.IndexOf(content) <
+            reflowHost.Children.IndexOf(actions));
+
+        AssertResponsiveStateContract(
+            layoutRoot,
+            "DesktopPageState",
+            minimumWidth: 888,
+            inset: 24);
+        AssertResponsiveStateContract(
+            layoutRoot,
+            "MediumPageState",
+            minimumWidth: 600,
+            inset: 24);
+        AssertResponsiveStateContract(
+            layoutRoot,
+            "NarrowPageState",
+            minimumWidth: 0,
+            inset: 16);
+
+        ResourceDictionary resources = ModelInspectionResources();
+        Assert.AreEqual(840d, resources["InspectionContentColumnWidth"]);
+        Assert.AreEqual(840d, contentHost.MaxWidth);
+        Assert.AreEqual(888d, resources["InspectionDesktopBreakpoint"]);
+        Assert.AreEqual(600d, resources["InspectionCompactBreakpoint"]);
+        Assert.AreEqual(
+            new CornerRadius(12d),
+            Assert.IsInstanceOfType<CornerRadius>(
+                resources["InspectionCardCornerRadius"]));
+        Assert.AreEqual(
+            new CornerRadius(10d),
+            Assert.IsInstanceOfType<CornerRadius>(
+                resources["InspectionActionCornerRadius"]));
+        Assert.AreEqual(
+            new Thickness(18d, 10d, 18d, 10d),
+            Assert.IsInstanceOfType<Thickness>(
+                resources["InspectionActionPadding"]));
+        Thickness cardPadding = Assert.IsInstanceOfType<Thickness>(
+            resources["InspectionCardPadding"]);
+        Assert.AreEqual(24d, cardPadding.Left, 0.01d);
+        Assert.AreEqual(24d, cardPadding.Top, 0.01d);
+        Assert.AreEqual(24d, cardPadding.Right, 0.01d);
+        Assert.AreEqual(24d, cardPadding.Bottom, 0.01d);
+        string[] changedControlBrushes =
+        [
+            "InspectionBlueBorderBrush",
+            "InspectionBlueSurfaceBrush",
+            "InspectionBorderControlBrush",
+            "InspectionBorderLightBrush",
+            "InspectionBorderMutedBrush",
+            "InspectionErrorTextBrush",
+            "InspectionPrimaryBlueBrush",
+            "InspectionSuccessTextBrush",
+            "InspectionSurfaceBrush",
+            "InspectionSurfaceMutedBrush",
+            "InspectionSurfaceSubtleBrush",
+            "InspectionTextMutedBrush",
+            "InspectionTextPrimaryBrush",
+            "InspectionTextSecondaryMutedBrush",
+            "InspectionTextSecondaryStrongBrush",
+            "InspectionWarningTextBrush"
+        ];
+        foreach (string themeName in new[] { "Light", "Dark", "HighContrast" })
+        {
+            ResourceDictionary theme = Assert.IsInstanceOfType<ResourceDictionary>(
+                resources.ThemeDictionaries[themeName]);
+            foreach (string brushKey in changedControlBrushes)
+            {
+                Assert.IsTrue(
+                    theme.ContainsKey(brushKey),
+                    $"{themeName} must define {brushKey}");
+                Assert.IsNotNull(theme[brushKey],
+                    $"{themeName}/{brushKey} must resolve semantically");
+            }
+        }
+        Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
+        Assert.AreEqual(ElementTheme.Light, page.ActualTheme);
+        Assert.AreEqual(ElementTheme.Light, layoutRoot.ActualTheme);
+        Assert.AreSame(
+            ThemeResource("Light", "InspectionCanvasBrush"),
+            layoutRoot.Background);
+        Assert.AreEqual(16d, resources["InspectionCardGap"]);
+        Assert.AreEqual(24d, resources["InspectionHeaderToCardGap"]);
+        Assert.AreEqual(16d, resources["InspectionProgressHeadingGap"]);
+        Assert.AreEqual(48d, resources["InspectionProgressRowHeight"]);
+
+        const double alternateCardGap = 19d;
+        const double alternateHeaderGap = 29d;
+        ResourceDictionary applicationResources = Application.Current.Resources;
+        applicationResources["InspectionCardGap"] = alternateCardGap;
+        applicationResources["InspectionHeaderToCardGap"] = alternateHeaderGap;
+        try
+        {
+            var tokenPage = new ModelInspectionPage();
+            Assert.AreEqual(
+                alternateHeaderGap,
+                Assert.IsInstanceOfType<FrameworkElement>(
+                    tokenPage.FindName("HeaderToFirstCardGap")).Height);
+            foreach (string name in new[]
+            {
+                "OutcomeToModelCardGap",
+                "ModelToContentLiveGap",
+                "ModelToContentOutgoingGap",
+                "ContentToActionCardGap"
+            })
+            {
+                Assert.AreEqual(
+                    alternateCardGap,
+                    Assert.IsInstanceOfType<FrameworkElement>(
+                        tokenPage.FindName(name)).Height,
+                    $"{name} must consume InspectionCardGap directly");
+            }
+        }
+        finally
+        {
+            applicationResources.Remove("InspectionCardGap");
+            applicationResources.Remove("InspectionHeaderToCardGap");
+        }
+    }
+
+    private static void AssertResponsiveStateContract(
+        FrameworkElement root,
+        string stateName,
+        double minimumWidth,
+        double inset)
+    {
+        VisualStateGroup group = VisualStateManager
+            .GetVisualStateGroups(root)
+            .Single(candidate => candidate.Name == "ResponsivePageStates");
+        VisualState state = group.States
+            .Single(candidate => candidate.Name == stateName);
+        AdaptiveTrigger trigger = Assert.IsInstanceOfType<AdaptiveTrigger>(
+            state.StateTriggers.Single());
+
+        Assert.AreEqual(minimumWidth, trigger.MinWindowWidth, 0.01);
+        Setter marginSetter = state.Setters
+            .OfType<Setter>()
+            .Single(setter => setter.Target?.Path.Path == "Margin");
+        Thickness margin = Assert.IsInstanceOfType<Thickness>(marginSetter.Value);
+        Assert.AreEqual(inset, margin.Left, 0.01);
+        Assert.AreEqual(inset, margin.Right, 0.01);
+    }
+
+    private static async Task ResizeClientAndWaitAsync(
+        Window window,
+        FrameworkElement page,
+        FrameworkElement contentHost,
+        double effectiveWidth,
+        double effectiveHeight,
+        double expectedInset)
+    {
+        var layoutReached = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        void CompleteWhenReady(object? sender, object eventArguments)
+        {
+            double expectedHostWidth = Math.Min(
+                840d,
+                effectiveWidth - (2d * expectedInset));
+            double expectedOrigin =
+                (effectiveWidth - expectedHostWidth) / 2d;
+            Point contentOrigin = contentHost
+                .TransformToVisual(page)
+                .TransformPoint(new Point());
+            if (Math.Abs(page.ActualWidth - effectiveWidth) <= 1d &&
+                Math.Abs(page.ActualHeight - effectiveHeight) <= 1d &&
+                Math.Abs(contentHost.Margin.Left - expectedInset) <= 0.01 &&
+                Math.Abs(contentHost.ActualWidth - expectedHostWidth) <= 1d &&
+                Math.Abs(contentOrigin.X - expectedOrigin) <= 1d)
+            {
+                layoutReached.TrySetResult(true);
+            }
+        }
+
+        page.LayoutUpdated += CompleteWhenReady;
+        try
+        {
+            double scale = page.XamlRoot.RasterizationScale;
+            window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
+                (int)Math.Round(effectiveWidth * scale),
+                (int)Math.Round(effectiveHeight * scale)));
+            CompleteWhenReady(null, EventArgs.Empty);
+            await layoutReached.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            page.UpdateLayout();
+        }
+        finally
+        {
+            page.LayoutUpdated -= CompleteWhenReady;
+        }
+    }
+
+    private static async Task WaitForLayoutAsync(
+        FrameworkElement element,
+        Func<bool> predicate)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            element.UpdateLayout();
+            if (predicate())
+            {
+                return;
+            }
+
+            var drained = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Assert.IsTrue(element.DispatcherQueue.TryEnqueue(
+                () => drained.TrySetResult(true)));
+            await drained.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+
+        Assert.Fail("The expanded disclosure did not create a scrollable extent.");
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public void HeaderAndShell_AllowNaturalHeightAtSimulated200PercentTextScale()
+    {
+        var page = new ModelInspectionPage();
+        Arrange(page, 520, 400);
+        TextBlock[] headerText = Descendants(page)
+            .OfType<TextBlock>()
+            .Where(text =>
+                text.Text == "Model inspection" ||
+                text.Text.StartsWith(
+                    "We are checking that the model package",
+                    StringComparison.Ordinal))
+            .ToArray();
+        ScrollViewer scrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
+            page.FindName("InspectionPageScrollViewer"));
+
+        Assert.HasCount(2, headerText);
+        Assert.IsTrue(headerText.All(text => text.MaxLines == 0));
+        Assert.IsTrue(headerText.All(text => text.IsTextScaleFactorEnabled));
+        Assert.AreEqual(ScrollMode.Enabled, scrollViewer.VerticalScrollMode);
+        Assert.AreEqual(ScrollBarVisibility.Auto, scrollViewer.VerticalScrollBarVisibility);
+
+        double naturalHeaderHeight = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("Header")).ActualHeight;
+        foreach (TextBlock text in headerText)
+        {
+            text.FontSize *= 2d;
+        }
+
+        Arrange(page, 360, 400);
+
+        FrameworkElement scaledHeader = Assert.IsInstanceOfType<FrameworkElement>(
+            page.FindName("Header"));
+        Assert.IsTrue(
+            scaledHeader.ActualHeight > naturalHeaderHeight * 1.5d,
+            "the header must grow naturally at an effective 200% text size");
+        Assert.IsTrue(headerText.All(text =>
+            text.ActualHeight + 1d >= text.DesiredSize.Height));
+    }
+
+    private static void Arrange(
+        FrameworkElement element,
+        double width,
+        double height)
+    {
+        element.Width = width;
+        element.Height = height;
+        element.Measure(new Size(width, height));
+        element.Arrange(new Rect(0, 0, width, height));
+        element.UpdateLayout();
+    }
+
+    private static ResourceDictionary ModelInspectionResources() =>
+        Application.Current.Resources.MergedDictionaries.Single(dictionary =>
+            dictionary.Source?.OriginalString.EndsWith(
+                "/Features/ModelInspection/Presentation/ModelInspectionTheme.xaml",
+                StringComparison.OrdinalIgnoreCase) == true);
+
+    private static object ThemeResource(string themeName, string key)
+    {
+        ResourceDictionary modelInspectionTheme = ModelInspectionResources();
+        ResourceDictionary theme = Assert.IsInstanceOfType<ResourceDictionary>(
+            modelInspectionTheme.ThemeDictionaries[themeName]);
+        return theme[key];
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(
+        DependencyObject parent)
+    {
+        int childCount = VisualTreeHelper.GetChildrenCount(parent);
+        for (int index = 0; index < childCount; index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(parent, index);
+            yield return child;
+            foreach (DependencyObject descendant in Descendants(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+}

@@ -26,7 +26,7 @@ Use this workbook during the controlled retest. Record exact versions, commands,
 | Vulkan support | Pass with limitations; partial and full placement exercised on Intel UHD |
 | SYCL support | Unsupported for a TurboQuant-specific route at this pin; generic SYCL source exists but no TQ-specific implementation evidence |
 | Binary version | AtomicBot fork commit `519f0c5`; MSVC 19.51; CMake 4.3.1; Ninja 1.13.2 |
-| Test operator | Student with Codex-controlled harness |
+| Test operator | Student with project tooling-controlled harness |
 | Test start date | 2026-07-16 |
 | Test end date | 2026-07-16 |
 | Overall status | Accepted with limitations: all 19 runtime rows passed, including controlled safety-gate bypasses; one repository test remains blocked by Device Guard |

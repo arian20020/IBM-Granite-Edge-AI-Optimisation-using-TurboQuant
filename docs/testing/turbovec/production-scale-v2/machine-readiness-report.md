@@ -15,4 +15,4 @@ Every attempt used a five-minute idle period followed by at least a requested 60
 | scale-1000-007 | No | 60.012 | 22.69 | 14.58 | 5,070,745,600 | CPU and RAM |
 | scale-1000-008 | No | 60.279 | 27.16 | 7.16 | 4,350,181,376 | CPU and RAM |
 
-Captured top-process snapshots repeatedly included Code, Microsoft Defender, System, idle MSBuild `dotnet` nodes, and occasionally VBCSCompiler/codex. Attempt 003 captured an active compilation burst. No unrelated process was killed, no security control was disabled, and no failed admission was presented as a candidate result. All raw samples, declared conditions and decisions remain in their named evidence directories.
+Captured top-process snapshots repeatedly included Code, Microsoft Defender, System, idle MSBuild `dotnet` nodes, and occasionally VBCSCompiler/project-tooling. Attempt 003 captured an active compilation burst. No unrelated process was killed, no security control was disabled, and no failed admission was presented as a candidate result. All raw samples, declared conditions and decisions remain in their named evidence directories.

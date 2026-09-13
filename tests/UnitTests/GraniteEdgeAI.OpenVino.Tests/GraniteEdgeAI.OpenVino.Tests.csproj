@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Existing linked GgufChatSessionAdapter unknown-event diagnostic: keep CA2208 visible without changing production exception semantics. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);CA2208</WarningsNotAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.3.2" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.2" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Presentation\OpenVinoSharedChatSessionAdapter.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\History\*.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\IGgufChatSession.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\GgufRuntime\Services\GgufChatSessionAdapter.cs" />
+    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.GgufRuntime.WorkerClient\GraniteEdgeAI.GgufRuntime.WorkerClient.csproj" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ChatModels\ChatHistoryReplayPolicy.cs" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.OpenVino.Contracts\GraniteEdgeAI.OpenVino.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelInspection.Contracts\GraniteEdgeAI.ModelInspection.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.ModelHardwareCompatibility.Core\GraniteEdgeAI.ModelHardwareCompatibility.Core.csproj" />
+    <ProjectReference Include="..\..\..\infrastructure\GraniteEdgeAI.OpenVino.WorkerClient\GraniteEdgeAI.OpenVino.WorkerClient.csproj" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Inspection\*.cs"
+             Link="Production\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\*.cs"
+             Link="Production\Route\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Conversion\*.cs"
+             Link="Production\Conversion\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\Optimization\*.cs"
+             Link="Production\Optimization\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionContractValidation.cs"
+             Link="Production\ModelInspection\Contracts\ModelInspectionContractValidation.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionEnums.cs"
+             Link="Production\ModelInspection\Contracts\ModelInspectionEnums.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelInspection\Contracts\ModelInspectionProgress.cs"
+             Link="Production\ModelInspection\Contracts\ModelInspectionProgress.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\ExportDestinationGuard.cs"
+             Link="Production\Storage\ExportDestinationGuard.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelOptimization\Storage\StagedSourceSnapshot.cs"
+             Link="Production\Storage\StagedSourceSnapshot.cs" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\OpenVinoRoute\TurboQuant\*.cs"
+             Link="Production\TurboQuant\%(Filename)%(Extension)" />
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\Prompting\*.cs"
+             Link="Production\Prompting\%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package\**\*">
+      <Link>TestFixtures\OpenVINO\GenAI\TinySyntheticV1\package\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\TestFixtures\OpenVINO\Malformed\matrix.json">
+      <Link>TestFixtures\OpenVINO\Malformed\matrix.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

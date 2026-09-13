@@ -9,7 +9,7 @@ namespace GraniteEdgeAI.Features.ModelImport.FileImport
     /// </summary>
     public enum ModelFormatSelection
     {
-        // No format was selected because the user cancelled.
+        // no format was selected because the user cancelled
         None,
 
         // The user selected the GGUF model route.
@@ -51,7 +51,7 @@ namespace GraniteEdgeAI.Features.ModelImport.FileImport
             object sender,
             RoutedEventArgs e)
         {
-            // Record that the user cancelled the format-selection stage.
+            // record that the user cancelled the format-selection stage
             SelectFormat(ModelFormatSelection.None);
 
             // Close the dialog and return control to ModelImportPage.

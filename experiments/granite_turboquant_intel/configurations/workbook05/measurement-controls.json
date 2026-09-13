@@ -6,7 +6,7 @@
   "prompt_set_id": "GTQ-PROMPTS-v1",
   "rubric_path": "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
   "rubric_id": "GTQ-QUALITY-RUBRIC-v1",
-  "quality_amendment_path": "docs/superpowers/specs/2026-08-05-workbook-05-quality-metrics-amendment.md",
+  "quality_amendment_path": "external-design-records/specs/2026-08-05-workbook-05-quality-metrics-amendment.md",
   "measured_run_schema_path": "experiments/granite_turboquant_intel/schemas/workbook05/measured-run-manifest.schema.json",
   "measured_run_template_path": "experiments/granite_turboquant_intel/manifests/templates/workbook05/measured-run-manifest-template.json",
   "required_prompt_ids": [

@@ -1,0 +1,181 @@
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
+using GraniteEdgeAI.GgufRuntime.Contracts.Configuration;
+using GraniteEdgeAI.GgufRuntime.Contracts.Events;
+using GraniteEdgeAI.GgufRuntime.WorkerClient;
+
+namespace GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests;
+
+[TestClass]
+public sealed class GgufRealModelSmokeTests
+{
+    private const string ConfigurationVariable =
+        "GRANITE_GGUF_RUNTIME_TEST_CONFIG";
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
+
+    [TestMethod]
+    [TestCategory("ControlledRuntime")]
+    public async Task VerifiedLocalRuntimeLoadsStreamsTwoTurnsStopsAndCloses()
+    {
+        string? configurationPath = Environment.GetEnvironmentVariable(
+            ConfigurationVariable);
+        if (string.IsNullOrWhiteSpace(configurationPath))
+        {
+            Assert.Inconclusive("controlled GGUF runtime/model not configured");
+        }
+
+        ControlledGgufRuntimeConfiguration controlled =
+            ControlledGgufRuntimeConfiguration.Load(configurationPath!);
+        string manifestPath = Path.Combine(
+            controlled.PackageRoot,
+            "runtime-manifest.json");
+        byte[] trustedManifest = await File.ReadAllBytesAsync(manifestPath);
+        AssertDigest(trustedManifest, controlled.ManifestSha256);
+        AssertFileDigest(controlled.ModelFile, controlled.ModelSha256);
+
+        GgufRuntimeClient client = GgufRuntimeClient.CreateFromPackage(
+            controlled.PackageRoot,
+            trustedManifest,
+            controlled.ModelFile);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        await using GgufRuntimeSession session = await client.StartAsync(
+            controlled.RuntimeConfiguration,
+            [],
+            timeout.Token);
+
+        IReadOnlyList<GgufRuntimeEvent> first = await CollectAsync(
+            session.GenerateAsync(
+                "Hello!",
+                timeout.Token));
+        IReadOnlyList<GgufRuntimeEvent> second = await CollectAsync(
+            session.GenerateAsync(
+                "How are you?",
+                timeout.Token));
+        Assert.IsTrue(first.OfType<TextDeltaEvent>().Any());
+        Assert.IsTrue(second.OfType<TextDeltaEvent>().Any());
+        string firstText = string.Concat(
+            first.OfType<TextDeltaEvent>().Select(delta => delta.Text));
+        string secondText = string.Concat(
+            second.OfType<TextDeltaEvent>().Select(delta => delta.Text));
+        AssertSingleAssistantTurn(firstText);
+        AssertSingleAssistantTurn(secondText);
+
+        var stoppedEvents = new List<GgufRuntimeEvent>();
+        bool stopRequested = false;
+        await using (IAsyncEnumerator<GgufRuntimeEvent> enumerator =
+            session.GenerateAsync(
+                    "Count upward forever, one number at a time.",
+                    timeout.Token)
+                .GetAsyncEnumerator(timeout.Token))
+        {
+            while (await enumerator.MoveNextAsync())
+            {
+                stoppedEvents.Add(enumerator.Current);
+                if (!stopRequested && enumerator.Current is TextDeltaEvent)
+                {
+                    stopRequested = true;
+                    await session.StopAsync(timeout.Token);
+                }
+            }
+        }
+
+        Assert.IsTrue(stoppedEvents.OfType<ResponseStoppedEvent>().Any());
+        await session.CloseAsync(timeout.Token);
+
+        GgufRuntimeConfiguration tinyBudget = WithMaximumGeneratedTokens(
+            controlled.RuntimeConfiguration,
+            8);
+        await using GgufRuntimeSession tinySession = await client.StartAsync(
+            tinyBudget,
+            [],
+            timeout.Token);
+        IReadOnlyList<GgufRuntimeEvent> limited = await CollectAsync(
+            tinySession.GenerateAsync(
+                "Explain KV-cache quantization in a detailed numbered list.",
+                timeout.Token));
+        ResponseCompletedEvent firstCompletion = limited
+            .OfType<ResponseCompletedEvent>()
+            .Single();
+        Assert.AreEqual(GgufCompletionReason.Length, firstCompletion.Reason);
+        Assert.IsTrue(limited.OfType<TextDeltaEvent>().Any());
+
+        IReadOnlyList<GgufRuntimeEvent> continuation = await CollectAsync(
+            tinySession.GenerateAsync(
+                "Continue from exactly where the preceding response ended. " +
+                "Do not repeat text already given. Complete the answer concisely.",
+                timeout.Token));
+        Assert.IsTrue(
+            continuation.OfType<TextDeltaEvent>().Any(),
+            $"Continuation emitted no text delta. Events: {DescribeEvents(continuation)}");
+        Assert.IsNotNull(continuation.OfType<ResponseCompletedEvent>().Single());
+        await tinySession.CloseAsync(timeout.Token);
+        AssertFileDigest(controlled.ModelFile, controlled.ModelSha256);
+    }
+
+    private static GgufRuntimeConfiguration WithMaximumGeneratedTokens(
+        GgufRuntimeConfiguration source,
+        int maximumGeneratedTokens) => new(
+        source.ModelId,
+        source.ModelSha256,
+        source.RuntimeBuildId,
+        source.RuntimeSourceCommit,
+        source.Backend,
+        source.DeviceId,
+        source.ContextSize,
+        source.KeyCacheType,
+        source.ValueCacheType,
+        source.GpuLayerCount,
+        source.FlashAttention,
+        source.ThreadCount,
+        source.BatchSize,
+        source.EvidenceGrade,
+        source.ProfileId,
+        maximumGeneratedTokens);
+
+    private static void AssertSingleAssistantTurn(string text)
+    {
+        Assert.IsFalse(string.IsNullOrWhiteSpace(text));
+        Assert.IsFalse(Regex.IsMatch(
+            text,
+            @"(?im)^\s*(?:me|user|assistant)\s*:",
+            RegexOptions.None,
+            RegexTimeout));
+        Assert.IsFalse(Regex.IsMatch(
+            text,
+            @"(?ms)^\s*```\s*$\s*^\s*```\s*$",
+            RegexOptions.None,
+            RegexTimeout));
+    }
+
+    private static async Task<IReadOnlyList<GgufRuntimeEvent>> CollectAsync(
+        IAsyncEnumerable<GgufRuntimeEvent> events)
+    {
+        var result = new List<GgufRuntimeEvent>();
+        await foreach (GgufRuntimeEvent runtimeEvent in events)
+        {
+            result.Add(runtimeEvent);
+        }
+
+        return result;
+    }
+
+    private static string DescribeEvents(IReadOnlyList<GgufRuntimeEvent> events) =>
+        string.Join(
+            ", ",
+            events.Select(runtimeEvent => runtimeEvent switch
+            {
+                ResponseCompletedEvent completed =>
+                    $"{nameof(ResponseCompletedEvent)}({completed.Reason})",
+                TextDeltaEvent => nameof(TextDeltaEvent),
+                _ => runtimeEvent.GetType().Name,
+            }));
+
+    private static void AssertFileDigest(string path, string expected)
+    {
+        using FileStream stream = File.OpenRead(path);
+        Assert.AreEqual(expected, Convert.ToHexString(SHA256.HashData(stream)));
+    }
+
+    private static void AssertDigest(byte[] content, string expected) =>
+        Assert.AreEqual(expected, Convert.ToHexString(SHA256.HashData(content)));
+}

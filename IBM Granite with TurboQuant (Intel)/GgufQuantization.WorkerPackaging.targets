@@ -1,0 +1,49 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      Local Debug builds use the repository-approved, hash-pinned development
+      stage when it exists. Copying it into the output makes the exact same
+      verified package visible to unpackaged apps and packaged test hosts;
+      neither host invokes the external construction stage at runtime.
+    -->
+    <GgufQuantizerDevelopmentStageDirectory
+      Condition="'$(GgufQuantizerDevelopmentStageDirectory)' == '' and '$(OS)' == 'Windows_NT'">C:\AI\granite-gguf-validation-20260907\atomicbot-quantizer-standalone-03</GgufQuantizerDevelopmentStageDirectory>
+    <GgufQuantizerDevelopmentManifestSha256>2d039fdba954b7c9b17f4e552e7a69d5082f988861cc08db9bee3263f293b1b8</GgufQuantizerDevelopmentManifestSha256>
+    <GgufQuantizerStageDirectory
+      Condition="'$(GgufQuantizerStageDirectory)' == '' and '$(Configuration)' == 'Debug' and '$(Platform)' == 'x64' and Exists('$(GgufQuantizerDevelopmentStageDirectory)\llama-quantize.package.manifest.json')">$(GgufQuantizerDevelopmentStageDirectory)</GgufQuantizerStageDirectory>
+    <GgufQuantizerManifestSha256
+      Condition="'$(GgufQuantizerManifestSha256)' == '' and '$(Configuration)' == 'Debug' and '$(GgufQuantizerStageDirectory)' == '$(GgufQuantizerDevelopmentStageDirectory)'">$(GgufQuantizerDevelopmentManifestSha256)</GgufQuantizerManifestSha256>
+    <GgufQuantizerPackagingRequired Condition="'$(GgufQuantizerPackagingRequired)' == '' and '$(Configuration)' == 'Release'">true</GgufQuantizerPackagingRequired>
+    <GgufQuantizerPackagingRequired Condition="'$(GgufQuantizerPackagingRequired)' == '' and '$(Configuration)' == 'Debug' and '$(Platform)' == 'x64' and '$(GgufQuantizerStageDirectory)' != ''">true</GgufQuantizerPackagingRequired>
+    <GgufQuantizerPackagingRequired Condition="'$(GgufQuantizerPackagingRequired)' == ''">false</GgufQuantizerPackagingRequired>
+    <_GgufQuantizerVerifier>$(MSBuildThisFileDirectory)..\scripts\gguf-quantization\Test-GgufQuantizerPackage.ps1</_GgufQuantizerVerifier>
+  </PropertyGroup>
+
+  <Target
+    Name="VerifyAndPackageGgufQuantizer"
+    BeforeTargets="AssignTargetPaths"
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true' and '$(GgufQuantizerPackagingRequired)' == 'true'">
+    <Error
+      Condition="'$(GgufQuantizerStageDirectory)' == ''"
+      Text="GgufQuantizerStageDirectory is required when GGUF quantizer packaging is enabled." />
+    <Error
+      Condition="'$(GgufQuantizerManifestSha256)' == ''"
+      Text="GgufQuantizerManifestSha256 is required when GGUF quantizer packaging is enabled." />
+    <Error
+      Condition="!Exists('$(GgufQuantizerStageDirectory)\llama-quantize.package.manifest.json')"
+      Text="The verified GGUF quantizer package manifest is missing." />
+
+    <Exec
+      Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_GgufQuantizerVerifier)&quot; -StageDirectory &quot;$(GgufQuantizerStageDirectory)&quot; -ExpectedManifestSha256 &quot;$(GgufQuantizerManifestSha256)&quot;" />
+
+    <ItemGroup>
+      <_GgufQuantizerPackageFiles Include="$(GgufQuantizerStageDirectory)\**\*" />
+      <Content Include="@(_GgufQuantizerPackageFiles)">
+        <Link>Tools\GgufQuantizer\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <TargetPath>Tools\GgufQuantizer\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+</Project>

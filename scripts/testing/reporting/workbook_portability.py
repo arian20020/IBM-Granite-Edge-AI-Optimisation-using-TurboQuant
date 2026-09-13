@@ -18,7 +18,7 @@ from .csvio import write_json
 _PROJECT_DIRECTORY = "IBM-Granite-Edge-AI-Optimisation-using-TurboQuant"
 _REPOSITORY_TOP_LEVELS = {
     ".github",
-    ".superpowers",
+    ".design-records",
     "docs",
     "experiments",
     "external",

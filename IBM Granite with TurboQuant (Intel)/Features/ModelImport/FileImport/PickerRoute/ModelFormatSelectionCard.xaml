@@ -16,12 +16,9 @@
     x:Name="RootDialog"
     d:DesignHeight="580"
     d:DesignWidth="696"
-    Background="#FFFFFF"
-    BorderBrush="#E5E7EB"
     BorderThickness="1"
     CornerRadius="28"
     DefaultButton="None"
-    RequestedTheme="Light"
     mc:Ignorable="d">
 
     <!--
@@ -29,6 +26,44 @@
         throughout this dialog.
     -->
     <ContentDialog.Resources>
+
+        <ResourceDictionary>
+
+        <ResourceDictionary.ThemeDictionaries>
+            <ResourceDictionary x:Key="Light">
+                <SolidColorBrush x:Key="ModelImportSurfaceBrush" Color="#FFFFFF" />
+                <SolidColorBrush x:Key="ModelImportSubtleSurfaceBrush" Color="#F8FAFD" />
+                <SolidColorBrush x:Key="ModelImportBorderBrush" Color="#D7E0EC" />
+                <SolidColorBrush x:Key="ModelImportTextBrush" Color="#111827" />
+                <SolidColorBrush x:Key="ModelImportMutedTextBrush" Color="#5B677A" />
+                <SolidColorBrush x:Key="ModelImportSubtleTextBrush" Color="#758196" />
+                <SolidColorBrush x:Key="ModelImportAccentBrush" Color="#0F62FE" />
+                <SolidColorBrush x:Key="ModelImportOnAccentBrush" Color="#FFFFFF" />
+                <SolidColorBrush x:Key="ModelImportAccentSurfaceBrush" Color="#EDF4FF" />
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Dark">
+                <SolidColorBrush x:Key="ModelImportSurfaceBrush" Color="#151D2B" />
+                <SolidColorBrush x:Key="ModelImportSubtleSurfaceBrush" Color="#1B2535" />
+                <SolidColorBrush x:Key="ModelImportBorderBrush" Color="#344054" />
+                <SolidColorBrush x:Key="ModelImportTextBrush" Color="#F9FAFB" />
+                <SolidColorBrush x:Key="ModelImportMutedTextBrush" Color="#CBD5E1" />
+                <SolidColorBrush x:Key="ModelImportSubtleTextBrush" Color="#98A2B3" />
+                <SolidColorBrush x:Key="ModelImportAccentBrush" Color="#78A9FF" />
+                <SolidColorBrush x:Key="ModelImportOnAccentBrush" Color="#111827" />
+                <SolidColorBrush x:Key="ModelImportAccentSurfaceBrush" Color="#162B49" />
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="HighContrast">
+                <SolidColorBrush x:Key="ModelImportSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                <SolidColorBrush x:Key="ModelImportSubtleSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                <SolidColorBrush x:Key="ModelImportBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                <SolidColorBrush x:Key="ModelImportTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                <SolidColorBrush x:Key="ModelImportMutedTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                <SolidColorBrush x:Key="ModelImportSubtleTextBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
+                <SolidColorBrush x:Key="ModelImportAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                <SolidColorBrush x:Key="ModelImportOnAccentBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                <SolidColorBrush x:Key="ModelImportAccentSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            </ResourceDictionary>
+        </ResourceDictionary.ThemeDictionaries>
 
         <!--
             Increases the standard maximum ContentDialog width so
@@ -45,10 +80,13 @@
         -->
         <Style
             BasedOn="{StaticResource DefaultContentDialogStyle}"
-            TargetType="local:ModelFormatSelectionCard" />
+            TargetType="local:ModelFormatSelectionCard">
+            <Setter Property="Background" Value="{ThemeResource ModelImportSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource ModelImportBorderBrush}" />
+        </Style>
 
         <!--
-            Shared style for both model-format action buttons.
+            shared style for both model-format action buttons
         -->
         <Style
             x:Key="FormatActionButtonStyle"
@@ -60,7 +98,7 @@
 
             <Setter Property="Padding" Value="18,0" />
 
-            <!--  Makes each button fill its card width.  -->
+            <!--  makes each button fill its card width  -->
             <Setter Property="HorizontalAlignment" Value="Stretch" />
 
             <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -68,11 +106,11 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
 
             <!--  Defines the standard blue button appearance.  -->
-            <Setter Property="Background" Value="#2563EB" />
+            <Setter Property="Background" Value="{ThemeResource ModelImportAccentBrush}" />
 
-            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="{ThemeResource ModelImportOnAccentBrush}" />
 
-            <Setter Property="BorderBrush" Value="#2563EB" />
+            <Setter Property="BorderBrush" Value="{ThemeResource ModelImportAccentBrush}" />
 
             <Setter Property="BorderThickness" Value="1" />
 
@@ -85,19 +123,19 @@
         </Style>
 
         <!--
-            Normal state used by both blue format buttons.
+            normal state used by both blue format buttons
         -->
         <SolidColorBrush
             x:Key="ButtonBackground"
-            Color="#2563EB" />
+            Color="{ThemeResource SystemColorHighlightColor}" />
 
         <SolidColorBrush
             x:Key="ButtonForeground"
-            Color="#FFFFFF" />
+            Color="{ThemeResource SystemColorHighlightTextColor}" />
 
         <SolidColorBrush
             x:Key="ButtonBorderBrush"
-            Color="#2563EB" />
+            Color="{ThemeResource SystemColorHighlightColor}" />
 
         <!--
             Pointer-over state.
@@ -106,15 +144,15 @@
         -->
         <SolidColorBrush
             x:Key="ButtonBackgroundPointerOver"
-            Color="#1D4ED8" />
+            Color="{ThemeResource SystemColorHighlightColor}" />
 
         <SolidColorBrush
             x:Key="ButtonForegroundPointerOver"
-            Color="#FFFFFF" />
+            Color="{ThemeResource SystemColorHighlightTextColor}" />
 
         <SolidColorBrush
             x:Key="ButtonBorderBrushPointerOver"
-            Color="#1D4ED8" />
+            Color="{ThemeResource SystemColorHighlightColor}" />
 
         <!--
             Pressed state.
@@ -123,30 +161,32 @@
         -->
         <SolidColorBrush
             x:Key="ButtonBackgroundPressed"
-            Color="#1E40AF" />
+            Color="{ThemeResource SystemColorHighlightColor}" />
 
         <SolidColorBrush
             x:Key="ButtonForegroundPressed"
-            Color="#FFFFFF" />
+            Color="{ThemeResource SystemColorHighlightTextColor}" />
 
         <SolidColorBrush
             x:Key="ButtonBorderBrushPressed"
-            Color="#1E40AF" />
+            Color="{ThemeResource SystemColorHighlightColor}" />
 
         <!--
             Disabled state.
         -->
         <SolidColorBrush
             x:Key="ButtonBackgroundDisabled"
-            Color="#E5E7EB" />
+            Color="{ThemeResource SystemColorGrayTextColor}" />
 
         <SolidColorBrush
             x:Key="ButtonForegroundDisabled"
-            Color="#9CA3AF" />
+            Color="{ThemeResource SystemColorWindowColor}" />
 
         <SolidColorBrush
             x:Key="ButtonBorderBrushDisabled"
-            Color="#D1D5DB" />
+            Color="{ThemeResource SystemColorGrayTextColor}" />
+
+        </ResourceDictionary>
 
     </ContentDialog.Resources>
 
@@ -157,6 +197,7 @@
         exactly the same amount of horizontal space.
     -->
     <Grid
+        x:Name="RootLayout"
         Width="640"
         HorizontalAlignment="Center"
         RowSpacing="20">
@@ -186,7 +227,7 @@
             HorizontalAlignment="Center"
             FontSize="28"
             FontWeight="SemiBold"
-            Foreground="#111827"
+            Foreground="{ThemeResource ModelImportTextBrush}"
             Text="What are you importing?"
             TextAlignment="Center"
             TextWrapping="Wrap" />
@@ -199,7 +240,7 @@
             MaxWidth="560"
             HorizontalAlignment="Center"
             FontSize="15"
-            Foreground="#6B7280"
+            Foreground="{ThemeResource ModelImportMutedTextBrush}"
             Text="Choose the model format you will be importing."
             TextAlignment="Center"
             TextWrapping="Wrap" />
@@ -208,6 +249,7 @@
             Places the two model-format cards beside one another.
         -->
         <Grid
+            x:Name="FormatCardsGrid"
             Grid.Row="2"
             Width="640"
             Height="280"
@@ -229,19 +271,20 @@
                 GGUF model-file option.
             -->
             <Border
+                x:Name="GgufFormatCard"
                 Grid.Column="0"
                 Height="280"
                 Padding="24"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
-                Background="#F8FAFC"
-                BorderBrush="#CBD5E1"
+                Background="{ThemeResource ModelImportSubtleSurfaceBrush}"
+                BorderBrush="{ThemeResource ModelImportBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="20">
 
                 <!--
-                    Uses fixed and flexible rows so both card buttons
-                    remain aligned at the bottom.
+                    uses fixed and flexible rows so both card buttons
+                    remain aligned at the bottom
                 -->
                 <Grid>
 
@@ -266,13 +309,13 @@
                         Width="58"
                         Height="58"
                         HorizontalAlignment="Left"
-                        Background="#E8F0FE"
+                        Background="{ThemeResource ModelImportAccentSurfaceBrush}"
                         CornerRadius="16">
 
                         <SymbolIcon
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Foreground="#2563EB"
+                            Foreground="{ThemeResource ModelImportAccentBrush}"
                             Symbol="Document" />
 
                     </Border>
@@ -285,7 +328,7 @@
                         Margin="0,20,0,0"
                         FontSize="19"
                         FontWeight="SemiBold"
-                        Foreground="#111827"
+                        Foreground="{ThemeResource ModelImportTextBrush}"
                         Text="GGUF model file"
                         TextWrapping="Wrap" />
 
@@ -296,7 +339,7 @@
                         Grid.Row="2"
                         Margin="0,7,0,0"
                         FontSize="14"
-                        Foreground="#6B7280"
+                        Foreground="{ThemeResource ModelImportMutedTextBrush}"
                         Text="Select one local .gguf file."
                         TextWrapping="Wrap" />
 
@@ -308,7 +351,7 @@
                         Margin="0,13,0,16"
                         VerticalAlignment="Top"
                         FontSize="13"
-                        Foreground="#9CA3AF"
+                        Foreground="{ThemeResource ModelImportSubtleTextBrush}"
                         Text="Best for llama.cpp-compatible models."
                         TextWrapping="Wrap" />
 
@@ -336,13 +379,14 @@
                 OpenVINO model-folder option.
             -->
             <Border
+                x:Name="OpenVinoFormatCard"
                 Grid.Column="1"
                 Height="280"
                 Padding="24"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
-                Background="#F8FAFC"
-                BorderBrush="#CBD5E1"
+                Background="{ThemeResource ModelImportSubtleSurfaceBrush}"
+                BorderBrush="{ThemeResource ModelImportBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="20">
 
@@ -373,13 +417,13 @@
                         Width="58"
                         Height="58"
                         HorizontalAlignment="Left"
-                        Background="#EEF2FF"
+                        Background="{ThemeResource ModelImportAccentSurfaceBrush}"
                         CornerRadius="16">
 
                         <SymbolIcon
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Foreground="#4F46E5"
+                            Foreground="{ThemeResource ModelImportAccentBrush}"
                             Symbol="Folder" />
 
                     </Border>
@@ -392,7 +436,7 @@
                         Margin="0,20,0,0"
                         FontSize="19"
                         FontWeight="SemiBold"
-                        Foreground="#111827"
+                        Foreground="{ThemeResource ModelImportTextBrush}"
                         Text="OpenVINO model folder"
                         TextWrapping="Wrap" />
 
@@ -403,7 +447,7 @@
                         Grid.Row="2"
                         Margin="0,7,0,0"
                         FontSize="14"
-                        Foreground="#6B7280"
+                        Foreground="{ThemeResource ModelImportMutedTextBrush}"
                         Text="Select the complete model folder."
                         TextWrapping="Wrap" />
 
@@ -415,7 +459,7 @@
                         Margin="0,13,0,16"
                         VerticalAlignment="Top"
                         FontSize="13"
-                        Foreground="#9CA3AF"
+                        Foreground="{ThemeResource ModelImportSubtleTextBrush}"
                         Text="Includes XML, BIN and tokenizer files."
                         TextWrapping="Wrap" />
 
@@ -449,7 +493,7 @@
             MaxWidth="560"
             HorizontalAlignment="Center"
             FontSize="13"
-            Foreground="#6B7280"
+            Foreground="{ThemeResource ModelImportMutedTextBrush}"
             Text="You can also drag and drop a model directly onto the import page."
             TextAlignment="Center"
             TextWrapping="Wrap" />
@@ -482,7 +526,7 @@
                 Grid.Row="0"
                 Height="1"
                 Margin="-28,0,-28,0"
-                Background="#E5E7EB" />
+                Background="{ThemeResource ModelImportBorderBrush}" />
 
             <!--
                 Provides a borderless, horizontally centred Cancel action.
@@ -491,12 +535,15 @@
                 x:Name="CancelButton"
                 Grid.Row="1"
                 Width="136"
-                Height="38"
+                Height="40"
+                MinHeight="40"
                 Margin="0,16,0,0"
                 HorizontalAlignment="Center"
                 HorizontalContentAlignment="Center"
                 VerticalContentAlignment="Center"
                 AutomationProperties.Name="Cancel model-format selection"
+                AutomationProperties.AutomationId="CancelModelFormatSelectionButton"
+                AutomationProperties.HelpText="Close model-format selection without choosing a model."
                 Background="Transparent"
                 BorderBrush="Transparent"
                 BorderThickness="0"
@@ -505,7 +552,8 @@
                 CornerRadius="10"
                 FontSize="14"
                 FontWeight="SemiBold"
-                Foreground="#4B5563"
+                Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                ToolTipService.ToolTip="Cancel model-format selection"
                 TabIndex="2"
                 UseSystemFocusVisuals="True">
 
@@ -522,7 +570,7 @@
 
                     <SolidColorBrush
                         x:Key="ButtonForeground"
-                        Color="#4B5563" />
+                        Color="{ThemeResource SystemColorWindowTextColor}" />
 
                     <SolidColorBrush
                         x:Key="ButtonBorderBrush"
@@ -531,11 +579,11 @@
                     <!--  Hover state.  -->
                     <SolidColorBrush
                         x:Key="ButtonBackgroundPointerOver"
-                        Color="#F3F4F6" />
+                        Color="{ThemeResource SystemColorWindowColor}" />
 
                     <SolidColorBrush
                         x:Key="ButtonForegroundPointerOver"
-                        Color="#111827" />
+                        Color="{ThemeResource SystemColorWindowTextColor}" />
 
                     <SolidColorBrush
                         x:Key="ButtonBorderBrushPointerOver"
@@ -544,11 +592,11 @@
                     <!--  Pressed state.  -->
                     <SolidColorBrush
                         x:Key="ButtonBackgroundPressed"
-                        Color="#E5E7EB" />
+                        Color="{ThemeResource SystemColorWindowColor}" />
 
                     <SolidColorBrush
                         x:Key="ButtonForegroundPressed"
-                        Color="#111827" />
+                        Color="{ThemeResource SystemColorWindowTextColor}" />
 
                     <SolidColorBrush
                         x:Key="ButtonBorderBrushPressed"

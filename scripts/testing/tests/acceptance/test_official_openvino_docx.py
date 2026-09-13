@@ -149,7 +149,7 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
         for cell, value in zip(
             history.add_row().cells,
             (
-                "1.9", "2026-08-01", "Student and Codex", "Adaptive comparison",
+                "1.9", "2026-08-01", "Student and project tooling", "Adaptive comparison",
                 "OV-11; OV-12; OV-13; OV-TQ-21; OV-TQ-22; P1-P6", "WR-037",
                 current_status,
             ),

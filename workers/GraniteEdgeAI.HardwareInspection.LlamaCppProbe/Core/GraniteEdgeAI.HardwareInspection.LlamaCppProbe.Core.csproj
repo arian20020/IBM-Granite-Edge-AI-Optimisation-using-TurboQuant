@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\ILlamaCppNativeCapabilityApi.cs" Link="ILlamaCppNativeCapabilityApi.cs" />
+    <Compile Include="..\ILlamaCppNativeInterop.cs" Link="ILlamaCppNativeInterop.cs" />
+    <Compile Include="..\LlamaCppProbeApplication.cs" Link="LlamaCppProbeApplication.cs" />
+    <Compile Include="..\LlamaCppProbeProtocol.cs" Link="LlamaCppProbeProtocol.cs" />
+    <Compile Include="..\LlamaCppProbeText.cs" Link="LlamaCppProbeText.cs" />
+    <Compile Include="..\LLamaSharpNativeCapabilityApi.cs" Link="LLamaSharpNativeCapabilityApi.cs" />
+    <Compile Include="..\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The protocol directly uses System.Text.Json. Pin the same supported major
+         used by LLamaSharp's net8 dependency graph so single-file publication
+         cannot replace the framework assembly with an incompatible major. -->
+    <PackageReference Include="System.Text.Json" Version="10.0.5" />
+  </ItemGroup>
+</Project>

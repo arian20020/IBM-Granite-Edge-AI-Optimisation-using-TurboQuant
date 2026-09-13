@@ -1,0 +1,913 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="GraniteEdgeAI.Features.GgufRuntime.ChatPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:GraniteEdgeAI.Features.GgufRuntime.Controls"
+    Background="{ThemeResource GgufChatCanvasBrush}"
+    PreviewKeyDown="ChatPage_PreviewKeyDown">
+    <Page.Resources>
+        <Style x:Key="ChatSettingsTabStyle" TargetType="RadioButton">
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{ThemeResource GgufChatTextBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid>
+                            <Border
+                                x:Name="TabBackground"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                                <ContentPresenter
+                                    Padding="{TemplateBinding Padding}"
+                                    HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                    Content="{TemplateBinding Content}"
+                                    ContentTemplate="{TemplateBinding ContentTemplate}"
+                                    Foreground="{TemplateBinding Foreground}" />
+                            </Border>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="TabBackground.Background" Value="{ThemeResource GgufChatNavigationHoverBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="TabBackground.Background" Value="{ThemeResource GgufChatNavigationPressedBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="TabBackground.Opacity" Value="0.45" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                                <VisualStateGroup x:Name="CheckStates">
+                                    <VisualState x:Name="Unchecked" />
+                                    <VisualState x:Name="Checked">
+                                        <VisualState.Setters>
+                                            <Setter Target="TabBackground.Background" Value="{ThemeResource GgufChatNavigationHoverBrush}" />
+                                            <Setter Target="TabBackground.BorderBrush" Value="{ThemeResource GgufChatFocusBrush}" />
+                                            <Setter Target="TabBackground.BorderThickness" Value="3,0,0,0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Indeterminate" />
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ChatSettingsChoiceStyle" TargetType="RadioButton">
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{ThemeResource GgufChatSecondarySurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource GgufChatBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{ThemeResource GgufChatTextBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="UseSystemFocusVisuals" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid>
+                            <Border
+                                x:Name="ChoiceBackground"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                                <ContentPresenter
+                                    Padding="{TemplateBinding Padding}"
+                                    HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                    Content="{TemplateBinding Content}"
+                                    ContentTemplate="{TemplateBinding ContentTemplate}"
+                                    Foreground="{TemplateBinding Foreground}" />
+                            </Border>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="ChoiceBackground.Background" Value="{ThemeResource GgufChatSecondaryPointerOverBrush}" />
+                                            <Setter Target="ChoiceBackground.BorderBrush" Value="{ThemeResource GgufChatSecondaryPointerOverBorderBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="ChoiceBackground.Background" Value="{ThemeResource GgufChatSecondaryPressedBrush}" />
+                                            <Setter Target="ChoiceBackground.BorderBrush" Value="{ThemeResource GgufChatSecondaryPressedBorderBrush}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled" />
+                                </VisualStateGroup>
+                                <VisualStateGroup x:Name="CheckStates">
+                                    <VisualState x:Name="Unchecked" />
+                                    <VisualState x:Name="Checked">
+                                        <VisualState.Setters>
+                                            <Setter Target="ChoiceBackground.BorderBrush" Value="{ThemeResource GgufChatFocusBrush}" />
+                                            <Setter Target="ChoiceBackground.BorderThickness" Value="2" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Indeterminate" />
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+    <Grid x:Name="ChatLayoutRoot">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ResponsiveStates">
+                <VisualState x:Name="WideState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="840" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="ConversationInset.Padding" Value="20" />
+                        <Setter Target="ChatHeader.Padding" Value="20,6" />
+                        <Setter Target="TranscriptList.Padding" Value="32,20,32,16" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="NarrowState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="CompactNavigationButton.Visibility" Value="Visible" />
+                        <Setter Target="CompactPaneDismissButton.Visibility" Value="Visible" />
+                        <Setter Target="ConversationInset.Padding" Value="12" />
+                        <Setter Target="ChatHeader.Padding" Value="16,6" />
+                        <Setter Target="TranscriptList.Padding" Value="16,20,16,16" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <VisualStateGroup x:Name="SettingsResponsiveStates">
+                <VisualState x:Name="CompactSettingsLayout">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="SettingsSurface.Margin" Value="12" />
+                        <Setter Target="SettingsNavigationColumn.Width" Value="*" />
+                        <Setter Target="SettingsContentColumn.Width" Value="0" />
+                        <Setter Target="SettingsNavigationRow.Height" Value="Auto" />
+                        <Setter Target="SettingsContentRow.Height" Value="*" />
+                        <Setter Target="SettingsNavigationBorder.(Grid.Row)" Value="0" />
+                        <Setter Target="SettingsNavigationBorder.(Grid.Column)" Value="0" />
+                        <Setter Target="SettingsNavigationBorder.(Grid.RowSpan)" Value="1" />
+                        <Setter Target="SettingsNavigationBorder.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="SettingsNavigationBorder.BorderThickness" Value="0,0,0,1" />
+                        <Setter Target="SettingsNavigationBorder.Padding" Value="12,10" />
+                        <Setter Target="SettingsPageScroller.(Grid.Row)" Value="1" />
+                        <Setter Target="SettingsPageScroller.(Grid.Column)" Value="0" />
+                        <Setter Target="SettingsPageScroller.(Grid.RowSpan)" Value="1" />
+                        <Setter Target="SettingsPageScroller.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="SettingsPageHost.Padding" Value="20,18,20,22" />
+                        <Setter Target="SettingsTabColumn0.Width" Value="*" />
+                        <Setter Target="SettingsTabColumn1.Width" Value="0" />
+                        <Setter Target="SettingsTabColumn2.Width" Value="0" />
+                        <Setter Target="SettingsTabRow0.Height" Value="Auto" />
+                        <Setter Target="SettingsTabRow1.Height" Value="Auto" />
+                        <Setter Target="SettingsTabRow2.Height" Value="Auto" />
+                        <Setter Target="SettingsGeneralTab.(Grid.Row)" Value="0" />
+                        <Setter Target="SettingsGeneralTab.(Grid.Column)" Value="0" />
+                        <Setter Target="SettingsAppearanceTab.(Grid.Row)" Value="1" />
+                        <Setter Target="SettingsAppearanceTab.(Grid.Column)" Value="0" />
+                        <Setter Target="SettingsModelsTab.(Grid.Row)" Value="2" />
+                        <Setter Target="SettingsModelsTab.(Grid.Column)" Value="0" />
+                        <Setter Target="AppearanceChoiceColumn0.Width" Value="*" />
+                        <Setter Target="AppearanceChoiceColumn1.Width" Value="0" />
+                        <Setter Target="AppearanceChoiceColumn2.Width" Value="0" />
+                        <Setter Target="AppearanceChoiceRow0.Height" Value="Auto" />
+                        <Setter Target="AppearanceChoiceRow1.Height" Value="Auto" />
+                        <Setter Target="AppearanceChoiceRow2.Height" Value="Auto" />
+                        <Setter Target="SystemThemeRadioButton.(Grid.Row)" Value="0" />
+                        <Setter Target="SystemThemeRadioButton.(Grid.Column)" Value="0" />
+                        <Setter Target="LightThemeRadioButton.(Grid.Row)" Value="1" />
+                        <Setter Target="LightThemeRadioButton.(Grid.Column)" Value="0" />
+                        <Setter Target="DarkThemeRadioButton.(Grid.Row)" Value="2" />
+                        <Setter Target="DarkThemeRadioButton.(Grid.Column)" Value="0" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="WideSettingsLayout">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="640" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="SettingsSurface.Margin" Value="24" />
+                        <Setter Target="SettingsNavigationColumn.Width" Value="216" />
+                        <Setter Target="SettingsContentColumn.Width" Value="*" />
+                        <Setter Target="SettingsNavigationRow.Height" Value="*" />
+                        <Setter Target="SettingsContentRow.Height" Value="0" />
+                        <Setter Target="SettingsNavigationBorder.(Grid.Row)" Value="0" />
+                        <Setter Target="SettingsNavigationBorder.(Grid.Column)" Value="0" />
+                        <Setter Target="SettingsNavigationBorder.(Grid.RowSpan)" Value="2" />
+                        <Setter Target="SettingsNavigationBorder.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="SettingsNavigationBorder.BorderThickness" Value="0,0,1,0" />
+                        <Setter Target="SettingsNavigationBorder.Padding" Value="14,18" />
+                        <Setter Target="SettingsPageScroller.(Grid.Row)" Value="0" />
+                        <Setter Target="SettingsPageScroller.(Grid.Column)" Value="1" />
+                        <Setter Target="SettingsPageScroller.(Grid.RowSpan)" Value="2" />
+                        <Setter Target="SettingsPageScroller.(Grid.ColumnSpan)" Value="1" />
+                        <Setter Target="SettingsPageHost.Padding" Value="30,26,30,30" />
+                        <Setter Target="SettingsTabColumn0.Width" Value="*" />
+                        <Setter Target="SettingsTabColumn1.Width" Value="0" />
+                        <Setter Target="SettingsTabColumn2.Width" Value="0" />
+                        <Setter Target="SettingsTabRow0.Height" Value="Auto" />
+                        <Setter Target="SettingsTabRow1.Height" Value="Auto" />
+                        <Setter Target="SettingsTabRow2.Height" Value="Auto" />
+                        <Setter Target="SettingsGeneralTab.(Grid.Row)" Value="0" />
+                        <Setter Target="SettingsGeneralTab.(Grid.Column)" Value="0" />
+                        <Setter Target="SettingsAppearanceTab.(Grid.Row)" Value="1" />
+                        <Setter Target="SettingsAppearanceTab.(Grid.Column)" Value="0" />
+                        <Setter Target="SettingsModelsTab.(Grid.Row)" Value="2" />
+                        <Setter Target="SettingsModelsTab.(Grid.Column)" Value="0" />
+                        <Setter Target="AppearanceChoiceColumn0.Width" Value="*" />
+                        <Setter Target="AppearanceChoiceColumn1.Width" Value="*" />
+                        <Setter Target="AppearanceChoiceColumn2.Width" Value="*" />
+                        <Setter Target="AppearanceChoiceRow0.Height" Value="Auto" />
+                        <Setter Target="AppearanceChoiceRow1.Height" Value="0" />
+                        <Setter Target="AppearanceChoiceRow2.Height" Value="0" />
+                        <Setter Target="SystemThemeRadioButton.(Grid.Row)" Value="0" />
+                        <Setter Target="SystemThemeRadioButton.(Grid.Column)" Value="0" />
+                        <Setter Target="LightThemeRadioButton.(Grid.Row)" Value="0" />
+                        <Setter Target="LightThemeRadioButton.(Grid.Column)" Value="1" />
+                        <Setter Target="DarkThemeRadioButton.(Grid.Row)" Value="0" />
+                        <Setter Target="DarkThemeRadioButton.(Grid.Column)" Value="2" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="HistoryColumn" Width="0" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Button
+            x:Name="CompactNavigationScrim"
+            Grid.ColumnSpan="2"
+            Canvas.ZIndex="50"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            Padding="0"
+            Background="Transparent"
+            BorderThickness="0"
+            IsTabStop="False"
+            Visibility="Collapsed"
+            AutomationProperties.AccessibilityView="Raw"
+            Click="CompactNavigationScrim_Click">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}" />
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <Grid
+            x:Name="HistoryRail"
+            Visibility="Collapsed"
+            Grid.Column="0"
+            Canvas.ZIndex="51"
+            Padding="18,18,16,16"
+            Background="{ThemeResource GgufChatRailBrush}">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="HistoryRailTranslation" />
+            </Grid.RenderTransform>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <StackPanel>
+                <Image
+                    x:Name="BrandLockup"
+                    MaxWidth="184"
+                    Height="55"
+                    HorizontalAlignment="Left"
+                    Stretch="Uniform"
+                    AutomationProperties.Name="Granite Edge AI"
+                    Source="{ThemeResource GgufChatBrandLockupSource}" />
+                <TextBlock Text="Local chat" FontSize="12"
+                    Foreground="{ThemeResource GgufChatDateHeadingBrush}" />
+                </StackPanel>
+                <Button
+                    x:Name="CompactPaneDismissButton"
+                    Grid.Row="1"
+                    HorizontalAlignment="Right"
+                    Width="44"
+                    Height="44"
+                    MinWidth="44"
+                    MinHeight="44"
+                    Padding="0"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Visibility="Collapsed"
+                    AutomationProperties.Name="Close chat navigation"
+                    Click="CompactPaneDismissButton_Click"
+                    ToolTipService.ToolTip="Close navigation">
+                    <FontIcon FontSize="14" Glyph="&#xE711;" />
+                </Button>
+            </Grid>
+            <Button
+                x:Name="NewChatButton"
+                Grid.Row="1"
+                Height="46"
+                Margin="0,18,0,4"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Left"
+                Padding="4,8"
+                Style="{StaticResource GgufChatNavigationButtonStyle}"
+                AutomationProperties.Name="Start a new chat"
+                Click="NewChatButton_Click">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon
+                        FontSize="16"
+                        Glyph="&#xE710;" />
+                    <TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        FontWeight="SemiBold"
+                        Text="New Chat" />
+                </Grid>
+            </Button>
+            <Button
+                x:Name="ImportModelButton"
+                Grid.Row="2"
+                Height="46"
+                Margin="0,0,0,20"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Left"
+                Padding="4,8"
+                Style="{StaticResource GgufChatNavigationButtonStyle}"
+                AutomationProperties.Name="Import another model"
+                Click="ImportModelButton_Click">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon
+                        FontSize="16"
+                        Glyph="&#xE8B5;" />
+                    <TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Text="Import Model" />
+                </Grid>
+            </Button>
+            <Grid x:Name="HistoryRegion" Grid.Row="3" RowSpacing="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock
+                    Text="CHATS"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Foreground="{ThemeResource GgufChatMutedBrush}" />
+                <ListView
+                    x:Name="ChatHistoryList"
+                    Grid.Row="1"
+                    Padding="0"
+                    Margin="0"
+                    HorizontalContentAlignment="Stretch"
+                    SelectionMode="Single"
+                    IsItemClickEnabled="True"
+                    ItemClick="ChatHistoryList_ItemClick"
+                    AutomationProperties.AutomationId="ChatHistory"
+                    AutomationProperties.Name="Dated chat history">
+                    <ListView.Resources>
+                        <ResourceDictionary>
+                            <ResourceDictionary.ThemeDictionaries>
+                                <ResourceDictionary x:Key="Light">
+                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#D9E1EC" />
+                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#D1DBE8" />
+                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#C5D1E0" />
+                                    <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="#111827" />
+                                </ResourceDictionary>
+                                <ResourceDictionary x:Key="Dark">
+                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#263247" />
+                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#303E54" />
+                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#3A4960" />
+                                    <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="#F9FAFB" />
+                                </ResourceDictionary>
+                                <ResourceDictionary x:Key="HighContrast">
+                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="{ThemeResource SystemColorHighlightColor}" />
+                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                                    <SolidColorBrush x:Key="ListViewItemForegroundSelected" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                                </ResourceDictionary>
+                            </ResourceDictionary.ThemeDictionaries>
+                            <SolidColorBrush x:Key="ListViewItemSelectionIndicatorBrush" Color="Transparent" />
+                        </ResourceDictionary>
+                    </ListView.Resources>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="CornerRadius" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
+            </Grid>
+            <StackPanel x:Name="RouteDetailsPanel" Grid.Row="3" Spacing="12" Visibility="Collapsed">
+                <Button x:Name="RouteCloseButton" Content="Close session" HorizontalAlignment="Stretch"
+                    Style="{StaticResource GgufChatSecondaryButtonStyle}" Click="RouteCloseButton_Click"
+                    AutomationProperties.Name="Close local session" />
+                <Expander Header="Runtime details" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="8">
+                        <TextBlock x:Name="RouteCapabilityText" TextWrapping="WrapWholeWords" />
+                        <TextBlock x:Name="RouteExecutionText" TextWrapping="WrapWholeWords" AutomationProperties.Name="Requested and actual local execution device" />
+                        <TextBlock x:Name="RouteBuildText" TextWrapping="WrapWholeWords" AutomationProperties.Name="Verified local runtime build evidence" />
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+            <Border
+                x:Name="SettingsFooter"
+                Grid.Row="4"
+                Margin="0,12,0,0"
+                Padding="0,12,0,0"
+                BorderBrush="{ThemeResource GgufChatBorderBrush}"
+                BorderThickness="0,1,0,0">
+                <Button
+                    x:Name="SettingsButton"
+                    Height="46"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left"
+                    Padding="4,8"
+                    Style="{StaticResource GgufChatNavigationButtonStyle}"
+                    AutomationProperties.AutomationId="SettingsButton"
+                    AutomationProperties.Name="Settings"
+                    Click="SettingsButton_Click">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon
+                            FontSize="16"
+                            Glyph="&#xE713;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Text="Settings" />
+                    </Grid>
+                </Button>
+            </Border>
+        </Grid>
+
+        <Grid
+            x:Name="SettingsOverlay"
+            Grid.ColumnSpan="2"
+            Canvas.ZIndex="100"
+            Background="{ThemeResource GgufChatOverlayScrimBrush}"
+            Visibility="Collapsed"
+            AutomationProperties.Name="Chat settings">
+            <Border
+                x:Name="SettingsSurface"
+                MinWidth="0"
+                MaxWidth="920"
+                MinHeight="380"
+                MaxHeight="680"
+                Margin="24"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Background="{ThemeResource GgufChatSurfaceBrush}"
+                BorderBrush="{ThemeResource GgufChatBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="16"
+                TabFocusNavigation="Cycle">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="64" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid MinHeight="64" Padding="16,10,10,10" ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="24"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource GgufChatTextBrush}"
+                            Text="Settings"
+                            AutomationProperties.HeadingLevel="Level2" />
+                        <Button
+                            x:Name="SettingsCloseButton"
+                            Grid.Column="1"
+                            Width="44"
+                            Height="44"
+                            Padding="0"
+                            AutomationProperties.AutomationId="SettingsCloseButton"
+                            AutomationProperties.Name="Close settings"
+                            Click="SettingsCloseButton_Click"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Foreground="{ThemeResource GgufChatMutedBrush}"
+                            CornerRadius="8"
+                            ToolTipService.ToolTip="Close settings">
+                            <FontIcon FontSize="14" Glyph="&#xE711;" />
+                        </Button>
+                    </Grid>
+                    <Border
+                        Height="1"
+                        VerticalAlignment="Bottom"
+                        Background="{ThemeResource GgufChatBorderBrush}" />
+                    <Grid x:Name="SettingsBodyGrid" Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition x:Name="SettingsNavigationColumn" Width="216" />
+                            <ColumnDefinition x:Name="SettingsContentColumn" Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition x:Name="SettingsNavigationRow" Height="*" />
+                            <RowDefinition x:Name="SettingsContentRow" Height="0" />
+                        </Grid.RowDefinitions>
+                        <Border
+                            x:Name="SettingsNavigationBorder"
+                            Grid.RowSpan="2"
+                            Padding="14,18"
+                            Background="{ThemeResource GgufChatSecondarySurfaceBrush}"
+                            BorderBrush="{ThemeResource GgufChatBorderBrush}"
+                            BorderThickness="0,0,1,0">
+                            <Grid x:Name="SettingsNavigationGrid">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition x:Name="SettingsTabColumn0" Width="*" />
+                                    <ColumnDefinition x:Name="SettingsTabColumn1" Width="0" />
+                                    <ColumnDefinition x:Name="SettingsTabColumn2" Width="0" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition x:Name="SettingsTabRow0" Height="Auto" />
+                                    <RowDefinition x:Name="SettingsTabRow1" Height="Auto" />
+                                    <RowDefinition x:Name="SettingsTabRow2" Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <RadioButton
+                                    x:Name="SettingsGeneralTab"
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    GroupName="ChatSettingsTabs"
+                                    IsChecked="True"
+                                    Content="General"
+                                    Style="{StaticResource ChatSettingsTabStyle}"
+                                    AutomationProperties.AutomationId="ChatSettingsTabGeneral"
+                                    AutomationProperties.Name="General settings" />
+                                <RadioButton
+                                    x:Name="SettingsAppearanceTab"
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    GroupName="ChatSettingsTabs"
+                                    Content="Appearance"
+                                    Style="{StaticResource ChatSettingsTabStyle}"
+                                    AutomationProperties.AutomationId="ChatSettingsTabAppearance"
+                                    AutomationProperties.Name="Appearance settings" />
+                                <RadioButton
+                                    x:Name="SettingsModelsTab"
+                                    Grid.Row="2"
+                                    Grid.Column="0"
+                                    GroupName="ChatSettingsTabs"
+                                    Content="Models"
+                                    Style="{StaticResource ChatSettingsTabStyle}"
+                                    AutomationProperties.AutomationId="ChatSettingsTabModels"
+                                    AutomationProperties.Name="Model settings" />
+                            </Grid>
+                        </Border>
+                        <ScrollViewer
+                            x:Name="SettingsPageScroller"
+                            Grid.Column="1"
+                            Grid.RowSpan="2"
+                            HorizontalScrollBarVisibility="Disabled"
+                            HorizontalScrollMode="Disabled"
+                            VerticalScrollBarVisibility="Auto"
+                            VerticalScrollMode="Auto"
+                            AutomationProperties.AutomationId="ChatSettingsPageScroller">
+                            <Grid x:Name="SettingsPageHost" Padding="30,26,30,30">
+                                <StackPanel
+                                    x:Name="SettingsGeneralPage"
+                                    Spacing="14"
+                                    Visibility="{x:Bind SettingsGeneralTab.IsChecked, Mode=OneWay}">
+                                    <TextBlock
+                                        FontSize="18"
+                                        FontWeight="SemiBold"
+                                        Foreground="{ThemeResource GgufChatTextBrush}"
+                                        Text="General"
+                                        AutomationProperties.HeadingLevel="Level2" />
+                                    <TextBlock
+                                        Foreground="{ThemeResource GgufChatMutedBrush}"
+                                        Text="Important information about the current local chat."
+                                        TextWrapping="WrapWholeWords" />
+                                    <Border Padding="16,14" Background="{ThemeResource GgufChatSecondarySurfaceBrush}" BorderBrush="{ThemeResource GgufChatBorderBrush}" BorderThickness="1" CornerRadius="10">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource GgufChatMutedBrush}" Text="CURRENT MODEL" />
+                                            <TextBlock Foreground="{ThemeResource GgufChatTextBrush}" TextWrapping="WrapWholeWords" IsTextSelectionEnabled="True">
+                                                <Run Text="{Binding Text, ElementName=FullModelNameText, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Padding="16,14" Background="{ThemeResource GgufChatSecondarySurfaceBrush}" BorderBrush="{ThemeResource GgufChatBorderBrush}" BorderThickness="1" CornerRadius="10">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource GgufChatMutedBrush}" Text="LOCAL PROCESSING" />
+                                            <TextBlock Foreground="{ThemeResource GgufChatTextBrush}" Text="Prompts and responses are processed locally on this device." TextWrapping="WrapWholeWords" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    x:Name="SettingsAppearancePage"
+                                    Spacing="14"
+                                    Visibility="{x:Bind SettingsAppearanceTab.IsChecked, Mode=OneWay}">
+                                    <TextBlock
+                                        FontSize="18"
+                                        FontWeight="SemiBold"
+                                        Foreground="{ThemeResource GgufChatTextBrush}"
+                                        Text="Appearance"
+                                        AutomationProperties.HeadingLevel="Level2" />
+                                    <TextBlock
+                                        Foreground="{ThemeResource GgufChatMutedBrush}"
+                                        Text="Choose the appearance for this app session."
+                                        TextWrapping="WrapWholeWords" />
+                                    <Grid x:Name="AppearanceChoices" ColumnSpacing="10" RowSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition x:Name="AppearanceChoiceColumn0" Width="*" />
+                                            <ColumnDefinition x:Name="AppearanceChoiceColumn1" Width="*" />
+                                            <ColumnDefinition x:Name="AppearanceChoiceColumn2" Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition x:Name="AppearanceChoiceRow0" Height="Auto" />
+                                            <RowDefinition x:Name="AppearanceChoiceRow1" Height="0" />
+                                            <RowDefinition x:Name="AppearanceChoiceRow2" Height="0" />
+                                        </Grid.RowDefinitions>
+                                        <RadioButton
+                                            x:Name="SystemThemeRadioButton"
+                                            Grid.Column="0"
+                                            AutomationProperties.AutomationId="SystemThemeRadioButton"
+                                            AutomationProperties.Name="Use system theme"
+                                            GroupName="ChatTheme"
+                                            IsChecked="True"
+                                            Tag="Default"
+                                            Checked="ThemeRadioButton_Checked"
+                                            Style="{StaticResource ChatSettingsChoiceStyle}">
+                                            <TextBlock Text="System" TextAlignment="Center" TextWrapping="WrapWholeWords" />
+                                        </RadioButton>
+                                        <RadioButton
+                                            x:Name="LightThemeRadioButton"
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="LightThemeRadioButton"
+                                            AutomationProperties.Name="Use light theme"
+                                            GroupName="ChatTheme"
+                                            Tag="Light"
+                                            Checked="ThemeRadioButton_Checked"
+                                            Style="{StaticResource ChatSettingsChoiceStyle}">
+                                            <TextBlock Text="Light" TextAlignment="Center" TextWrapping="WrapWholeWords" />
+                                        </RadioButton>
+                                        <RadioButton
+                                            x:Name="DarkThemeRadioButton"
+                                            Grid.Column="2"
+                                            AutomationProperties.AutomationId="DarkThemeRadioButton"
+                                            AutomationProperties.Name="Use dark theme"
+                                            GroupName="ChatTheme"
+                                            Tag="Dark"
+                                            Checked="ThemeRadioButton_Checked"
+                                            Style="{StaticResource ChatSettingsChoiceStyle}">
+                                            <TextBlock Text="Dark" TextAlignment="Center" TextWrapping="WrapWholeWords" />
+                                        </RadioButton>
+                                    </Grid>
+                                </StackPanel>
+                                <StackPanel
+                                    x:Name="SettingsModelsPage"
+                                    Spacing="14"
+                                    Visibility="{x:Bind SettingsModelsTab.IsChecked, Mode=OneWay}">
+                                    <TextBlock
+                                        FontSize="18"
+                                        FontWeight="SemiBold"
+                                        Foreground="{ThemeResource GgufChatTextBrush}"
+                                        Text="Models"
+                                        AutomationProperties.HeadingLevel="Level2" />
+                                    <TextBlock
+                                        Foreground="{ThemeResource GgufChatMutedBrush}"
+                                        Text="Review the selected imported model or open a local model route."
+                                        TextWrapping="WrapWholeWords" />
+                                    <Border Padding="16,14" Background="{ThemeResource GgufChatSecondarySurfaceBrush}" BorderBrush="{ThemeResource GgufChatBorderBrush}" BorderThickness="1" CornerRadius="10">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource GgufChatMutedBrush}" Text="CURRENT IMPORTED MODEL" />
+                                            <TextBlock Foreground="{ThemeResource GgufChatTextBrush}" TextWrapping="WrapWholeWords" IsTextSelectionEnabled="True">
+                                                <Run Text="{Binding Text, ElementName=FullModelNameText, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                    <Button
+                                        x:Name="SettingsImportModelButton"
+                                        MinHeight="44"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        AutomationProperties.AutomationId="SettingsImportModelButton"
+                                        AutomationProperties.Name="Import another model"
+                                        Click="SettingsImportModelButton_Click"
+                                        Content="Import another model"
+                                        Style="{StaticResource GgufChatSecondaryButtonStyle}" />
+                                    <Button
+                                        x:Name="SettingsGetMoreModelsButton"
+                                        MinHeight="44"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Left"
+                                        AutomationProperties.AutomationId="SettingsGetMoreModelsButton"
+                                        AutomationProperties.Name="Get more local models"
+                                        Click="SettingsGetMoreModelsButton_Click"
+                                        Content="Get more local models"
+                                        Style="{StaticResource GgufChatSecondaryButtonStyle}" />
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ConversationInset" Grid.Column="1" Padding="20">
+            <Border
+                x:Name="ConversationPanel"
+                Background="Transparent"
+                BorderThickness="0"
+                Padding="0">
+                <Grid MaxWidth="900" HorizontalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="1" />
+                        <RowDefinition x:Name="EmptyTopSpace" Height="*" />
+                        <RowDefinition x:Name="ConversationContentRow" Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition x:Name="EmptyBottomSpace" Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid x:Name="ChatHeader" MinHeight="56" Padding="16,6" ColumnSpacing="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button
+                            x:Name="CompactNavigationButton"
+                            Grid.Column="0"
+                            Width="44"
+                            Height="44"
+                            MinWidth="44"
+                            MinHeight="44"
+                            Padding="0"
+                            VerticalAlignment="Top"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Visibility="Visible"
+                            AutomationProperties.AutomationId="BtnOpenChatNavigation"
+                            AutomationProperties.Name="Open chat navigation"
+                            AutomationProperties.HelpText="Open the compact chat navigation pane"
+                            Click="CompactNavigationButton_Click"
+                            ToolTipService.ToolTip="Open navigation">
+                            <FontIcon FontSize="18" Glyph="&#xE700;" />
+                        </Button>
+                        <Button x:Name="HeaderNewChatButton" Grid.Column="1" Width="44" Height="44" Padding="0"
+                            Background="Transparent" BorderThickness="0" Click="NewChatButton_Click"
+                            AutomationProperties.Name="New conversation" ToolTipService.ToolTip="New conversation">
+                            <FontIcon Glyph="&#xE710;" FontSize="15" />
+                        </Button>
+                        <Image Grid.Column="2" Width="24" Height="24" VerticalAlignment="Center"
+                            Source="ms-appx:///Assets/Branding/granite-edge-ai-icon.svg" AutomationProperties.AccessibilityView="Raw" />
+                        <StackPanel Grid.Column="3" Spacing="3" VerticalAlignment="Center">
+                            <TextBlock x:Name="FullModelNameText" Visibility="Collapsed" Text="No model selected" />
+                            <TextBlock
+                                x:Name="ConversationTitle"
+                                Text="New conversation"
+                                FontSize="16"
+                                TextTrimming="CharacterEllipsis"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource GgufChatTextBrush}"
+                                AutomationProperties.HeadingLevel="Level1" />
+                            <TextBlock
+                                x:Name="ModelNameText"
+                                Text="No model selected"
+                                FontSize="12"
+                                Foreground="{ThemeResource GgufChatMutedBrush}"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <TextBlock x:Name="RouteStatusText" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed" FontSize="12" TextWrapping="Wrap"
+                            Foreground="{ThemeResource GgufChatMutedBrush}" AutomationProperties.LiveSetting="Polite" />
+                        <Button
+                            x:Name="CopyChatButton"
+                            Grid.Column="4"
+                            MinWidth="44"
+                            MinHeight="44"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Padding="10,7"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            IsEnabled="False"
+                            Visibility="Collapsed"
+                            AutomationProperties.AutomationId="CopyChatButton"
+                            AutomationProperties.Name="Copy chat"
+                            AutomationProperties.HelpText="Copy the visible chat transcript to the clipboard"
+                            ToolTipService.ToolTip="Copy chat"
+                            Click="CopyChatButton_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <FontIcon
+                                    x:Name="CopyChatGlyph"
+                                    FontSize="14"
+                                    Glyph="&#xE8C8;" />
+                                <TextBlock
+                                    x:Name="CopyChatLabel"
+                                    Visibility="Collapsed"
+                                    Text="Copy chat" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <Rectangle
+                        Grid.Row="1"
+                        Fill="{ThemeResource GgufChatBorderBrush}" />
+                    <Grid Grid.Row="3">
+                        <StackPanel
+                            x:Name="EmptyConversationState"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Margin="0,0,0,18"
+                            Spacing="10">
+                            <Image
+                                x:Name="EmptyStateBrandMark"
+                                Width="68"
+                                Height="68"
+                                Source="ms-appx:///Assets/Branding/granite-edge-ai-icon.svg"
+                                AutomationProperties.AccessibilityView="Raw"
+                                Opacity="1" />
+                            <TextBlock
+                                Text="How can Granite Edge AI help?"
+                                TextWrapping="Wrap"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource GgufChatTextBrush}"
+                                TextAlignment="Center" />
+                        </StackPanel>
+                        <ListView
+                            x:Name="TranscriptList"
+                            MaxWidth="800"
+                            Padding="4,20"
+                            SelectionMode="None"
+                            Visibility="Collapsed"
+                            AutomationProperties.Name="Conversation messages">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Margin" Value="0,0,0,12" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                        </ListView>
+                    </Grid>
+                    <controls:ChatComposer
+                        x:Name="Composer"
+                        MaxWidth="880"
+                        Grid.Row="4"
+                        Margin="0,20,0,0"
+                        SendRequested="Composer_SendRequested"
+                        StopRequested="Composer_StopRequested" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

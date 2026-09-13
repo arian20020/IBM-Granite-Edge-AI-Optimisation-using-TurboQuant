@@ -1,0 +1,16 @@
+{
+  "system": {
+    "total_ram_gb": 31.72,
+    "available_ram_gb": 12.50,
+    "cpu_cores": 8,
+    "cpu_name": "Fixture CPU Only",
+    "has_gpu": false,
+    "gpu_vram_gb": null,
+    "gpu_available_gb": null,
+    "gpu_name": null,
+    "gpu_count": 0,
+    "unified_memory": null,
+    "backend": null,
+    "gpus": []
+  }
+}

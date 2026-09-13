@@ -1,0 +1,161 @@
+using GraniteEdgeAI.HardwareInspection.Foundation.Processes;
+
+namespace GraniteEdgeAI.HardwareInspection.Foundation.Tests.Processes;
+
+[TestClass]
+public sealed class BoundedCleanupCoordinatorTests
+{
+    [TestMethod]
+    public void CleanupIntegrityPreservesExactCancellationTokenAndTypedFacts()
+    {
+        using var source = new CancellationTokenSource();
+        source.Cancel();
+        foreach (OwnedCleanupStage stage in Enum.GetValues<OwnedCleanupStage>())
+        {
+            CleanupFailureFact fact = new(stage, CleanupFailureKind.Timeout);
+            CleanupOutcome outcome = new([fact]);
+
+            var cancellation = (OperationCanceledException)
+                CleanupIntegrityException.PreserveCancellation(
+                    outcome.Failures,
+                    new OperationCanceledException(source.Token));
+
+            Assert.AreEqual(source.Token, cancellation.CancellationToken);
+            var integrity = (CleanupIntegrityException)cancellation.InnerException!;
+            CollectionAssert.AreEqual(new[] { fact }, integrity.Failures.ToArray());
+            Assert.AreEqual(
+                CleanupPrimaryFailureKind.Cancellation,
+                integrity.PrimaryFailureKind);
+            Assert.IsNull(integrity.InnerException);
+        }
+    }
+
+    [TestMethod]
+    public async Task EveryStageRunsExactlyOnceWhenEarlierStagesThrow()
+    {
+        int[] calls = new int[4];
+        BoundedCleanupCoordinator cleanup = new(
+            Throwing(OwnedCleanupStage.StandardInput, calls, 0, new IOException("private C:\\user\\temp")),
+            Throwing(OwnedCleanupStage.ProcessTree, calls, 1, new TimeoutException("private timeout")),
+            Successful(OwnedCleanupStage.Job, calls, 2),
+            Throwing(OwnedCleanupStage.OperationEnvironment, calls, 3, new UnauthorizedAccessException("private path")));
+
+        CleanupOutcome outcome = await cleanup.ExecuteAsync();
+
+        Assert.IsTrue(calls.All(static call => call == 1));
+        Assert.IsFalse(outcome.Succeeded);
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                new CleanupFailureFact(OwnedCleanupStage.StandardInput, CleanupFailureKind.Io),
+                new CleanupFailureFact(OwnedCleanupStage.ProcessTree, CleanupFailureKind.Timeout),
+                new CleanupFailureFact(OwnedCleanupStage.OperationEnvironment, CleanupFailureKind.Access),
+            },
+            outcome.Failures.ToArray());
+    }
+
+    [TestMethod]
+    public async Task ConcurrentAndRepeatedExecutionSharesOneExactlyOnceOutcome()
+    {
+        int calls = 0;
+        BoundedCleanupCoordinator cleanup = new(new OwnedCleanupAction(
+            OwnedCleanupStage.Session,
+            async () =>
+            {
+                Interlocked.Increment(ref calls);
+                await Task.Yield();
+            }));
+
+        Task<CleanupOutcome>[] attempts = Enumerable.Range(0, 16)
+            .Select(_ => cleanup.ExecuteAsync())
+            .ToArray();
+        CleanupOutcome[] outcomes = await Task.WhenAll(attempts);
+        CleanupOutcome repeated = await cleanup.ExecuteAsync();
+
+        Assert.AreEqual(1, calls);
+        Assert.IsTrue(outcomes.All(outcome => ReferenceEquals(outcomes[0], outcome)));
+        Assert.AreSame(outcomes[0], repeated);
+    }
+
+    [TestMethod]
+    public async Task FailureFactsAreBoundedTypedAndContainNoExceptionText()
+    {
+        OwnedCleanupAction[] actions = Enumerable.Range(0, 64)
+            .Select(index => Throwing(
+                OwnedCleanupStage.StandardError,
+                new int[1],
+                0,
+                new InvalidOperationException("secret-" + index)))
+            .ToArray();
+        BoundedCleanupCoordinator cleanup = new(actions);
+
+        CleanupOutcome outcome = await cleanup.ExecuteAsync();
+
+        Assert.AreEqual(16, outcome.Failures.Count);
+        Assert.IsTrue(outcome.Failures.All(fact =>
+            fact == new CleanupFailureFact(
+                OwnedCleanupStage.StandardError,
+                CleanupFailureKind.InvalidState)));
+        Assert.IsFalse(outcome.ToString()!.Contains("secret", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task EveryOwnedStageFailureStillAttemptsEveryOtherOwnedStage()
+    {
+        OwnedCleanupStage[] stages = Enum.GetValues<OwnedCleanupStage>();
+        foreach (OwnedCleanupStage failingStage in stages)
+        {
+            int[] calls = new int[stages.Length];
+            OwnedCleanupAction[] actions = stages.Select((stage, index) =>
+                new OwnedCleanupAction(stage, () =>
+                {
+                    calls[index]++;
+                    return stage == failingStage
+                        ? ValueTask.FromException(new IOException("private-path"))
+                        : ValueTask.CompletedTask;
+                })).ToArray();
+
+            CleanupOutcome outcome = await new BoundedCleanupCoordinator(actions)
+                .ExecuteAsync();
+
+            Assert.IsTrue(calls.All(static call => call == 1));
+            Assert.AreEqual(1, outcome.Failures.Count);
+            Assert.AreEqual(failingStage, outcome.Failures[0].Stage);
+            Assert.AreEqual(CleanupFailureKind.Io, outcome.Failures[0].Kind);
+        }
+    }
+
+    [TestMethod]
+    public void PolicyPrimaryIsClassifiedBeforeInvalidOperationBaseType()
+    {
+        var integrity = new CleanupIntegrityException(
+            [],
+            new FixturePolicyException());
+
+        Assert.AreEqual(
+            CleanupPrimaryFailureKind.Policy,
+            integrity.PrimaryFailureKind);
+        Assert.IsNull(integrity.InnerException);
+    }
+
+    private sealed class FixturePolicyException : InvalidOperationException;
+
+    private static OwnedCleanupAction Successful(
+        OwnedCleanupStage stage,
+        int[] calls,
+        int index) => new(stage, () =>
+        {
+            calls[index]++;
+            return ValueTask.CompletedTask;
+        });
+
+    private static OwnedCleanupAction Throwing(
+        OwnedCleanupStage stage,
+        int[] calls,
+        int index,
+        Exception error) => new(stage, () =>
+        {
+            calls[index]++;
+            return ValueTask.FromException(error);
+        });
+}

@@ -1,0 +1,47 @@
+<Project>
+  <PropertyGroup>
+    <OpenVinoTurboQuantPackagingRequired Condition="'$(OpenVinoTurboQuantPackagingRequired)' == ''">true</OpenVinoTurboQuantPackagingRequired>
+    <OpenVinoTurboQuantWorkerPackageRelativeDirectory>OpenVino\TurboQuant\Worker</OpenVinoTurboQuantWorkerPackageRelativeDirectory>
+    <_OpenVinoTurboQuantRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_OpenVinoTurboQuantRepositoryRoot>
+    <_OpenVinoTurboQuantManifestVerifier>$(_OpenVinoTurboQuantRepositoryRoot)\scripts\openvino\Test-OpenVinoTurboQuantWorkerManifest.ps1</_OpenVinoTurboQuantManifestVerifier>
+    <_OpenVinoTurboQuantDigestVerifier>$(_OpenVinoTurboQuantRepositoryRoot)\scripts\verification\Test-FileSha256.ps1</_OpenVinoTurboQuantDigestVerifier>
+    <_OpenVinoTurboQuantPowerShell>$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe</_OpenVinoTurboQuantPowerShell>
+  </PropertyGroup>
+
+  <Target
+    Name="VerifyAndPackageOpenVinoTurboQuantWorker"
+    BeforeTargets="AssignTargetPaths"
+    Condition="'$(Platform)' == 'x64' and '$(DesignTimeBuild)' != 'true' and ('$(OpenVinoTurboQuantPackagingRequired)' != 'false' or '$(GenerateAppxPackageOnBuild)' != 'false' or '$(CrossRouteNativeEvidenceBuild)' == 'true')">
+    <Error
+      Condition="'$(OpenVinoTurboQuantPackagingRequired)' == 'false' and ('$(GenerateAppxPackageOnBuild)' != 'false' or '$(CrossRouteNativeEvidenceBuild)' == 'true')"
+      Text="OpenVinoTurboQuantPackagingRequired cannot be false when package generation or cross-route native evidence is enabled." />
+    <Error
+      Condition="'$(OpenVinoTurboQuantWorkerStageDirectory)' == ''"
+      Text="OpenVinoTurboQuantWorkerStageDirectory is required for x64 builds." />
+    <Error
+      Condition="'$(OpenVinoTurboQuantWorkerManifestSha256)' == '' or !$([System.Text.RegularExpressions.Regex]::IsMatch('$(OpenVinoTurboQuantWorkerManifestSha256)', '^[0-9a-f]{64}$'))"
+      Text="OpenVinoTurboQuantWorkerManifestSha256 must be a caller-supplied lowercase SHA-256 digest." />
+    <PropertyGroup>
+      <_OpenVinoTurboQuantWorkerStage>$([System.IO.Path]::GetFullPath('$(OpenVinoTurboQuantWorkerStageDirectory)'))</_OpenVinoTurboQuantWorkerStage>
+      <_OpenVinoTurboQuantWorkerManifest>$(_OpenVinoTurboQuantWorkerStage)\worker-manifest.json</_OpenVinoTurboQuantWorkerManifest>
+    </PropertyGroup>
+    <Error
+      Condition="!Exists('$(_OpenVinoTurboQuantWorkerManifest)')"
+      Text="The verified OpenVINO TurboQuant worker manifest is missing." />
+
+    <Exec
+      Command="&quot;$(_OpenVinoTurboQuantPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoTurboQuantManifestVerifier)&quot; -StageDirectory &quot;$(_OpenVinoTurboQuantWorkerStage)&quot;" />
+    <Exec
+      Command="&quot;$(_OpenVinoTurboQuantPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoTurboQuantDigestVerifier)&quot; -Path &quot;$(_OpenVinoTurboQuantWorkerManifest)&quot; -ExpectedSha256 &quot;$(OpenVinoTurboQuantWorkerManifestSha256)&quot; -SuccessMessage turboquant_manifest_digest_valid -FailureMessage turboquant_manifest_digest_mismatch" />
+
+    <ItemGroup>
+      <_OpenVinoTurboQuantWorkerFile Include="$(_OpenVinoTurboQuantWorkerStage)\**\*" />
+      <Content Include="@(_OpenVinoTurboQuantWorkerFile)">
+        <Link>$(OpenVinoTurboQuantWorkerPackageRelativeDirectory)\%(_OpenVinoTurboQuantWorkerFile.RecursiveDir)%(_OpenVinoTurboQuantWorkerFile.Filename)%(_OpenVinoTurboQuantWorkerFile.Extension)</Link>
+        <TargetPath>$(OpenVinoTurboQuantWorkerPackageRelativeDirectory)\%(_OpenVinoTurboQuantWorkerFile.RecursiveDir)%(_OpenVinoTurboQuantWorkerFile.Filename)%(_OpenVinoTurboQuantWorkerFile.Extension)</TargetPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+</Project>

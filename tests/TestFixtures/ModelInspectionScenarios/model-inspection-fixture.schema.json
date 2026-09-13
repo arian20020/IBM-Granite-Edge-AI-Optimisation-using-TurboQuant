@@ -1,0 +1,1614 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "model-inspection-fixture.schema.json",
+  "title": "Model Inspection fixture descriptor",
+  "type": "object",
+  "schemaVersion": 1,
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "id",
+    "targetCondition",
+    "variant",
+    "title",
+    "category",
+    "coverage",
+    "input",
+    "expected",
+    "presetExpectations",
+    "interactions",
+    "presets"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "model-inspection-fixture.schema.json",
+      "type": "string",
+      "maxLength": 48
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1
+    },
+    "id": {
+      "type": "string",
+      "maxLength": 6,
+      "minLength": 6,
+      "pattern": "^MI-[0-9]{3}$"
+    },
+    "targetCondition": {
+      "type": "string",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "variant": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 128,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 160,
+      "minLength": 1
+    },
+    "category": {
+      "$ref": "#/$defs/fixtureCategory"
+    },
+    "coverage": {
+      "$ref": "#/$defs/coverage"
+    },
+    "input": {
+      "$ref": "#/$defs/input"
+    },
+    "expected": {
+      "$ref": "#/$defs/expectedScreen"
+    },
+    "presetExpectations": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 9,
+      "propertyNames": {
+        "pattern": "^P0[1-9]$",
+        "maxLength": 3
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/presetExpectation"
+      }
+    },
+    "interactions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/interaction"
+      },
+      "minItems": 0,
+      "maxItems": 128,
+      "uniqueItems": true
+    },
+    "presets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 3,
+        "minLength": 3,
+        "pattern": "^P0[1-9]$"
+      },
+      "minItems": 1,
+      "maxItems": 9,
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "fixtureCategory": {
+      "type": "string",
+      "enum": [
+        "screen",
+        "progress",
+        "lifecycle",
+        "failure",
+        "stress"
+      ],
+      "maxLength": 96
+    },
+    "fixtureFigmaState": {
+      "type": "string",
+      "enum": [
+        "inspectionProgress",
+        "readyCollapsed",
+        "readyExpanded",
+        "readyWithWarningsCollapsed",
+        "readyWithWarningsExpanded",
+        "conversionRequiredCollapsed",
+        "conversionRequiredExpanded",
+        "incompletePackage",
+        "unsupported",
+        "invalidCollapsed",
+        "invalidExpanded",
+        "cancelled",
+        "operationalFailure"
+      ],
+      "maxLength": 96
+    },
+    "fixtureStage": {
+      "type": "string",
+      "enum": [
+        "checkModelPackage",
+        "readModelConfiguration",
+        "validateTokenizerAndChatSetup",
+        "validateModelStructure",
+        "confirmCoreRuntimeCompatibility"
+      ],
+      "maxLength": 96
+    },
+    "fixtureStageStatus": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "warning",
+        "failed",
+        "cancelled"
+      ],
+      "maxLength": 96
+    },
+    "fixtureOutcome": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "readyWithWarnings",
+        "conversionRequired",
+        "incompletePackage",
+        "unsupported",
+        "invalid"
+      ],
+      "maxLength": 96
+    },
+    "evidenceProfile": {
+      "type": "string",
+      "enum": [
+        "compatible",
+        "compatibleMissingOptionalMetadata",
+        "missingChatTemplate",
+        "verifiedIncompatible",
+        "missingPackageMember",
+        "unsupportedArchitecture",
+        "crossSourceContradiction"
+      ],
+      "maxLength": 96
+    },
+    "failureProfile": {
+      "type": "string",
+      "enum": [
+        "workerStartFailure",
+        "workerTimeout",
+        "workerCrashEarlyExit",
+        "malformedWorkerResponse",
+        "cancellationUnconfirmed"
+      ],
+      "maxLength": 96
+    },
+    "failureDetailProfile": {
+      "type": "string",
+      "enum": [
+        "default",
+        "maximum"
+      ],
+      "maxLength": 96
+    },
+    "progressDetailProfile": {
+      "type": "string",
+      "enum": [
+        "default",
+        "maximum"
+      ],
+      "maxLength": 96
+    },
+    "lifecycleTag": {
+      "type": "string",
+      "enum": [
+        "cancellationRequested",
+        "cooperativeCancellation",
+        "forcedCancellation",
+        "retryAfterCancellation",
+        "retryAfterOperationalFailure",
+        "staleProgressRejected",
+        "staleResultRejected",
+        "staleMotionRejected",
+        "staleAnnouncementRejected",
+        "chooseAnotherRetired",
+        "gallerySwitchRetired"
+      ],
+      "maxLength": 96
+    },
+    "stressTag": {
+      "type": "string",
+      "enum": [
+        "maximumModelName",
+        "missingOptionalMetadata",
+        "maximumCheckRows",
+        "maximumFindingRows",
+        "maximumReportRows",
+        "maximumDetailCopy"
+      ],
+      "maxLength": 96
+    },
+    "interactionKind": {
+      "type": "string",
+      "enum": [
+        "expand",
+        "collapse",
+        "cancel",
+        "retry",
+        "restart",
+        "chooseAnother",
+        "reset"
+      ],
+      "maxLength": 96
+    },
+    "interactionLifetimeEffect": {
+      "type": "string",
+      "enum": [
+        "none",
+        "retirePage",
+        "noActiveFixture"
+      ],
+      "maxLength": 96
+    },
+    "serviceTriggerKind": {
+      "type": "string",
+      "enum": [
+        "automatic",
+        "checkpoint"
+      ],
+      "maxLength": 96
+    },
+    "serviceEffectKind": {
+      "type": "string",
+      "enum": [
+        "progress",
+        "completed",
+        "cancelled",
+        "operationalFailure",
+        "deferStaleProgress",
+        "deferStaleResultSnapshot",
+        "deferStaleMotion",
+        "deferStaleAnnouncement"
+      ],
+      "maxLength": 96
+    },
+    "setupStepKind": {
+      "type": "string",
+      "enum": [
+        "release-service-checkpoint",
+        "invoke-disclosure",
+        "invoke-cancel",
+        "invoke-retry",
+        "invoke-restart",
+        "invoke-choose-another",
+        "release-stale-progress",
+        "submit-stale-result-snapshot",
+        "release-stale-motion",
+        "release-stale-announcement",
+        "observe"
+      ],
+      "maxLength": 96
+    },
+    "expectedFigmaState": {
+      "type": "string",
+      "enum": [
+        "inspectionProgress",
+        "readyCollapsed",
+        "readyExpanded",
+        "readyWithWarningsCollapsed",
+        "readyWithWarningsExpanded",
+        "conversionRequiredCollapsed",
+        "conversionRequiredExpanded",
+        "incompletePackage",
+        "unsupported",
+        "invalidCollapsed",
+        "invalidExpanded",
+        "cancelled",
+        "operationalFailure"
+      ],
+      "maxLength": 96
+    },
+    "geometryProfile": {
+      "type": "string",
+      "enum": [
+        "canonical",
+        "desktop",
+        "medium",
+        "narrow"
+      ],
+      "maxLength": 96
+    },
+    "outcomeKind": {
+      "type": "string",
+      "enum": [
+        "hidden",
+        "ready",
+        "readyWithWarnings",
+        "conversionRequired",
+        "incompletePackage",
+        "unsupported",
+        "invalid",
+        "cancelled",
+        "operationalFailure"
+      ],
+      "maxLength": 96
+    },
+    "outcomeTone": {
+      "type": "string",
+      "enum": [
+        "success",
+        "warning",
+        "information",
+        "error",
+        "neutral"
+      ],
+      "maxLength": 96
+    },
+    "modelMode": {
+      "type": "string",
+      "enum": [
+        "compact",
+        "detailed"
+      ],
+      "maxLength": 96
+    },
+    "modelBadge": {
+      "type": "string",
+      "enum": [
+        "modelSelected",
+        "inspected",
+        "sourceModel",
+        "incomplete",
+        "unsupported",
+        "invalid",
+        "notInspected",
+        "resultUnknown"
+      ],
+      "maxLength": 96
+    },
+    "contentMode": {
+      "type": "string",
+      "enum": [
+        "hidden",
+        "progress",
+        "warnings",
+        "conversionRequired",
+        "incompletePackage",
+        "unsupported",
+        "invalid",
+        "cancelled",
+        "operationalFailure"
+      ],
+      "maxLength": 96
+    },
+    "actionMode": {
+      "type": "string",
+      "enum": [
+        "hidden",
+        "inspecting",
+        "result"
+      ],
+      "maxLength": 96
+    },
+    "footerStatus": {
+      "type": "string",
+      "enum": [
+        "inProgress",
+        "complete",
+        "notComplete",
+        "interrupted"
+      ],
+      "maxLength": 96
+    },
+    "rowStatus": {
+      "type": "string",
+      "enum": [
+        "neutral",
+        "waiting",
+        "active",
+        "passed",
+        "warning",
+        "error",
+        "information"
+      ],
+      "maxLength": 96
+    },
+    "controlType": {
+      "type": "string",
+      "enum": [
+        "button",
+        "text",
+        "list",
+        "listItem",
+        "progressBar",
+        "group"
+      ],
+      "maxLength": 96
+    },
+    "liveSetting": {
+      "type": "string",
+      "enum": [
+        "off",
+        "polite",
+        "assertive"
+      ],
+      "maxLength": 96
+    },
+    "responsiveLayout": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "medium",
+        "narrow"
+      ],
+      "maxLength": 96
+    },
+    "widthProfile": {
+      "type": "string",
+      "enum": [
+        "desktop1440",
+        "medium600",
+        "narrow360"
+      ],
+      "maxLength": 96
+    },
+    "resourceProfile": {
+      "type": "string",
+      "enum": [
+        "light",
+        "dark",
+        "highContrastPreview"
+      ],
+      "maxLength": 96
+    },
+    "textProfile": {
+      "type": "string",
+      "enum": [
+        "standard100",
+        "preview200"
+      ],
+      "maxLength": 96
+    },
+    "motionProfile": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "reduced"
+      ],
+      "maxLength": 96
+    },
+    "textBehavior": {
+      "type": "string",
+      "enum": [
+        "wrap",
+        "truncate"
+      ],
+      "maxLength": 96
+    },
+    "copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "copyKey",
+        "defaultText"
+      ],
+      "properties": {
+        "copyKey": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+        },
+        "defaultText": {
+          "type": "string",
+          "maxLength": 4096,
+          "minLength": 1
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "figmaStates",
+        "stages",
+        "stageStatuses",
+        "outcomes",
+        "interactions",
+        "lifecycleTags",
+        "failureProfiles",
+        "stressTags"
+      ],
+      "properties": {
+        "figmaStates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fixtureFigmaState"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fixtureStage"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "stageStatuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fixtureStageStatus"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "outcomes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fixtureOutcome"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "interactions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interactionKind"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "lifecycleTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/lifecycleTag"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "failureProfiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/failureProfile"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "stressTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stressTag"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "displayName",
+        "displayFileName",
+        "evidenceProfile"
+      ],
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "maxLength": 160,
+          "minLength": 1
+        },
+        "displayFileName": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*[.]gguf$"
+        },
+        "evidenceProfile": {
+          "$ref": "#/$defs/evidenceProfile"
+        }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "checkpoint"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/serviceTriggerKind"
+        },
+        "checkpoint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128,
+          "pattern": "^[a-z0-9]+(?:[-:.][a-z0-9]+)*$"
+        }
+      }
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "status",
+        "completedStageCount",
+        "fraction",
+        "detailProfile"
+      ],
+      "properties": {
+        "stage": {
+          "$ref": "#/$defs/fixtureStage"
+        },
+        "status": {
+          "$ref": "#/$defs/fixtureStageStatus"
+        },
+        "completedStageCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "fraction": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "detailProfile": {
+          "$ref": "#/$defs/progressDetailProfile"
+        }
+      }
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "progress",
+        "outcome",
+        "evidenceProfile",
+        "failureProfile",
+        "failureDetailProfile",
+        "deferredCheckpoint"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/serviceEffectKind"
+        },
+        "progress": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/progress"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/fixtureOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidenceProfile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/evidenceProfile"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failureProfile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/failureProfile"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failureDetailProfile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/failureDetailProfile"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deferredCheckpoint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128,
+          "pattern": "^[a-z0-9]+(?:[-:.][a-z0-9]+)*$"
+        }
+      }
+    },
+    "serviceStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger",
+        "effect"
+      ],
+      "properties": {
+        "trigger": {
+          "$ref": "#/$defs/trigger"
+        },
+        "effect": {
+          "$ref": "#/$defs/effect"
+        }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt",
+        "serviceSteps"
+      ],
+      "properties": {
+        "attempt": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "serviceSteps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/serviceStep"
+          },
+          "minItems": 1,
+          "maxItems": 128
+        }
+      }
+    },
+    "setupStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "attempt",
+        "checkpoint",
+        "interactionId"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/setupStepKind"
+        },
+        "attempt": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 128
+        },
+        "checkpoint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128,
+          "pattern": "^[a-z0-9]+(?:[-:.][a-z0-9]+)*$"
+        },
+        "interactionId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128,
+          "pattern": "^[a-z0-9]+(?:[-:.][a-z0-9]+)*$"
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request",
+        "attempts",
+        "setupSteps",
+        "observationCheckpoint"
+      ],
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/request"
+        },
+        "attempts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/attempt"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "setupSteps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/setupStep"
+          },
+          "minItems": 1,
+          "maxItems": 128
+        },
+        "observationCheckpoint": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:[-:.][a-z0-9]+)*$"
+        }
+      }
+    },
+    "interaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "sourceCheckpoint",
+        "target",
+        "expectedFocus",
+        "expectedAnnouncementCount",
+        "expectedFooterStatus",
+        "lifetimeEffect"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(?:[-:.][a-z0-9]+)*$"
+        },
+        "kind": {
+          "$ref": "#/$defs/interactionKind"
+        },
+        "sourceCheckpoint": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "expectedFocus": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "expectedAnnouncementCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "expectedFooterStatus": {
+          "$ref": "#/$defs/footerStatus"
+        },
+        "lifetimeEffect": {
+          "$ref": "#/$defs/interactionLifetimeEffect"
+        }
+      }
+    },
+    "figma": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "geometryProfile"
+      ],
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/expectedFigmaState"
+        },
+        "geometryProfile": {
+          "$ref": "#/$defs/geometryProfile"
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible",
+        "kind",
+        "tone",
+        "badge",
+        "title",
+        "supportingText"
+      ],
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "kind": {
+          "$ref": "#/$defs/outcomeKind"
+        },
+        "tone": {
+          "$ref": "#/$defs/outcomeTone"
+        },
+        "badge": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/copy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/copy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "supportingText": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/copy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "metadataField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "value"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "label": {
+          "$ref": "#/$defs/copy"
+        },
+        "value": {
+          "$ref": "#/$defs/copy"
+        }
+      }
+    },
+    "checkRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "text": {
+          "$ref": "#/$defs/copy"
+        },
+        "status": {
+          "$ref": "#/$defs/rowStatus"
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible",
+        "mode",
+        "badge",
+        "displayName",
+        "displayFileName",
+        "metadata",
+        "checks",
+        "disclosureExpanded"
+      ],
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "mode": {
+          "$ref": "#/$defs/modelMode"
+        },
+        "badge": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/modelBadge"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "displayName": {
+          "$ref": "#/$defs/copy"
+        },
+        "displayFileName": {
+          "$ref": "#/$defs/copy"
+        },
+        "metadata": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/metadataField"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/checkRow"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "disclosureExpanded": {
+          "type": "boolean"
+        }
+      }
+    },
+    "contentRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "primaryText",
+        "secondaryText",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "primaryText": {
+          "$ref": "#/$defs/copy"
+        },
+        "secondaryText": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/copy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/rowStatus"
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible",
+        "mode",
+        "heading",
+        "rows",
+        "disclosureExpanded"
+      ],
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "mode": {
+          "$ref": "#/$defs/contentMode"
+        },
+        "heading": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/copy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contentRow"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "disclosureExpanded": {
+          "type": "boolean"
+        },
+        "startupStatus": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/copy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "startupVisible": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "startupActive": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "visible",
+        "enabled",
+        "helpText"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "label": {
+          "$ref": "#/$defs/copy"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "helpText": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/copy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visible",
+        "mode",
+        "items"
+      ],
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "mode": {
+          "$ref": "#/$defs/actionMode"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        }
+      }
+    },
+    "footer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/footerStatus"
+        }
+      }
+    },
+    "focus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target"
+      ],
+      "properties": {
+        "target": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        }
+      }
+    },
+    "automationControl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "accessibleName",
+        "controlType",
+        "liveSetting",
+        "helpText"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "accessibleName": {
+          "$ref": "#/$defs/copy"
+        },
+        "controlType": {
+          "$ref": "#/$defs/controlType"
+        },
+        "liveSetting": {
+          "$ref": "#/$defs/liveSetting"
+        },
+        "helpText": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/copy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "automation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "controls"
+      ],
+      "properties": {
+        "controls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/automationControl"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        }
+      }
+    },
+    "announcements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "items"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/copy"
+          },
+          "minItems": 0,
+          "maxItems": 128
+        }
+      }
+    },
+    "rowsAndScroll": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "orderedRowIds",
+        "scrollOwner"
+      ],
+      "properties": {
+        "orderedRowIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "scrollOwner": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        }
+      }
+    },
+    "retainedIdentities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ids"
+      ],
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        }
+      }
+    },
+    "expectedScreen": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "figma",
+        "outcome",
+        "model",
+        "content",
+        "actions",
+        "footer",
+        "focus",
+        "automation",
+        "announcements",
+        "rowsAndScroll",
+        "retainedIdentities"
+      ],
+      "properties": {
+        "figma": {
+          "$ref": "#/$defs/figma"
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "content": {
+          "$ref": "#/$defs/content"
+        },
+        "actions": {
+          "$ref": "#/$defs/actions"
+        },
+        "footer": {
+          "$ref": "#/$defs/footer"
+        },
+        "focus": {
+          "$ref": "#/$defs/focus"
+        },
+        "automation": {
+          "$ref": "#/$defs/automation"
+        },
+        "announcements": {
+          "$ref": "#/$defs/announcements"
+        },
+        "rowsAndScroll": {
+          "$ref": "#/$defs/rowsAndScroll"
+        },
+        "retainedIdentities": {
+          "$ref": "#/$defs/retainedIdentities"
+        }
+      }
+    },
+    "textRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "behavior"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "behavior": {
+          "$ref": "#/$defs/textBehavior"
+        }
+      }
+    },
+    "presetExpectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "responsiveLayout",
+        "minimumContentColumnWidth",
+        "maximumContentColumnWidth",
+        "noClipping",
+        "noOverlap",
+        "allRequiredContentReachable",
+        "textRoles",
+        "scrollOwner",
+        "minimumPointerTargetWidth",
+        "minimumPointerTargetHeight",
+        "logicalReadingOrder",
+        "tabOrder",
+        "focusTarget",
+        "resources",
+        "textScale",
+        "motion",
+        "semanticBrushesResolvedWithoutColorOnlyMeaning",
+        "finalGeometryAndSemanticsEquivalentToNormalMotion",
+        "minimumAnimationStarts",
+        "maximumAnimationStarts"
+      ],
+      "properties": {
+        "responsiveLayout": {
+          "$ref": "#/$defs/responsiveLayout"
+        },
+        "minimumContentColumnWidth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "maximumContentColumnWidth": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "noClipping": {
+          "type": "boolean"
+        },
+        "noOverlap": {
+          "type": "boolean"
+        },
+        "allRequiredContentReachable": {
+          "type": "boolean"
+        },
+        "textRoles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/textRole"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "scrollOwner": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "minimumPointerTargetWidth": {
+          "type": "number",
+          "minimum": 44,
+          "maximum": 4096
+        },
+        "minimumPointerTargetHeight": {
+          "type": "number",
+          "minimum": 44,
+          "maximum": 4096
+        },
+        "logicalReadingOrder": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "tabOrder": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "focusTarget": {
+          "type": "string",
+          "maxLength": 128,
+          "minLength": 1
+        },
+        "resources": {
+          "$ref": "#/$defs/resourceProfile"
+        },
+        "textScale": {
+          "$ref": "#/$defs/textProfile"
+        },
+        "motion": {
+          "$ref": "#/$defs/motionProfile"
+        },
+        "semanticBrushesResolvedWithoutColorOnlyMeaning": {
+          "type": "boolean"
+        },
+        "finalGeometryAndSemanticsEquivalentToNormalMotion": {
+          "type": "boolean"
+        },
+        "minimumAnimationStarts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "maximumAnimationStarts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        }
+      }
+    }
+  }
+}

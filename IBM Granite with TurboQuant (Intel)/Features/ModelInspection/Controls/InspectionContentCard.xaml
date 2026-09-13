@@ -1,0 +1,737 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="GraniteEdgeAI.Features.ModelInspection.Controls.InspectionContentCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:GraniteEdgeAI.Features.ModelInspection.Controls"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:GraniteEdgeAI.Features.ModelInspection.Models"
+    x:Name="Root"
+    d:DesignHeight="430"
+    d:DesignWidth="840"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style x:Key="ContentHeadingStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource InspectionSectionTitleFontFamily}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionSectionTitleFontSize}" />
+            <Setter Property="FontWeight" Value="{StaticResource InspectionSectionTitleFontWeight}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="TextAlignment" Value="Left" />
+            <Setter Property="TextWrapping" Value="WrapWholeWords" />
+        </Style>
+        <Style x:Key="ContentPrimaryTextStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionBodyFontSize}" />
+            <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="TextAlignment" Value="Left" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="ContentSecondaryTextStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource InspectionHelperFontFamily}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextMutedBrush}" />
+            <Setter Property="TextAlignment" Value="Left" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="ContentTextButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="HorizontalContentAlignment" Value="Right" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{ThemeResource InspectionTextPrimaryBrush}" />
+            <Setter Property="FontFamily" Value="{StaticResource InspectionStrongBodyFontFamily}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionHelperFontSize}" />
+            <Setter Property="FontWeight" Value="{StaticResource InspectionStrongBodyFontWeight}" />
+        </Style>
+        <Style x:Key="ContentStatusTextStyle" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontFamily" Value="{StaticResource InspectionLabelFontFamily}" />
+            <Setter Property="FontSize" Value="{ThemeResource InspectionLabelFontSize}" />
+            <Setter Property="FontWeight" Value="{StaticResource InspectionLabelFontWeight}" />
+            <Setter Property="TextAlignment" Value="Right" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <DataTemplate x:Key="StatusMarkerTemplate" x:DataType="models:InspectionContentItemPresentation">
+            <Viewbox Width="20" Height="20" Stretch="Uniform" StretchDirection="DownOnly">
+                <local:InspectionStatusGlyph
+                    Kind="{x:Bind local:InspectionContentCard.GetStatusGlyphKind(Status)}"
+                    SurfaceSize="22"
+                    Visibility="{x:Bind local:InspectionContentCard.GetStatusGlyphVisibility(Status)}" />
+            </Viewbox>
+        </DataTemplate>
+
+        <DataTemplate x:Key="FindingRowTemplate" x:DataType="models:InspectionContentItemPresentation">
+            <Border
+                Tag="InspectionFindingRow"
+                MinHeight="48"
+                Padding="12,8"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.AutomationControlType="ListItem"
+                AutomationProperties.HelpText="{x:Bind AutomationHelpText}"
+                AutomationProperties.Name="{x:Bind Title}"
+                BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                BorderThickness="0,0,0,1">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter
+                        VerticalAlignment="Center"
+                        AutomationProperties.AccessibilityView="Raw"
+                        Content="{x:Bind}"
+                        ContentTemplate="{StaticResource StatusMarkerTemplate}" />
+                    <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center" Spacing="3">
+                        <TextBlock
+                            AutomationProperties.AccessibilityView="Raw"
+                            Style="{StaticResource ContentPrimaryTextStyle}"
+                            Text="{x:Bind Title}" />
+                        <TextBlock
+                            AutomationProperties.AccessibilityView="Raw"
+                            Style="{StaticResource ContentSecondaryTextStyle}"
+                            Text="{x:Bind Detail}"
+                            Visibility="{x:Bind DetailVisibility}" />
+                    </StackPanel>
+                    <Border
+                        Grid.Column="2"
+                        MinWidth="0"
+                        MinHeight="0"
+                        MaxWidth="148"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AccessibilityView="Raw"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        CornerRadius="0">
+                        <Grid AutomationProperties.AccessibilityView="Raw">
+                            <TextBlock Foreground="{ThemeResource InspectionSuccessTextBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetPassedVisibility(Status)}" />
+                            <TextBlock Foreground="{ThemeResource InspectionWarningTextBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetWarningVisibility(Status)}" />
+                            <TextBlock Foreground="{ThemeResource InspectionErrorTextBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetErrorVisibility(Status)}" />
+                            <TextBlock Foreground="{ThemeResource InspectionPrimaryBlueBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetInformationVisibility(Status)}" />
+                            <TextBlock Foreground="{ThemeResource InspectionPrimaryBlueBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status)}" />
+                            <TextBlock Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetWaitingVisibility(Status)}" />
+                            <TextBlock Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetNeutralVisibility(Status)}" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ReportRowTemplate" x:DataType="models:InspectionContentItemPresentation">
+            <Border
+                Tag="InspectionReportRow"
+                MinHeight="48"
+                Padding="12,8"
+                AutomationProperties.AccessibilityView="Raw"
+                BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                BorderThickness="0,0,0,1">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter
+                        VerticalAlignment="Center"
+                        AutomationProperties.AccessibilityView="Raw"
+                        Content="{x:Bind}"
+                        ContentTemplate="{StaticResource StatusMarkerTemplate}" />
+                    <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center" Spacing="3">
+                        <TextBlock
+                            AutomationProperties.AccessibilityView="Content"
+                            AutomationProperties.Name="{x:Bind AutomationName}"
+                            Style="{StaticResource ContentPrimaryTextStyle}"
+                            Text="{x:Bind Title}" />
+                        <TextBlock
+                            AutomationProperties.AccessibilityView="Raw"
+                            Style="{StaticResource ContentSecondaryTextStyle}"
+                            Text="{x:Bind Detail}"
+                            Visibility="{x:Bind DetailVisibility}" />
+                    </StackPanel>
+                    <Grid Grid.Column="2" Margin="12,0,4,0" AutomationProperties.AccessibilityView="Raw">
+                        <TextBlock Foreground="{ThemeResource InspectionSuccessTextBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetPassedVisibility(Status)}" />
+                        <TextBlock Foreground="{ThemeResource InspectionWarningTextBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetWarningVisibility(Status)}" />
+                        <TextBlock Foreground="{ThemeResource InspectionErrorTextBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetErrorVisibility(Status)}" />
+                        <TextBlock Foreground="{ThemeResource InspectionPrimaryBlueBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetInformationVisibility(Status)}" />
+                        <TextBlock Foreground="{ThemeResource InspectionPrimaryBlueBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status)}" />
+                        <TextBlock Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetWaitingVisibility(Status)}" />
+                        <TextBlock Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText}" Visibility="{x:Bind local:InspectionContentCard.GetNeutralVisibility(Status)}" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ProgressStageTemplate" x:DataType="models:InspectionContentItemPresentation">
+            <Grid
+                x:Name="ProgressRow"
+                Tag="InspectionProgressRow"
+                MinHeight="48"
+                Padding="8,8"
+                ColumnSpacing="12"
+                HorizontalAlignment="Stretch"
+                IsTabStop="False"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.AutomationControlType="ListItem"
+                AutomationProperties.HelpText="{x:Bind AutomationHelpText, Mode=OneWay}"
+                AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="36" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <UserControl
+                    x:Name="ProgressRowResponsiveControl"
+                    Grid.ColumnSpan="3"
+                    Grid.RowSpan="2"
+                    HorizontalContentAlignment="Stretch"
+                    AutomationProperties.AccessibilityView="Raw"
+                    IsHitTestVisible="False"
+                    IsTabStop="False">
+                    <Grid x:Name="ProgressRowResponsiveHost">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="ProgressRowWidthStates">
+                            <VisualState x:Name="InlineProgressRowState">
+                                <VisualState.StateTriggers>
+                                    <AdaptiveTrigger MinWindowWidth="888" />
+                                </VisualState.StateTriggers>
+                            </VisualState>
+                            <VisualState x:Name="StackedProgressRowState">
+                                <VisualState.StateTriggers>
+                                    <AdaptiveTrigger MinWindowWidth="0" />
+                                </VisualState.StateTriggers>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                    </Grid>
+                </UserControl>
+                <Border
+                    Grid.ColumnSpan="4"
+                    Grid.RowSpan="2"
+                    Tag="InspectionProgressActiveSurface"
+                    Width="0"
+                    Height="0"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Background="{ThemeResource InspectionBlueSurfaceBrush}"
+                    CornerRadius="8"
+                    IsHitTestVisible="False"
+                    Opacity="0"
+                    Visibility="{x:Bind local:InspectionContentCard.GetActiveSurfaceVisibility(IsActive), Mode=OneWay}" />
+                <Rectangle
+                    Grid.Column="0"
+                    Width="0"
+                    Height="0"
+                    Margin="0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Fill="{ThemeResource InspectionBorderLightBrush}"
+                    IsHitTestVisible="False"
+                    Opacity="0"
+                    Tag="InspectionProgressConnectorEnd"
+                    Visibility="{x:Bind local:InspectionContentCard.GetIncomingConnectorVisibility(StageNumber)}" />
+                <Rectangle
+                    Grid.Column="0"
+                    Width="0"
+                    Height="0"
+                    Margin="0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Stretch"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Fill="{ThemeResource InspectionBorderLightBrush}"
+                    IsHitTestVisible="False"
+                    Opacity="0"
+                    Tag="InspectionProgressConnectorStart"
+                    Visibility="{x:Bind local:InspectionContentCard.GetConnectorVisibility(ShowConnector)}" />
+                <Viewbox
+                    x:Name="ProgressGlyphHost"
+                    Grid.Column="0"
+                    Width="32"
+                    Height="32"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Stretch="Uniform"
+                    StretchDirection="DownOnly">
+                    <local:InspectionStatusGlyph
+                        x:Name="ProgressStatusMotionTarget"
+                        Kind="{x:Bind local:InspectionContentCard.GetStatusGlyphKind(Status), Mode=OneWay}"
+                        StageNumber="{x:Bind StageNumber, Mode=OneWay}"
+                        SurfaceSize="40"
+                        Visibility="{x:Bind local:InspectionContentCard.GetStatusGlyphVisibility(Status), Mode=OneWay}" />
+                </Viewbox>
+                <StackPanel
+                    x:Name="ProgressCopyPanel"
+                    Grid.Column="1"
+                    MinWidth="0"
+                    VerticalAlignment="Center"
+                    Spacing="2">
+                    <TextBlock Style="{StaticResource ContentPrimaryTextStyle}" Text="{x:Bind Title}" />
+                    <TextBlock
+                        x:Name="ProgressDetailMotionTarget"
+                        Style="{StaticResource ContentSecondaryTextStyle}"
+                        Text="{x:Bind Detail, Mode=OneWay}"
+                        Visibility="{x:Bind DetailVisibility, Mode=OneWay}" />
+                </StackPanel>
+                <Grid
+                    x:Name="ProgressStatusOwner"
+                    Grid.Column="2"
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="0" />
+                        <ColumnDefinition Width="0" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="2" Foreground="{ThemeResource InspectionPrimaryBlueBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText, Mode=OneWay}" TextWrapping="NoWrap" Visibility="{x:Bind local:InspectionContentCard.GetActiveVisibility(Status), Mode=OneWay}" />
+                    <TextBlock Grid.Column="2" Foreground="{ThemeResource InspectionSuccessTextBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText, Mode=OneWay}" TextWrapping="NoWrap" Visibility="{x:Bind local:InspectionContentCard.GetPassedVisibility(Status), Mode=OneWay}" />
+                    <TextBlock Grid.Column="2" Foreground="{ThemeResource InspectionWarningTextBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText, Mode=OneWay}" TextWrapping="NoWrap" Visibility="{x:Bind local:InspectionContentCard.GetWarningVisibility(Status), Mode=OneWay}" />
+                    <TextBlock Grid.Column="2" Foreground="{ThemeResource InspectionErrorTextBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText, Mode=OneWay}" TextWrapping="NoWrap" Visibility="{x:Bind local:InspectionContentCard.GetErrorVisibility(Status), Mode=OneWay}" />
+                    <TextBlock Grid.Column="2" Foreground="{ThemeResource InspectionPrimaryBlueBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText, Mode=OneWay}" TextWrapping="NoWrap" Visibility="{x:Bind local:InspectionContentCard.GetInformationVisibility(Status), Mode=OneWay}" />
+                    <TextBlock Grid.Column="2" Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText, Mode=OneWay}" TextWrapping="NoWrap" Visibility="{x:Bind local:InspectionContentCard.GetWaitingVisibility(Status), Mode=OneWay}" />
+                    <TextBlock Grid.Column="2" Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}" Style="{StaticResource ContentStatusTextStyle}" Text="{x:Bind StatusText, Mode=OneWay}" TextWrapping="NoWrap" Visibility="{x:Bind local:InspectionContentCard.GetNeutralVisibility(Status), Mode=OneWay}" />
+                </Grid>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid
+        x:Name="LayoutRoot"
+        MaxWidth="{StaticResource InspectionContentColumnWidth}"
+        HorizontalAlignment="Stretch"
+        SizeChanged="LayoutRoot_SizeChanged"
+        Visibility="{x:Bind CardVisibility, Mode=OneWay}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Border
+            x:Name="ContentCardShell"
+            Grid.Row="0"
+            HorizontalAlignment="Stretch"
+            Background="Transparent"
+            BorderThickness="0"
+            CornerRadius="0">
+            <Grid>
+                <Grid
+                    x:Name="ProgressView"
+                    MinHeight="336"
+                    Padding="24,16,24,8"
+                    Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid x:Name="ProgressHeadingRow" ColumnSpacing="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="3">
+                            <TextBlock
+                                x:Name="ProgressCurrentStageTitle"
+                                FontSize="20"
+                                FontWeight="SemiBold"
+                                Foreground="{ThemeResource InspectionTextPrimaryBrush}"
+                                Text="Validate model structure"
+                                TextWrapping="WrapWholeWords" />
+                            <TextBlock
+                                x:Name="ProgressCurrentStageDetail"
+                                Style="{StaticResource ContentSecondaryTextStyle}"
+                                Text="Validating the model structure." />
+                        </StackPanel>
+                        <Border
+                            x:Name="ProgressCompletedCountChip"
+                            Grid.Column="1"
+                            MinHeight="0"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            AutomationProperties.AccessibilityView="Raw"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            CornerRadius="0">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                AutomationProperties.AccessibilityView="Content"
+                                AutomationProperties.Name="{x:Bind Presentation.ProgressRows.ProgressSummary, Mode=OneWay}"
+                                FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
+                                FontSize="{ThemeResource InspectionHelperFontSize}"
+                                FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
+                                Foreground="{ThemeResource InspectionTextSecondaryMutedBrush}"
+                                Text="{x:Bind Presentation.ProgressRows.ProgressSummary, Mode=OneWay}"
+                                TextWrapping="NoWrap" />
+                        </Border>
+                    </Grid>
+                    <Border
+                        Grid.Row="1"
+                        Height="{StaticResource InspectionProgressHeadingGap}"
+                        AutomationProperties.AccessibilityView="Raw"
+                        IsHitTestVisible="False" />
+                    <Grid
+                        x:Name="StartupStatusRow"
+                        Grid.Row="2"
+                        ColumnSpacing="10"
+                        AutomationProperties.AccessibilityView="Content"
+                        AutomationProperties.Name="{x:Bind Presentation.Startup.AutomationName, Mode=OneWay}"
+                        Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="32" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Viewbox
+                            Width="20"
+                            Height="20"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Stretch="Uniform"
+                            StretchDirection="DownOnly">
+                            <local:InspectionStatusGlyph
+                                x:Name="StartupActiveIndicatorHost"
+                                Kind="Active"
+                                SurfaceSize="22" />
+                        </Viewbox>
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            AutomationProperties.AccessibilityView="Raw"
+                            Style="{StaticResource ContentPrimaryTextStyle}"
+                            Text="{x:Bind Presentation.Startup.Summary, Mode=OneWay}" />
+                    </Grid>
+                    <Border
+                        Grid.Row="3"
+                        Height="{StaticResource InspectionProgressHeadingGap}"
+                        AutomationProperties.AccessibilityView="Raw"
+                        IsHitTestVisible="False"
+                        Visibility="Collapsed" />
+                    <Border
+                        x:Name="ProgressRowsSurface"
+                        Grid.Row="4"
+                        MinHeight="240"
+                        Margin="0,8,0,0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        CornerRadius="0">
+                        <ItemsRepeater
+                            x:Name="ProgressItemsRepeater"
+                            Margin="0"
+                            AutomationProperties.AccessibilityView="Content"
+                            AutomationProperties.AutomationControlType="List"
+                            AutomationProperties.LiveSetting="Polite"
+                            AutomationProperties.Name="{x:Bind Presentation.SectionTitle, Mode=OneWay}"
+                            ElementClearing="ProgressItemsRepeater_ElementClearing"
+                            ElementPrepared="ProgressItemsRepeater_ElementPrepared"
+                            ItemTemplate="{StaticResource ProgressStageTemplate}"
+                            ItemsSource="{x:Bind Presentation.ProgressRows.Items, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <local:EqualHeightStackLayout />
+                            </ItemsRepeater.Layout>
+                        </ItemsRepeater>
+                    </Border>
+                </Grid>
+
+                <Grid x:Name="FindingsView" Padding="{StaticResource InspectionTerminalViewPadding}" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock
+                        x:Name="FindingsSectionTitle"
+                        Margin="{StaticResource InspectionTerminalTitleMargin}"
+                        Style="{StaticResource ContentHeadingStyle}"
+                        Text="{x:Bind Presentation.SectionTitle, Mode=OneWay}" />
+                    <Border
+                        x:Name="FindingsRowsSurface"
+                        Grid.Row="1"
+                        Margin="{StaticResource InspectionTerminalRowsMargin}"
+                        Background="{ThemeResource InspectionSurfaceSubtleBrush}"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10">
+                        <ItemsControl
+                            x:Name="FindingsItemsRepeater"
+                            AutomationProperties.AccessibilityView="Content"
+                            AutomationProperties.AutomationControlType="List"
+                            AutomationProperties.LiveSetting="Polite"
+                            AutomationProperties.Name="{x:Bind Presentation.SectionTitle, Mode=OneWay}"
+                            IsTabStop="False"
+                            ItemTemplate="{StaticResource FindingRowTemplate}"
+                            ItemsSource="{x:Bind Presentation.Items, Mode=OneWay}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Vertical" Spacing="0" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </Border>
+                    <TextBlock
+                        x:Name="SupportingText"
+                        Grid.Row="2"
+                        Margin="{StaticResource InspectionTerminalElementMargin}"
+                        Style="{StaticResource ContentSecondaryTextStyle}"
+                        Text="{x:Bind Presentation.SupportingText, Mode=OneWay}"
+                        Visibility="{x:Bind Presentation.SupportingTextVisibility, Mode=OneWay}" />
+                    <TextBlock
+                        x:Name="TertiaryText"
+                        Grid.Row="3"
+                        Margin="{StaticResource InspectionTerminalElementMargin}"
+                        FontFamily="{StaticResource InspectionStrongBodyFontFamily}"
+                        FontSize="{ThemeResource InspectionHelperFontSize}"
+                        FontWeight="{StaticResource InspectionStrongBodyFontWeight}"
+                        Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
+                        Text="{x:Bind Presentation.TertiaryText, Mode=OneWay}"
+                        TextAlignment="Left"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind Presentation.TertiaryTextVisibility, Mode=OneWay}" />
+                    <Border
+                        x:Name="DiagnosticCodeBorder"
+                        Grid.Row="4"
+                        Margin="{StaticResource InspectionTerminalDiagnosticMargin}"
+                        Padding="12,4"
+                        Background="{ThemeResource InspectionSurfaceMutedBrush}"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Visibility="{x:Bind Presentation.DiagnosticCodeVisibility, Mode=OneWay}">
+                        <TextBlock
+                            FontFamily="Cascadia Mono"
+                            FontSize="{ThemeResource InspectionHelperFontSize}"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource InspectionTextSecondaryStrongBrush}"
+                            Text="{x:Bind Presentation.DiagnosticCode, Mode=OneWay}"
+                            TextAlignment="Left"
+                            TextWrapping="Wrap" />
+                    </Border>
+
+                    <Grid
+                        x:Name="TechnicalDetailsHost"
+                        Grid.Row="5"
+                        MinHeight="58"
+                        BorderBrush="{ThemeResource InspectionBorderLightBrush}"
+                        BorderThickness="0,1,0,0"
+                        Visibility="{x:Bind Presentation.TechnicalDetailsVisibility, Mode=OneWay}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            x:Name="TechnicalDetailsFutureHelpText"
+                            Margin="24,0,12,0"
+                            VerticalAlignment="Center"
+                            AutomationProperties.HelpText="{x:Bind Presentation.TechnicalDetailsAutomationHelpText, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind local:InspectionContentCard.GetTechnicalHelpAutomationName(Presentation), Mode=OneWay}"
+                            Style="{StaticResource ContentSecondaryTextStyle}"
+                            Text="{x:Bind Presentation.TechnicalDetailsAutomationHelpText, Mode=OneWay}"
+                            Visibility="{x:Bind local:InspectionContentCard.GetTechnicalHelpVisibility(Presentation), Mode=OneWay}" />
+                        <Button
+                            x:Name="TechnicalDetailsButton"
+                            Grid.Column="1"
+                            Margin="12,7,24,7"
+                            AutomationProperties.HelpText="{x:Bind Presentation.TechnicalDetailsAutomationHelpText, Mode=OneWay}"
+                            AutomationProperties.Name="{x:Bind Presentation.TechnicalDetailsAutomationName, Mode=OneWay}"
+                            Command="{x:Bind Presentation.OpenTechnicalDetailsCommand, Mode=OneWay}"
+                            IsEnabled="{x:Bind Presentation.IsTechnicalDetailsEnabled, Mode=OneWay}"
+                            Style="{StaticResource ContentTextButtonStyle}"
+                            ToolTipService.ToolTip="{x:Bind Presentation.TechnicalDetailsAutomationHelpText, Mode=OneWay}"
+                            UseSystemFocusVisuals="True">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <TextBlock Text="{x:Bind Presentation.TechnicalDetailsActionText, Mode=OneWay}" />
+                                <SymbolIcon Width="11" Height="11" Symbol="Forward" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <local:InspectionDisclosure
+            x:Name="FindingsDisclosure"
+            Grid.Row="1"
+            Margin="0,12,0,0"
+            AutomationProperties.Name="{x:Bind Presentation.DisclosureAutomationName, Mode=OneWay}"
+            HeaderMinHeight="68"
+            Visibility="{x:Bind Presentation.DisclosureVisibility, Mode=OneWay}">
+            <local:InspectionDisclosure.HeaderContent>
+                <Grid
+                    x:Name="DisclosureHeaderLayout"
+                    Padding="23,0,23,0"
+                    ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Viewbox
+                        x:Name="DisclosureInformationGlyphHost"
+                        Width="20"
+                        Height="20"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Stretch="Uniform"
+                        StretchDirection="DownOnly">
+                        <local:InspectionStatusGlyph
+                            x:Name="DisclosureInformationGlyph"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Kind="{x:Bind local:InspectionContentCard.GetStatusGlyphKind(Presentation.DisclosureStatus), Mode=OneWay}"
+                            SurfaceSize="22"
+                            Visibility="{x:Bind local:InspectionContentCard.GetStatusGlyphVisibility(Presentation.DisclosureStatus), Mode=OneWay}" />
+                    </Viewbox>
+                    <TextBlock
+                        x:Name="DisclosureTitleText"
+                        Grid.Column="1"
+                        MinWidth="0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource ContentPrimaryTextStyle}"
+                        Text="{x:Bind Presentation.DisclosureSummary, Mode=OneWay}" />
+                    <Grid
+                        x:Name="DisclosureActionText"
+                        Grid.Column="2"
+                        Margin="12,0,0,0"
+                        MinWidth="0"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                            x:Name="FindingsDisclosureActionText"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource ContentPrimaryTextStyle}"
+                            Text="{x:Bind local:InspectionContentCard.GetDisclosureText(Presentation.CollapsedDisclosureText, Presentation.ExpandedDisclosureText, Presentation.IsExpanded), Mode=OneWay}" />
+                    </Grid>
+                </Grid>
+            </local:InspectionDisclosure.HeaderContent>
+            <local:InspectionDisclosure.ViewportContent>
+                <Border
+                    x:Name="ExpandedReportViewport"
+                    Height="148"
+                    Margin="24,0,24,24"
+                    Padding="18,8,10,8"
+                    Background="{ThemeResource InspectionSurfaceSubtleBrush}"
+                    BorderBrush="{ThemeResource InspectionBorderMutedBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <ScrollViewer
+                            x:Name="ExpandedReportScrollViewer"
+                            MaxHeight="172"
+                            AutomationProperties.HelpText="Use the arrow and Page Up or Page Down keys to review all inspection details."
+                            AutomationProperties.Name="{x:Bind Presentation.DisclosureSummary, Mode=OneWay}"
+                            HorizontalScrollBarVisibility="Disabled"
+                            HorizontalScrollMode="Disabled"
+                            IsTabStop="True"
+                            UseSystemFocusVisuals="True"
+                            VerticalScrollBarVisibility="Auto"
+                            VerticalScrollMode="Enabled"
+                            ZoomMode="Disabled">
+                            <ItemsControl
+                                x:Name="ExpandedReportItemsControl"
+                                IsTabStop="False"
+                                ItemTemplate="{StaticResource ReportRowTemplate}"
+                                ItemsSource="{x:Bind ExpandedItems, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <local:EqualHeightStackPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <Grid
+                            x:Name="ExpandedReportBottomFade"
+                            Grid.Row="0"
+                            Height="24"
+                            VerticalAlignment="Bottom"
+                            AutomationProperties.AccessibilityView="Raw"
+                            IsHitTestVisible="False">
+                            <Border Height="8" VerticalAlignment="Top" Background="{ThemeResource InspectionSurfaceSubtleBrush}" />
+                            <Border Height="8" VerticalAlignment="Center" Background="{ThemeResource InspectionBorderMutedBrush}" />
+                            <Border Height="8" VerticalAlignment="Bottom" Background="{ThemeResource InspectionTextMutedBrush}" />
+                        </Grid>
+                        <TextBlock
+                            x:Name="ExpandedReportScrollAffordance"
+                            Grid.Row="1"
+                            HorizontalAlignment="Right"
+                            FontFamily="{StaticResource InspectionLabelFontFamily}"
+                            FontSize="{ThemeResource InspectionLabelFontSize}"
+                            FontWeight="{StaticResource InspectionLabelFontWeight}"
+                            Foreground="{ThemeResource InspectionTextMutedBrush}"
+                            AutomationProperties.AccessibilityView="Raw"
+                            Text="Scroll for more" />
+                    </Grid>
+                </Border>
+            </local:InspectionDisclosure.ViewportContent>
+        </local:InspectionDisclosure>
+
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ContentModeStates">
+                <VisualState x:Name="ProgressState">
+                    <VisualState.Setters>
+                        <Setter Target="ProgressView.Visibility" Value="Visible" />
+                        <Setter Target="FindingsView.Visibility" Value="Collapsed" />
+                        <Setter Target="FindingsDisclosure.Visibility" Value="Collapsed" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="FindingsState">
+                    <VisualState.Setters>
+                        <Setter Target="ProgressView.Visibility" Value="Collapsed" />
+                        <Setter Target="FindingsView.Visibility" Value="Visible" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <VisualStateGroup x:Name="ResponsiveContentStates">
+                <VisualState x:Name="WideContentState" />
+                <VisualState x:Name="MediumContentState" />
+                <VisualState x:Name="NarrowContentState">
+                    <VisualState.Setters>
+                        <Setter Target="ProgressView.Padding" Value="{StaticResource InspectionCardPadding}" />
+                        <Setter Target="ProgressCompletedCountChip.(Grid.Row)" Value="1" />
+                        <Setter Target="ProgressCompletedCountChip.(Grid.Column)" Value="0" />
+                        <Setter Target="ProgressCompletedCountChip.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="ProgressCompletedCountChip.Margin" Value="0,12,0,0" />
+                        <Setter Target="ProgressCompletedCountChip.HorizontalAlignment" Value="Left" />
+                        <Setter Target="FindingsSectionTitle.Margin" Value="{StaticResource InspectionTerminalTitleMargin}" />
+                        <Setter Target="FindingsRowsSurface.Margin" Value="{StaticResource InspectionTerminalRowsMargin}" />
+                        <Setter Target="SupportingText.Margin" Value="{StaticResource InspectionTerminalElementMargin}" />
+                        <Setter Target="TertiaryText.Margin" Value="{StaticResource InspectionTerminalElementMargin}" />
+                        <Setter Target="DiagnosticCodeBorder.Margin" Value="{StaticResource InspectionTerminalDiagnosticMargin}" />
+                        <Setter Target="ExpandedReportViewport.Margin" Value="24,0,24,24" />
+                        <Setter Target="FindingsDisclosureActionText.MaxWidth" Value="112" />
+                        <Setter Target="TechnicalDetailsFutureHelpText.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="TechnicalDetailsFutureHelpText.Margin" Value="24,12,24,0" />
+                        <Setter Target="TechnicalDetailsFutureHelpText.VerticalAlignment" Value="Top" />
+                        <Setter Target="TechnicalDetailsButton.(Grid.Row)" Value="1" />
+                        <Setter Target="TechnicalDetailsButton.(Grid.Column)" Value="0" />
+                        <Setter Target="TechnicalDetailsButton.(Grid.ColumnSpan)" Value="2" />
+                        <Setter Target="TechnicalDetailsButton.Margin" Value="24,8,24,12" />
+                        <Setter Target="TechnicalDetailsButton.HorizontalAlignment" Value="Left" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+    </Grid>
+</UserControl>

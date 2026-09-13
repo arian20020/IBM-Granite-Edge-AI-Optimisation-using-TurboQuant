@@ -1,0 +1,9 @@
+{
+  "add_bos_token": true,
+  "add_eos_token": false,
+  "bos_token": "<|bos|>",
+  "eos_token": "<|eos|>",
+  "model_max_length": 64,
+  "pad_token": "<|pad|>",
+  "tokenizer_class": "PreTrainedTokenizerFast"
+}

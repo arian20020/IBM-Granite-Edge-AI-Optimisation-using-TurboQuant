@@ -1,0 +1,188 @@
+# Model Inspection controls
+
+**Status:** Four stable card controls and reusable disclosures implement the ordinary 13-state presentation
+**Last reviewed:** 2026-08-16
+
+[Back to Model Inspection architecture](../README.md)
+
+## Purpose
+
+This folder owns the reusable WinUI controls that render Model Inspection
+presentation regions. Controls do not run inspection or interpret runtime
+evidence.
+
+```text
+ModelInspectionPage
+    -> InspectionModelCard
+    -> InspectionContentCard
+    -> InspectionOutcomeCard
+    -> InspectionActionCard
+```
+
+Each control exposes one typed `Presentation` dependency property, installs a
+safe non-null default during construction, and derives visual state from
+semantic presentation values. The page creates each control once; the render
+coordinator reapplies only regions whose semantic key changed. The content
+control retains one `InspectionProgressRows` owner and the same five row
+instances during an attempt.
+
+## `InspectionModelCard`
+
+Renders the selected filename and safe quick-scan facts in compact mode, or a
+detailed inspected-model view when supplied. It owns model-card layout, badge
+state, icon/brush selection, and card-specific accessibility labels. It never
+receives or displays the full model path.
+
+## `InspectionContentCard`
+
+Renders one of two actual structures:
+
+```text
+ProgressTemplate
+    -> progress summary
+    -> fixed five-stage tracker
+
+FindingsTemplate
+    -> findings/warnings/errors
+    -> optional supporting text
+    -> optional diagnostic code/report/action
+```
+
+`InspectionContentTemplateSelector` selects the progress template for hidden or
+progress states and the findings template for warning, conversion, incomplete,
+unsupported, invalid, cancelled, and operational-failure states. It also
+handles the normal WinUI initialization shapes where a presentation arrives
+directly, through a control/presenter, or after an initial null bootstrap.
+
+### Progress and glyph semantics
+
+`InspectionStatusGlyph` owns centred vector geometry for success, warning,
+error, information, waiting, not-complete, and active states. Active always
+uses the same Precision Orbit: a 24 px viewbox on a 30 px effective status
+surface with a 1,050 ms linear rotation. A genuine Stage 2 fraction in `0..1`
+appears only as trailing percentage text; `null` simply omits that text. It
+never switches indicator mode or restarts the orbit. Reduced motion preserves
+the same arc statically, and adjacent status text remains authoritative for
+automation.
+
+The progress card uses a deliberate 14–16 px heading-to-first-row gap, five
+48 px default-scale rows that grow under wrapping/text scale, four
+centre-to-centre connectors, and no Stage 5 tail. Shared page rhythm is 24 px
+from header to first card and 16 px between visible cards.
+
+## `InspectionOutcomeCard`
+
+Renders the mutually exclusive semantic outcome using an explicit kind, tone,
+symbol, title, message, and automation name. Hidden is a real collapsed state;
+visual tone alone is never the only communication of status.
+
+## `InspectionActionCard`
+
+Renders either the inspecting action layout or a terminal result/recovery
+layout. Buttons bind to presentation commands and command-derived enabled
+state. The page reapplies snapshots on `CanExecuteChanged`, so Cancel disables
+immediately and Retry/Choose another reflect the active ViewModel lifecycle.
+
+The current action policy is:
+
+| State | Actions |
+|---|---|
+| inspecting | Cancel |
+| completed | Choose another model plus state-specific future actions that are visible, disabled, and expose `Coming later` help |
+| cancelled or operational failure | Retry; Choose another model |
+
+No Hardware Fit, conversion, technical-report, or separate technical-details
+execution action is connected in this slice.
+
+Terminal pages use Balanced Centre geometry and natural card heights. At
+600 px and wider, one visible action is centred, two use equal centred columns,
+and three use equal columns; below 600 px the same button instances form one
+semantic vertical stack. Disabled future actions remain visible only when the
+presentation declares them and keep their `Coming later` explanation.
+
+## Disclosure and motion
+
+`InspectionDisclosure` is the single accessible disclosure primitive used by
+the Ready model details and warning/conversion/invalid content details. It
+exposes expanded/collapsed state and Enter/Space behavior, keeps the selected
+button focused, and lets the page own the requested state. Page interaction
+revisions prevent an older 240 ms disclosure completion from overwriting a
+newer toggle, outcome, attempt, or navigation state. When Windows animations
+are disabled, the same semantic result is applied immediately.
+
+## Theme and accessibility
+
+Controls use semantic theme resources with Light, Dark, and High Contrast
+variants. They expose accessible names/status text and use non-color icons and
+labels. Progress changes use one polite content-card live region; terminal
+changes use one authoritative assertive outcome-card live region. Both controls
+create automation peers, raise `LiveRegionChanged` only for changed semantic
+announcements, and reset their dedupe state when hidden so a later equal result
+is announced as a new journey.
+
+Ordinary packaged tests cover keyboard invocation, focus retention, non-color
+status, automation properties/events, 200%-equivalent layout simulation,
+High-Contrast resource selection, responsive modes, and reduced-motion policy.
+They do not prove an actual Windows 200% setting, actual High Contrast session,
+or Narrator output. Those controlled/manual campaigns remain open.
+
+## Tests
+
+Focused packaged tests include:
+
+- `InspectionContentTemplateSelectorTests`
+- `InspectionVisualStateGuardTests`
+- `InspectionActionCardTests`
+- `InspectionContentCardTests`
+- `InspectionModelCardTests`
+- `InspectionOutcomeCardTests`
+- `ModelInspectionDisclosureTests`
+- `ModelInspectionPageDisclosureTests`
+- `ModelInspectionRenderedStateTests`
+- `ModelInspectionAccessibilityTests`
+- `InspectionContentCardPresentationTests`
+- `InitialInspectionProgressPresentationTests`
+- `InspectionProgressPresentationFactoryTests`
+- `ModelInspectionPresentationFactoryTests`
+- `ModelInspectionPageNavigationTests`
+
+Historical pre-progress-polish evidence: the local hosted-equivalent candidate
+executed Action 4, Content 25, Model 9,
+Outcome 7, disclosure 5, rendered-state 21, and accessibility 9 tests. Together
+with page/disclosure coverage, they protect bootstrap selection, exact geometry
+and typography, hidden-state isolation, nullable fraction conversion, fixed
+stage semantics, all 13 mapped terminal variants, commands, automation
+peer/event counts, focus/disclosure continuity, and stable control identity.
+Strict pixel comparison and controlled OS evidence remain absent and open.
+
+### Final progress-polish evidence
+
+The final local Debug gate at
+`27934be2687418d7890b677cfcdabf22f059633d` passed its exact 322/322
+focused-polish map, including Action 4, Content 25, Model 9, Outcome 7,
+status-glyph 16, disclosure 5, page-layout 4, rendered-state 21,
+render-harness 2, and accessibility 9 executions. Its matching
+322 definitions/results and zero adverse counters are sealed by TRX SHA-256
+`B99360523E044578DCA7F5A420E60BBC33589409FCAE5D13D8362C5B563DF029`.
+The exact 50-fixture catalogue (`MI-001` through `MI-050`) also passed 220/220
+with SHA-256
+`17BC168A33C4C22D21F22042226FEBA827F9F7518243E09C1CF93D9013B1F1F9`.
+
+Hardware Inspection is not implemented by these controls. Raw test artifacts
+remain local and untracked; strict Figma-pixel, real Narrator, controlled-OS,
+and manual visual acceptance are not claimed.
+
+## Ownership boundary and non-claims
+
+Controls do not open models, launch processes, reference LLamaSharp or worker
+protocol types, classify evidence, or own navigation. Their visual states do
+not by themselves prove a live route. The connected route is limited to local
+GGUF Windows x64 CPU `VocabOnly` inspection; OpenVINO, TurboQuant, Vulkan/GPU,
+context creation, inference, benchmarking, conversion, Hardware Fit, and chat
+remain downstream.
+
+## Related documentation
+
+- [Presentation models](../Models/README.md)
+- [Presentation construction](../Presentation/README.md)
+- [Model Inspection ViewModel](../ViewModels/README.md)

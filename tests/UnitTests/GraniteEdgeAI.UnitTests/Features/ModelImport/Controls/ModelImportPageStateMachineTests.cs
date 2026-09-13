@@ -2,10 +2,12 @@ using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
+using GraniteEdgeAI.Features.ModelImport.Selection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System.Threading;
 
@@ -23,13 +25,13 @@ public sealed class ModelImportPageStateMachineTests
             () => Task.FromResult(ModelFormatSelection.Gguf),
             () => Task.FromResult<string?>(selectedPath),
             (format, path, cancellationToken) =>
-                Task.FromResult(ModelQuickScanResult.CreateCancelled()));
+                Task.FromResult(ModelQuickScanResult.CreateCancelled()),
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
-        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
         var continueButton = (Button)page.FindName(
-            "ContinueToModelInspectionButton");
+            "BtnContinueToInspection");
 
         Assert.IsNull(page.SelectedModelPath);
         Assert.IsNull(page.ValidatedScanResult);
@@ -37,13 +39,14 @@ public sealed class ModelImportPageStateMachineTests
         Assert.IsFalse(continueButton.IsEnabled);
         Assert.AreEqual(
             ImportModelCardState.AwaitingSelection,
-            card.CurrentState);
+            page.CurrentImportState);
         Assert.AreEqual(
             Visibility.Visible,
-            GetElement(card, "AwaitingSelectionView").Visibility);
+            GetElement(page, "AwaitingSelectionView").Visibility);
         Assert.AreEqual(
             Visibility.Collapsed,
-            GetElement(card, "ScanningView").Visibility);
+            GetElement(page, "LocalReferenceStateHost").Visibility);
+        AssertPersistentDropTarget(page);
     }
 
     [UITestMethod]
@@ -84,7 +87,8 @@ public sealed class ModelImportPageStateMachineTests
 
                 Assert.AreEqual(secondPath, path);
                 return Task.FromResult(secondScanResult);
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         Task firstBrowse = page.BrowseFilesAsync();
         await firstScanStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -98,9 +102,8 @@ public sealed class ModelImportPageStateMachineTests
                 technicalMessage: "Late result used only by the test."));
         await firstBrowse;
 
-        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
         var continueButton = (Button)page.FindName(
-            "ContinueToModelInspectionButton");
+            "BtnContinueToInspection");
 
         Assert.IsTrue(firstScanToken.IsCancellationRequested);
         Assert.AreEqual(secondPath, page.SelectedModelPath);
@@ -109,10 +112,12 @@ public sealed class ModelImportPageStateMachineTests
         Assert.IsTrue(continueButton.IsEnabled);
         Assert.AreEqual(
             ImportModelCardState.ScanSucceeded,
-            card.CurrentState);
+            page.CurrentImportState);
         Assert.AreEqual(
             "Second Granite Model",
-            GetTextBlock(card, "SuccessModelNameTextBlock").Text);
+            GetTextBlock(page, "LocalMetadataModelNameTextBlock").Text);
+        AssertPersistentDropTarget(page);
+        AssertTerminalSpinnersStopped(page);
     }
 
     [UITestMethod]
@@ -131,11 +136,11 @@ public sealed class ModelImportPageStateMachineTests
             {
                 scanToken = cancellationToken;
                 return scanCompletion.Task;
-            });
+            },
+            classifier: new AcceptedGgufClassifier());
 
         Task browseTask = page.BrowseFilesAsync();
-        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
-        var cancelButton = (Button)card.FindName("CancelScanButton");
+        var cancelButton = (Button)page.FindName("RemoveLocalMetadataModelButton");
 
         InvokeButton(cancelButton);
         scanCompletion.SetResult(
@@ -155,13 +160,17 @@ public sealed class ModelImportPageStateMachineTests
         Assert.IsFalse(page.HasValidatedModel);
         Assert.IsFalse(
             ((Button)page.FindName(
-                "ContinueToModelInspectionButton")).IsEnabled);
+                "BtnContinueToInspection")).IsEnabled);
         Assert.AreEqual(
             ImportModelCardState.AwaitingSelection,
-            card.CurrentState);
+            page.CurrentImportState);
+        Assert.AreEqual(
+            Visibility.Collapsed,
+            GetElement(page, "LocalReferenceStateHost").Visibility);
         Assert.AreEqual(
             string.Empty,
-            GetTextBlock(card, "SuccessModelNameTextBlock").Text);
+            GetTextBlock(page, "LocalMetadataModelNameTextBlock").Text);
+        AssertTerminalSpinnersStopped(page);
     }
 
     [UITestMethod]
@@ -185,21 +194,22 @@ public sealed class ModelImportPageStateMachineTests
                         userMessage,
                         technicalMessage)),
             recordScanFailure: diagnostic =>
-                capturedDiagnostic = diagnostic);
+                capturedDiagnostic = diagnostic,
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
-        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
         Assert.IsNotNull(capturedDiagnostic);
         Assert.AreEqual("broken-model.gguf", capturedDiagnostic.SelectedFileName);
         Assert.AreEqual(failureCode, capturedDiagnostic.FailureCode);
         Assert.AreEqual(technicalMessage, capturedDiagnostic.TechnicalMessage);
         Assert.AreEqual(
             userMessage,
-            GetTextBlock(card, "FailureMessageTextBlock").Text);
+            GetTextBlock(page, "FailureMessageTextBlock").Text);
         Assert.AreNotEqual(
             technicalMessage,
-            GetTextBlock(card, "FailureMessageTextBlock").Text);
+            GetTextBlock(page, "FailureMessageTextBlock").Text);
+        AssertTerminalSpinnersStopped(page);
     }
 
     [UITestMethod]
@@ -217,17 +227,19 @@ public sealed class ModelImportPageStateMachineTests
                         "The selected file is not a valid GGUF model.",
                         "Expected GGUF magic at file offset zero.")),
             recordScanFailure: diagnostic =>
-                throw new InvalidOperationException("Test diagnostic failure."));
+                throw new InvalidOperationException("Test diagnostic failure."),
+            classifier: new AcceptedGgufClassifier());
 
         await page.BrowseFilesAsync();
 
-        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
         Assert.AreEqual(
             ImportModelCardState.ScanFailed,
-            card.CurrentState);
+            page.CurrentImportState);
         Assert.AreEqual(
             Visibility.Visible,
-            GetElement(card, "FailureView").Visibility);
+            GetElement(page, "FailureView").Visibility);
+        AssertPersistentDropTarget(page);
+        AssertTerminalSpinnersStopped(page);
     }
 
     [UITestMethod]
@@ -246,40 +258,105 @@ public sealed class ModelImportPageStateMachineTests
 
         await page.BrowseFilesAsync();
 
-        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
         Assert.IsTrue(page.HasValidatedModel);
         Assert.IsNotNull(page.ValidatedScanResult);
         Assert.AreEqual(3u, page.ValidatedScanResult.GgufVersion);
         Assert.AreEqual(
             ImportModelCardState.ScanSucceeded,
-            card.CurrentState);
+            page.CurrentImportState);
         Assert.AreEqual(
             "IBM Granite Fixture Model",
-            GetTextBlock(card, "SuccessModelNameTextBlock").Text);
+            GetTextBlock(page, "LocalMetadataModelNameTextBlock").Text);
         Assert.AreEqual(
             "3B",
-            GetTextBlock(card, "SuccessParametersTextBlock").Text);
+            GetTextBlock(page, "LocalMetadataParametersTextBlock").Text);
         Assert.AreEqual(
             "Q4_K_M",
-            GetTextBlock(card, "SuccessQuantizationTextBlock").Text);
+            GetTextBlock(page, "LocalMetadataQuantizationTextBlock").Text);
         Assert.AreEqual(
             "320 B",
-            GetTextBlock(card, "SuccessFileSizeTextBlock").Text);
+            GetTextBlock(page, "LocalMetadataFileSizeTextBlock").Text);
         Assert.AreEqual(
             "128K tokens",
-            GetTextBlock(card, "SuccessDeclaredContextTextBlock").Text);
+            GetTextBlock(page, "LocalMetadataDeclaredContextTextBlock").Text);
+        AssertTerminalSpinnersStopped(page);
+    }
+
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    public async Task BrowseFilesAsync_WithInjectedAcceptedClassifier_RunsInjectedScannerForSyntheticPath()
+    {
+        const string selectedPath = @"C:\Models\injected-scanner.gguf";
+        int scannerCalls = 0;
+        var page = new ModelImportPage(
+            () => Task.FromResult(ModelFormatSelection.Gguf),
+            () => Task.FromResult<string?>(selectedPath),
+            (_, path, _) =>
+            {
+                scannerCalls++;
+                Assert.AreEqual(selectedPath, path);
+                return Task.FromResult(ModelQuickScanResult.CreateCancelled());
+            },
+            classifier: new AcceptedGgufClassifier());
+
+        await page.BrowseFilesAsync();
+
+        Assert.AreEqual(1, scannerCalls);
+        Assert.AreEqual(
+            ImportModelCardState.AwaitingSelection,
+            page.CurrentImportState);
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
     public void ScanSucceeded_WithoutCardData_IsRejected()
     {
-        var card = new ImportModelCard();
+        var resourceOwner = new ModelImportPage();
+        var preview = (Grid)resourceOwner.FindName("ModelImportPreview");
+        var lightResources = (ResourceDictionary)preview.Resources.ThemeDictionaries["Light"];
+        var fixtureResources = new ResourceDictionary();
+        fixtureResources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri(
+                "ms-appx:///Features/Onboarding/Presentation/GraniteJourneyActionPalette.xaml")
+        });
+        string[] brushKeys =
+        [
+            "ModelImportAccentBorderBrush",
+            "ModelImportAccentBrush",
+            "ModelImportAccentSurfaceBrush",
+            "ModelImportBorderBrush",
+            "ModelImportErrorBorderBrush",
+            "ModelImportErrorBrush",
+            "ModelImportErrorSurfaceBrush",
+            "ModelImportMutedTextBrush",
+            "ModelImportSubtleTextBrush",
+            "ModelImportSuccessBrush",
+            "ModelImportSuccessSurfaceBrush",
+            "ModelImportSurfaceBrush",
+            "ModelImportTextBrush"
+        ];
+        foreach (string key in brushKeys)
+        {
+            var source = (SolidColorBrush)lightResources[key];
+            fixtureResources[key] = new SolidColorBrush(source.Color);
+        }
 
-        Assert.Throws<InvalidOperationException>(
-            () => card.SetState(
-                ImportModelCardState.ScanSucceeded,
-                "model.gguf"));
+        Application.Current.Resources.MergedDictionaries.Add(fixtureResources);
+
+        try
+        {
+            var card = new ImportModelCard();
+
+            Assert.Throws<InvalidOperationException>(
+                () => card.SetState(
+                    ImportModelCardState.ScanSucceeded,
+                    "model.gguf"));
+        }
+        finally
+        {
+            Application.Current.Resources.MergedDictionaries.Remove(fixtureResources);
+        }
     }
 
     private static void InvokeButton(Button button)
@@ -292,16 +369,48 @@ public sealed class ModelImportPageStateMachineTests
     }
 
     private static FrameworkElement GetElement(
-        ImportModelCard card,
+        ModelImportPage page,
         string elementName)
     {
-        return (FrameworkElement)card.FindName(elementName);
+        return (FrameworkElement)page.FindName(elementName);
     }
 
     private static TextBlock GetTextBlock(
-        ImportModelCard card,
+        ModelImportPage page,
         string elementName)
     {
-        return (TextBlock)card.FindName(elementName);
+        return (TextBlock)page.FindName(elementName);
+    }
+
+    private static void AssertTerminalSpinnersStopped(ModelImportPage page)
+    {
+        var footerSpinner = (ProgressRing)page.FindName("LocalScanProgressRing");
+        var metadataSpinner = (ProgressRing)page.FindName("LocalMetadataProgressRing");
+
+        Assert.IsFalse(footerSpinner.IsActive);
+        Assert.AreEqual(Visibility.Collapsed, footerSpinner.Visibility);
+        Assert.IsFalse(metadataSpinner.IsActive);
+        Assert.AreEqual(Visibility.Collapsed, metadataSpinner.Visibility);
+    }
+
+    private static void AssertPersistentDropTarget(ModelImportPage page)
+    {
+        FrameworkElement host = GetElement(page, "LocalImportStateHost");
+
+        Assert.IsTrue(host.AllowDrop);
+        Assert.AreEqual(Visibility.Visible, host.Visibility);
+    }
+
+    private sealed class AcceptedGgufClassifier : IModelSelectionClassifier
+    {
+        public Task<ModelSelectionResult> ClassifyAsync(
+            ModelSelectionOperationId id,
+            ModelSelectionInput input,
+            CancellationToken token) =>
+            Task.FromResult(
+                ModelSelectionResult.Accepted(
+                    id,
+                    ModelSelectionRoute.Gguf,
+                    input.DisplayName));
     }
 }

@@ -1,0 +1,668 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<UserControl
+    x:Class="GraniteEdgeAI.Features.Onboarding.Controls.OnboardingStageIndicator"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:GraniteEdgeAI.Features.Onboarding.Controls"
+    xmlns:inspectionControls="using:GraniteEdgeAI.Features.ModelInspection.Controls"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    MinHeight="128"
+    HorizontalAlignment="Stretch"
+    HorizontalContentAlignment="Stretch"
+    VerticalContentAlignment="Stretch"
+    d:DesignHeight="128"
+    d:DesignWidth="1000"
+    AutomationProperties.HelpText="Shows progress through the five-stage model setup process."
+    AutomationProperties.LiveSetting="Polite"
+    IsHitTestVisible="False"
+    IsTabStop="False"
+    UseLayoutRounding="True"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+
+        <!--
+            local design tokens keep the approved onboarding colours
+            in one place instead of repeating hexadecimal values
+        -->
+        <StaticResource
+            x:Key="OnboardingIndicatorSurfaceBrush"
+            ResourceKey="GraniteAppSurfaceBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorActiveBrush"
+            ResourceKey="GraniteAppAccentBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorActiveSurfaceBrush"
+            ResourceKey="GraniteAppAccentSurfaceBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorInactiveSurfaceBrush"
+            ResourceKey="GraniteAppMutedSurfaceBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorInactiveBorderBrush"
+            ResourceKey="GraniteAppStrokeBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorConnectorBrush"
+            ResourceKey="GraniteAppStrokeBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorPrimaryTextBrush"
+            ResourceKey="GraniteAppTextPrimaryBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorSecondaryTextBrush"
+            ResourceKey="GraniteAppTextSecondaryBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorMutedTextBrush"
+            ResourceKey="GraniteAppPendingBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorErrorBrush"
+            ResourceKey="InspectionErrorTextBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorSuccessSurfaceBrush"
+            ResourceKey="InspectionSuccessSurfaceBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorSuccessBorderBrush"
+            ResourceKey="InspectionSuccessBorderBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorSuccessTextBrush"
+            ResourceKey="InspectionSuccessTextBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorNotCompleteSurfaceBrush"
+            ResourceKey="InspectionSurfaceMutedBrush" />
+
+        <StaticResource
+            x:Key="OnboardingIndicatorNotCompleteBorderBrush"
+            ResourceKey="InspectionBorderMutedBrush" />
+
+        <!--  shared appearance for every numbered stage box  -->
+        <Style
+            x:Key="OnboardingStepBoxStyle"
+            TargetType="Border">
+
+            <Setter Property="Width" Value="36" />
+
+            <Setter Property="Height" Value="36" />
+
+            <Setter Property="HorizontalAlignment" Value="Center" />
+
+            <Setter Property="VerticalAlignment" Value="Center" />
+
+            <Setter Property="Background" Value="{ThemeResource GraniteAppMutedSurfaceBrush}" />
+
+            <Setter Property="BorderBrush" Value="{ThemeResource GraniteAppStrokeBrush}" />
+
+            <Setter Property="BorderThickness" Value="2" />
+
+            <Setter Property="CornerRadius" Value="18" />
+
+        </Style>
+
+        <!--  Semantic, non-interactive ListItem host for each journey stage.  -->
+        <Style x:Key="OnboardingStepItemStyle" TargetType="local:OnboardingStageListItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="local:OnboardingStageListItem">
+                        <ContentPresenter
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  shared appearance for the number or checkmark inside each box  -->
+        <Style
+            x:Key="OnboardingStepValueStyle"
+            TargetType="TextBlock">
+
+            <Setter Property="AutomationProperties.AccessibilityView" Value="Raw" />
+
+            <Setter Property="HorizontalAlignment" Value="Center" />
+
+            <Setter Property="VerticalAlignment" Value="Center" />
+
+            <Setter Property="FontSize" Value="14" />
+
+            <Setter Property="FontWeight" Value="SemiBold" />
+
+            <Setter Property="Foreground" Value="{ThemeResource GraniteAppPendingBrush}" />
+
+            <Setter Property="TextAlignment" Value="Center" />
+
+        </Style>
+
+        <!--  shared appearance for the five stage labels  -->
+        <Style
+            x:Key="OnboardingStepLabelStyle"
+            TargetType="TextBlock">
+
+            <Setter Property="AutomationProperties.AccessibilityView" Value="Raw" />
+
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+
+            <Setter Property="VerticalAlignment" Value="Center" />
+
+            <Setter Property="FontSize" Value="12" />
+
+            <Setter Property="Foreground" Value="{ThemeResource GraniteAppTextSecondaryBrush}" />
+
+            <Setter Property="TextAlignment" Value="Center" />
+
+            <Setter Property="TextTrimming" Value="None" />
+
+            <Setter Property="TextWrapping" Value="WrapWholeWords" />
+
+        </Style>
+
+        <!--  shared appearance for the permanent grey connector lines  -->
+        <Style
+            x:Key="OnboardingConnectorStyle"
+            TargetType="Rectangle">
+
+            <Setter Property="Height" Value="2" />
+
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+
+            <Setter Property="VerticalAlignment" Value="Center" />
+
+            <Setter Property="Fill" Value="{ThemeResource GraniteAppStrokeBrush}" />
+
+            <Setter Property="RadiusX" Value="1" />
+
+            <Setter Property="RadiusY" Value="1" />
+
+        </Style>
+
+        <!--
+            Blue connector overlays use the same geometry as the base lines.
+            Their ScaleTransform starts at zero and will be animated later.
+        -->
+        <Style
+            x:Key="OnboardingConnectorFillStyle"
+            BasedOn="{StaticResource OnboardingConnectorStyle}"
+            TargetType="Rectangle">
+
+            <Setter Property="Fill" Value="{ThemeResource InspectionSuccessTextBrush}" />
+
+        </Style>
+
+    </UserControl.Resources>
+
+    <!--  Provides the approved white surface behind the indicator.  -->
+    <Grid
+        Background="{ThemeResource GraniteAppSurfaceBrush}">
+
+        <!--
+            Ten equal columns keep every two-column stage span centred while
+            the overlapping connector spans join adjacent stage centres.
+        -->
+        <Grid
+            x:Name="IndicatorLayoutGrid"
+            MaxWidth="960"
+            Margin="0"
+            HorizontalAlignment="Stretch">
+
+            <Grid.RowDefinitions>
+
+                <!--  Top divider.  -->
+                <RowDefinition
+                    Height="1" />
+
+                <!--  Space before the eyebrow.  -->
+                <RowDefinition
+                    Height="18" />
+
+                <!--  current-stage eyebrow  -->
+                <RowDefinition
+                    Height="0" />
+
+                <!--  Space between the eyebrow and stages.  -->
+                <RowDefinition
+                    Height="9" />
+
+                <!--  Stage boxes and connectors.  -->
+                <RowDefinition
+                    Height="40" />
+
+                <!--  Space before stage labels.  -->
+                <RowDefinition
+                    Height="7" />
+
+                <!--  Stage labels.  -->
+                <RowDefinition
+                    Height="Auto"
+                    MinHeight="28" />
+
+                <!--  Remaining lower space.  -->
+                <RowDefinition
+                    Height="25" />
+
+            </Grid.RowDefinitions>
+
+            <Grid.ColumnDefinitions>
+
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+
+            </Grid.ColumnDefinitions>
+
+            <!--  Separates the current page from the persistent indicator.  -->
+            <Rectangle
+                Grid.Row="0"
+                Grid.Column="0"
+                Grid.ColumnSpan="10"
+                Fill="{ThemeResource GraniteAppStrokeBrush}" />
+
+            <!--  Updated by the code-behind whenever the active stage changes.  -->
+            <TextBlock
+                x:Name="StageEyebrowText"
+                Grid.Row="2"
+                Grid.Column="0"
+                Grid.ColumnSpan="10"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Center"
+                FontSize="11"
+                FontWeight="SemiBold"
+                Foreground="{ThemeResource GraniteAppTextSecondaryBrush}"
+                Text="MODEL SETUP · STEP 1 OF 5"
+                TextAlignment="Center"
+                Visibility="Collapsed" />
+
+            <!--  Connector between Choose model and Inspect.  -->
+            <Grid
+                Grid.Row="4"
+                Grid.Column="1"
+                Grid.ColumnSpan="2"
+                Margin="16,0"
+                Canvas.ZIndex="0">
+
+                <Rectangle
+                    Style="{StaticResource OnboardingConnectorStyle}" />
+
+                <Rectangle
+                    RenderTransformOrigin="0,0.5"
+                    Style="{StaticResource OnboardingConnectorFillStyle}">
+
+                    <Rectangle.RenderTransform>
+
+                        <!--
+                            ScaleX will animate from 0 to 1.
+                            This avoids repeatedly changing the element's layout width.
+                        -->
+                        <ScaleTransform x:Name="ChooseToInspectConnectorScale" ScaleX="0" ScaleY="1" />
+
+                    </Rectangle.RenderTransform>
+
+                </Rectangle>
+
+            </Grid>
+
+            <!--  Connector between Inspect and Check fit.  -->
+            <Grid
+                Grid.Row="4"
+                Grid.Column="3"
+                Grid.ColumnSpan="2"
+                Margin="16,0"
+                Canvas.ZIndex="0">
+
+                <Rectangle
+                    Style="{StaticResource OnboardingConnectorStyle}" />
+
+                <Rectangle
+                    RenderTransformOrigin="0,0.5"
+                    Style="{StaticResource OnboardingConnectorFillStyle}">
+
+                    <Rectangle.RenderTransform>
+
+                        <ScaleTransform x:Name="InspectToFitConnectorScale" ScaleX="0" ScaleY="1" />
+
+                    </Rectangle.RenderTransform>
+
+                </Rectangle>
+
+            </Grid>
+
+            <!--  Connector between Check fit and Configure.  -->
+            <Grid
+                Grid.Row="4"
+                Grid.Column="5"
+                Grid.ColumnSpan="2"
+                Margin="16,0"
+                Canvas.ZIndex="0">
+
+                <Rectangle
+                    Style="{StaticResource OnboardingConnectorStyle}" />
+
+                <Rectangle
+                    RenderTransformOrigin="0,0.5"
+                    Style="{StaticResource OnboardingConnectorFillStyle}">
+
+                    <Rectangle.RenderTransform>
+
+                        <ScaleTransform x:Name="FitToConfigureConnectorScale" ScaleX="0" ScaleY="1" />
+
+                    </Rectangle.RenderTransform>
+
+                </Rectangle>
+
+            </Grid>
+
+            <!--  Connector between Configure and Ready to chat.  -->
+            <Grid
+                Grid.Row="4"
+                Grid.Column="7"
+                Grid.ColumnSpan="2"
+                Margin="16,0"
+                Canvas.ZIndex="0">
+
+                <Rectangle
+                    Style="{StaticResource OnboardingConnectorStyle}" />
+
+                <Rectangle
+                    RenderTransformOrigin="0,0.5"
+                    Style="{StaticResource OnboardingConnectorFillStyle}">
+
+                    <Rectangle.RenderTransform>
+
+                        <ScaleTransform x:Name="ConfigureToReadyConnectorScale" ScaleX="0" ScaleY="1" />
+
+                    </Rectangle.RenderTransform>
+
+                </Rectangle>
+
+            </Grid>
+
+            <!--  Stage 1 begins as the active stage.  -->
+            <local:OnboardingStageListItem
+                x:Name="ChooseModelStepItem"
+                Grid.Row="4"
+                Grid.Column="0"
+                Grid.ColumnSpan="2"
+                Canvas.ZIndex="1"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.Name="Choose model. Current. Step 1 of 5."
+                AutomationProperties.ItemStatus="Current"
+                AutomationProperties.PositionInSet="1"
+                AutomationProperties.SizeOfSet="5"
+                Style="{StaticResource OnboardingStepItemStyle}">
+
+                <Grid Width="36" Height="36">
+                    <Border
+                        x:Name="ChooseModelStepBox"
+                        Background="{ThemeResource GraniteAppSurfaceBrush}"
+                        BorderBrush="{ThemeResource GraniteAppAccentBrush}"
+                        Style="{StaticResource OnboardingStepBoxStyle}">
+                        <Grid>
+                            <TextBlock
+                                x:Name="ChooseModelStepValue"
+                                Translation="-0.5,-1,0"
+                                Foreground="{ThemeResource GraniteAppAccentBrush}"
+                                Style="{StaticResource OnboardingStepValueStyle}"
+                                Text="1" />
+                            <FontIcon
+                                x:Name="ChooseModelStepMark"
+                                AutomationProperties.AccessibilityView="Raw"
+                                FontSize="14"
+                                Foreground="{ThemeResource InspectionSuccessTextBrush}"
+                                Glyph="&#xE73E;"
+                                Translation="-0.6,-1.1,0"
+                                Visibility="Collapsed" />
+                        </Grid>
+                    </Border>
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="ChooseModelStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </local:OnboardingStageListItem>
+
+            <TextBlock
+                x:Name="ChooseModelStepLabel"
+                Grid.Row="6"
+                Grid.Column="0"
+                Grid.ColumnSpan="2"
+                FontWeight="SemiBold"
+                Foreground="{ThemeResource GraniteAppTextPrimaryBrush}"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Choose model" />
+
+            <!--  Stage 2 begins in its future-stage state.  -->
+            <local:OnboardingStageListItem
+                x:Name="InspectModelStepItem"
+                Grid.Row="4"
+                Grid.Column="2"
+                Grid.ColumnSpan="2"
+                Canvas.ZIndex="1"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.Name="Inspect model. Not started. Step 2 of 5."
+                AutomationProperties.ItemStatus="Not started"
+                AutomationProperties.PositionInSet="2"
+                AutomationProperties.SizeOfSet="5"
+                Style="{StaticResource OnboardingStepItemStyle}">
+
+                <Grid Width="36" Height="36">
+                    <Border
+                        x:Name="InspectModelStepBox"
+                        Style="{StaticResource OnboardingStepBoxStyle}">
+                        <Grid>
+                            <TextBlock
+                                x:Name="InspectModelStepValue"
+                                Translation="-0.5,-1,0"
+                                Style="{StaticResource OnboardingStepValueStyle}"
+                                Text="2" />
+                            <FontIcon
+                                x:Name="InspectModelStepMark"
+                                AutomationProperties.AccessibilityView="Raw"
+                                FontSize="14"
+                                Foreground="{ThemeResource InspectionSuccessTextBrush}"
+                                Glyph="&#xE73E;"
+                                Translation="-0.6,-1.1,0"
+                                Visibility="Collapsed" />
+                        </Grid>
+                    </Border>
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="InspectModelStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </local:OnboardingStageListItem>
+
+            <TextBlock
+                x:Name="InspectModelStepLabel"
+                Grid.Row="6"
+                Grid.Column="2"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Inspect model" />
+
+            <!--  Stage 3 begins in its future-stage state.  -->
+            <local:OnboardingStageListItem
+                x:Name="CheckFitStepItem"
+                Grid.Row="4"
+                Grid.Column="4"
+                Grid.ColumnSpan="2"
+                Canvas.ZIndex="1"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.Name="Check hardware fit. Not started. Step 3 of 5."
+                AutomationProperties.ItemStatus="Not started"
+                AutomationProperties.PositionInSet="3"
+                AutomationProperties.SizeOfSet="5"
+                Style="{StaticResource OnboardingStepItemStyle}">
+
+                <Grid Width="36" Height="36">
+                    <Border
+                        x:Name="CheckFitStepBox"
+                        Style="{StaticResource OnboardingStepBoxStyle}">
+                        <Grid>
+                            <TextBlock
+                                x:Name="CheckFitStepValue"
+                                Translation="-0.5,-1,0"
+                                Style="{StaticResource OnboardingStepValueStyle}"
+                                Text="3" />
+                            <FontIcon
+                                x:Name="CheckFitStepMark"
+                                AutomationProperties.AccessibilityView="Raw"
+                                FontSize="14"
+                                Foreground="{ThemeResource InspectionSuccessTextBrush}"
+                                Glyph="&#xE73E;"
+                                Translation="-0.6,-1.1,0"
+                                Visibility="Collapsed" />
+                        </Grid>
+                    </Border>
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="CheckFitStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </local:OnboardingStageListItem>
+
+            <TextBlock
+                x:Name="CheckFitStepLabel"
+                Grid.Row="6"
+                Grid.Column="4"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Check hardware fit" />
+
+            <!--  Stage 4 begins in its future-stage state.  -->
+            <local:OnboardingStageListItem
+                x:Name="ConfigureModelStepItem"
+                Grid.Row="4"
+                Grid.Column="6"
+                Grid.ColumnSpan="2"
+                Canvas.ZIndex="1"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.Name="Configure model. Not started. Step 4 of 5."
+                AutomationProperties.ItemStatus="Not started"
+                AutomationProperties.PositionInSet="4"
+                AutomationProperties.SizeOfSet="5"
+                Style="{StaticResource OnboardingStepItemStyle}">
+
+                <Grid Width="36" Height="36">
+                    <Border
+                        x:Name="ConfigureModelStepBox"
+                        Style="{StaticResource OnboardingStepBoxStyle}">
+                        <Grid>
+                            <TextBlock
+                                x:Name="ConfigureModelStepValue"
+                                Translation="-0.5,-1,0"
+                                Style="{StaticResource OnboardingStepValueStyle}"
+                                Text="4" />
+                            <FontIcon
+                                x:Name="ConfigureModelStepMark"
+                                AutomationProperties.AccessibilityView="Raw"
+                                FontSize="14"
+                                Foreground="{ThemeResource InspectionSuccessTextBrush}"
+                                Glyph="&#xE73E;"
+                                Translation="-0.6,-1.1,0"
+                                Visibility="Collapsed" />
+                        </Grid>
+                    </Border>
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="ConfigureModelStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </local:OnboardingStageListItem>
+
+            <TextBlock
+                x:Name="ConfigureModelStepLabel"
+                Grid.Row="6"
+                Grid.Column="6"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Configure model" />
+
+            <!--  Stage 5 begins in its future-stage state.  -->
+            <local:OnboardingStageListItem
+                x:Name="ReadyToChatStepItem"
+                Grid.Row="4"
+                Grid.Column="8"
+                Grid.ColumnSpan="2"
+                Canvas.ZIndex="1"
+                AutomationProperties.AccessibilityView="Content"
+                AutomationProperties.Name="Ready to chat. Not started. Step 5 of 5."
+                AutomationProperties.ItemStatus="Not started"
+                AutomationProperties.PositionInSet="5"
+                AutomationProperties.SizeOfSet="5"
+                Style="{StaticResource OnboardingStepItemStyle}">
+
+                <Grid Width="36" Height="36">
+                    <Border
+                        x:Name="ReadyToChatStepBox"
+                        Style="{StaticResource OnboardingStepBoxStyle}">
+                        <Grid>
+                            <TextBlock
+                                x:Name="ReadyToChatStepValue"
+                                Translation="-0.5,-1,0"
+                                Style="{StaticResource OnboardingStepValueStyle}"
+                                Text="5" />
+                            <FontIcon
+                                x:Name="ReadyToChatStepMark"
+                                AutomationProperties.AccessibilityView="Raw"
+                                FontSize="14"
+                                Foreground="{ThemeResource InspectionSuccessTextBrush}"
+                                Glyph="&#xE73E;"
+                                Translation="-0.6,-1.1,0"
+                                Visibility="Collapsed" />
+                        </Grid>
+                    </Border>
+                    <inspectionControls:InspectionStatusGlyph
+                        x:Name="ReadyToChatStepGlyph"
+                        Kind="Success"
+                        SurfaceSize="36"
+                        Visibility="Collapsed" />
+                </Grid>
+
+            </local:OnboardingStageListItem>
+
+            <TextBlock
+                x:Name="ReadyToChatStepLabel"
+                Grid.Row="6"
+                Grid.Column="8"
+                Grid.ColumnSpan="2"
+                Style="{StaticResource OnboardingStepLabelStyle}"
+                Text="Ready to chat" />
+
+        </Grid>
+
+    </Grid>
+
+</UserControl>

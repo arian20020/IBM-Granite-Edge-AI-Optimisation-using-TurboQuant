@@ -88,7 +88,7 @@ def main() -> int:
                 "Critical_Cap_Reason": cap_reason,
                 "Blind_Label": f"response-{digest[:12]}",
                 "Pairwise_Order": "N/A - independently scored",
-                "Judge_or_Reviewer": "Codex deterministic gates plus manual adjudication",
+                "Judge_or_Reviewer": "project tooling deterministic gates plus manual adjudication",
                 "Manual_Adjudication_Required": "Yes",
                 "Manual_Adjudication_Result": adjudication["manual_result"],
                 "Result": "Pass" if result.deterministic_pass else "Fail",

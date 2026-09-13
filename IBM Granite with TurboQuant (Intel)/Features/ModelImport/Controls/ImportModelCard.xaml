@@ -8,9 +8,34 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
+    <UserControl.Resources>
+        <Style x:Key="ImportModelBadgeBorderStyle" TargetType="Border">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+        <Style x:Key="ImportModelBadgeTextStyle" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+        </Style>
+        <Style x:Key="ImportModelErrorBadgeBorderStyle" BasedOn="{StaticResource ImportModelBadgeBorderStyle}" TargetType="Border">
+            <Setter Property="Height" Value="27" />
+            <Setter Property="MinHeight" Value="27" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Background" Value="{ThemeResource ModelImportErrorSurfaceBrush}" />
+        </Style>
+    </UserControl.Resources>
+
     <Grid
-        MinHeight="185"
-        Margin="0,28,0,0"
+        MinHeight="360"
         HorizontalAlignment="Stretch">
 
         <!--  STATE 1: AWAITING MODEL SELECTION  -->
@@ -21,76 +46,95 @@
             Visibility="Visible">
 
             <Rectangle
+                x:Name="AwaitingSelectionBorder"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
-                Fill="#FAFBFD"
+                Fill="{ThemeResource ModelImportSurfaceBrush}"
                 IsHitTestVisible="False"
                 RadiusX="20"
                 RadiusY="20"
-                Stroke="#C7D2E1"
+                Stroke="{ThemeResource ModelImportBorderBrush}"
                 StrokeDashArray="6,5"
                 StrokeDashCap="Round"
-                StrokeThickness="1.5" />
+                StrokeThickness="1.5"
+                UseLayoutRounding="False" />
 
-            <StackPanel
-                Margin="28"
-                HorizontalAlignment="Center"
+            <!-- Neutral 6%-opacity overlay: visible only while a native-valid file drag is over the card. -->
+            <Rectangle
+                x:Name="ValidDragHoverOverlay"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Fill="{ThemeResource ModelImportAccentSurfaceBrush}"
+                IsHitTestVisible="False"
+                RadiusX="20"
+                RadiusY="20"
+                Stroke="{ThemeResource ModelImportAccentBorderBrush}"
+                StrokeDashArray="6,5"
+                StrokeDashCap="Round"
+                StrokeThickness="1.5"
+                UseLayoutRounding="False"
+                Visibility="Collapsed" />
+
+            <ScrollViewer
+                MaxHeight="300"
+                HorizontalContentAlignment="Center"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled"
                 VerticalAlignment="Center"
-                Spacing="9">
-
-                <Border
-                    Width="48"
-                    Height="48"
+                VerticalContentAlignment="Center"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto"
+                ZoomMode="Disabled">
+                <StackPanel
+                    MaxWidth="600"
+                    Margin="20"
                     HorizontalAlignment="Center"
-                    Background="#EAF2FF"
-                    CornerRadius="14">
+                    Spacing="10">
 
-                    <TextBlock
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        FontSize="24"
-                        FontWeight="SemiBold"
-                        Foreground="#2563EB"
-                        Text="↑"
-                        TextAlignment="Center" />
-
-                </Border>
+                <FontIcon
+                    HorizontalAlignment="Center"
+                    AutomationProperties.AccessibilityView="Raw"
+                    FontSize="30"
+                    Foreground="{ThemeResource ModelImportAccentBrush}"
+                    Glyph="&#xE8B7;" />
 
                 <TextBlock
-                    Margin="0,3,0,0"
                     HorizontalAlignment="Center"
                     FontSize="18"
                     FontWeight="SemiBold"
-                    Foreground="#111827"
-                    Text="Drag model file here"
+                    Foreground="{ThemeResource ModelImportTextBrush}"
+                    Text="Drop a model here"
                     TextAlignment="Center" />
 
                 <TextBlock
                     MaxWidth="600"
                     HorizontalAlignment="Center"
                     FontSize="14"
-                    Foreground="#6B7280"
-                    Text="Supported formats: GGUF (.gguf) or OpenVINO IR (.xml + .bin)"
+                    Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                    Text="GGUF file or OpenVINO model folder"
                     TextAlignment="Center"
                     TextWrapping="Wrap" />
 
                 <Button
-                    x:Name="BrowseFilesButton"
+                    x:Name="ChooseModelFileButton"
                     Width="220"
-                    Height="46"
-                    Margin="0,9,0,0"
+                    Height="44"
+                    MinHeight="44"
                     HorizontalAlignment="Center"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
-                    AutomationProperties.Name="Browse for a model file"
-                    Background="#2563EB"
-                    BorderBrush="#2563EB"
+                    AutomationProperties.AutomationId="ChooseModelFileButton"
+                    AutomationProperties.Name="Choose model"
+                    AutomationProperties.HelpText="Choose a GGUF model file or select OpenVINO to choose a model folder."
+                    ToolTipService.ToolTip="Choose a GGUF file or OpenVINO model folder"
+                    Background="{ThemeResource ModelImportAccentBrush}"
+                    BorderBrush="{ThemeResource ModelImportAccentBrush}"
                     BorderThickness="1"
                     Click="BrowseFilesButton_Click"
-                    Content="Browse files"
+                    Content="Choose model"
                     CornerRadius="11"
                     FontWeight="SemiBold"
-                    Foreground="White"
+                    Foreground="{ThemeResource GraniteJourneyPrimaryForegroundBrush}"
                     UseSystemFocusVisuals="True">
 
                     <Button.Resources>
@@ -137,43 +181,248 @@
 
                 </Button>
 
-            </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
 
         </Grid>
+
+        <Border
+            x:Name="FolderAcceptedView"
+            Height="360"
+            Padding="12"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Top"
+            Background="{ThemeResource ModelImportSurfaceBrush}"
+            BorderBrush="{ThemeResource ModelImportBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="20"
+            Visibility="Collapsed">
+
+            <ScrollViewer
+                HorizontalContentAlignment="Stretch"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto"
+                ZoomMode="Disabled">
+            <Grid RowSpacing="6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="1" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="40" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="58" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="40" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border
+                        Grid.Column="0"
+                        Width="58"
+                        Height="58"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Background="{ThemeResource ModelImportAccentSurfaceBrush}"
+                        CornerRadius="15">
+
+                        <Viewbox
+                            Width="38"
+                            Height="38"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                            <Grid Width="48" Height="48">
+                                <Path
+                                    Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
+                                    Stroke="{ThemeResource ModelImportAccentBrush}"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="2" />
+                                <TextBlock
+                                    Margin="0,22,0,0"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="7"
+                                    FontWeight="Bold"
+                                    Foreground="{ThemeResource ModelImportAccentBrush}"
+                                    Text="OV"
+                                    TextAlignment="Center" />
+                            </Grid>
+                        </Viewbox>
+                    </Border>
+
+                    <StackPanel
+                        Grid.Column="1"
+                        VerticalAlignment="Top"
+                        Spacing="3">
+                        <TextBlock
+                            x:Name="FolderAcceptedNameTextBlock"
+                            HorizontalAlignment="Stretch"
+                            FontSize="18"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource ModelImportTextBrush}"
+                            MaxLines="2"
+                            TextWrapping="WrapWholeWords" />
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{ThemeResource ModelImportSubtleTextBrush}"
+                            Text="Selected local model folder"
+                            MaxLines="2"
+                            TextWrapping="WrapWholeWords" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Background="{ThemeResource ModelImportAccentSurfaceBrush}" Style="{StaticResource ImportModelBadgeBorderStyle}">
+                                <TextBlock x:Name="FolderAcceptedFormatTextBlock" Foreground="{ThemeResource ModelImportAccentBrush}" Style="{StaticResource ImportModelBadgeTextStyle}" Text="OpenVINO" />
+                            </Border>
+                            <Border Background="{ThemeResource ModelImportAccentSurfaceBrush}" Style="{StaticResource ImportModelBadgeBorderStyle}">
+                                <TextBlock Foreground="{ThemeResource ModelImportAccentBrush}" Style="{StaticResource ImportModelBadgeTextStyle}" Text="IR" />
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button
+                        x:Name="RemoveFolderAcceptedModelButton"
+                        Grid.Column="2"
+                        Grid.RowSpan="4"
+                        Width="40"
+                        Height="40"
+                        MinWidth="40"
+                        MinHeight="40"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.AutomationId="RemoveFolderAcceptedModelButton"
+                        AutomationProperties.Name="Remove selected OpenVINO model"
+                        AutomationProperties.HelpText="Remove this selected OpenVINO model folder and return to model selection."
+                        ToolTipService.ToolTip="Remove selected OpenVINO model"
+                        Background="{ThemeResource ModelImportSurfaceBrush}"
+                        BorderBrush="{ThemeResource ModelImportErrorBorderBrush}"
+                        BorderThickness="1"
+                        Click="CancelScanButton_Click"
+                        CornerRadius="11"
+                        UseSystemFocusVisuals="True">
+                        <FontIcon
+                            FontSize="18"
+                            Foreground="{ThemeResource ModelImportErrorBrush}"
+                            Glyph="&#xE74D;" />
+
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
+                            <SolidColorBrush x:Key="ButtonForeground" Color="#FF2D2D" />
+                            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#FFC2C2" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FFF7F7" />
+                            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#DC2626" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#FCA5A5" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FEE2E2" />
+                            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#B91C1C" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#F87171" />
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+
+                <Rectangle
+                    Grid.Row="1"
+                    HorizontalAlignment="Stretch"
+                    Fill="{ThemeResource ModelImportBorderBrush}" />
+
+                <Grid Grid.Row="2" ColumnSpacing="10" RowSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="PARAMETERS" /><TextBlock HorizontalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="Pending" TextAlignment="Center" /></StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="ARCHITECTURE" /><TextBlock HorizontalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="OpenVINO IR" TextAlignment="Center" /></StackPanel>
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="FILE SIZE" /><TextBlock HorizontalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="Model folder" TextAlignment="Center" /></StackPanel>
+                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="DECLARED CONTEXT" /><TextBlock HorizontalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="Pending" TextAlignment="Center" /></StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="RUNTIME ROUTE" /><TextBlock HorizontalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="OpenVINO GenAI" TextAlignment="Center" /></StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="NEXT STEP" /><TextBlock HorizontalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="Model inspection" TextAlignment="Center" /></StackPanel>
+                </Grid>
+
+                <Border
+                    Grid.Row="3"
+                    Height="40"
+                    HorizontalAlignment="Stretch"
+                    Background="{ThemeResource ModelImportSuccessSurfaceBrush}"
+                    CornerRadius="17">
+                    <Grid
+                        Margin="12,5"
+                        VerticalAlignment="Center"
+                        ColumnSpacing="9">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon
+                            Grid.Column="0"
+                            FontSize="15"
+                            Foreground="{ThemeResource ModelImportSuccessBrush}"
+                            Glyph="&#xE73E;" />
+                        <TextBlock
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource ModelImportSuccessBrush}"
+                            Text="Model folder imported · Ready for model inspection"
+                            TextWrapping="WrapWholeWords"
+                            ToolTipService.ToolTip="Model folder imported · Ready for model inspection" />
+                    </Grid>
+                </Border>
+            </Grid>
+            </ScrollViewer>
+        </Border>
 
         <!--  STATE 2: GGUF QUICK SCAN IN PROGRESS  -->
         <Border
             x:Name="ScanningView"
-            Height="288"
-            MaxWidth="804"
-            Padding="32,24,32,18"
+            Height="360"
+            Padding="32,18,32,16"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Top"
-            Background="#FBFCFE"
-            BorderBrush="#C9D7E8"
+            Background="{ThemeResource ModelImportSurfaceBrush}"
+            BorderBrush="{ThemeResource ModelImportBorderBrush}"
             BorderThickness="1.5"
             CornerRadius="22"
             Visibility="Collapsed">
 
+            <ScrollViewer
+                HorizontalContentAlignment="Stretch"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto"
+                ZoomMode="Disabled">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition
-                        Height="126" />
+                        Height="Auto"
+                        MinHeight="112" />
                     <RowDefinition
                         Height="1" />
                     <RowDefinition
-                        Height="85" />
+                        Height="Auto"
+                        MinHeight="79" />
                     <RowDefinition
-                        Height="34" />
+                        Height="Auto"
+                        MinHeight="34" />
                 </Grid.RowDefinitions>
 
                 <!--  Selected model header  -->
                 <Grid
-                    Grid.Row="0">
+                    Grid.Row="0"
+                    ColumnSpacing="14">
 
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition
-                            Width="72" />
+                            Width="58" />
                         <ColumnDefinition
                             Width="*" />
                         <ColumnDefinition
@@ -182,17 +431,16 @@
 
                     <Border
                         Grid.Column="0"
-                        Width="72"
-                        Height="72"
-                        Margin="0,13,0,0"
+                        Width="58"
+                        Height="58"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
-                        Background="#E5EFFF"
-                        CornerRadius="18">
+                        Background="{ThemeResource ModelImportAccentSurfaceBrush}"
+                        CornerRadius="15">
 
                         <Viewbox
-                            Width="48"
-                            Height="48"
+                            Width="38"
+                            Height="38"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">
 
@@ -202,7 +450,7 @@
 
                                 <Path
                                     Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
-                                    Stroke="#2563EB"
+                                    Stroke="{ThemeResource ModelImportAccentBrush}"
                                     StrokeLineJoin="Round"
                                     StrokeThickness="2" />
 
@@ -212,7 +460,7 @@
                                     VerticalAlignment="Center"
                                     FontSize="7"
                                     FontWeight="Bold"
-                                    Foreground="#2563EB"
+                                    Foreground="{ThemeResource ModelImportAccentBrush}"
                                     Text="GGUF" />
 
                             </Grid>
@@ -223,41 +471,33 @@
 
                     <StackPanel
                         Grid.Column="1"
-                        Margin="26,9,20,0"
                         VerticalAlignment="Top"
                         Spacing="3">
 
                         <TextBlock
                             x:Name="ScanningFileNameTextBlock"
                             HorizontalAlignment="Stretch"
-                            FontSize="22"
+                            FontSize="18"
                             FontWeight="SemiBold"
-                            Foreground="#111827"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            Foreground="{ThemeResource ModelImportTextBrush}"
+                            MaxLines="2"
+                            TextWrapping="WrapWholeWords" />
 
                         <TextBlock
-                            FontSize="13"
-                            Foreground="#7A8495"
+                            FontSize="12"
+                            Foreground="{ThemeResource ModelImportSubtleTextBrush}"
                             Text="Selected local model"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            MaxLines="2"
+                            TextWrapping="WrapWholeWords" />
 
                         <Border
-                            Width="70"
-                            Height="26"
                             Margin="0,4,0,0"
-                            Padding="0"
-                            HorizontalAlignment="Left"
-                            Background="#E7EFFF"
-                            CornerRadius="13">
+                            Background="{ThemeResource ModelImportAccentSurfaceBrush}"
+                            Style="{StaticResource ImportModelBadgeBorderStyle}">
 
                             <TextBlock
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="11"
-                                FontWeight="SemiBold"
-                                Foreground="#2563EB"
+                                Foreground="{ThemeResource ModelImportAccentBrush}"
+                                Style="{StaticResource ImportModelBadgeTextStyle}"
                                 Text="GGUF" />
 
                         </Border>
@@ -276,9 +516,12 @@
                         VerticalAlignment="Top"
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
+                        AutomationProperties.AutomationId="CancelQuickScanButton"
                         AutomationProperties.Name="Remove selected model and cancel quick scan"
-                        Background="#FFFFFF"
-                        BorderBrush="#FFC2C2"
+                        AutomationProperties.HelpText="Cancel the current quick scan, remove the selected model, and return to model selection."
+                        ToolTipService.ToolTip="Cancel quick scan"
+                        Background="{ThemeResource ModelImportSurfaceBrush}"
+                        BorderBrush="{ThemeResource ModelImportErrorBorderBrush}"
                         BorderThickness="1"
                         Click="CancelScanButton_Click"
                         CornerRadius="11"
@@ -286,7 +529,7 @@
 
                         <FontIcon
                             FontSize="18"
-                            Foreground="#FF2D2D"
+                            Foreground="{ThemeResource ModelImportErrorBrush}"
                             Glyph="&#xE74D;" />
 
                         <Button.Resources>
@@ -328,7 +571,7 @@
                 <Rectangle
                     Grid.Row="1"
                     HorizontalAlignment="Stretch"
-                    Fill="#E5E7EB" />
+                    Fill="{ThemeResource ModelImportBorderBrush}" />
 
                 <!--  Metadata skeletons  -->
                 <Grid
@@ -346,84 +589,84 @@
 
                     <StackPanel
                         Grid.Column="0"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="10">
 
                         <TextBlock
                             FontSize="11"
                             FontWeight="SemiBold"
-                            Foreground="#6B7280"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
                             Text="PARAMETERS" />
 
                         <Border
                             Width="78"
                             Height="14"
                             HorizontalAlignment="Left"
-                            Background="#E5E7EB"
+                            Background="{ThemeResource ModelImportBorderBrush}"
                             CornerRadius="7" />
 
                     </StackPanel>
 
                     <StackPanel
                         Grid.Column="1"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="10">
 
                         <TextBlock
                             FontSize="11"
                             FontWeight="SemiBold"
-                            Foreground="#6B7280"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
                             Text="ARCHITECTURE" />
 
                         <Border
                             Width="116"
                             Height="14"
                             HorizontalAlignment="Left"
-                            Background="#E5E7EB"
+                            Background="{ThemeResource ModelImportBorderBrush}"
                             CornerRadius="7" />
 
                     </StackPanel>
 
                     <StackPanel
                         Grid.Column="2"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="10">
 
                         <TextBlock
                             FontSize="11"
                             FontWeight="SemiBold"
-                            Foreground="#6B7280"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
                             Text="FILE SIZE" />
 
                         <Border
                             Width="84"
                             Height="14"
                             HorizontalAlignment="Left"
-                            Background="#E5E7EB"
+                            Background="{ThemeResource ModelImportBorderBrush}"
                             CornerRadius="7" />
 
                     </StackPanel>
 
                     <StackPanel
                         Grid.Column="3"
-                        Margin="0,14,0,0"
+                        Margin="0,10,0,0"
                         VerticalAlignment="Top"
                         Spacing="10">
 
                         <TextBlock
                             FontSize="11"
                             FontWeight="SemiBold"
-                            Foreground="#6B7280"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
                             Text="DECLARED CONTEXT" />
 
                         <Border
                             Width="126"
                             Height="14"
                             HorizontalAlignment="Left"
-                            Background="#E5E7EB"
+                            Background="{ThemeResource ModelImportBorderBrush}"
                             CornerRadius="7" />
 
                     </StackPanel>
@@ -435,7 +678,7 @@
                     Grid.Row="3"
                     Height="34"
                     HorizontalAlignment="Stretch"
-                    Background="#EEF4FF"
+                    Background="{ThemeResource ModelImportAccentSurfaceBrush}"
                     CornerRadius="17">
 
                     <StackPanel
@@ -449,14 +692,14 @@
                             Height="16"
                             VerticalAlignment="Center"
                             AutomationProperties.Name="Quick scan in progress"
-                            Foreground="#2563EB"
+                            Foreground="{ThemeResource ModelImportAccentBrush}"
                             IsActive="True" />
 
                         <TextBlock
                             VerticalAlignment="Center"
                             FontSize="13"
                             FontWeight="SemiBold"
-                            Foreground="#2563EB"
+                            Foreground="{ThemeResource ModelImportAccentBrush}"
                             Text="Quick scan in progress · Reading model metadata"
                             TextWrapping="NoWrap" />
 
@@ -465,40 +708,42 @@
                 </Border>
 
             </Grid>
+            </ScrollViewer>
 
         </Border>
 
         <!--  STATE 3: GGUF QUICK SCAN FAILED  -->
         <Border
             x:Name="FailureView"
-            Height="376"
+            MinHeight="360"
+            MaxHeight="480"
             MaxWidth="804"
-            Padding="32,24,32,22"
+            Padding="32,18,32,24"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Top"
-            Background="#FBFCFE"
-            BorderBrush="#C9D7E8"
+            Background="{ThemeResource ModelImportSurfaceBrush}"
+            BorderBrush="{ThemeResource ModelImportBorderBrush}"
             BorderThickness="1.5"
             CornerRadius="22"
             Visibility="Collapsed">
 
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition
-                        Height="126" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition
                         Height="1" />
-                    <RowDefinition
-                        Height="*" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!--  Selected model header  -->
                 <Grid
-                    Grid.Row="0">
+                    x:Name="FailureHeaderGrid"
+                    Grid.Row="0"
+                    ColumnSpacing="14">
 
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition
-                            Width="72" />
+                            Width="58" />
                         <ColumnDefinition
                             Width="*" />
                         <ColumnDefinition
@@ -507,82 +752,89 @@
 
                     <Border
                         Grid.Column="0"
-                        Width="72"
-                        Height="72"
-                        Margin="0,13,0,0"
+                        Width="58"
+                        Height="58"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
-                        Background="#E5EFFF"
-                        CornerRadius="18">
+                        Background="{ThemeResource ModelImportAccentSurfaceBrush}"
+                        CornerRadius="15">
 
-                        <Viewbox
-                            Width="48"
-                            Height="48"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
+                        <Grid>
+                            <Viewbox
+                                x:Name="FailureGgufIcon"
+                                Width="38"
+                                Height="38"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
 
-                            <Grid
-                                Width="48"
-                                Height="48">
+                                <Grid
+                                    Width="48"
+                                    Height="48">
 
-                                <Path
-                                    Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
-                                    Stroke="#2563EB"
-                                    StrokeLineJoin="Round"
-                                    StrokeThickness="2" />
+                                    <Path
+                                        Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
+                                        Stroke="{ThemeResource ModelImportAccentBrush}"
+                                        StrokeLineJoin="Round"
+                                        StrokeThickness="2" />
 
-                                <TextBlock
-                                    Margin="0,22,0,0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="7"
-                                    FontWeight="Bold"
-                                    Foreground="#2563EB"
-                                    Text="GGUF" />
+                                    <TextBlock
+                                        Margin="0,22,0,0"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        FontSize="7"
+                                        FontWeight="Bold"
+                                        Foreground="{ThemeResource ModelImportAccentBrush}"
+                                        Text="GGUF" />
 
-                            </Grid>
+                                </Grid>
 
-                        </Viewbox>
+                            </Viewbox>
+
+                            <FontIcon
+                                x:Name="FailureFolderIcon"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                AutomationProperties.AccessibilityView="Raw"
+                                FontSize="26"
+                                Foreground="{ThemeResource ModelImportAccentBrush}"
+                                Glyph="&#xE8B7;"
+                                Visibility="Collapsed" />
+                        </Grid>
 
                     </Border>
 
                     <StackPanel
                         Grid.Column="1"
-                        Margin="26,9,20,0"
                         VerticalAlignment="Top"
                         Spacing="3">
 
                         <TextBlock
                             x:Name="FailureFileNameTextBlock"
                             HorizontalAlignment="Stretch"
-                            FontSize="22"
+                            FontSize="18"
                             FontWeight="SemiBold"
-                            Foreground="#111827"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            Foreground="{ThemeResource ModelImportTextBrush}"
+                            MaxLines="2"
+                            TextWrapping="WrapWholeWords" />
 
                         <TextBlock
-                            FontSize="13"
-                            Foreground="#7A8495"
+                            x:Name="FailureSourceSubtitleTextBlock"
+                            FontSize="12"
+                            Foreground="{ThemeResource ModelImportSubtleTextBrush}"
                             Text="Selected local model"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            MaxLines="2"
+                            TextWrapping="WrapWholeWords" />
 
                         <Border
-                            Width="70"
-                            Height="26"
-                            Margin="0,4,0,0"
-                            Padding="0"
-                            HorizontalAlignment="Left"
-                            Background="#E7EFFF"
-                            CornerRadius="13">
+                            x:Name="FailureFormatBadgeBorder"
+                            Margin="0,0,0,6"
+                            Background="{ThemeResource ModelImportAccentSurfaceBrush}"
+                            Style="{StaticResource ImportModelBadgeBorderStyle}">
 
                             <TextBlock
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="11"
-                                FontWeight="SemiBold"
-                                Foreground="#2563EB"
+                                x:Name="FailureFormatBadgeTextBlock"
+                                Foreground="{ThemeResource ModelImportAccentBrush}"
+                                Style="{StaticResource ImportModelBadgeTextStyle}"
                                 Text="GGUF" />
 
                         </Border>
@@ -601,9 +853,12 @@
                         VerticalAlignment="Top"
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
+                        AutomationProperties.AutomationId="RemoveFailedModelButton"
                         AutomationProperties.Name="Remove failed model"
-                        Background="#FFFFFF"
-                        BorderBrush="#FFC2C2"
+                        AutomationProperties.HelpText="Remove this failed model and return to model selection."
+                        ToolTipService.ToolTip="Remove failed model"
+                        Background="{ThemeResource ModelImportSurfaceBrush}"
+                        BorderBrush="{ThemeResource ModelImportErrorBorderBrush}"
                         BorderThickness="1"
                         Click="CancelScanButton_Click"
                         CornerRadius="11"
@@ -611,7 +866,7 @@
 
                         <FontIcon
                             FontSize="18"
-                            Foreground="#FF2D2D"
+                            Foreground="{ThemeResource ModelImportErrorBrush}"
                             Glyph="&#xE74D;" />
 
                         <Button.Resources>
@@ -653,21 +908,31 @@
                 <Rectangle
                     Grid.Row="1"
                     HorizontalAlignment="Stretch"
-                    Fill="#E5E7EB" />
+                    Fill="{ThemeResource ModelImportBorderBrush}" />
+
+                <!--
+                    keep the selected-model identity and divider stationary. only
+                    unusually long diagnostics scroll, so ordinary failures remain
+                    compact while every recovery instruction stays reachable
+                -->
+                <ScrollViewer
+                    Grid.Row="2"
+                    MaxHeight="300"
+                    Margin="0,16,0,0"
+                    HorizontalContentAlignment="Stretch"
+                    HorizontalScrollBarVisibility="Disabled"
+                    HorizontalScrollMode="Disabled"
+                    VerticalScrollBarVisibility="Auto"
+                    VerticalScrollMode="Auto"
+                    ZoomMode="Disabled">
 
                 <!--  Failure details  -->
-                <Grid
-                    Grid.Row="2"
-                    Margin="0,18,0,0">
+                <Grid RowSpacing="6">
                     <Grid.RowDefinitions>
-                        <RowDefinition
-                            Height="20" />
-                        <RowDefinition
-                            Height="35" />
-                        <RowDefinition
-                            Height="56" />
-                        <RowDefinition
-                            Height="73" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <StackPanel
@@ -680,7 +945,7 @@
                             Width="18"
                             Height="18"
                             VerticalAlignment="Top"
-                            Background="#FEE2E2"
+                            Background="{ThemeResource ModelImportErrorSurfaceBrush}"
                             CornerRadius="9">
 
                             <TextBlock
@@ -688,7 +953,7 @@
                                 VerticalAlignment="Center"
                                 FontSize="11"
                                 FontWeight="Bold"
-                                Foreground="#DC2626"
+                                Foreground="{ThemeResource ModelImportErrorBrush}"
                                 Text="!" />
 
                         </Border>
@@ -697,7 +962,7 @@
                             VerticalAlignment="Center"
                             FontSize="11"
                             FontWeight="Bold"
-                            Foreground="#DC2626"
+                            Foreground="{ThemeResource ModelImportErrorBrush}"
                             Text="QUICK SCAN FAILED" />
 
                     </StackPanel>
@@ -707,7 +972,7 @@
                         VerticalAlignment="Center"
                         FontSize="18"
                         FontWeight="SemiBold"
-                        Foreground="#1B2435"
+                        Foreground="{ThemeResource ModelImportTextBrush}"
                         Text="Model could not be imported" />
 
                     <Grid
@@ -729,27 +994,18 @@
                             <TextBlock
                                 FontSize="10"
                                 FontWeight="SemiBold"
-                                Foreground="#6B7280"
+                                Foreground="{ThemeResource ModelImportMutedTextBrush}"
                                 Text="FAILURE CODE" />
 
                             <Border
-                                Width="178"
-                                Height="27"
-                                HorizontalAlignment="Left"
-                                Background="#FEF2F2"
-                                CornerRadius="14">
+                                Style="{StaticResource ImportModelErrorBadgeBorderStyle}">
 
                                 <TextBlock
                                     x:Name="FailureCodeTextBlock"
-                                    Margin="10,0"
-                                    HorizontalAlignment="Stretch"
-                                    VerticalAlignment="Center"
-                                    FontSize="11"
-                                    FontWeight="SemiBold"
-                                    Foreground="#DC2626"
-                                    TextAlignment="Center"
+                                    Foreground="{ThemeResource ModelImportErrorBrush}"
+                                    Style="{StaticResource ImportModelBadgeTextStyle}"
                                     TextTrimming="CharacterEllipsis"
-                                    TextWrapping="NoWrap" />
+                                    MaxWidth="154" />
 
                             </Border>
 
@@ -763,34 +1019,39 @@
                             <TextBlock
                                 FontSize="10"
                                 FontWeight="SemiBold"
-                                Foreground="#6B7280"
+                                Foreground="{ThemeResource ModelImportMutedTextBrush}"
                                 Text="MESSAGE" />
 
                             <TextBlock
                                 x:Name="FailureMessageTextBlock"
-                                MaxHeight="34"
                                 FontSize="13"
-                                Foreground="#4B5563"
-                                TextTrimming="CharacterEllipsis"
+                                Foreground="{ThemeResource ModelImportMutedTextBrush}"
                                 TextWrapping="Wrap" />
 
                         </StackPanel>
 
                     </Grid>
 
+                    <!--
+                        Displays recovery guidance in a content-sized panel.
+
+                        MinHeight preserves the intended visual weight, while automatic
+                        sizing prevents wrapped guidance from being clipped.
+                    -->
                     <Border
                         Grid.Row="3"
-                        Height="58"
-                        VerticalAlignment="Bottom"
-                        Background="#FFF7F7"
-                        BorderBrush="#FDE2E2"
+                        MinHeight="60"
+                        Margin="0,0,0,0"
+                        Padding="14,6"
+                        Background="{ThemeResource ModelImportErrorSurfaceBrush}"
+                        BorderBrush="{ThemeResource ModelImportErrorBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="14">
 
+                        <!--  Arranges the numbered recovery steps vertically.  -->
                         <StackPanel
-                            Margin="14,6"
                             VerticalAlignment="Center"
-                            Spacing="2">
+                            Spacing="3">
 
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -804,13 +1065,14 @@
                                     Grid.Column="0"
                                     FontSize="12"
                                     FontWeight="Bold"
-                                    Foreground="#DC2626"
+                                    Foreground="{ThemeResource ModelImportErrorBrush}"
                                     Text="1." />
 
                                 <TextBlock
+                                    x:Name="FailureRecoveryPrimaryTextBlock"
                                     Grid.Column="1"
                                     FontSize="12"
-                                    Foreground="#4B5563"
+                                    Foreground="{ThemeResource ModelImportMutedTextBrush}"
                                     Text="Make sure the file is a valid GGUF model with the required header and metadata."
                                     TextWrapping="Wrap" />
 
@@ -828,13 +1090,13 @@
                                     Grid.Column="0"
                                     FontSize="12"
                                     FontWeight="Bold"
-                                    Foreground="#DC2626"
+                                    Foreground="{ThemeResource ModelImportErrorBrush}"
                                     Text="2." />
 
                                 <TextBlock
                                     Grid.Column="1"
                                     FontSize="12"
-                                    Foreground="#4B5563"
+                                    Foreground="{ThemeResource ModelImportMutedTextBrush}"
                                     Text="Otherwise, remove this model and import another one."
                                     TextWrapping="Wrap" />
 
@@ -846,6 +1108,8 @@
 
                 </Grid>
 
+                </ScrollViewer>
+
             </Grid>
 
         </Border>
@@ -853,63 +1117,64 @@
         <!--  STATE 4: GGUF QUICK SCAN SUCCEEDED  -->
         <Border
             x:Name="SuccessView"
-            Height="288"
-            MaxWidth="804"
-            Padding="32,24,32,18"
+            Height="360"
+            Padding="12"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Top"
-            Background="#FBFCFE"
-            BorderBrush="#C9D7E8"
-            BorderThickness="1.5"
-            CornerRadius="22"
+            Background="{ThemeResource ModelImportSurfaceBrush}"
+            BorderBrush="{ThemeResource ModelImportBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="20"
             Visibility="Collapsed">
 
-            <Grid>
+            <ScrollViewer
+                HorizontalContentAlignment="Stretch"
+                HorizontalScrollBarVisibility="Disabled"
+                HorizontalScrollMode="Disabled"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto"
+                ZoomMode="Disabled">
+            <Grid RowSpacing="6">
                 <Grid.RowDefinitions>
                     <!--  Selected-model header.  -->
-                    <RowDefinition
-                        Height="126" />
+                    <RowDefinition Height="Auto" />
 
                     <!--  Divider.  -->
                     <RowDefinition
                         Height="1" />
 
                     <!--  Metadata values.  -->
-                    <RowDefinition
-                        Height="85" />
+                    <RowDefinition Height="*" />
 
                     <!--  Completion status.  -->
-                    <RowDefinition
-                        Height="34" />
+                    <RowDefinition Height="40" />
                 </Grid.RowDefinitions>
 
                 <!--  Selected-model header  -->
                 <Grid
-                    Grid.Row="0">
+                    Grid.Row="0"
+                    ColumnSpacing="14">
 
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition
-                            Width="72" />
+                        <ColumnDefinition Width="58" />
                         <ColumnDefinition
                             Width="*" />
-                        <ColumnDefinition
-                            Width="40" />
+                        <ColumnDefinition Width="40" />
                     </Grid.ColumnDefinitions>
 
                     <!--  GGUF document icon  -->
                     <Border
                         Grid.Column="0"
-                        Width="72"
-                        Height="72"
-                        Margin="0,13,0,0"
+                        Width="58"
+                        Height="58"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
-                        Background="#E5EFFF"
-                        CornerRadius="18">
+                        Background="{ThemeResource ModelImportAccentSurfaceBrush}"
+                        CornerRadius="15">
 
                         <Viewbox
-                            Width="48"
-                            Height="48"
+                            Width="38"
+                            Height="38"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">
 
@@ -919,7 +1184,7 @@
 
                                 <Path
                                     Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17"
-                                    Stroke="#2563EB"
+                                    Stroke="{ThemeResource ModelImportAccentBrush}"
                                     StrokeLineJoin="Round"
                                     StrokeThickness="2" />
 
@@ -929,7 +1194,7 @@
                                     VerticalAlignment="Center"
                                     FontSize="7"
                                     FontWeight="Bold"
-                                    Foreground="#2563EB"
+                                    Foreground="{ThemeResource ModelImportAccentBrush}"
                                     Text="GGUF" />
 
                             </Grid>
@@ -938,67 +1203,52 @@
 
                     </Border>
 
-                    <!--  Model name, filename and badges  -->
+                    <!--  model name, filename and badges  -->
                     <StackPanel
                         Grid.Column="1"
-                        Margin="26,9,20,0"
                         VerticalAlignment="Top"
                         Spacing="3">
 
                         <TextBlock
                             x:Name="SuccessModelNameTextBlock"
                             HorizontalAlignment="Stretch"
-                            FontSize="22"
+                            FontSize="18"
                             FontWeight="SemiBold"
-                            Foreground="#111827"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            Foreground="{ThemeResource ModelImportTextBrush}"
+                            TextWrapping="WrapWholeWords" />
 
                         <TextBlock
                             x:Name="SuccessFileNameTextBlock"
                             HorizontalAlignment="Stretch"
-                            FontSize="13"
-                            Foreground="#7A8495"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            FontSize="12"
+                            Foreground="{ThemeResource ModelImportSubtleTextBrush}"
+                            TextWrapping="WrapWholeWords" />
 
                         <StackPanel
-                            Margin="0,4,0,0"
                             Orientation="Horizontal"
-                            Spacing="8">
+                            Spacing="6">
 
                             <!--  Format badge  -->
                             <Border
-                                Width="70"
-                                Height="26"
-                                Background="#E7EFFF"
-                                CornerRadius="13">
+                                Background="{ThemeResource ModelImportAccentSurfaceBrush}"
+                                Style="{StaticResource ImportModelBadgeBorderStyle}">
 
                                 <TextBlock
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="11"
-                                    FontWeight="SemiBold"
-                                    Foreground="#2563EB"
+                                    Foreground="{ThemeResource ModelImportAccentBrush}"
+                                    Style="{StaticResource ImportModelBadgeTextStyle}"
                                     Text="GGUF" />
 
                             </Border>
 
                             <!--  Quantisation badge  -->
                             <Border
-                                Height="26"
-                                MinWidth="88"
-                                Padding="14,0"
-                                Background="#EEECFF"
-                                CornerRadius="13">
+                                Background="{ThemeResource ModelImportAccentSurfaceBrush}"
+                                Style="{StaticResource ImportModelBadgeBorderStyle}">
 
                                 <TextBlock
                                     x:Name="SuccessQuantizationTextBlock"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontSize="11"
-                                    FontWeight="SemiBold"
-                                    Foreground="#4F46E5"
+                                    Foreground="{ThemeResource ModelImportAccentBrush}"
+                                    Style="{StaticResource ImportModelBadgeTextStyle}"
                                     TextTrimming="CharacterEllipsis"
                                     TextWrapping="NoWrap" />
 
@@ -1008,10 +1258,11 @@
 
                     </StackPanel>
 
-                    <!--  Remove imported model  -->
+                    <!--  remove imported model  -->
                     <Button
                         x:Name="RemoveSucceededModelButton"
                         Grid.Column="2"
+                        Grid.RowSpan="4"
                         Width="40"
                         Height="40"
                         MinWidth="40"
@@ -1021,9 +1272,12 @@
                         VerticalAlignment="Top"
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
+                        AutomationProperties.AutomationId="RemoveSucceededModelButton"
                         AutomationProperties.Name="Remove imported model"
-                        Background="#FFFFFF"
-                        BorderBrush="#FFC2C2"
+                        AutomationProperties.HelpText="Remove this imported model and return to model selection."
+                        ToolTipService.ToolTip="Remove imported model"
+                        Background="{ThemeResource ModelImportSurfaceBrush}"
+                        BorderBrush="{ThemeResource ModelImportErrorBorderBrush}"
                         BorderThickness="1"
                         Click="CancelScanButton_Click"
                         CornerRadius="11"
@@ -1031,7 +1285,7 @@
 
                         <FontIcon
                             FontSize="18"
-                            Foreground="#FF2D2D"
+                            Foreground="{ThemeResource ModelImportErrorBrush}"
                             Glyph="&#xE74D;" />
 
                         <Button.Resources>
@@ -1080,136 +1334,167 @@
                 <Rectangle
                     Grid.Row="1"
                     HorizontalAlignment="Stretch"
-                    Fill="#E5E7EB" />
+                    Fill="{ThemeResource ModelImportBorderBrush}" />
 
-                <!--  Successful metadata values  -->
+                <!--  successful metadata values  -->
                 <Grid
-                    Grid.Row="2">
+                    Grid.Row="2"
+                    ColumnSpacing="10"
+                    RowSpacing="6">
 
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition
-                            Width="185" />
-                        <ColumnDefinition
-                            Width="200" />
-                        <ColumnDefinition
-                            Width="175" />
-                        <ColumnDefinition
-                            Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
                     <!--  Parameters  -->
                     <StackPanel
                         Grid.Column="0"
-                        Margin="0,14,0,0"
-                        VerticalAlignment="Top"
-                        Spacing="8">
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="3">
 
                         <TextBlock
                             FontSize="11"
                             FontWeight="SemiBold"
-                            Foreground="#6B7280"
-                            Text="PARAMETERS" />
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            Text="PARAMETERS"
+                            TextAlignment="Center" />
 
                         <TextBlock
                             x:Name="SuccessParametersTextBlock"
-                            FontSize="16"
+                            HorizontalAlignment="Center"
+                            FontSize="14"
                             FontWeight="SemiBold"
-                            Foreground="#111827"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            Foreground="{ThemeResource ModelImportTextBrush}"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
 
                     </StackPanel>
 
                     <!--  Architecture  -->
                     <StackPanel
                         Grid.Column="1"
-                        Margin="0,14,0,0"
-                        VerticalAlignment="Top"
-                        Spacing="8">
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="3">
 
                         <TextBlock
                             FontSize="11"
                             FontWeight="SemiBold"
-                            Foreground="#6B7280"
-                            Text="ARCHITECTURE" />
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            Text="ARCHITECTURE"
+                            TextAlignment="Center" />
 
                         <TextBlock
                             x:Name="SuccessArchitectureTextBlock"
-                            FontSize="16"
+                            HorizontalAlignment="Center"
+                            FontSize="14"
                             FontWeight="SemiBold"
-                            Foreground="#111827"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            Foreground="{ThemeResource ModelImportTextBrush}"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
 
                     </StackPanel>
 
                     <!--  File size  -->
                     <StackPanel
                         Grid.Column="2"
-                        Margin="0,14,0,0"
-                        VerticalAlignment="Top"
-                        Spacing="8">
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="3">
 
                         <TextBlock
                             FontSize="11"
                             FontWeight="SemiBold"
-                            Foreground="#6B7280"
-                            Text="FILE SIZE" />
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            Text="FILE SIZE"
+                            TextAlignment="Center" />
 
                         <TextBlock
                             x:Name="SuccessFileSizeTextBlock"
-                            FontSize="16"
+                            HorizontalAlignment="Center"
+                            FontSize="14"
                             FontWeight="SemiBold"
-                            Foreground="#111827"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            Foreground="{ThemeResource ModelImportTextBrush}"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
 
                     </StackPanel>
 
                     <!--  Declared context  -->
                     <StackPanel
-                        Grid.Column="3"
-                        Margin="0,14,0,0"
-                        VerticalAlignment="Top"
-                        Spacing="8">
+                        Grid.Row="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="3">
 
                         <TextBlock
                             FontSize="11"
                             FontWeight="SemiBold"
-                            Foreground="#6B7280"
-                            Text="DECLARED CONTEXT" />
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            Text="DECLARED CONTEXT"
+                            TextAlignment="Center" />
 
                         <TextBlock
                             x:Name="SuccessDeclaredContextTextBlock"
-                            FontSize="16"
+                            HorizontalAlignment="Center"
+                            FontSize="14"
                             FontWeight="SemiBold"
-                            Foreground="#111827"
-                            TextTrimming="CharacterEllipsis"
-                            TextWrapping="NoWrap" />
+                            Foreground="{ThemeResource ModelImportTextBrush}"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
 
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3">
+                        <TextBlock HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="RUNTIME ROUTE" TextAlignment="Center" />
+                        <TextBlock HorizontalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="llama.cpp" TextAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3">
+                        <TextBlock HorizontalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="NEXT STEP" TextAlignment="Center" />
+                        <TextBlock HorizontalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="Model inspection" TextAlignment="Center" />
                     </StackPanel>
 
                 </Grid>
 
-                <!--  Successful quick-scan status  -->
+                <!--  successful quick-scan status  -->
                 <Border
                     Grid.Row="3"
-                    Height="34"
+                    Height="40"
+                    Padding="12,0"
                     HorizontalAlignment="Stretch"
-                    Background="#ECFDF5"
+                    Background="{ThemeResource ModelImportSuccessSurfaceBrush}"
                     CornerRadius="17">
 
-                    <StackPanel
-                        Margin="12,0"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal"
-                        Spacing="10">
+                    <!--
+                        the grid gives the icon a fixed inset from the rounded edge
+                        and keeps both the icon and message vertically centred
+                    -->
+                    <Grid
+                        VerticalAlignment="Stretch">
 
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition
+                                Width="16" />
+                            <ColumnDefinition
+                                Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!--  successful scan indicator  -->
                         <Border
+                            Grid.Column="0"
                             Width="16"
                             Height="16"
+                            HorizontalAlignment="Left"
                             VerticalAlignment="Center"
-                            Background="#10B981"
+                            Background="{ThemeResource ModelImportSuccessBrush}"
                             CornerRadius="8">
 
                             <TextBlock
@@ -1217,24 +1502,31 @@
                                 VerticalAlignment="Center"
                                 FontSize="10"
                                 FontWeight="Bold"
-                                Foreground="White"
-                                Text="✓" />
+                                Foreground="{ThemeResource GraniteJourneyPrimaryForegroundBrush}"
+                                Text="✓"
+                                TextAlignment="Center" />
 
                         </Border>
 
+                        <!--  successful scan message  -->
                         <TextBlock
+                            Grid.Column="1"
+                            Margin="10,0,0,0"
+                            HorizontalAlignment="Left"
                             VerticalAlignment="Center"
                             FontSize="13"
                             FontWeight="SemiBold"
-                            Foreground="#047857"
+                            Foreground="{ThemeResource ModelImportSuccessBrush}"
                             Text="Quick scan complete · Ready for model inspection"
+                            TextAlignment="Left"
                             TextWrapping="NoWrap" />
 
-                    </StackPanel>
+                    </Grid>
 
                 </Border>
 
             </Grid>
+            </ScrollViewer>
 
         </Border>
 

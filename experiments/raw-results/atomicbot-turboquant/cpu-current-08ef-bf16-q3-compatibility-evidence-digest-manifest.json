@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "declarationKind": "historical-quality-current-runtime-compatibility-bridge-v1",
+  "evidenceId": "GGUF-CURRENT-08EF-BF16-Q3-COMPAT-01",
+  "originalEvidenceId": "GGUF-V5-BF16-Q3-CPU-F16-01",
+  "originalQualityMean": 6.9,
+  "newQualityMeasurement": false,
+  "originalEvidenceDigestSha256": "BEE99661E066DFE0A5535ECA689B7CC48866B8355F1B06C6C98231F3F293E532",
+  "originalRuntimeManifestSha256": "5E2204C791A44D2FC696F0F37EBB5568DDD40D7BD6BDE869D4844E029D326941",
+  "currentRuntimeManifestSha256": "08EF00CF8CD425BC5409071A77C12BE5A90292C121A5109EDDE63BB109B3B7C4",
+  "source": {
+    "sha256": "e5fc3d677f42a9cba091ea6084cf619bd434ff5ac56b893d3bf5d4f604581091",
+    "length": 6809655904,
+    "parameterCount": 3402836480,
+    "weightFormat": "bf16"
+  },
+  "output": {
+    "sha256": "77EEAB5D868BEE624E283F141D5B6BE3FA4F4A59B7C78B0163C3A28C7A80A3CA",
+    "length": 1725577824,
+    "weightFormat": "q3_k_m"
+  },
+  "quantizerManifestSha256": "2D039FDBA954B7C9B17F4E552E7A69D5082F988861CC08DB9BEE3263F293B1B8",
+  "quantizerExecutableSha256": "0A17247D4807B520532DF54F96ED73F3CF6FA921F879D8D465B44541B41D36E3",
+  "profile": {
+    "backend": "Cpu", "contextSize": 4096, "gpuLayerCount": 0,
+    "keyCacheType": "F16", "valueCacheType": "F16",
+    "threadCount": 4, "batchSize": 512, "flashAttention": true,
+    "maximumGeneratedTokens": 256
+  },
+  "targetedEvidence": [
+    { "path": "gguf-managed-bridge/comparison03.json", "sha256": "EA44206AC74BD4CCBBBC005BF72DA73B3E37C2A95ADEAC0C0EC12DB66D781386", "meaning": "Binary-bound request/argument and controlled SSE/history comparison; not whole-assembly equivalence" },
+    { "path": "tokenizer-metadata-probe/static-proof.log", "sha256": "14BA48E049B310CB4ED24A9C34FF94FE276ACF394AC9C740E91A5850FEE65F55", "meaning": "Full Q4/Q3 identities; thirteen typed tokenizer/architecture fields identical; nine exact rendered requests including three saved P6 histories" },
+    { "path": "token-count-01/counts.json", "sha256": "A607C20EB116179D683DF9A53A94CE12553A262117FDC6977C145E6D5363C0CA", "meaning": "Transferred token counts only through identical tokenizer inputs and native closure: maximum1832 below3839, requested256 unchanged" }
+  ],
+  "evidenceRoot": "external-retained-evidence/q03-discriminator",
+  "limitations": "Compatibility reuse of the original Q3 quality record, not Q4 quality transfer or new generation/conversion evidence. Current titles, cancellation and near-capacity behavior remain unchanged. Exact quantizer, output, source, runtime, resource and issuer gates remain required. Original public lifecycle limitation is retained.",
+  "fullLifecyclePending": true,
+  "releaseProof": false
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "packageId": "atomicbot-turboquant-519f0c594a8e31467d2e2f2cf17054c9e7e11536-win-x64",
+  "repository": "https://github.com/AtomicBot-ai/atomic-llama-cpp-turboquant",
+  "sourceCommit": "519f0c594a8e31467d2e2f2cf17054c9e7e11536",
+  "license": "MIT",
+  "archives": [
+    {
+      "role": "cpu",
+      "file": "archives/llama-turboquant-windows-x64-cpu.zip",
+      "releaseTag": "turboquant-windows-x64-cpu-519f0c5",
+      "length": 11551252,
+      "sha256": "21b751142163cfb15738cb5084abcb83444ce76453bd4aa33e9faeca1966ad3c"
+    },
+    {
+      "role": "vulkan",
+      "file": "archives/llama-turboquant-windows-x64-vulkan.zip",
+      "releaseTag": "turboquant-windows-x64-vulkan-519f0c5",
+      "length": 34044803,
+      "sha256": "6ec43c6d5663c0e12ea8c9242c165fcd544fb613794203ffc5915aea76f43de9"
+    }
+  ],
+  "capabilities": {
+    "cacheTypes": [ "f16", "q8_0", "turbo4", "turbo3", "turbo2" ],
+    "weightTypes": [ "TQ4_1S", "TQ3_1S" ],
+    "backends": [ "cpu", "vulkan" ]
+  }
+}

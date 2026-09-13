@@ -49,7 +49,7 @@ def _copy_builder_sources(destination: Path) -> Path:
             "expected-rejections/property-expected-rejections-current.json"
         ),
         Path(
-            ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/"
+            "external-design-records/2026-07-19-openvino-turboquant-recovery/"
             "wb04-static-sections-draft.md"
         ),
     ]
@@ -97,7 +97,7 @@ def _copy_builder_sources(destination: Path) -> Path:
         shutil.copy2(REPO_ROOT / relative_path, target)
     return (
         destination
-        / ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/"
+        / "external-design-records/2026-07-19-openvino-turboquant-recovery/"
         "wb04-static-sections-draft.md"
     )
 
@@ -129,7 +129,7 @@ class StaticSectionParsingTests(unittest.TestCase):
 
         draft_path = (
             REPO_ROOT
-            / ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/"
+            / "external-design-records/2026-07-19-openvino-turboquant-recovery/"
             "wb04-static-sections-draft.md"
         )
         sections = parse_static_sections(
@@ -176,7 +176,7 @@ class StaticSectionParsingTests(unittest.TestCase):
 
         draft_path = (
             REPO_ROOT
-            / ".superpowers/sdd/2026-07-19-openvino-turboquant-recovery/"
+            / "external-design-records/2026-07-19-openvino-turboquant-recovery/"
             "wb04-static-sections-draft.md"
         )
         sections = parse_static_sections(draft_path.read_text(encoding="utf-8"))
@@ -318,7 +318,7 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
                 "release_input_path": release_input,
                 "static_draft_path": (
                     REPO_ROOT
-                    / ".superpowers/sdd/"
+                    / "external-design-records/"
                     "2026-07-19-openvino-turboquant-recovery/"
                     "wb04-static-sections-draft.md"
                 ),
@@ -558,7 +558,7 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
                 release_input_path=release_input,
                 static_draft_path=(
                     REPO_ROOT
-                    / ".superpowers/sdd/"
+                    / "external-design-records/"
                     "2026-07-19-openvino-turboquant-recovery/"
                     "wb04-static-sections-draft.md"
                 ),
@@ -602,7 +602,7 @@ class ReleaseEvidenceBuildTests(unittest.TestCase):
                 release_input_path=release_input,
                 static_draft_path=(
                     REPO_ROOT
-                    / ".superpowers/sdd/"
+                    / "external-design-records/"
                     "2026-07-19-openvino-turboquant-recovery/"
                     "wb04-static-sections-draft.md"
                 ),

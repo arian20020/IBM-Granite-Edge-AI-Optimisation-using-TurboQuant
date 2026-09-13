@@ -7,83 +7,77 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:GraniteEdgeAI.Features.ModelImport.ModelDownload"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    SizeChanged="ModelDownloadCard_SizeChanged"
     mc:Ignorable="d">
 
-    <Grid>
-
-        <!--
-            TODO(THEMING):
-            Move repeated colours, spacing and corner radii into shared theme resources.
-            This will eventually support consistent styling and dark mode.
-        -->
+    <Grid
+        x:Name="CardLayoutRoot">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="220" />
+        </Grid.RowDefinitions>
         <Border
-            MinHeight="220"
-            Padding="24"
-            Background="#F9FAFB"
-            BorderBrush="#D1D5DB"
+            x:Name="RecommendedModelDetailsCard"
+            Grid.Row="0"
+            MinHeight="360"
+            Padding="14"
+            Background="{ThemeResource ModelImportSurfaceBrush}"
+            BorderBrush="{ThemeResource ModelImportBorderBrush}"
             BorderThickness="1"
-            CornerRadius="20">
+            CornerRadius="14"
+            AutomationProperties.Name="Recommended model details">
 
             <!--  Arranges the card content vertically.  -->
             <StackPanel
-                Spacing="12">
+                Spacing="10">
 
-                <!--
-                    STATIC UI:
-                    This badge describes the type of card rather than the selected model.
-                    It can remain part of ModelCard unless the product wording changes.
-                -->
-                <Border
-                    Padding="10,5"
-                    HorizontalAlignment="Left"
-                    Background="#E8F0FE"
-                    CornerRadius="6">
-
-                    <TextBlock
-                        FontSize="12"
-                        FontWeight="SemiBold"
-                        Foreground="#2563EB"
-                        Text="IBM GRANITE · MODEL PROFILE" />
-
-                </Border>
-
-                <!--
-                    TODO(MODEL DATA):
-                    The values below are temporary development seed data.
-                    
-                    Planned data flow:
-                    ModelSeedData or ModelCatalogService
-                    → ModelImportViewModel.SelectedModel
-                    → ModelCard.Model
-                    → these TextBlock bindings.
-                -->
                 <Grid
+                    x:Name="ModelHeaderGrid"
                     ColumnSpacing="12">
 
                     <Grid.ColumnDefinitions>
 
-                        <!--  Uses the remaining width for the model name.  -->
+                        <!--  uses the remaining width for the model name  -->
                         <ColumnDefinition
                             Width="*" />
 
-                        <!--  Uses only the width required by the package summary.  -->
+                        <!--  uses only the width required by the package summary  -->
                         <ColumnDefinition
                             Width="Auto" />
 
                     </Grid.ColumnDefinitions>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition
+                            Height="Auto" />
+                        <RowDefinition
+                            Height="Auto" />
+                        <RowDefinition
+                            Height="Auto" />
+                    </Grid.RowDefinitions>
 
                     <!--
                         TEMPORARY SEED VALUE:
                         Future source: ModelProfile.DisplayName.
                     -->
                     <TextBlock
+                        x:Name="ModelNameText"
                         Grid.Column="0"
                         VerticalAlignment="Center"
-                        FontSize="24"
+                        FontSize="18"
                         FontWeight="SemiBold"
-                        Foreground="#111827"
-                        Text="Granite 4.0 H-Micro"
-                        TextWrapping="Wrap" />
+                        Foreground="{ThemeResource ModelImportTextBrush}"
+                        Text="IBM Granite 4.0 H Micro"
+                        TextTrimming="None"
+                        TextWrapping="WrapWholeWords" />
+                    <TextBlock
+                        Grid.Row="1"
+                        Grid.Column="0"
+                        FontSize="14"
+                        Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                        Text="Official pinned GGUF package"
+                        TextWrapping="WrapWholeWords" />
 
                     <!--
                         TEMPORARY SEED VALUES:
@@ -92,50 +86,37 @@
                         ModelCard should never calculate or guess the download size.
                     -->
                     <TextBlock
+                        x:Name="ModelPackageSummaryText"
                         Grid.Column="1"
                         VerticalAlignment="Center"
                         FontSize="14"
-                        Foreground="#6B7280"
-                        Text="3B parameters · 1.94 GB download"
-                        TextAlignment="Right" />
+                        Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                        Text="3B parameters · 1.94 GB"
+                        TextAlignment="Right"
+                        TextTrimming="None"
+                        TextWrapping="WrapWholeWords" />
 
                 </Grid>
 
-                <!--
-                    TEMPORARY SEED VALUE:
-                    Future source: ModelProfile.Description.
-                    The model catalogue will provide this description.
-                -->
-                <TextBlock
-                    FontSize="14"
-                    Foreground="#6B7280"
-                    Text="Long-context Granite model for instruction following, question answering, summarisation, coding and tool use."
-                    TextWrapping="Wrap" />
-
-                <!--
-                    TODO(RESPONSIVE UI):
-                    The four-column layout works at the current page width.
-                    Later, adaptive visual states may change this to two columns
-                    when the application window becomes narrow.
-                -->
                 <Grid
-                    Margin="0,8,0,0"
+                    x:Name="ModelFactsGrid"
                     ColumnSpacing="16"
-                    RowSpacing="4">
+                    RowSpacing="10">
 
-                    <!--  Creates four equally sized property columns.  -->
+                    <!--  creates four equally sized property columns  -->
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition
                             Width="*" />
                         <ColumnDefinition
                             Width="*" />
                         <ColumnDefinition
-                            Width="*" />
+                            x:Name="FactsColumn2"
+                            Width="0" />
                         <ColumnDefinition
-                            Width="*" />
+                            x:Name="FactsColumn3"
+                            Width="0" />
                     </Grid.ColumnDefinitions>
 
-                    <!--  Creates one row for labels and another for values.  -->
                     <Grid.RowDefinitions>
                         <RowDefinition
                             Height="Auto" />
@@ -143,110 +124,30 @@
                             Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <!--
-                        STATIC UI:
-                        These labels describe the fields and do not depend on the model.
-                    -->
-                    <TextBlock
-                        Grid.Row="0"
-                        Grid.Column="0"
-                        FontSize="11"
-                        FontWeight="SemiBold"
-                        Foreground="#6B7280"
-                        Text="FORMAT" />
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="3">
+                        <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="FORMAT" />
+                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="GGUF" />
+                    </StackPanel>
 
-                    <TextBlock
-                        Grid.Row="0"
-                        Grid.Column="1"
-                        FontSize="11"
-                        FontWeight="SemiBold"
-                        Foreground="#6B7280"
-                        Text="QUANTIZATION" />
+                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="3">
+                        <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="QUANTISATION" />
+                        <TextBlock x:Name="QuantizationValueText" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="Q4_K_M" />
+                    </StackPanel>
 
-                    <TextBlock
-                        Grid.Row="0"
-                        Grid.Column="2"
-                        FontSize="11"
-                        FontWeight="SemiBold"
-                        Foreground="#6B7280"
-                        Text="ESTIMATED MEMORY"
-                        TextWrapping="Wrap" />
+                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="3">
+                        <TextBlock x:Name="ContextLengthLabelText" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="DECLARED CONTEXT" TextWrapping="Wrap" />
+                        <TextBlock x:Name="ContextLengthValueText" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="128K tokens" TextTrimming="None" TextWrapping="WrapWholeWords" />
+                    </StackPanel>
 
-                    <TextBlock
-                        Grid.Row="0"
-                        Grid.Column="3"
-                        FontSize="11"
-                        FontWeight="SemiBold"
-                        Foreground="#6B7280"
-                        Text="CONTEXT LENGTH"
-                        TextWrapping="Wrap" />
-
-                    <!--
-                        TEMPORARY SEED VALUE:
-                        Future source: the selected downloadable artifact's format.
-                        This may be GGUF or OpenVINO IR.
-                    -->
-                    <TextBlock
-                        Grid.Row="1"
-                        Grid.Column="0"
-                        FontSize="14"
-                        FontWeight="SemiBold"
-                        Foreground="#111827"
-                        Text="GGUF" />
-
-                    <!--
-                        TEMPORARY SEED VALUE:
-                        Future source: the selected artifact's quantization metadata.
-                    -->
-                    <TextBlock
-                        Grid.Row="1"
-                        Grid.Column="1"
-                        FontSize="14"
-                        FontWeight="SemiBold"
-                        Foreground="#111827"
-                        Text="Q4_K_M" />
-
-                    <!--
-                        DYNAMIC RESULT:
-                        This must eventually come from ModelCompatibilityService.
-                        That service will combine model requirements with results from
-                        DeviceProfileService and the project's Intel hardware benchmarks.
-                    -->
-                    <TextBlock
-                        Grid.Row="1"
-                        Grid.Column="2"
-                        FontSize="14"
-                        FontWeight="SemiBold"
-                        Foreground="#111827"
-                        Text="Pending benchmark"
-                        TextWrapping="Wrap" />
-
-                    <!--
-                        TEMPORARY SEED VALUE:
-                        Future source: ModelProfile.ContextLengthTokens.
-                        This should come from verified model configuration metadata.
-                    -->
-                    <TextBlock
-                        Grid.Row="1"
-                        Grid.Column="3"
-                        FontSize="14"
-                        FontWeight="SemiBold"
-                        Foreground="#111827"
-                        Text="128K tokens" />
+                    <StackPanel Grid.Row="1" Grid.Column="1" Spacing="3">
+                        <TextBlock x:Name="EstimatedMemoryLabelText" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportMutedTextBrush}" Text="BENCHMARK" TextWrapping="Wrap" />
+                        <TextBlock x:Name="EstimatedMemoryValueText" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" Text="Pending benchmark" TextTrimming="None" TextWrapping="WrapWholeWords" />
+                    </StackPanel>
 
                 </Grid>
 
-                <!--  Separates the model details from the model-preference control.  -->
-                <Rectangle
-                    Height="1"
-                    Margin="0,4,0,0"
-                    HorizontalAlignment="Stretch"
-                    Fill="#E5E7EB" />
-
                 <!--  Groups the slider heading, control and endpoint labels.  -->
-                <StackPanel
-                    Margin="0,4,0,0"
-                    Spacing="4">
+                <StackPanel Spacing="2">
 
                     <!--  Displays the slider heading and current preference.  -->
                     <Grid>
@@ -261,10 +162,10 @@
                         <TextBlock
                             Grid.Column="0"
                             VerticalAlignment="Center"
-                            FontSize="11"
+                            FontSize="14"
                             FontWeight="SemiBold"
-                            Foreground="#6B7280"
-                            Text="MODEL PREFERENCE" />
+                            Foreground="{ThemeResource ModelImportTextBrush}"
+                            Text="Preference" />
 
                         <!--
                             TEMPORARY SEED VALUE:
@@ -277,7 +178,7 @@
                             VerticalAlignment="Center"
                             FontSize="13"
                             FontWeight="SemiBold"
-                            Foreground="#2563EB"
+                            Foreground="{ThemeResource ModelImportAccentBrush}"
                             Text="Balanced" />
 
                     </Grid>
@@ -293,7 +194,7 @@
                         The ViewModel will later translate ranges of values into exact
                         downloadable model packages.
                     -->
-                    <local:ModelPreferenceSlider
+                    <Slider
                         x:Name="ModelScaleSlider"
                         HorizontalAlignment="Stretch"
                         AutomationProperties.HelpText="Choose between maximum efficiency and maximum model capability"
@@ -308,157 +209,196 @@
                         TickPlacement="None"
                         UseSystemFocusVisuals="True"
                         ValueChanged="ModelScaleSlider_ValueChanged"
-                        Value="50">
-
-                        <!--
-                            TODO(THEMING):
-                            These colours currently belong only to this slider.
-                            They can later move into shared theme resources in App.xaml.
-                        -->
-                        <local:ModelPreferenceSlider.Resources>
-
-                            <!--  Removes the dark outer ring around the slider thumb.  -->
-                            <SolidColorBrush
-                                x:Key="SliderOuterThumbBackground"
-                                Color="Transparent" />
-
-                            <SolidColorBrush
-                                x:Key="SliderOuterThumbBackgroundPointerOver"
-                                Color="Transparent" />
-
-                            <SolidColorBrush
-                                x:Key="SliderOuterThumbBackgroundPressed"
-                                Color="Transparent" />
-
-                            <!--  Creates the blue slider thumb.  -->
-                            <SolidColorBrush
-                                x:Key="SliderThumbBackground"
-                                Color="#2563EB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderThumbBackgroundPointerOver"
-                                Color="#1D4ED8" />
-
-                            <SolidColorBrush
-                                x:Key="SliderThumbBackgroundPressed"
-                                Color="#1E40AF" />
-
-                            <!--  Removes the thumb border in every interaction state.  -->
-                            <SolidColorBrush
-                                x:Key="SliderThumbBorderBrush"
-                                Color="Transparent" />
-
-                            <SolidColorBrush
-                                x:Key="SliderThumbBorderBrushPointerOver"
-                                Color="Transparent" />
-
-                            <SolidColorBrush
-                                x:Key="SliderThumbBorderBrushPressed"
-                                Color="Transparent" />
-
-                            <!--  Keeps the unselected grey track unchanged during interaction.  -->
-                            <SolidColorBrush
-                                x:Key="SliderTrackFill"
-                                Color="#D1D5DB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderTrackFillPointerOver"
-                                Color="#D1D5DB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderTrackFillPressed"
-                                Color="#D1D5DB" />
-
-                            <!--  Keeps the selected blue track unchanged during interaction.  -->
-                            <SolidColorBrush
-                                x:Key="SliderTrackValueFill"
-                                Color="#2563EB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderTrackValueFillPointerOver"
-                                Color="#2563EB" />
-
-                            <SolidColorBrush
-                                x:Key="SliderTrackValueFillPressed"
-                                Color="#2563EB" />
-
-                            <!--
-                                Controls the visible blue circle without reducing
-                                the size of its interactive hit area.
-                            -->
-                            <x:Double
-                                x:Key="SliderInnerThumbWidth">
-                                14
-                            </x:Double>
-
-                            <x:Double
-                                x:Key="SliderInnerThumbHeight">
-                                14
-                            </x:Double>
-
-                        </local:ModelPreferenceSlider.Resources>
-
-                    </local:ModelPreferenceSlider>
+                        Value="50" />
 
                     <!--  Explains what the two ends of the scale represent.  -->
                     <Grid>
 
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition
-                                Width="*" />
-                            <ColumnDefinition
-                                Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
                         <TextBlock
+                            x:Name="EfficiencyEndpointText"
                             Grid.Column="0"
-                            HorizontalAlignment="Left"
-                            FontSize="12"
-                            Foreground="#6B7280"
-                            Text="Maximum efficiency" />
+                            HorizontalAlignment="Stretch"
+                            FontSize="10"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            MaxLines="2"
+                            Text="Maximum efficiency"
+                            TextAlignment="Center"
+                            TextTrimming="None"
+                            TextWrapping="WrapWholeWords" />
 
                         <TextBlock
+                            x:Name="EfficientBandText"
                             Grid.Column="1"
-                            HorizontalAlignment="Right"
-                            FontSize="12"
-                            Foreground="#6B7280"
+                            HorizontalAlignment="Center"
+                            FontSize="10"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            Text="Efficient"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform X="-10" />
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+
+                        <TextBlock
+                            x:Name="BalancedBandText"
+                            Grid.Column="2"
+                            HorizontalAlignment="Center"
+                            FontSize="10"
+                            FontWeight="Normal"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            Text="Balanced"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords" />
+
+                        <TextBlock
+                            x:Name="HighCapabilityBandText"
+                            Grid.Column="3"
+                            HorizontalAlignment="Center"
+                            FontSize="10"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            Text="High capability"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords">
+                            <TextBlock.RenderTransform>
+                                <TranslateTransform X="10" />
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+
+                        <TextBlock
+                            x:Name="CapabilityEndpointText"
+                            Grid.Column="4"
+                            HorizontalAlignment="Stretch"
+                            FontSize="10"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            MaxLines="2"
                             Text="Maximum capability"
-                            TextAlignment="Right" />
+                            TextAlignment="Center"
+                            TextTrimming="None"
+                            TextWrapping="WrapWholeWords" />
 
                     </Grid>
 
                 </StackPanel>
 
-                <!--
-                    TODO(DOWNLOAD WORKFLOW):
-                    This button is currently visual only.
-                    
-                    It will later bind to a download command supplied by
-                    ModelImportViewModel. The command will pass the selected
-                    ModelProfile to ModelDownloadService.
-                -->
+            </StackPanel>
+        </Border>
+
+        <Grid
+            x:Name="RecommendedDownloadFooterRegion"
+            Grid.Row="2"
+            Height="220"
+            AutomationProperties.AutomationId="RecommendedDownloadFooterRegion"
+            AutomationProperties.Name="Recommended download actions and status">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="56" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="96" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="44" />
+            </Grid.RowDefinitions>
+            <Grid
+                x:Name="DownloadStatusRegion"
+                Grid.Row="0"
+                Height="56"
+                Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ProgressRing
+                            x:Name="DownloadActivityRing"
+                            Width="18"
+                            Height="18"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource ModelImportAccentBrush}"
+                            IsActive="False"
+                            Visibility="Collapsed" />
+                        <TextBlock
+                            x:Name="DownloadStatusText"
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            AutomationProperties.LiveSetting="Polite"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource ModelImportMutedTextBrush}"
+                            TextWrapping="WrapWholeWords" />
+                    </Grid>
+                    <ProgressBar
+                        x:Name="DownloadProgressBar"
+                        Height="6"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.HelpText="Progress from zero to one hundred percent when the total download size is known."
+                        AutomationProperties.Name="Recommended model download progress"
+                        Maximum="100"
+                        Minimum="0" />
+                    <TextBlock
+                        x:Name="DownloadProgressText"
+                        AutomationProperties.AccessibilityView="Raw"
+                        FontSize="12"
+                        Foreground="{ThemeResource ModelImportMutedTextBrush}" />
+                </StackPanel>
                 <Button
+                    x:Name="DiscardDownloadButton"
+                    Grid.Column="1"
+                    MinWidth="40"
+                    MinHeight="40"
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Center"
+                    Padding="8,2"
+                    AutomationProperties.Name="Discard partial model download"
+                    Click="DiscardDownloadButton_Click"
+                    Content="Discard"
+                    Visibility="Collapsed" />
+            </Grid>
+
+            <Border
+                Grid.Row="2"
+                Height="96"
+                Background="Transparent"
+                AutomationProperties.Name="Recommended verification notice">
+                <InfoBar
+                    Height="96"
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Success"
+                    Title="Verified package metadata"
+                    Message="The production route verifies the pinned size and SHA-256 before making the model available." />
+            </Border>
+
+            <Button
                     x:Name="DownloadModelButton"
-                    Height="48"
-                    Margin="0,8,0,0"
+                    Grid.Row="4"
+                    Height="44"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     AutomationProperties.Name="Download the selected model"
-                    Background="#2563EB"
-                    BorderBrush="#2563EB"
+                    Background="{ThemeResource ModelImportAccentBrush}"
+                    BorderBrush="{ThemeResource ModelImportAccentBrush}"
                     BorderThickness="1"
+                    Click="DownloadModelButton_Click"
                     Content="Download selected model"
                     CornerRadius="12"
                     FontWeight="SemiBold"
-                    Foreground="White"
+                    Foreground="{ThemeResource GraniteJourneyPrimaryForegroundBrush}"
                     UseSystemFocusVisuals="True">
 
-                    <!--
-                        TODO(THEMING):
-                        Move these repeated button colours into shared resources
-                        so BrowseModelButton and DownloadModelButton use one style.
-                    -->
                     <Button.Resources>
 
                         <!--  Normal state.  -->
@@ -515,12 +455,104 @@
 
                     </Button.Resources>
 
-                </Button>
+            </Button>
+        </Grid>
 
-            </StackPanel>
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup
+                x:Name="CardLayoutStates">
 
-        </Border>
+                <VisualState
+                    x:Name="NarrowLayout">
+                    <VisualState.Setters>
+                        <Setter Target="ModelPackageSummaryText.(Grid.Row)" Value="2" />
+                        <Setter Target="ModelPackageSummaryText.(Grid.Column)" Value="0" />
+                        <Setter Target="ModelPackageSummaryText.HorizontalAlignment" Value="Left" />
+                        <Setter Target="ModelPackageSummaryText.TextAlignment" Value="Left" />
+                        <Setter Target="ModelPackageSummaryText.Margin" Value="0,4,0,0" />
+                        <Setter Target="FactsColumn2.Width" Value="0" />
+                        <Setter Target="FactsColumn3.Width" Value="0" />
+                        <Setter Target="EstimatedMemoryLabelText.(Grid.Row)" Value="2" />
+                        <Setter Target="EstimatedMemoryLabelText.(Grid.Column)" Value="0" />
+                        <Setter Target="EstimatedMemoryValueText.(Grid.Row)" Value="3" />
+                        <Setter Target="EstimatedMemoryValueText.(Grid.Column)" Value="0" />
+                        <Setter Target="ContextLengthLabelText.(Grid.Row)" Value="2" />
+                        <Setter Target="ContextLengthLabelText.(Grid.Column)" Value="1" />
+                        <Setter Target="ContextLengthValueText.(Grid.Row)" Value="3" />
+                        <Setter Target="ContextLengthValueText.(Grid.Column)" Value="1" />
+                    </VisualState.Setters>
 
+                </VisualState>
+
+                <VisualState
+                    x:Name="WideLayout">
+                    <VisualState.Setters>
+                        <Setter Target="ModelPackageSummaryText.(Grid.Row)" Value="0" />
+                        <Setter Target="ModelPackageSummaryText.(Grid.Column)" Value="1" />
+                        <Setter Target="ModelPackageSummaryText.HorizontalAlignment" Value="Right" />
+                        <Setter Target="ModelPackageSummaryText.TextAlignment" Value="Right" />
+                        <Setter Target="ModelPackageSummaryText.Margin" Value="0" />
+                        <Setter Target="FactsColumn2.Width" Value="0" />
+                        <Setter Target="FactsColumn3.Width" Value="0" />
+                        <Setter Target="EstimatedMemoryLabelText.(Grid.Row)" Value="2" />
+                        <Setter Target="EstimatedMemoryLabelText.(Grid.Column)" Value="0" />
+                        <Setter Target="EstimatedMemoryValueText.(Grid.Row)" Value="3" />
+                        <Setter Target="EstimatedMemoryValueText.(Grid.Column)" Value="0" />
+                        <Setter Target="ContextLengthLabelText.(Grid.Row)" Value="2" />
+                        <Setter Target="ContextLengthLabelText.(Grid.Column)" Value="1" />
+                        <Setter Target="ContextLengthValueText.(Grid.Row)" Value="3" />
+                        <Setter Target="ContextLengthValueText.(Grid.Column)" Value="1" />
+                    </VisualState.Setters>
+
+                </VisualState>
+
+            </VisualStateGroup>
+
+            <VisualStateGroup
+                x:Name="ModelScaleBandStates">
+
+                <VisualState
+                    x:Name="MaximumEfficiencyBand">
+                    <VisualState.Setters>
+                        <Setter Target="EfficiencyEndpointText.Foreground" Value="{ThemeResource ModelImportAccentBrush}" />
+                        <Setter Target="EfficiencyEndpointText.FontWeight" Value="SemiBold" />
+                    </VisualState.Setters>
+                </VisualState>
+
+                <VisualState
+                    x:Name="EfficientBand">
+                    <VisualState.Setters>
+                        <Setter Target="EfficientBandText.Foreground" Value="{ThemeResource ModelImportAccentBrush}" />
+                        <Setter Target="EfficientBandText.FontWeight" Value="SemiBold" />
+                    </VisualState.Setters>
+                </VisualState>
+
+                <VisualState
+                    x:Name="BalancedBand">
+                    <VisualState.Setters>
+                        <Setter Target="BalancedBandText.Foreground" Value="{ThemeResource ModelImportAccentBrush}" />
+                        <Setter Target="BalancedBandText.FontWeight" Value="SemiBold" />
+                    </VisualState.Setters>
+                </VisualState>
+
+                <VisualState
+                    x:Name="HighCapabilityBand">
+                    <VisualState.Setters>
+                        <Setter Target="HighCapabilityBandText.Foreground" Value="{ThemeResource ModelImportAccentBrush}" />
+                        <Setter Target="HighCapabilityBandText.FontWeight" Value="SemiBold" />
+                    </VisualState.Setters>
+                </VisualState>
+
+                <VisualState
+                    x:Name="MaximumCapabilityBand">
+                    <VisualState.Setters>
+                        <Setter Target="CapabilityEndpointText.Foreground" Value="{ThemeResource ModelImportAccentBrush}" />
+                        <Setter Target="CapabilityEndpointText.FontWeight" Value="SemiBold" />
+                    </VisualState.Setters>
+                </VisualState>
+
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
     </Grid>
 
 </UserControl>

@@ -6,7 +6,7 @@ Stage 0 is repository-only hosted identity validation. The UCL Intel laptop must
 
 ## Authority
 
-This runbook is governed by the copied design specification at `docs/superpowers/specs/2026-08-18-hardware-inspection-intel-runner-configuration-design.md`. The plain path docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md exists only in the exact evaluated feature checkout and must not be copied onto main.
+This runbook is governed by the copied design specification at `external-design-records/specs/2026-08-18-hardware-inspection-intel-runner-configuration-design.md`. The plain path docs/testing/runbooks/Hardware-Inspection-LLM-Fit-Gate-1-Runbook.md exists only in the exact evaluated feature checkout and must not be copied onto main.
 
 ## Preconditions
 

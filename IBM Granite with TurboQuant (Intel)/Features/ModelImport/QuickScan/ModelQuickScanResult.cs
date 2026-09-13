@@ -12,6 +12,7 @@
         public string? ParameterSizeLabel { get; }
         public string? Quantization { get; }
         public long? FileSizeBytes { get; }
+        public System.DateTimeOffset? FileLastWriteTimeUtc { get; }
         public ulong? ContextLength { get; }
         public uint? GgufVersion { get; }
 
@@ -28,6 +29,7 @@
             string? parameterSizeLabel = null,
             string? quantization = null,
             long? fileSizeBytes = null,
+            System.DateTimeOffset? fileLastWriteTimeUtc = null,
             ulong? contextLength = null,
             uint? ggufVersion = null,
             string? failureCode = null,
@@ -43,6 +45,7 @@
             ParameterSizeLabel = parameterSizeLabel;
             Quantization = quantization;
             FileSizeBytes = fileSizeBytes;
+            FileLastWriteTimeUtc = fileLastWriteTimeUtc;
             ContextLength = contextLength;
             GgufVersion = ggufVersion;
 
@@ -52,15 +55,15 @@
             TechnicalMessage = technicalMessage;
         }
 
-        // Creates a clean result for a scan that was cancelled.
+        // creates a clean result for a scan that was cancelled
         internal static ModelQuickScanResult CreateCancelled()
         {
-            // Cancellation needs only its outcome.
+            // cancellation needs only its outcome
             return new ModelQuickScanResult(
                 outcome: ModelQuickScanOutcome.Cancelled);
         }
 
-        // Creates a successful result containing the metadata found by the scanner.
+        // creates a successful result containing the metadata found by the scanner
         internal static ModelQuickScanResult CreateSuccess(
             string? modelName,
             string? architecture,
@@ -68,21 +71,31 @@
             string? quantization,
             long fileSizeBytes,
             ulong? contextLength,
-            uint ggufVersion)
+            uint ggufVersion,
+            System.DateTimeOffset? fileLastWriteTimeUtc = null)
         {
-            // A successful result must have a usable model name.
+            // a successful result must have a usable model name
             System.ArgumentException.ThrowIfNullOrWhiteSpace(modelName);
 
-            // A successful result must identify the model architecture.
+            // a successful result must identify the model architecture
             System.ArgumentException.ThrowIfNullOrWhiteSpace(architecture);
 
-            // A successful result must represent a non-empty model file.
+            // a successful result must represent a non-empty model file
             System.ArgumentOutOfRangeException.ThrowIfNegativeOrZero(fileSizeBytes);
 
             // A successful result must record a supported GGUF version.
             System.ArgumentOutOfRangeException.ThrowIfZero(ggufVersion);
 
-            // Pass the successful outcome and discovered metadata to the constructor.
+            // A supplied scan-time file timestamp must be expressed in UTC.
+            if (fileLastWriteTimeUtc is System.DateTimeOffset timestamp &&
+                timestamp.Offset != System.TimeSpan.Zero)
+            {
+                throw new System.ArgumentException(
+                    "The model file last-write time must use the UTC offset.",
+                    nameof(fileLastWriteTimeUtc));
+            }
+
+            // pass the successful outcome and discovered metadata to the constructor
             return new ModelQuickScanResult(
                 outcome: ModelQuickScanOutcome.Success,
                 modelName: modelName,
@@ -90,16 +103,17 @@
                 parameterSizeLabel: parameterSizeLabel,
                 quantization: quantization,
                 fileSizeBytes: fileSizeBytes,
+                fileLastWriteTimeUtc: fileLastWriteTimeUtc,
                 contextLength: contextLength,
                 ggufVersion: ggufVersion);
         }
-        // Creates a failed quick-scan result containing diagnostic information.
+        // creates a failed quick-scan result containing diagnostic information
         internal static ModelQuickScanResult CreateFailure(
             string? failureCode,
             string? userMessage,
             string? technicalMessage)
         {
-            // A failure result must always include a diagnostic code.
+            // a failure result must always include a diagnostic code
             System.ArgumentException.ThrowIfNullOrWhiteSpace(failureCode);
 
             // Supply a clear message when no user-facing detail was provided.
@@ -115,7 +129,7 @@
                     "No additional technical information was provided.";
             }
 
-            // Create the result with a Failure outcome and pass in only failure data.
+            // create the result with a Failure outcome and pass in only failure data
             return new ModelQuickScanResult(
                 outcome: ModelQuickScanOutcome.Failure,
                 failureCode: failureCode,

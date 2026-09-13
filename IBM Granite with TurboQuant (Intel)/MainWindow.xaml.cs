@@ -1,20 +1,5 @@
-using GraniteEdgeAI.Features.ModelImport;
+using GraniteEdgeAI.Features.Onboarding;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-using Windows.Storage.Pickers;
-
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -30,9 +15,62 @@ namespace GraniteEdgeAI
         {
             // Loads MainWindow.xaml and creates its named controls, including rootFrame.
             InitializeComponent();
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppTitleBar);
 
-            // Loads ModelImportPage inside rootFrame when the window is created.
-            rootFrame.Navigate(typeof(ModelImportPage));
+#if COMPATIBILITY_FIXTURE_GALLERY
+            // Opens straight onto the compatibility screen gallery so every state
+            // can be reviewed. Nine of the ten cannot be reached by running the
+            // real flow, because the checks that would feed them do not exist
+            // yet. Inert unless COMPATIBILITY_FIXTURE_GALLERY is defined, so a
+            // normal build is untouched by this.
+            rootFrame.Navigate(
+                typeof(Features.ModelHardwareCompatibility.DebugFixtures
+                    .CompatibilityFixtureGalleryPage));
+#else
+            // Loads OnboardingShellPage inside rootFrame when the window is created.
+            rootFrame.Navigate(typeof(OnboardingShellPage));
+            if (rootFrame.Content is OnboardingShellPage themedShell)
+            {
+                themedShell.RegisterPropertyChangedCallback(FrameworkElement.RequestedThemeProperty,
+                    (_, _) => WindowRoot.RequestedTheme = themedShell.RequestedTheme);
+                WindowRoot.RequestedTheme = themedShell.RequestedTheme;
+            }
+#endif
+            AppWindow.Closing += AppWindow_Closing;
+        }
+
+        private bool _shutdownStarted;
+        private bool _shutdownComplete;
+
+        private async void AppWindow_Closing(
+            Microsoft.UI.Windowing.AppWindow sender,
+            Microsoft.UI.Windowing.AppWindowClosingEventArgs eventArguments)
+        {
+            if (_shutdownComplete)
+            {
+                return;
+            }
+
+            eventArguments.Cancel = true;
+            if (_shutdownStarted)
+            {
+                return;
+            }
+
+            _shutdownStarted = true;
+            try
+            {
+                if (rootFrame.Content is OnboardingShellPage shell)
+                {
+                    await shell.ShutdownAsync();
+                }
+            }
+            finally
+            {
+                _shutdownComplete = true;
+                Close();
+            }
         }
     }
 }

@@ -1,268 +1,573 @@
-<?xml version="1.0" encoding="utf-8" ?>
-
-<!--  Defines the visual half of ModelImportPage.  -->
+<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="GraniteEdgeAI.Features.ModelImport.ModelImportPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:GraniteEdgeAI.Features.ModelImport.Controls"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d">
-
-    <!--  Fills the page and provides its light-grey background.  -->
-    <Grid
-        Background="#F5F6FA">
-
-        <!--  Allows the page to scroll when the available window height is limited.  -->
-        <ScrollViewer
-            HorizontalContentAlignment="Stretch"
-            HorizontalScrollBarVisibility="Disabled"
-            HorizontalScrollMode="Disabled"
-            VerticalScrollBarVisibility="Auto"
-            VerticalScrollMode="Auto">
-
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer x:Name="PageScrollViewer" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto">
+        <StackPanel MaxWidth="1184" Padding="32,28,32,32" HorizontalAlignment="Center" Spacing="24">
+            <StackPanel MaxWidth="760" HorizontalAlignment="Center" Spacing="8">
+                <TextBlock x:Name="ImportPageHeading" HorizontalAlignment="Stretch" FontSize="32" FontWeight="SemiBold" Text="Choose a model" TextAlignment="Center" TextTrimming="None" TextWrapping="WrapWholeWords" AutomationProperties.HeadingLevel="Level1" />
+                <TextBlock HorizontalAlignment="Center" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Select a local GGUF or OpenVINO model, or choose a verified recommended Granite download." TextAlignment="Center" TextWrapping="WrapWholeWords" />
+            </StackPanel>
             <Grid
-                HorizontalAlignment="Stretch">
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Name="ModelImportPreview"
+    HorizontalAlignment="Stretch"
+    AutomationProperties.AutomationId="ModelImportPreview"
+    AutomationProperties.Name="Choose a model work surface">
 
-                <!--  Creates the main white onboarding card.  -->
-                <Border
-                    MaxWidth="920"
-                    Margin="32"
-                    Padding="48"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Top"
-                    Background="White"
-                    CornerRadius="28">
+    <Grid.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Thickness x:Key="ModelImportOutlineThickness">1</Thickness>
+                    <SolidColorBrush x:Key="ModelImportSurfaceBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="ModelImportSubtleSurfaceBrush" Color="#F8FAFD" />
+                    <SolidColorBrush x:Key="ModelImportBorderBrush" Color="#D7E0EC" />
+                    <SolidColorBrush x:Key="ModelImportTextBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="ModelImportMutedTextBrush" Color="#5B677A" />
+                    <SolidColorBrush x:Key="ModelImportSubtleTextBrush" Color="#758196" />
+                    <SolidColorBrush x:Key="ModelImportAccentBrush" Color="#0F62FE" />
+                    <SolidColorBrush x:Key="ModelImportAccentSurfaceBrush" Color="#EDF4FF" />
+                    <SolidColorBrush x:Key="ModelImportAccentBorderBrush" Color="#8BB4FF" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBrush" Color="#087A55" />
+                    <SolidColorBrush x:Key="ModelImportSuccessSurfaceBrush" Color="#ECF8F3" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBorderBrush" Color="#A9DDCB" />
+                    <SolidColorBrush x:Key="ModelImportErrorBrush" Color="#B42318" />
+                    <SolidColorBrush x:Key="ModelImportErrorSurfaceBrush" Color="#FEF3F2" />
+                    <SolidColorBrush x:Key="ModelImportErrorBorderBrush" Color="#FECDCA" />
+                    <SolidColorBrush x:Key="ModelImportDeleteButtonBackground" Color="#FEF3F2" />
+                    <SolidColorBrush x:Key="ModelImportDeleteButtonBackgroundPointerOver" Color="#FEE4E2" />
+                    <SolidColorBrush x:Key="ModelImportDeleteButtonBackgroundPressed" Color="#FECDCA" />
+                    <SolidColorBrush x:Key="AccentButtonBackground" Color="#0F62FE" />
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#0B57D0" />
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#0847AA" />
+                    <SolidColorBrush x:Key="AccentButtonForeground" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#FFFFFF" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Thickness x:Key="ModelImportOutlineThickness">0.8</Thickness>
+                    <SolidColorBrush x:Key="ModelImportSurfaceBrush" Color="#151D2B" />
+                    <SolidColorBrush x:Key="ModelImportSubtleSurfaceBrush" Color="#1B2535" />
+                    <SolidColorBrush x:Key="ModelImportBorderBrush" Color="#344054" />
+                    <SolidColorBrush x:Key="ModelImportTextBrush" Color="#F9FAFB" />
+                    <SolidColorBrush x:Key="ModelImportMutedTextBrush" Color="#CBD5E1" />
+                    <SolidColorBrush x:Key="ModelImportSubtleTextBrush" Color="#98A2B3" />
+                    <SolidColorBrush x:Key="ModelImportAccentBrush" Color="#78A9FF" />
+                    <SolidColorBrush x:Key="ModelImportAccentSurfaceBrush" Color="#162B49" />
+                    <SolidColorBrush x:Key="ModelImportAccentBorderBrush" Color="#4589FF" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBrush" Color="#6FD2AE" />
+                    <SolidColorBrush x:Key="ModelImportSuccessSurfaceBrush" Color="#12372E" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBorderBrush" Color="#236B59" />
+                    <SolidColorBrush x:Key="ModelImportErrorBrush" Color="#FFB4AB" />
+                    <SolidColorBrush x:Key="ModelImportErrorSurfaceBrush" Color="#3A1D22" />
+                    <SolidColorBrush x:Key="ModelImportErrorBorderBrush" Color="#7A2E38" />
+                    <SolidColorBrush x:Key="ModelImportDeleteButtonBackground" Color="#3A1D22" />
+                    <SolidColorBrush x:Key="ModelImportDeleteButtonBackgroundPointerOver" Color="#53242B" />
+                    <SolidColorBrush x:Key="ModelImportDeleteButtonBackgroundPressed" Color="#672A34" />
+                    <SolidColorBrush x:Key="AccentButtonBackground" Color="#78A9FF" />
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#8CB7FF" />
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#A6C8FF" />
+                    <SolidColorBrush x:Key="AccentButtonForeground" Color="#07111F" />
+                    <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#07111F" />
+                    <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#07111F" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <Thickness x:Key="ModelImportOutlineThickness">1</Thickness>
+                    <SolidColorBrush x:Key="ModelImportSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportSubtleSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportMutedTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportSubtleTextBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="ModelImportAccentSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportAccentBorderBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportSuccessSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportErrorBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportErrorSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportErrorBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportDeleteButtonBackground" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportDeleteButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="ModelImportDeleteButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="AccentButtonBackground" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="AccentButtonForeground" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                    <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                    <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
 
-                    <!--  Arranges the page content vertically.  -->
-                    <StackPanel
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Top"
-                        Orientation="Vertical"
-                        Spacing="12">
+            <Style x:Key="ModelImportBodyStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="Foreground" Value="{ThemeResource ModelImportMutedTextBrush}" />
+                <Setter Property="TextWrapping" Value="WrapWholeWords" />
+            </Style>
+            <Style x:Key="ModelImportLabelStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="CharacterSpacing" Value="40" />
+                <Setter Property="Foreground" Value="{ThemeResource ModelImportSubtleTextBrush}" />
+                <Setter Property="TextWrapping" Value="WrapWholeWords" />
+            </Style>
+            <Style x:Key="ModelImportValueStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource ModelImportTextBrush}" />
+                <Setter Property="TextWrapping" Value="WrapWholeWords" />
+            </Style>
+            <Style x:Key="ModelImportMetadataLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource ModelImportLabelStyle}">
+                <Setter Property="HorizontalAlignment" Value="Center" />
+                <Setter Property="TextAlignment" Value="Center" />
+            </Style>
+            <Style x:Key="ModelImportMetadataValueStyle" TargetType="TextBlock" BasedOn="{StaticResource ModelImportValueStyle}">
+                <Setter Property="HorizontalAlignment" Value="Center" />
+                <Setter Property="TextAlignment" Value="Center" />
+            </Style>
+            <Style x:Key="ModelImportBadgeStyle" TargetType="Border">
+                <Setter Property="MinHeight" Value="26" />
+                <Setter Property="Padding" Value="10,4" />
+                <Setter Property="HorizontalAlignment" Value="Left" />
+                <Setter Property="VerticalAlignment" Value="Top" />
+                <Setter Property="CornerRadius" Value="13" />
+                <Setter Property="UseLayoutRounding" Value="True" />
+            </Style>
+            <Style x:Key="ModelImportBadgeTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="HorizontalAlignment" Value="Center" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextAlignment" Value="Center" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
+            </Style>
+            <Style x:Key="ModelImportDeleteButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource ModelImportDeleteButtonBackground}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource ModelImportErrorBorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Foreground" Value="{ThemeResource ModelImportErrorBrush}" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="UseLayoutRounding" Value="True" />
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters><Setter Target="DeleteButtonSurface.Background" Value="{ThemeResource ModelImportDeleteButtonBackgroundPointerOver}" /></VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters><Setter Target="DeleteButtonSurface.Background" Value="{ThemeResource ModelImportDeleteButtonBackgroundPressed}" /></VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters><Setter Target="DeleteButtonSurface.Opacity" Value="0.45" /></VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Border x:Name="DeleteButtonSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}">
+                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" />
+                                </Border>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="ModelImportPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+                <Setter Property="Height" Value="44" />
+                <Setter Property="MinHeight" Value="44" />
+                <Setter Property="MinWidth" Value="176" />
+                <Setter Property="MaxWidth" Value="240" />
+                <Setter Property="Padding" Value="18,10" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="UseLayoutRounding" Value="True" />
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+            </Style>
+            <Style x:Key="ModelImportSecondaryButtonStyle" TargetType="Button">
+                <Setter Property="Height" Value="44" />
+                <Setter Property="MinHeight" Value="44" />
+                <Setter Property="MinWidth" Value="176" />
+                <Setter Property="MaxWidth" Value="240" />
+                <Setter Property="Padding" Value="18,10" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Background" Value="{ThemeResource ModelImportSubtleSurfaceBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource ModelImportBorderBrush}" />
+                <Setter Property="BorderThickness" Value="{ThemeResource ModelImportOutlineThickness}" />
+                <Setter Property="Foreground" Value="{ThemeResource ModelImportTextBrush}" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="UseLayoutRounding" Value="True" />
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+            </Style>
+            <Style x:Key="FormatActionButtonStyle" TargetType="Button">
+                <Setter Property="Height" Value="44" />
+                <Setter Property="Padding" Value="18,0" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Background" Value="#2563EB" />
+                <Setter Property="Foreground" Value="#FFFFFF" />
+                <Setter Property="BorderBrush" Value="#2563EB" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="11" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+            </Style>
+        </ResourceDictionary>
+    </Grid.Resources>
 
-                        <!--
-                            Displays the SVG at 112 × 112 while decoding it at a larger
-                            internal size to provide additional detail when downscaled.
-                        -->
-                        <Image
-                            Width="112"
-                            Height="112"
-                            Margin="0,8,0,0"
-                            HorizontalAlignment="Center"
-                            AutomationProperties.Name="Granite Edge AI logo"
-                            Stretch="Uniform">
+    <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup x:Name="ModelImportResponsiveStates">
+            <VisualState x:Name="ModelImportWide">
+                <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="800" /></VisualState.StateTriggers>
+                <VisualState.Setters>
+                    <Setter Target="ModelImportBay.Padding" Value="24" />
+                    <Setter Target="ImportPeerGrid.ColumnSpacing" Value="16" />
+                    <Setter Target="RecommendedDownloadPanel.(Grid.Row)" Value="0" />
+                    <Setter Target="RecommendedDownloadPanel.(Grid.Column)" Value="1" />
+                    <Setter Target="RecommendedDownloadPanel.Margin" Value="0" />
+                </VisualState.Setters>
+            </VisualState>
+            <VisualState x:Name="ModelImportCompact">
+                <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0" /></VisualState.StateTriggers>
+                <VisualState.Setters>
+                    <Setter Target="ModelImportBay.Padding" Value="16" />
+                    <Setter Target="ImportPeerGrid.ColumnSpacing" Value="0" />
+                    <Setter Target="RecommendedDownloadPanel.(Grid.Row)" Value="1" />
+                    <Setter Target="RecommendedDownloadPanel.(Grid.Column)" Value="0" />
+                    <Setter Target="RecommendedDownloadPanel.Margin" Value="0,16,0,0" />
+                </VisualState.Setters>
+            </VisualState>
+        </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
 
-                            <Image.Source>
-                                <SvgImageSource
-                                    RasterizePixelHeight="224"
-                                    RasterizePixelWidth="224"
-                                    UriSource="ms-appx:///Assets/Branding/granite-edge-ai-icon.svg" />
-                            </Image.Source>
+    <Border
+        x:Name="ModelImportBay"
+        MaxWidth="1120"
+        Padding="24"
+        HorizontalAlignment="Stretch"
+        Background="{ThemeResource ModelImportSurfaceBrush}"
+        BorderBrush="{ThemeResource ModelImportBorderBrush}"
+        BorderThickness="{ThemeResource ModelImportOutlineThickness}"
+        CornerRadius="12"
+        UseLayoutRounding="True"
+        AutomationProperties.AutomationId="ModelImportBay"
+        AutomationProperties.Name="Choose a model">
+        <Grid x:Name="ImportPeerGrid" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-                        </Image>
-
-                        <!--  Displays the page heading.  -->
-                        <TextBlock
-                            HorizontalAlignment="Center"
-                            FontSize="34"
-                            FontWeight="SemiBold"
-                            Foreground="#111827"
-                            Text="Import a model to begin"
-                            TextAlignment="Center" />
-
-                        <!--
-                            Creates the complete model-file drop target.
-                            
-                            TODO(FILE IMPORT):
-                            This area will later receive drag-and-drop events and pass
-                            the selected files to the model-import service.
-                        -->
-
-                        <controls:ImportModelCard
-                            x:Name="ImportModelCardControl"
-                            HorizontalAlignment="Stretch"
-                            BrowseFilesRequested="ImportModelCard_BrowseFilesRequested"
-                            CancelScanRequested="ImportModelCard_CancelScanRequested" />
-                        <TextBlock
-                            HorizontalAlignment="Center"
-                            FontSize="13"
-                            Foreground="#6B7280"
-                            Text="or"
-                            TextAlignment="Center" />
-
-                        <!--
-                            Navigates to RecommendedModelDownloadPage.
-                            
-                            The right arrow communicates navigation to another page.
-                            A downward arrow would imply that content expands here.
-                        -->
-                        <Button
-                            x:Name="RecommendedModelDownloadButton"
-                            Width="300"
-                            Height="48"
-                            Margin="0,4,0,0"
-                            HorizontalAlignment="Center"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            AutomationProperties.Name="Open recommended model downloads"
-                            Background="#F9FAFB"
-                            BorderBrush="#CBD5E1"
-                            BorderThickness="1"
-                            Click="RecommendedModelDownloadButton_Click"
-                            Content="Download a recommended model →"
-                            CornerRadius="12"
-                            FontWeight="SemiBold"
-                            Foreground="#2563EB"
-                            UseSystemFocusVisuals="True">
-
-                            <!--  Controls the navigation button's interaction colours.  -->
-                            <Button.Resources>
-
-                                <!--  Normal state.  -->
-                                <SolidColorBrush
-                                    x:Key="ButtonBackground"
-                                    Color="#F9FAFB" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonForeground"
-                                    Color="#2563EB" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonBorderBrush"
-                                    Color="#CBD5E1" />
-
-                                <!--  Mouse-hover state.  -->
-                                <SolidColorBrush
-                                    x:Key="ButtonBackgroundPointerOver"
-                                    Color="#EFF6FF" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonForegroundPointerOver"
-                                    Color="#1D4ED8" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonBorderBrushPointerOver"
-                                    Color="#93C5FD" />
-
-                                <!--  Pressed state.  -->
-                                <SolidColorBrush
-                                    x:Key="ButtonBackgroundPressed"
-                                    Color="#DBEAFE" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonForegroundPressed"
-                                    Color="#1E40AF" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonBorderBrushPressed"
-                                    Color="#60A5FA" />
-
-                            </Button.Resources>
-
-                        </Button>
-
-                        <!--
-                            TODO(MODEL READINESS):
-                            
-                            This button must remain disabled until either:
-                            
-                            1. A local model has been successfully imported and validated.
-                            2. A recommended model has finished downloading and validating.
-                            
-                            ModelImportViewModel.IsModelReady will eventually control
-                            this button's IsEnabled property.
-                        -->
-                        <Button
-                            x:Name="ContinueToModelInspectionButton"
-                            Height="48"
-                            Margin="0,8,0,0"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            AutomationProperties.HelpText="Available after a model has been imported or downloaded"
-                            AutomationProperties.Name="Continue to model inspection"
-                            Background="#2563EB"
-                            BorderBrush="#2563EB"
-                            BorderThickness="1"
-                            Content="Continue to model inspection"
-                            CornerRadius="12"
-                            FontWeight="SemiBold"
-                            Foreground="White"
-                            IsEnabled="False"
-                            UseSystemFocusVisuals="True">
-
-                            <!--
-                                The normal colours appear after the button is enabled.
-                                The disabled colours make it visibly grey initially.
-                            -->
-                            <Button.Resources>
-
-                                <!--  Normal enabled state.  -->
-                                <SolidColorBrush
-                                    x:Key="ButtonBackground"
-                                    Color="#2563EB" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonForeground"
-                                    Color="#FFFFFF" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonBorderBrush"
-                                    Color="#2563EB" />
-
-                                <!--  Mouse-hover state.  -->
-                                <SolidColorBrush
-                                    x:Key="ButtonBackgroundPointerOver"
-                                    Color="#1D4ED8" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonForegroundPointerOver"
-                                    Color="#FFFFFF" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonBorderBrushPointerOver"
-                                    Color="#1D4ED8" />
-
-                                <!--  Pressed state.  -->
-                                <SolidColorBrush
-                                    x:Key="ButtonBackgroundPressed"
-                                    Color="#1E40AF" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonForegroundPressed"
-                                    Color="#FFFFFF" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonBorderBrushPressed"
-                                    Color="#1E40AF" />
-
-                                <!--  Initial disabled state.  -->
-                                <SolidColorBrush
-                                    x:Key="ButtonBackgroundDisabled"
-                                    Color="#E5E7EB" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonForegroundDisabled"
-                                    Color="#9CA3AF" />
-
-                                <SolidColorBrush
-                                    x:Key="ButtonBorderBrushDisabled"
-                                    Color="#D1D5DB" />
-
-                            </Button.Resources>
-
-                        </Button>
-
+            <Border
+                x:Name="ImportAwaitingSelectionPanel"
+                Grid.Row="0"
+                Grid.Column="0"
+                Padding="20"
+                Background="{ThemeResource ModelImportSubtleSurfaceBrush}"
+                BorderBrush="{ThemeResource ModelImportBorderBrush}"
+                BorderThickness="{ThemeResource ModelImportOutlineThickness}"
+                CornerRadius="10"
+                AutomationProperties.AutomationId="StateImportAwaitingSelection"
+                AutomationProperties.Name="Use a local model">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel x:Name="LocalImportHeaderBlock" Spacing="6" AutomationProperties.AutomationId="LocalImportHeaderBlock" AutomationProperties.Name="Local model import heading">
+                        <TextBlock x:Name="LocalImportTitleBlock" Text="Use a local model" FontSize="20" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" TextWrapping="WrapWholeWords" AutomationProperties.AutomationId="LocalImportTitleBlock" />
+                        <TextBlock x:Name="LocalImportSubtitleBlock" Text="Choose a GGUF file or a complete OpenVINO model folder. Model files stay on this device." Style="{StaticResource ModelImportBodyStyle}" AutomationProperties.AutomationId="LocalImportSubtitleBlock" />
                     </StackPanel>
 
-                </Border>
+                    <Border
+                        x:Name="LocalImportStateBody"
+                        Grid.Row="1"
+                        MinHeight="300"
+                        Margin="0,18,0,18"
+                        VerticalAlignment="Top"
+                        Background="Transparent"
+                        AutomationProperties.AutomationId="LocalImportStateBody"
+                        AutomationProperties.Name="Local model import state body">
+                    <Grid x:Name="LocalImportStateHost" AllowDrop="True" Background="Transparent" DragLeave="ModelDropTarget_DragLeave" DragOver="ModelDropTarget_DragOver" Drop="ModelDropTarget_Drop" AutomationProperties.AutomationId="LocalImportStateHost" AutomationProperties.Name="Local model import state host">
+                    <Grid
+                        x:Name="AwaitingSelectionView"
+                        AutomationProperties.AutomationId="AwaitingSelectionView"
+                        AutomationProperties.Name="Choose a local model source">
+                    <Border
+                        x:Name="LocalModelDropTarget"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        CornerRadius="20"
+                        AutomationProperties.AutomationId="LocalModelDropTarget"
+                        AutomationProperties.Name="Drop a model here. GGUF file or OpenVINO model folder.">
+                        <Grid>
+                            <Rectangle
+                                x:Name="AwaitingSelectionBorder"
+                                Fill="{ThemeResource ModelImportSurfaceBrush}"
+                                IsHitTestVisible="False"
+                                RadiusX="20"
+                                RadiusY="20"
+                                Stroke="{ThemeResource ModelImportBorderBrush}"
+                                StrokeDashArray="6,5"
+                                StrokeDashCap="Round"
+                                StrokeThickness="1.5"
+                                UseLayoutRounding="False" />
+                            <Rectangle
+                                x:Name="ValidDragHoverOverlay"
+                                Fill="{ThemeResource ModelImportAccentSurfaceBrush}"
+                                IsHitTestVisible="False"
+                                RadiusX="20"
+                                RadiusY="20"
+                                Stroke="{ThemeResource ModelImportAccentBorderBrush}"
+                                StrokeDashArray="6,5"
+                                StrokeDashCap="Round"
+                                StrokeThickness="1.5"
+                                UseLayoutRounding="False"
+                                Visibility="Collapsed" />
+                            <StackPanel Margin="20" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                                <FontIcon Glyph="&#xE8B7;" FontSize="30" Foreground="{ThemeResource ModelImportAccentBrush}" AutomationProperties.AccessibilityView="Raw" />
+                                <TextBlock x:Name="LocalDropHeading" Text="Drop a model here" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" TextAlignment="Center" />
+                                <TextBlock Text="GGUF file or OpenVINO model folder" Style="{StaticResource ModelImportBodyStyle}" TextAlignment="Center" />
+                                <Button
+                                    x:Name="BtnChooseLocalModel"
+                                    Click="ImportModelCard_BrowseFilesRequested"
+                                    Width="220"
+                                    Height="44"
+                                    HorizontalAlignment="Center"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Content="Choose model"
+                                    Style="{StaticResource ModelImportPrimaryButtonStyle}"
+                                    AutomationProperties.AutomationId="BtnChooseLocalModel"
+                                    AutomationProperties.Name="Choose model" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    </Grid>
 
-            </Grid>
+                    <Grid x:Name="LocalReferenceStateHost" Visibility="Collapsed">
+                        <!-- Exact ImportModelCard state anatomy, themed for the current preview wrapper. -->
+                        <Border x:Name="LocalMetadataCardView" Padding="12" Background="{ThemeResource ModelImportSurfaceBrush}" BorderBrush="{ThemeResource ModelImportBorderBrush}" BorderThickness="1" CornerRadius="20" Visibility="Collapsed" AutomationProperties.AutomationId="LocalMetadataCardView" AutomationProperties.Name="Selected model metadata">
+                            <Grid x:Name="LocalMetadataCardGrid" RowSpacing="6">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="1" /><RowDefinition Height="*" /><RowDefinition Height="40" /></Grid.RowDefinitions>
+                                <Grid x:Name="LocalMetadataHeader" Margin="0,0,54,0" ColumnSpacing="14" Background="Transparent" AutomationProperties.AutomationId="LocalMetadataHeader">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="58" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Border Width="58" Height="58" Background="{ThemeResource ModelImportAccentSurfaceBrush}" CornerRadius="15"><Viewbox Width="38" Height="38" HorizontalAlignment="Center" VerticalAlignment="Center"><Grid Width="48" Height="48"><Path Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17" Stroke="{ThemeResource ModelImportAccentBrush}" StrokeLineJoin="Round" StrokeThickness="2" /><TextBlock x:Name="LocalMetadataIconLabel" Margin="0,22,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="7" FontWeight="Bold" Foreground="{ThemeResource ModelImportAccentBrush}" Text="GGUF" AutomationProperties.AutomationId="LocalMetadataIconLabel" /></Grid></Viewbox></Border>
+                                    <StackPanel Grid.Column="1" Spacing="3">
+                                        <TextBlock x:Name="LocalMetadataModelNameTextBlock" Text="IBM Granite 3.3 8B Instruct" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" TextWrapping="WrapWholeWords" AutomationProperties.AutomationId="LocalMetadataModelNameTextBlock" />
+                                        <TextBlock x:Name="LocalMetadataSourceTextBlock" Text="Selected local model file · granite-3.3-8b-instruct-Q4_K_M.gguf" FontSize="12" Foreground="{ThemeResource ModelImportMutedTextBrush}" TextWrapping="WrapWholeWords" AutomationProperties.AutomationId="LocalMetadataSourceTextBlock" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border x:Name="LocalMetadataFormatBadge" Style="{StaticResource ModelImportBadgeStyle}" Background="{ThemeResource ModelImportAccentSurfaceBrush}" AutomationProperties.AutomationId="LocalMetadataFormatBadge" AutomationProperties.Name="GGUF format"><TextBlock x:Name="LocalMetadataFormatTextBlock" Text="GGUF" Style="{StaticResource ModelImportBadgeTextStyle}" Foreground="{ThemeResource ModelImportAccentBrush}" AutomationProperties.AutomationId="LocalMetadataFormatTextBlock" /></Border>
+                                            <Border x:Name="LocalMetadataQuantizationBadge" Style="{StaticResource ModelImportBadgeStyle}" Background="{ThemeResource ModelImportAccentSurfaceBrush}" AutomationProperties.AutomationId="LocalMetadataQuantizationBadge" AutomationProperties.Name="Q4_K_M quantisation"><TextBlock x:Name="LocalMetadataQuantizationTextBlock" Text="Q4_K_M" Style="{StaticResource ModelImportBadgeTextStyle}" Foreground="{ThemeResource ModelImportAccentBrush}" AutomationProperties.AutomationId="LocalMetadataQuantizationTextBlock" /></Border>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                                <Rectangle Grid.Row="1" Fill="{ThemeResource ModelImportBorderBrush}" />
+                                <Grid x:Name="LocalMetadataGrid" Grid.Row="2" ColumnSpacing="10" RowSpacing="6" Background="Transparent" AutomationProperties.AutomationId="LocalMetadataGrid">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="*" /><RowDefinition Height="0" /></Grid.RowDefinitions>
+                                    <StackPanel x:Name="LocalMetadataParametersField" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock Text="PARAMETERS" Style="{StaticResource ModelImportMetadataLabelStyle}" AutomationProperties.AutomationId="LocalMetadataParametersLabel" /><Grid><TextBlock x:Name="LocalMetadataParametersTextBlock" Text="Pending" Style="{StaticResource ModelImportMetadataValueStyle}" AutomationProperties.AutomationId="LocalMetadataParametersTextBlock" /><Border x:Name="LocalMetadataParametersSkeleton" Width="78" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{ThemeResource ModelImportBorderBrush}" CornerRadius="6" Visibility="Collapsed" AutomationProperties.AutomationId="LocalMetadataParametersSkeleton" /></Grid></StackPanel>
+                                    <StackPanel x:Name="LocalMetadataArchitectureField" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock Text="ARCHITECTURE" Style="{StaticResource ModelImportMetadataLabelStyle}" AutomationProperties.AutomationId="LocalMetadataArchitectureLabel" /><Grid><TextBlock x:Name="LocalMetadataArchitectureTextBlock" Text="Pending" Style="{StaticResource ModelImportMetadataValueStyle}" AutomationProperties.AutomationId="LocalMetadataArchitectureTextBlock" /><Border x:Name="LocalMetadataArchitectureSkeleton" Width="116" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{ThemeResource ModelImportBorderBrush}" CornerRadius="6" Visibility="Collapsed" AutomationProperties.AutomationId="LocalMetadataArchitectureSkeleton" /></Grid></StackPanel>
+                                    <StackPanel x:Name="LocalMetadataFileSizeField" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock Text="FILE SIZE" Style="{StaticResource ModelImportMetadataLabelStyle}" AutomationProperties.AutomationId="LocalMetadataFileSizeLabel" /><Grid><TextBlock x:Name="LocalMetadataFileSizeTextBlock" Text="Pending" Style="{StaticResource ModelImportMetadataValueStyle}" AutomationProperties.AutomationId="LocalMetadataFileSizeTextBlock" /><Border x:Name="LocalMetadataFileSizeSkeleton" Width="84" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{ThemeResource ModelImportBorderBrush}" CornerRadius="6" Visibility="Collapsed" AutomationProperties.AutomationId="LocalMetadataFileSizeSkeleton" /></Grid></StackPanel>
+                                    <StackPanel x:Name="LocalMetadataDeclaredContextField" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock Text="DECLARED CONTEXT" Style="{StaticResource ModelImportMetadataLabelStyle}" AutomationProperties.AutomationId="LocalMetadataDeclaredContextLabel" /><Grid><TextBlock x:Name="LocalMetadataDeclaredContextTextBlock" Text="Pending" Style="{StaticResource ModelImportMetadataValueStyle}" AutomationProperties.AutomationId="LocalMetadataDeclaredContextTextBlock" /><Border x:Name="LocalMetadataDeclaredContextSkeleton" Width="126" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{ThemeResource ModelImportBorderBrush}" CornerRadius="6" Visibility="Collapsed" AutomationProperties.AutomationId="LocalMetadataDeclaredContextSkeleton" /></Grid></StackPanel>
+                                    <StackPanel x:Name="LocalMetadataRuntimeRouteField" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock Text="RUNTIME ROUTE" Style="{StaticResource ModelImportMetadataLabelStyle}" AutomationProperties.AutomationId="LocalMetadataRuntimeRouteLabel" /><TextBlock x:Name="LocalMetadataRuntimeRouteTextBlock" Text="llama.cpp" Style="{StaticResource ModelImportMetadataValueStyle}" AutomationProperties.AutomationId="LocalMetadataRuntimeRouteTextBlock" /></StackPanel>
+                                    <StackPanel x:Name="LocalMetadataNextStepField" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3"><TextBlock Text="NEXT STEP" Style="{StaticResource ModelImportMetadataLabelStyle}" AutomationProperties.AutomationId="LocalMetadataNextStepLabel" /><TextBlock x:Name="LocalMetadataNextStepTextBlock" Text="Quick scan" Style="{StaticResource ModelImportMetadataValueStyle}" AutomationProperties.AutomationId="LocalMetadataNextStepTextBlock" /></StackPanel>
+                                </Grid>
+                                <Border x:Name="LocalMetadataStatusStrip" Grid.Row="3" Padding="12,0" Background="{ThemeResource ModelImportSuccessSurfaceBrush}" BorderBrush="{ThemeResource ModelImportSuccessBorderBrush}" BorderThickness="1" CornerRadius="17" AutomationProperties.AutomationId="LocalMetadataStatusStrip" AutomationProperties.Name="Model file selected. Ready for quick scan.">
+                                    <Grid ColumnSpacing="9"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Grid Width="18" Height="18" VerticalAlignment="Center"><ProgressRing x:Name="LocalMetadataProgressRing" Width="18" Height="18" IsActive="False" Visibility="Collapsed" Foreground="{ThemeResource ModelImportAccentBrush}" AutomationProperties.Name="Quick scan in progress" /><FontIcon x:Name="LocalMetadataStatusIcon" HorizontalAlignment="Center" VerticalAlignment="Center" Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource ModelImportSuccessBrush}" /></Grid><TextBlock x:Name="LocalMetadataStatusTextBlock" Grid.Column="1" VerticalAlignment="Center" Text="Model file selected · Ready for quick scan" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportSuccessBrush}" TextWrapping="WrapWholeWords" AutomationProperties.AutomationId="LocalMetadataStatusTextBlock" AutomationProperties.LiveSetting="Polite" /></Grid>
+                                </Border>
+                                <Button x:Name="RemoveLocalMetadataModelButton" Click="RemoveSelectedModelButton_Click" Grid.RowSpan="4" Width="40" Height="40" MinWidth="40" MinHeight="40" HorizontalAlignment="Right" VerticalAlignment="Top" Style="{StaticResource ModelImportDeleteButtonStyle}" AutomationProperties.AutomationId="RemoveLocalMetadataModelButton" AutomationProperties.Name="Remove selected model">
+                                    <FontIcon Glyph="&#xE74D;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{ThemeResource ModelImportErrorBrush}" />
+                                </Button>
+                            </Grid>
+                        </Border>
 
-        </ScrollViewer>
+                        <Border x:Name="FailureView" Padding="12" Background="{ThemeResource ModelImportSurfaceBrush}" BorderBrush="{ThemeResource ModelImportBorderBrush}" BorderThickness="1" CornerRadius="20" Visibility="Collapsed" AutomationProperties.AutomationId="FailureView" AutomationProperties.Name="Selected model quick scan failed">
+                            <Grid RowSpacing="6">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="1" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <Grid Margin="0,0,54,0" ColumnSpacing="14"><Grid.ColumnDefinitions><ColumnDefinition Width="58" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Border Width="58" Height="58" Background="{ThemeResource ModelImportAccentSurfaceBrush}" CornerRadius="15"><Viewbox Width="38" Height="38" HorizontalAlignment="Center" VerticalAlignment="Center"><Grid Width="48" Height="48"><Path Data="M10,4 L29,4 L42,17 L42,44 L10,44 Z M29,4 L29,17 L42,17" Stroke="{ThemeResource ModelImportAccentBrush}" StrokeLineJoin="Round" StrokeThickness="2" /><TextBlock x:Name="FailureIconLabel" Margin="0,22,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="7" FontWeight="Bold" Foreground="{ThemeResource ModelImportAccentBrush}" Text="GGUF" /></Grid></Viewbox></Border>
+                                    <StackPanel Grid.Column="1" Spacing="3"><TextBlock x:Name="FailureFileNameTextBlock" Text="granite-3.3-8b-instruct-Q4_K_M.gguf" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" TextWrapping="WrapWholeWords" AutomationProperties.AutomationId="FailureFileNameTextBlock" /><TextBlock Text="Selected local model" FontSize="12" Foreground="{ThemeResource ModelImportMutedTextBrush}" /><Border x:Name="FailureFormatBadge" Style="{StaticResource ModelImportBadgeStyle}" Background="{ThemeResource ModelImportAccentSurfaceBrush}" AutomationProperties.AutomationId="FailureFormatBadge" AutomationProperties.Name="GGUF format"><TextBlock x:Name="FailureFormatTextBlock" Text="GGUF" Style="{StaticResource ModelImportBadgeTextStyle}" Foreground="{ThemeResource ModelImportAccentBrush}" AutomationProperties.AutomationId="FailureFormatTextBlock" /></Border></StackPanel>
+                                </Grid>
+                                <Rectangle Grid.Row="1" Fill="{ThemeResource ModelImportBorderBrush}" />
+                                <ScrollViewer x:Name="FailureDetailsScroller" Grid.Row="2" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto" AutomationProperties.AutomationId="FailureDetailsScroller" AutomationProperties.Name="Quick scan failure details">
+                                    <Grid RowSpacing="4">
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8"><Border Width="18" Height="18" Background="{ThemeResource ModelImportErrorSurfaceBrush}" CornerRadius="9"><TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Text="!" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource ModelImportErrorBrush}" /></Border><TextBlock VerticalAlignment="Center" Text="QUICK SCAN FAILED" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource ModelImportErrorBrush}" /></StackPanel>
+                                        <TextBlock x:Name="FailureHeadingTextBlock" Grid.Row="1" Text="Model could not be imported" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" AutomationProperties.AutomationId="FailureHeadingTextBlock" />
+                                        <Grid Grid.Row="2" ColumnSpacing="14"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <StackPanel Spacing="4"><TextBlock Text="FAILURE CODE" Style="{StaticResource ModelImportLabelStyle}" /><Border x:Name="FailureCodeBadge" Style="{StaticResource ModelImportBadgeStyle}" Background="{ThemeResource ModelImportErrorSurfaceBrush}" AutomationProperties.AutomationId="FailureCodeBadge" AutomationProperties.Name="GGUF_HEADER_INVALID failure code"><TextBlock x:Name="FailureCodeTextBlock" Text="GGUF_HEADER_INVALID" Style="{StaticResource ModelImportBadgeTextStyle}" Foreground="{ThemeResource ModelImportErrorBrush}" TextTrimming="CharacterEllipsis" AutomationProperties.AutomationId="FailureCodeTextBlock" /></Border></StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="4"><TextBlock Text="MESSAGE" Style="{StaticResource ModelImportLabelStyle}" /><TextBlock x:Name="FailureMessageTextBlock" Text="The selected source did not expose a valid GGUF header and required metadata." FontSize="12" Foreground="{ThemeResource ModelImportMutedTextBrush}" TextWrapping="WrapWholeWords" AutomationProperties.AutomationId="FailureMessageTextBlock" /></StackPanel>
+                                        </Grid>
+                                        <Border x:Name="FailureRecoveryPanel" Grid.Row="3" Margin="0,4,0,0" Padding="12,6" Background="{ThemeResource ModelImportErrorSurfaceBrush}" BorderBrush="{ThemeResource ModelImportErrorBorderBrush}" BorderThickness="1" CornerRadius="14" AutomationProperties.AutomationId="FailureRecoveryPanel" AutomationProperties.Name="Two recovery steps"><StackPanel Spacing="3"><TextBlock x:Name="FailureRecoveryStep1Text" Text="1. Make sure the file is a valid GGUF model with the required header and metadata." FontSize="12" Foreground="{ThemeResource ModelImportMutedTextBrush}" TextWrapping="WrapWholeWords" AutomationProperties.AutomationId="FailureRecoveryStep1Text" /><TextBlock x:Name="FailureRecoveryStep2Text" Text="2. Otherwise, remove this model and import another one." FontSize="12" Foreground="{ThemeResource ModelImportMutedTextBrush}" TextWrapping="WrapWholeWords" AutomationProperties.AutomationId="FailureRecoveryStep2Text" /></StackPanel></Border>
+                                    </Grid>
+                                </ScrollViewer>
+                                <Button x:Name="RemoveFailedModelButton" Click="RemoveSelectedModelButton_Click" Grid.RowSpan="3" Width="40" Height="40" MinWidth="40" MinHeight="40" HorizontalAlignment="Right" VerticalAlignment="Top" Style="{StaticResource ModelImportDeleteButtonStyle}" AutomationProperties.AutomationId="RemoveFailedModelButton" AutomationProperties.Name="Remove selected model">
+                                    <FontIcon Glyph="&#xE74D;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{ThemeResource ModelImportErrorBrush}" />
+                                </Button>
+                            </Grid>
+                        </Border>
 
-    </Grid>
+                    </Grid>
+                    </Grid>
+                    </Border>
 
+                    <Grid x:Name="LocalImportFooterRegion" Grid.Row="2" Height="196" AutomationProperties.AutomationId="LocalImportFooterRegion" AutomationProperties.Name="Local import actions and status">
+                        <Grid.RowDefinitions><RowDefinition Height="32" /><RowDefinition Height="12" /><RowDefinition Height="96" /><RowDefinition Height="12" /><RowDefinition Height="44" /></Grid.RowDefinitions>
+                        <Grid x:Name="LocalImportStatusRegion" Grid.Row="0" Height="32" ColumnSpacing="8" Background="Transparent" AutomationProperties.AutomationId="LocalImportStatusRegion" AutomationProperties.Name="Local import status">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ProgressRing x:Name="LocalScanProgressRing" Width="18" Height="18" IsActive="False" Visibility="Collapsed" AutomationProperties.AccessibilityView="Raw" />
+                            <TextBlock x:Name="LocalImportStateStatus" Grid.Column="1" VerticalAlignment="Center" Text="Awaiting selection" FontSize="13" Foreground="{ThemeResource ModelImportMutedTextBrush}" TextWrapping="WrapWholeWords" AutomationProperties.AutomationId="LocalImportStateStatus" AutomationProperties.LiveSetting="Polite" />
+                        </Grid>
+                        <Border x:Name="LocalVerificationInfoBar" Grid.Row="2" Height="96" Background="Transparent" AutomationProperties.AutomationId="LocalVerificationInfoBar" AutomationProperties.Name="Local verification notice">
+                            <InfoBar x:Name="LocalVerificationInfoBarControl" Height="96" IsOpen="True" IsClosable="False" Severity="Informational" Title="Inspection is required" Message="Continue becomes available only after the selected local source passes its quick scan." />
+                        </Border>
+                        <Button x:Name="BtnContinueToInspection"
+                                Click="ContinueToModelInspectionButton_Click" Grid.Row="4" Height="44" Content="Continue to model inspection" IsEnabled="False" Style="{StaticResource ModelImportPrimaryButtonStyle}" HorizontalAlignment="Stretch" MaxWidth="1000" AutomationProperties.AutomationId="BtnContinueToInspection" AutomationProperties.HelpText="Choose and scan a local model before continuing." />
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Border
+                x:Name="RecommendedDownloadPanel"
+                Grid.Row="0"
+                Grid.Column="1"
+                Padding="20"
+                Background="{ThemeResource ModelImportSubtleSurfaceBrush}"
+                BorderBrush="{ThemeResource ModelImportBorderBrush}"
+                BorderThickness="{ThemeResource ModelImportOutlineThickness}"
+                CornerRadius="10"
+                AutomationProperties.AutomationId="StateDownloadIdle"
+                AutomationProperties.Name="Download a recommended model">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Download a recommended model" FontSize="20" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" TextWrapping="WrapWholeWords" />
+                        <TextBlock Text="Choose one verified IBM Granite 4.0 H Micro GGUF package to download securely." Style="{StaticResource ModelImportBodyStyle}" />
+                    </StackPanel>
+
+                    <Border
+                        x:Name="RecommendedModelDetailsCard"
+                        Grid.Row="1"
+                        MinHeight="300"
+                        Margin="0,18,0,18"
+                        Padding="14"
+                        VerticalAlignment="Top"
+                        Background="{ThemeResource ModelImportSurfaceBrush}"
+                        BorderBrush="{ThemeResource ModelImportBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="14"
+                        AutomationProperties.AutomationId="RecommendedModelDetailsCard"
+                        AutomationProperties.Name="Recommended model details">
+                    <StackPanel Spacing="10">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="IBM Granite 4.0 H Micro" FontSize="18" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" TextWrapping="WrapWholeWords" />
+                                <TextBlock Text="Official pinned GGUF package" Style="{StaticResource ModelImportBodyStyle}" />
+                            </StackPanel>
+                            <TextBlock x:Name="RecommendedModelPackageSummary" Grid.Column="1" Text="3B parameters · 1.94 GB" Style="{StaticResource ModelImportBodyStyle}" TextAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnSpacing="16" RowSpacing="10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <StackPanel Spacing="3"><TextBlock Text="FORMAT" Style="{StaticResource ModelImportLabelStyle}" /><TextBlock Text="GGUF" Style="{StaticResource ModelImportValueStyle}" /></StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="3"><TextBlock Text="QUANTISATION" Style="{StaticResource ModelImportLabelStyle}" /><TextBlock x:Name="RecommendedModelQuantization" Text="Q4_K_M" Style="{StaticResource ModelImportValueStyle}" /></StackPanel>
+                            <StackPanel Grid.Row="1" Spacing="3"><TextBlock Text="DECLARED CONTEXT" Style="{StaticResource ModelImportLabelStyle}" /><TextBlock Text="128K tokens" Style="{StaticResource ModelImportValueStyle}" /></StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="3"><TextBlock Text="BENCHMARK" Style="{StaticResource ModelImportLabelStyle}" /><TextBlock Text="Pending benchmark" Style="{StaticResource ModelImportValueStyle}" /></StackPanel>
+                        </Grid>
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Preference" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportTextBrush}" />
+                            <TextBlock x:Name="RecommendedPreferenceLabel" Grid.Column="1" Text="Balanced" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportAccentBrush}" TextAlignment="Right" />
+                        </Grid>
+                        <Slider x:Name="RecommendedModelPreference" Minimum="0" Maximum="100" StepFrequency="1" Value="50" AutomationProperties.AutomationId="RecommendedModelPreference" AutomationProperties.Name="Recommended model preference. Balanced." AutomationProperties.HelpText="Select one of five pinned IBM Granite packages." />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="RecommendedPreferenceMaximumEfficiency" Grid.Column="0" HorizontalAlignment="Stretch" Text="Maximum efficiency" FontSize="10" Foreground="{ThemeResource ModelImportSubtleTextBrush}" TextAlignment="Left" TextWrapping="WrapWholeWords" />
+                            <TextBlock x:Name="RecommendedPreferenceEfficient" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Stretch" Text="Efficient" FontSize="10" Foreground="{ThemeResource ModelImportSubtleTextBrush}" TextAlignment="Center" TextWrapping="WrapWholeWords">
+                                <TextBlock.RenderTransform>
+                                    <TranslateTransform X="8" />
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+                            <TextBlock x:Name="RecommendedPreferenceBalanced" Grid.Column="3" Grid.ColumnSpan="2" HorizontalAlignment="Stretch" Text="Balanced" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource ModelImportAccentBrush}" TextAlignment="Center" TextWrapping="WrapWholeWords" />
+                            <TextBlock x:Name="RecommendedPreferenceHighCapability" Grid.Column="5" Grid.ColumnSpan="2" HorizontalAlignment="Stretch" Text="High capability" FontSize="10" Foreground="{ThemeResource ModelImportSubtleTextBrush}" TextAlignment="Center" TextWrapping="WrapWholeWords">
+                                <TextBlock.RenderTransform>
+                                    <TranslateTransform X="-8" />
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+                            <TextBlock x:Name="RecommendedPreferenceMaximumCapability" Grid.Column="7" HorizontalAlignment="Stretch" Text="Maximum capability" FontSize="10" Foreground="{ThemeResource ModelImportSubtleTextBrush}" TextAlignment="Right" TextWrapping="WrapWholeWords" />
+                        </Grid>
+                    </StackPanel>
+                    </Border>
+
+                    <Grid x:Name="RecommendedDownloadFooterRegion" Grid.Row="2" MinHeight="220" AutomationProperties.AutomationId="RecommendedDownloadFooterRegion" AutomationProperties.Name="Recommended download actions and status">
+                        <Grid VerticalAlignment="Bottom">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <Grid x:Name="DownloadStatusRegion" Grid.Row="0" MinHeight="56" RowSpacing="6" Background="Transparent" AutomationProperties.AutomationId="DownloadStatusRegion" AutomationProperties.Name="Recommended download status">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <ProgressRing x:Name="DownloadProgressRing" Width="18" Height="18" IsActive="False" Visibility="Collapsed" AutomationProperties.AccessibilityView="Raw" />
+                                    <TextBlock x:Name="DownloadStateStatus" Grid.Column="1" VerticalAlignment="Center" Text="" FontSize="13" Foreground="{ThemeResource ModelImportMutedTextBrush}" TextWrapping="WrapWholeWords" Visibility="Collapsed" AutomationProperties.AutomationId="DownloadStateStatus" AutomationProperties.LiveSetting="Polite" />
+                                </Grid>
+                                <ProgressBar x:Name="RecommendedDownloadProgress" Grid.Row="1" Height="4" Minimum="0" Maximum="100" Value="0" Visibility="Collapsed" AutomationProperties.AutomationId="RecommendedDownloadProgress" AutomationProperties.Name="Recommended model download progress" />
+                                <TextBlock x:Name="RecommendedDownloadProgressText" Grid.Row="2" FontSize="12" Foreground="{ThemeResource ModelImportSubtleTextBrush}" Text="" TextWrapping="WrapWholeWords" Visibility="Collapsed" AutomationProperties.AutomationId="RecommendedDownloadProgressText" />
+                            </Grid>
+                            <Border x:Name="RecommendedVerificationInfoBar" Grid.Row="2" MinHeight="96" Background="Transparent" AutomationProperties.AutomationId="RecommendedVerificationInfoBar" AutomationProperties.Name="Recommended verification notice">
+                                <InfoBar x:Name="RecommendedVerificationInfoBarControl" MinHeight="96" IsOpen="True" IsClosable="False" Severity="Success" Title="Verified package metadata" Message="The production route verifies the pinned size and SHA-256 before making the model available." />
+                            </Border>
+                            <Grid x:Name="DownloadActionRegion" Grid.Row="4" MinHeight="44" ColumnSpacing="10" AutomationProperties.AutomationId="DownloadActionRegion" AutomationProperties.Name="Recommended download actions">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Button x:Name="BtnDiscardDownload" Click="DiscardDownloadButton_Click" Grid.Column="0" MinHeight="44" Content="Discard download" Visibility="Collapsed" Style="{StaticResource ModelImportSecondaryButtonStyle}" HorizontalAlignment="Stretch" MaxWidth="1000" AutomationProperties.AutomationId="BtnDiscardDownload" AutomationProperties.HelpText="Discard the interrupted download and return to the verified recommendation." />
+                                <Button x:Name="BtnDownloadSelectedModel" Click="DownloadModelButton_Click" Grid.Column="0" Grid.ColumnSpan="2" MinHeight="44" Content="Download selected model" Style="{StaticResource ModelImportPrimaryButtonStyle}" HorizontalAlignment="Stretch" MaxWidth="1000" AutomationProperties.AutomationId="BtnDownloadSelectedModel" AutomationProperties.HelpText="Download the selected verified IBM Granite package." />
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+
+</Grid>
+
+
+            <StackPanel x:Name="DownloadedModelsResultsPanel" Spacing="4" Visibility="Collapsed">
+                <TextBlock x:Name="DownloadedModelsSearchStatus" AutomationProperties.LiveSetting="Polite" TextWrapping="WrapWholeWords" />
+                <ListView x:Name="DownloadedModelsResults" AutomationProperties.Name="Downloaded model file names" IsItemClickEnabled="False" SelectionMode="None" Visibility="Collapsed" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
 </Page>

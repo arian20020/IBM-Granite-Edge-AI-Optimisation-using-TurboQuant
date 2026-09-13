@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "declarationKind": "external-evidence-digest-manifest-reference-v1",
+  "scope": "Exact retained Granite INT4 package, official F008 runtime, CPU, 4096 context and U4 cache only. This is retained quality and identity evidence for a separately selectable alternative; the known-failing ReleasedDefault remains blocked. No raw-model conversion, other cache, runtime, package, deployment or release admission.",
+  "externalEvidenceDigestManifest": {
+    "fileName": "current-f008-u4-custody.json",
+    "sha256": "58A0922386E6D9078E15A15D18836457CF720E4150E179A0ECE6E6BA70FA6793",
+    "length": 34049,
+    "memberCount": 70,
+    "meaning": "Retained 48-prompt U4 captures, scoring methodology and runner custody, exact parameter-count proof, and separately identified failed-default evidence. Historical runner hashes remain historical; this declaration does not claim that later binaries produced those captures."
+  },
+  "source": {
+    "modelSha256": "fcfb6ec62a2b823d7d1aebedee193083eaa2f86d9e89722e46102c7a4b90bd27",
+    "packageManifestSha256": "d5f33732fddb37c150f8ebd4be163c40474a245cd3a8f7683b63996d5f60ed68",
+    "parameterCount": 3402836480,
+    "parameterCountProvenance": "Exact retained INT4 graph: 281 weight Const tensors plus 81 normalisation weight vectors; see the bound parameter-count proof.",
+    "weightPrecision": "INT4"
+  },
+  "runtime": {
+    "manifestSha256": "f0089dae967a0b4249238f9bf49db02ba44e111c78b83ebff36778f6d0ddcbe2",
+    "route": "Official OpenVINO",
+    "device": "CPU"
+  },
+  "profile": {
+    "contextSize": 4096,
+    "kvCache": "U4",
+    "maximumGeneratedTokens": 128,
+    "configurationId": "openvino.standard.cpu.int4.u4.v1",
+    "evidenceId": "OV-STD-CPU-INT4-U4-01"
+  },
+  "qualityMeans": { "U4": 5.520833333333333 },
+  "evidenceGates": {
+    "outputHealthPassed": true,
+    "healthyCaptureCount": 48,
+    "identityCustodyPassed": true,
+    "parameterCountVerified": true
+  },
+  "negativeEvidence": {
+    "releasedDefaultFailedOutputHealth": true,
+    "releasedDefaultQualityScore": null,
+    "standaloneQ03StreamEqualsWholeDecodeAndGeneratedText": true,
+    "standaloneWrapperExitBookkeepingFailed": true,
+    "meaning": "Negative evidence only. The native diagnostic completed with matching replacement-character output; its PowerShell wrapper subsequently failed exit-code bookkeeping. Neither is a passing qualification or a fabricated baseline score."
+  },
+  "fullLifecyclePending": true,
+  "releaseProof": false,
+  "deploymentHold": "Requires normal current-source inspection, production authority, explicit U4 selection, issuer, runtime-profile execution and reload proof without a model copy before deployment."
+}
