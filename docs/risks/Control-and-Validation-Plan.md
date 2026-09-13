@@ -1,15 +1,15 @@
 # Risk, Assumption, Constraint and Licence Control and Validation Plan
 
 **Document ID:** PLAN-RACL-001  
-**Version:** 1.6  
+**Version:** 1.7<br>
 **Status:** Active control plan  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
-**Last reviewed:** 2026-07-15  
+**Last reviewed:** 2026-09-13<br>
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
-**Related reviews:** `RV-004`–`RV-008`
+**Related reviews:** `RV-004`–`RV-009`
 
 ## Purpose
 
@@ -19,7 +19,7 @@ This plan controls how risks, assumptions, constraints and licences are recorded
 
 | Area | Role |
 |---|---|
-| Windows 11 x64, Intel, Granite, llama.cpp and one verified Experimental TurboQuant route | Core |
+| Windows 11 x64, Intel, Granite, llama.cpp and one exact verified TurboQuant route | Core |
 | OpenVINO | Should Have |
 | TurboVec | Later feasibility investigation; full integration deferred unless reactivated |
 
@@ -30,7 +30,7 @@ This plan controls how risks, assumptions, constraints and licences are recorded
 | Risk Register | 254 identified items consolidated into 37 operational risks | Review controls and residual risk at dependent gates |
 | Assumption Register | `A-001`–`A-017` approved for planning | Confirm/reject only with stated evidence |
 | Constraint Register | `C-001`–`C-015` approved Active | Check compliance at dependent gates |
-| Licence Register | `L-001`–`L-015` reviewed at source level | Complete exact release-package review later |
+| Licence Register | `L-001`–`L-018` reviewed | Complete exact release-package review later |
 | Cross-register audit | Passed as `AUD-RACL-001` / `RV-008` | Revalidate after material changes |
 | G-M05 / PD-05 / EP-007 evidence | Implemented, Validated and Verified | Maintain event-driven controls |
 | Controlled RTM | v1.3.1 synchronised | New revision required for later status changes |

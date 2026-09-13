@@ -1,17 +1,17 @@
 # Risk, Assumption, Constraint and Licence Control
 
 **Document ID:** IDX-RACL-001  
-**Version:** 0.8  
+**Version:** 0.9<br>
 **Status:** Operational and Verified for `G-M05`, `PD-05` and `EP-007`  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
-**Last reviewed:** 2026-07-15  
+**Last reviewed:** 2026-09-13<br>
 **Next review:** Event-driven register reviews and final release-package review  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
 **Related changes:** `CR-018` / `CHG-018`; `CR-019` / `CHG-019`  
-**Related reviews:** `RV-004`–`RV-008`
+**Related reviews:** `RV-004`–`RV-009`
 
 ## Purpose
 
@@ -26,7 +26,7 @@ This directory is the controlled home for project risks, assumptions, constraint
 
 | Area | Current role |
 |---|---|
-| Windows 11 x64, Intel, IBM Granite, upstream llama.cpp and one verified Experimental TurboQuant route | Core |
+| Windows 11 x64, Intel, IBM Granite, upstream llama.cpp and one exact verified TurboQuant route | Core |
 | OpenVINO | Should Have |
 | TurboVec | Later feasibility investigation; full integration deferred |
 
@@ -35,9 +35,9 @@ This directory is the controlled home for project risks, assumptions, constraint
 | Record | File | Current state |
 |---|---|---|
 | Risks | [Risk Register](Risk-Register.md) | 254 identified items consolidated into 37 operational risks |
-| Assumptions | [Assumption Register](Assumption-Register.md) | `A-001`–`A-017` approved for planning; outcomes remain evidence-gated |
+| Assumptions | [Assumption Register](Assumption-Register.md) | `A-001`–`A-017`: 8 Confirmed, 1 Rejected for the tested scope, 8 Pending |
 | Constraints | [Constraint Register](Constraint-Register.md) | `C-001`–`C-015` approved Active |
-| Licences | [Licence Register](Licence-Register.md) | `L-001`–`L-015` reviewed at source level; final package gate remains |
+| Licences | [Licence Register](Licence-Register.md) | `L-001`–`L-018` reviewed; final package gate remains Pending |
 
 Supporting controls:
 
@@ -63,6 +63,8 @@ Task evidence:
 - assumptions, constraints and licences have clear owners, outcomes and evidence gates;
 - no material cross-register contradiction prevents use;
 - `G-M05`, `PD-05` and `EP-007` are `Implemented / Validated / Verified`.
+
+`RV-009` records the later report-cut-off review. It adds scoped assumption outcomes and final application or demonstrator identities without claiming that the final release package is approved.
 
 Controlled workbook:
 

@@ -1,16 +1,14 @@
 # Licence Review Notes
 
-> Latest technical result: **DEMONSTRATOR_ONLY** for TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`, run `EXP-TV-COMP-001-20260902T231605Z-005`. MIT identity does not imply product approval.
-
-> TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49` is MIT-licensed. Run `EXP-TV-COMP-001-20260902T225731Z-001` was **BLOCKED** at the Granite/OpenVINO gate; distribution and adoption remain unapproved.
+> Final review note: TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49` is MIT-licensed, but the project decision is **DEMONSTRATOR_ONLY**. This does not approve application adoption or final package distribution.
 
 **Document ID:** NOTE-LIC-001  
-**Version:** 1.0  
+**Version:** 1.1<br>
 **Status:** Initial engineering review complete — final release-package review pending  
 **Owner / reviewer:** Arian B  
-**Review date:** 2026-07-14  
+**Review date:** 2026-09-13<br>
 **Related register:** [Licence Register](Licence-Register.md)  
-**Related review:** `RV-007`
+**Related reviews:** `RV-007`; `RV-009`
 
 ## 1. Purpose and boundary
 
@@ -70,7 +68,9 @@ Source reviewed:
 
 OpenVINO is Apache-2.0 licensed. The licence permits use, modification and distribution in source or object form. Redistribution requires the licence, preservation of applicable notices, prominent notices on modified files and relevant NOTICE content where supplied.
 
-**Decision:** development and modification are permitted. Final bundling remains Restricted until the exact release, included DLLs, NOTICE and third-party notices are captured.
+The controlled campaign used OpenVINO `2026.2.1-21919-ede283a88e3`.
+
+**Decision:** development, modification and tested runtime use are permitted. Final bundling remains Restricted until the produced DLL list, NOTICE and third-party notices are captured.
 
 ### 3.4 OpenVINO GenAI
 
@@ -80,7 +80,9 @@ Source reviewed:
 
 OpenVINO GenAI is Apache-2.0 licensed. The same Apache redistribution duties apply.
 
-**Decision:** development and modification are permitted. Final bundling remains Restricted until the exact GenAI, OpenVINO Runtime, tokenizer and native dependency versions are captured.
+The controlled campaign used OpenVINO GenAI `2026.2.1.0-2-00edae3bfd4`. It records upstream commit `7dea0459b2ac7d8dfd877fd9df6737674`, patch `00edae3bfd40a968c964ea4878128dceeeb22d1a`, derived tree `2e872dd4817c42d91cb7c3094954d7b56fa12b0a`, and verified application worker closure `0c642015d9b6912533d8c6d5e8f136e97f1071aa71ff62b6dbf46f818771a6f9`.
+
+**Decision:** development, modification and tested application use are permitted. Final bundling remains Restricted until the produced worker, tokenizer and native dependency files and notices are captured.
 
 ### 3.5 Microsoft Windows App SDK
 
@@ -103,7 +105,7 @@ The project pins version `10.0.28000.2270`. This is a build dependency and shoul
 
 **Decision:** Restricted to build-time use unless exact package review later identifies redistributable files. The final package must be inspected to confirm the SDK tools were not bundled accidentally.
 
-### 3.7 .NET 8
+### 3.7 .NET SDK and runtime
 
 Sources reviewed:
 
@@ -111,7 +113,7 @@ Sources reviewed:
 - SDK licence: <https://github.com/dotnet/sdk/blob/main/LICENSE.TXT>
 - runtime third-party notices: <https://github.com/dotnet/runtime/blob/main/THIRD-PARTY-NOTICES.TXT>
 
-The main repositories use MIT. A framework-dependent deployment and a self-contained deployment have different distributed-file inventories.
+The application targets `net8.0-windows10.0.19041.0`. The final build used SDK `10.0.301`. The build SDK is not the runtime shipped with the application. A framework-dependent deployment and a self-contained deployment also contain different files.
 
 **Decision:** development use is permitted. Self-contained packaging remains Restricted until the exact runtime patch and third-party notices are captured.
 
@@ -126,7 +128,9 @@ Sources reviewed:
 
 The MIT licence permits use, modification and redistribution with notice preservation.
 
-**Decision:** source research, build, modification and testing are permitted. Final binary packaging remains Restricted until inherited llama.cpp notices and all selected backend/native dependencies are recorded.
+The application evidence uses runtime manifest `08EF00CF8CD425BC5409071A77C12BE5A90292C121A5109EDDE63BB109B3B7C4`. Candidate `GGUF-CURRENT-08EF-CPU-TURBO3-COMPAT-01` is technically supported only for that exact evidence identity.
+
+**Decision:** source research, build, modification, testing and the exact evidence-backed application route are permitted. Final binary packaging remains Restricted until inherited llama.cpp notices and all packaged backend and native dependencies are recorded.
 
 ### 3.9 animehacker TurboQuant fork
 
@@ -143,9 +147,17 @@ The repository describes a Stage-1/PolarQuant-style implementation and explicitl
 
 ### 3.10 TurboVec
 
-No exact TurboVec implementation has yet been selected. A paper, concept description or publicly visible code snippet is not enough to establish permission to copy, modify or distribute an implementation.
+Sources reviewed:
 
-**Decision:** Pending. Do not copy, integrate or distribute external TurboVec code until the exact repository, commit and licence are recorded.
+- repository: <https://github.com/RyanCodrai/turbovec>
+- version: `1.0.0`
+- pinned commit: `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`
+- wheel SHA-256: `CD855E0B318A57DC57C733F9A62AE98DE5192F4F6C2C760E305523E8CEB1B090`
+- repository licence: MIT
+
+The supporting production-scale run is `EXP-TV-COMP-001-20260902T231605Z-005`. The technical decision is `DEMONSTRATOR_ONLY` because the compressed formats did not meet the retrieval-quality requirements.
+
+**Decision:** source use and modification are permitted under MIT. Application adoption is not approved. Distribution of the demonstrator remains Restricted until its full dependency and notice list is reviewed.
 
 ### 3.11 Evaluation prompts and data
 
@@ -173,13 +185,47 @@ Without an explicit licence, external users do not automatically receive broad p
 
 **Decision:** Pending owner decision. Select and add a project licence only after considering UCL, IBM/Intel partner, third-party code and submission requirements.
 
+### 3.15 IBM Granite 4.0 H Micro GGUF application models
+
+Source reviewed:
+
+- official model card: <https://huggingface.co/ibm-granite/granite-4.0-h-micro-GGUF>
+- pinned revision: `51ce07a9c9cfa971ca359d9625836bf8a4a1b61f`
+- licence recorded by the official model card: Apache-2.0
+
+The application catalogue records five exact filenames, byte lengths and SHA-256 hashes. Downloads are checked against that catalogue before use.
+
+**Decision:** verified download and project use are permitted under Apache-2.0. The model files are not approved for bundling inside the application package without a separate package review.
+
+### 3.16 LLamaSharp and CPU backend
+
+Sources reviewed:
+
+- NuGet packages `LLamaSharp` and `LLamaSharp.Backend.Cpu`, version `0.27.0`
+- repository: <https://github.com/SciSharp/LLamaSharp>
+- package-recorded commit: `7cbbc45e421d55794d5050d126e0b96511007007`
+- package licence: MIT
+
+**Decision:** application use is permitted. Final packaging remains Restricted until the native llama.cpp backend files and notices included by the CPU package are recorded.
+
+### 3.17 PdfPig
+
+Sources reviewed:
+
+- NuGet package `PdfPig`, version `0.1.15`
+- repository: <https://github.com/UglyToad/PdfPig>
+- package-recorded commit: `f131f642976936e06ee91cb19d3ed728f9dd18b6`
+- package licence: Apache-2.0
+
+**Decision:** use in the separate TurboVec PDF extraction demonstrator is permitted. Distribution remains Restricted until the Apache licence and any required notices are included.
+
 ## 4. Release-package actions
 
 Before release packaging:
 
-1. freeze the exact Granite source repositories, revisions, filenames and hashes;
+1. keep the exact Granite source repositories, revisions, filenames and hashes;
 2. review any community GGUF repository separately;
-3. pin OpenVINO, OpenVINO GenAI and tokenizer versions;
+3. keep the pinned OpenVINO and OpenVINO GenAI identities and record the packaged tokenizer and native files;
 4. export the final NuGet and native dependency inventories;
 5. identify every DLL, executable, model and asset included in the release;
 6. prepare `THIRD-PARTY-NOTICES.md` or an equivalent notice bundle;

@@ -59,11 +59,11 @@ PD-05 produced a live and proportionate RACL control system. The retained operat
 
 | ID | Evidence | Identifier | Status |
 |---|---|---|---|
-| EV-01 | [Risk Register](../../../risks/Risk-Register.md) | v0.5 | Available |
+| EV-01 | [Risk Register](../../../risks/Risk-Register.md) | v0.6 | Available |
 | EV-02 | [Risk Consolidation Map](../../../risks/Risk-Consolidation-Map.md) | Current | Available |
-| EV-03 | [Assumption Register](../../../risks/Assumption-Register.md) | v0.4 | Available |
+| EV-03 | [Assumption Register](../../../risks/Assumption-Register.md) | v0.5 | Available |
 | EV-04 | [Constraint Register](../../../risks/Constraint-Register.md) | v0.3 | Available |
-| EV-05 | [Licence Register](../../../risks/Licence-Register.md) and [Licence Review Notes](../../../risks/Licence-Review-Notes.md) | v0.3 / v1.0 | Available |
+| EV-05 | [Licence Register](../../../risks/Licence-Register.md) and [Licence Review Notes](../../../risks/Licence-Review-Notes.md) | v0.4 / v1.1 | Available |
 | EV-06 | [Control and Validation Plan](../../../risks/Control-and-Validation-Plan.md); [Review Log](../../../risks/Review-Log.md) | Current | Available |
 | EV-07 | [Cross-Register Validation Audit](../../../risks/Cross-Register-Validation-Audit.md) | `AUD-RACL-001` / `RV-008` | Available |
 | EV-08 | [Controlled RTM workbook artifact](../../../requirements/RTM-Workbook-Artifact-Record.md) | v1.3.1; SHA-256 `2414c6790c2815a75edfcab0c9f35462dd334fe14d8c16e9810e80261f098e96` | Available |

@@ -2,20 +2,20 @@
 
 > TurboVec run `EXP-TV-COMP-001-20260902T231605Z-005` produced **DEMONSTRATOR_ONLY** for commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`. Compatibility was demonstrated, but retrieval, storage and latency thresholds were not all met.
 
-> TurboVec run `EXP-TV-COMP-001-20260902T225731Z-001` recorded **BLOCKED** for commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`. Candidate identity is resolved, but Granite/OpenVINO compatibility remains open; no quality or performance claim is supported.
+> The earlier TurboVec run `EXP-TV-COMP-001-20260902T225731Z-001` was **BLOCKED**. It is kept as history and does not replace the later demonstrator-only result.
 
 **Document ID:** REG-RISK-001  
-**Version:** 0.5  
-**Status:** Consolidated operational register — treatment evidence review pending  
+**Version:** 0.6<br>
+**Status:** Consolidated operational register — final evidence update recorded; treatment review continues<br>
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
-**Last reviewed:** 2026-07-14  
+**Last reviewed:** 2026-09-13<br>
 **Next review:** Weekly during active development and before each dependent gate  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
 **Related change:** `CR-018` / `CHG-018`  
-**Related reviews:** `RV-004`; `RV-005`
+**Related reviews:** `RV-004`; `RV-005`; `RV-009`
 
 ## Purpose
 
@@ -25,7 +25,7 @@ The original identification exercise produced 254 risk records or candidates. Th
 
 The current controlled release roles are aligned as follows:
 
-- **Core:** Windows 11 x64, Intel focus, IBM Granite, upstream llama.cpp and one verified Experimental TurboQuant route;
+- **Core:** Windows 11 x64, Intel focus, IBM Granite, upstream llama.cpp and one exact verified TurboQuant route;
 - **Should Have:** one official OpenVINO route after its integration gate passes;
 - **Later investigation:** identify and assess TurboVec, while full application integration remains deferred unless a later approved change reactivates it.
 
