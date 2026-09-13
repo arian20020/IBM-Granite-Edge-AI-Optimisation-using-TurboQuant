@@ -46,8 +46,8 @@ FROZEN_TEXT_BYTES = {
         "dea150021b7b0a482966bba6694bb52b8ca3650d0c7561c80108ccd276535766",
     ),
     "docs/testing/Quality-Evaluation-Register.csv": (
-        93_992,
-        "4d8e327caf025090b61c917152ba3f656209376e2365b11c40eeaf0c3236797c",
+        95_549,
+        "aa13984e02f496fe73433d3e026cb911b6292cde15488198328a3b293c351066",
     ),
     "experiments/granite_turboquant_intel/prompts/rendered-v2/P1.txt": (
         307,

@@ -11,14 +11,30 @@ MIGRATION_PATH = ROOT / "archive/testing-code/MIGRATION.csv"
 ARCHIVE_ROOT = ROOT / "archive/testing-code/2026-09-01"
 TESTING_ROOT = ROOT / "scripts/testing"
 ALLOWED_ROOT_FILES = {
+    "Capture-TurboVecMachineState.ps1",
+    "Invoke-TurboVecFeasibility.ps1",
+    "Invoke-TurboVecPdfCampaign.ps1",
+    "Invoke-TurboVecUpstreamVerification.ps1",
     "README.md",
+    "Test-TurboVecEvidence.ps1",
     "requirements.txt",
+    "generate_turbovec_dataset.py",
+    "run_turbovec_feasibility.py",
     "Validate-Workbook05-BuildStage.ps1",
     "Validate-Workbook05-MemoryFrontier.ps1",
     "Validate-Workbook05-Phase3.ps1",
     "Validate-Workbook05-SourceAdmission.ps1",
 }
-ALLOWED_ROOT_DIRS = {"campaigns", "cli", "examples", "reporting", "tests", "tools", "workbook05"}
+ALLOWED_ROOT_DIRS = {
+    "campaigns",
+    "cli",
+    "examples",
+    "reporting",
+    "tests",
+    "tools",
+    "turbovec",
+    "workbook05",
+}
 IGNORED_ROOT_DIRS = {".pytest_cache", "__pycache__"}
 EXPECTED_ARCHIVE_BASELINE = "d0eb34f2"
 

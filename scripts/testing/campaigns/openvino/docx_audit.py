@@ -85,8 +85,8 @@ def comparison_audit_profile(matrix_sha256: str) -> DocxAuditProfile:
     return DocxAuditProfile(
         workbook_version="1.9",
         revision_id="WR-037",
-        revision_date="2026-08-01",
-        current_status="Current - pending PR",
+        revision_date="2026-08-02",
+        current_status="Current - pending merge",
         expected_ids=frozenset(MATRIX_COMPARISON_IDS),
         cache_ids=frozenset({"OV-12", "OV-TQ-21", "OV-TQ-22"}),
         comparison_headings=COMPARISON_SECTION_TITLES,

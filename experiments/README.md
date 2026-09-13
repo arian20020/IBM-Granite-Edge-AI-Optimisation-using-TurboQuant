@@ -1,6 +1,14 @@
 ﻿# Experiments
 
-Every formal experiment needs an ID, protocol, manifest, exact hashes, raw stdout/stderr, raw measurements, failed runs and reproducible processing scripts.
+This folder holds the experiment plans, inputs, raw evidence and processed data.
+For a short guide to the finished work, read the
+[experiment handoff](../docs/testing/EXPERIMENT-HANDOFF.md). For results that
+can be quoted in the report, use the
+[report pack](../docs/testing/EXPERIMENT-REPORT-PACK.md).
+
+Do not rerun an experiment just to check the saved results. Use the read-only
+validation command in the handoff guide. Run an experiment only when a new run
+has been approved and given its own ID.
 
 ## Choose what you need
 
@@ -16,7 +24,9 @@ Every formal experiment needs an ID, protocol, manifest, exact hashes, raw stdou
 | Inspect controlled source patches | [Patches](patches/README.md) |
 | Find route-specific compatibility scripts | [Experiment scripts](scripts/README.md) |
 
-A protocol, manifest, script or empty folder proves only that testing was prepared. A result becomes usable only when its captured evidence, provenance and validation agree.
+A plan, manifest, script or empty folder shows only that a test was prepared.
+It does not show that the test ran. Use a result only when the saved evidence,
+source details and validation checks agree.
 
 <!-- BEGIN BEGINNER DIRECTORY GUIDE -->
 

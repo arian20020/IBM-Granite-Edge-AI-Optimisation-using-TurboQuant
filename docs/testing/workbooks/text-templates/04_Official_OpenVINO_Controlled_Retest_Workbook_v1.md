@@ -1,12 +1,21 @@
-# 04 Official OpenVINO Controlled Retest Workbook v1.8
+# 04 Official OpenVINO Controlled Retest Workbook v1.9
 
-Controlled retest revision 1.8 (WR-036).
+**Controlled filename:** `04_Official_OpenVINO_Controlled_Retest_Workbook_v1.docx`
+**Generated DOCX hash:** recorded in `Controlled-Workbook-Manifest.csv`
+**Original source:** `04_Official_OpenVINO_Editable_Test_Workbook.docx`
+**Original source SHA-256:** `e892a1a9ea2956e10f3eaa9dba89dcef59a7a6f89cb21b34e274aa3d72baa2b3`
+
+Controlled retest revision 1.9 (WR-037).
+
+Workbook version: 1.9
+Revision ID: WR-037
+Revision date: 2026-08-02
 
 # 1. Repository, runtime and host
 
 | Fact | Verified record |
 | --- | --- |
-| Frozen matrix | `experiments/manifests/official-openvino/retest-matrix.json`; SHA-256 `7db2636b403d285aa3886c9f23560a9e48bd43645e9aca35e0d1fc4f16eaea42`; 60 controlled IDs. |
+| Adaptive comparison matrix | `experiments/manifests/official-openvino/adaptive-format-comparison-matrix-v1.json`; SHA-256 `3a26bd8bd979a539fb1eee3f08641e409963cc477a6fda5b5688bebe4e523aca`; five controlled route IDs. |
 | Runtime source | Patched OpenVINO GenAI campaign: upstream `7dea0459b2ac7d8dfd877fd9df6737674`, patch `00edae3bfd40a968c964ea4878128dceeeb22d1a`, derived tree `2e872dd4817c42d91cb7c3094954d7b56fa12b0a`. |
 | Runtime versions | OpenVINO `2026.2.1-21919-ede283a88e3`; OpenVINO GenAI `2026.2.1.0-2-00edae3bfd4`; Python 3.13.14. |
 | Host | Lenovo 83ER; Intel Core i5-12450H; Intel UHD driver 32.0.101.7076; Windows 11 build 26200; 16,857,817,088 installed physical bytes. |
@@ -38,68 +47,81 @@ Controlled retest revision 1.8 (WR-036).
 
 [[PAGEBREAK]]
 
-# 5. Accepted formal runtime measurements
+<!-- BEGIN WB-04 V1.9 COMPARISON -->
 
-All three accepted rows executed on CPU with `fallback=false`; cleanup was verified with zero residual processes.
+# 5. U8 STANDARD, TBQ4 and TBQ3 shared-context comparison
 
-**Timing metrics — aggregate medians**
+No shared completed context exists for the three U8-weight cache routes. The
+campaign closed after the OV-11 control, so no direct cache winner is reported.
 
-| Test ID | Context | Load ms | TTFT ms | Prompt tok/s | TPOT ms | Decode tok/s | Generation ms |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| OV-TQ-13 | 512 | 8425.953 | 19149.389 | 28.841 | 679.548 | 1.472 | 19863.765 |
-| OV-TQ-14 | 512 | 8079.655 | 18234.156 | 29.179 | 666.685 | 1.5 | 19576.744 |
-| OV-TQ-14 | 2048 | 8209.418 | 83969.485 | 25.66 | 2048.262 | 0.488 | 86068.419 |
+| Test ID | Cache route | Terminal status | Controlled interpretation |
+| --- | --- | --- | --- |
+| OV-12 | U8 STANDARD | Not launched | Follow-on route stopped at the terminal laptop checkpoint. |
+| OV-TQ-21 | TBQ4 | Not launched | Follow-on route stopped at the terminal laptop checkpoint. |
+| OV-TQ-22 | TBQ3 | Not launched | Follow-on route stopped at the terminal laptop checkpoint. |
 
-**Memory metrics — aggregate medians**
+# 6. U4, U8 and FP16 STANDARD deployment comparison
 
-| Test ID | Context | Peak WS MiB | Peak private MiB | Available RAM min MiB | KV MiB | Cleanup |
-| --- | --- | --- | --- | --- | --- | --- |
-| OV-TQ-13 | 512 | 7142.34 | 4330 | 3112.461 | 12.573 | 0 |
-| OV-TQ-14 | 512 | 7137.219 | 4323.207 | 3025.695 | 10.059 | 0 |
-| OV-TQ-14 | 2048 | 8286.062 | 5463.633 | 2153.18 | 40.059 | 0 |
+Only the U4 STANDARD route completed a formal measurement. The absence of a
+shared completed context prevents a direct weight-format comparison.
 
-**CPU/GPU utilisation — aggregate summary**
+| Test ID | Weight route | Context | Outcome | Evidence boundary |
+| --- | --- | --- | --- | --- |
+| OV-11 | U4 STANDARD | 512 | Passed | Three accepted CPU repetitions; fallback false; cleanup zero. |
+| OV-12 | U8 STANDARD | 512 | Not launched | Campaign closed before this route. |
+| OV-13 | FP16 STANDARD | 512 | Artefact boundary | No validated FP16 artefact was admitted. |
 
-| Test ID | Context | CPU mean/median/peak % | GPU mean/median/peak % | CPU samples | GPU samples | Accepted runs | Fallback count | Evidence ref |
+# 7. Complete timing results
+
+The first row is the v1.9 STANDARD control. The remaining rows retain the
+earlier v1.8 governed TurboQuant measurements for historical continuity; they
+are not treated as a matched adaptive comparison.
+
+| Evidence stage | Test ID | Context | Load ms | TTFT ms | Prompt tok/s | TPOT ms | Decode tok/s | Generation ms |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OV-TQ-13 | 512 | 8.483 / 8.248 / 18.296 | 0 / 0 / 0 | 348 | 51 | 3 | 0 | E1 |
-| OV-TQ-14 | 512 | 8.528 / 8.218 / 23.92 | 0 / 0 / 0 | 344 | 51 | 3 | 0 | E2 |
-| OV-TQ-14 | 2048 | 8.185 / 8.271 / 19.746 | 0 / 0 / 0 | 1142 | 165 | 3 | 0 | E3 |
+| v1.9 formal control | OV-11 | 512 | 4727.2827 | 32537.6674 | 15.826758 | 174.974472 | 5.715119 | 33484.0263 |
+| v1.8 retained measurement | OV-TQ-13 | 512 | 8425.953 | 19149.389 | 28.841 | 679.548 | 1.472 | 19863.765 |
+| v1.8 retained measurement | OV-TQ-14 | 512 | 8079.655 | 18234.156 | 29.179 | 666.685 | 1.5 | 19576.744 |
+| v1.8 retained measurement | OV-TQ-14 | 2048 | 8209.418 | 83969.485 | 25.66 | 2048.262 | 0.488 | 86068.419 |
 
-# 6. Tests that did not complete
+# 8. Complete memory and CPU/GPU results
 
-- **Diagnostic only; no formal benchmark:** OV-01
-- **Missing validated FP16 artifact:** OV-C01, OV-02
-- **RAM safety floor reached:** OV-B04, OV-03, OV-06, OV-TQ-03, OV-TQ-04, OV-TQ-05, OV-TQ-06, OV-TQ-07, OV-TQ-08, OV-TQ-09, OV-TQ-10, OV-TQ-11, OV-TQ-12, OV-TQ-13/2048, OV-TQ-13/4096, OV-TQ-13/8192, OV-TQ-14/4096, OV-TQ-14/8192, OV-TQ-15
-- **Larger host required:** OV-C04, OV-C05, OV-C06, OV-07, OV-08, OV-09, OV-10, OV-TQ-16, OV-TQ-17 (larger host required)
-- **Strict activation proof incomplete:** OV-B08, OV-B09, OV-B10, OV-B12, OV-TQS-01, OV-TQS-02, OV-TQS-03, OV-TQS-04
-- **Governed quality campaign stopped at the RAM floor:** OV-TQ-13/512, OV-TQ-14/512, OV-TQ-14/2048
+| Evidence stage | Test ID | Context | Peak WS | Peak private | Minimum available RAM | KV allocation | CPU mean/peak % | GPU mean/peak % | Cleanup |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| v1.9 formal control | OV-11 | 512 | 4325171200 bytes | 2905325568 bytes | 4278976512 bytes | 84377600 bytes | 9.107368 / 68.450225 | 0 / 0 | 0 residual processes |
+| v1.8 retained measurement | OV-TQ-13 | 512 | 7142.34 MiB | 4330 MiB | 3112.461 MiB | 12.573 MiB | 8.483 / 18.296 | 0 / 0 | 0 residual processes |
+| v1.8 retained measurement | OV-TQ-14 | 512 | 7137.219 MiB | 4323.207 MiB | 3025.695 MiB | 10.059 MiB | 8.528 / 23.92 | 0 / 0 | 0 residual processes |
+| v1.8 retained measurement | OV-TQ-14 | 2048 | 8286.062 MiB | 5463.633 MiB | 2153.18 MiB | 40.059 MiB | 8.185 / 19.746 | 0 / 0 | 0 residual processes |
 
-# 7. Quality boundary
+# 9. P1–P6 and aggregate quality results
 
-No governed P1-P6 quality campaign completed. The governed evidence therefore provides no numeric quality score and no winner.
+The OV-11 sequence completed P1--P4, stopped P5 when available memory reached
+1993.03125 MiB against the unchanged 2048 MiB floor, and did not launch P6.
+No governed P1--P6 sequence completed, so no aggregate score or winner exists.
 
-[[PAGEBREAK]]
+| Test ID | Context | P1 | P2 | P3 | P4 | P5 | P6 | Aggregate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| OV-11 | 512 | Completed | Completed | Completed | Completed | RAM-floor stop | Not run | Withheld: incomplete sequence |
 
-# 8. Final decision and evidence index
+# 10. Laptop runtime-capable and fully-comparable boundaries
 
-**Final decision**
+| Test ID | Highest runtime context | Highest fully comparable context | First confirmed boundary | Terminal stage |
+| --- | --- | --- | --- | --- |
+| OV-11 | 512 | Not established | P5 quality step | Quality RAM floor |
+| OV-12 | Not observed | Not observed | 512 | Campaign checkpoint |
+| OV-13 | Not observed | Not observed | 512 | Artefact admission |
+| OV-TQ-21 | Not observed | Not observed | 512 | Campaign checkpoint |
+| OV-TQ-22 | Not observed | Not observed | 512 | Campaign checkpoint |
 
-| Decision | Controlled conclusion |
-| --- | --- |
-| Proven runtime scope | Exactly OV-TQ-13/512, OV-TQ-14/512, and OV-TQ-14/2048 are accepted formal runtime measurements. |
-| Best observed runtime facts | The observed runtime facts are: lowest median load 8079.655 ms (OV-TQ-14/512); lowest median TTFT 18234.156 ms (OV-TQ-14/512); highest median decode throughput 1.5 tok/s (OV-TQ-14/512). These are runtime observations; no winner is declared from quality evidence. |
-| Execution boundary | The accepted formal scope is CPU-only with fallback=false and cleanup verified for every row. |
-| GPU boundary | No accepted GPU formal measurement exists. |
-| Non-TurboQuant boundary | No non-TurboQuant formal benchmark exists; the U4/U8 STANDARD results remain diagnostics only. |
-| Continuation | Continue the blocked larger-context and larger-model campaigns on a higher-memory host. |
-| Quality boundary | No numeric quality score exists and there is no winner. |
+# 11. Terminal attempts and hash-bound evidence
 
-**Evidence index**
+| Identity | Status | Principal reason | Hash-bound evidence |
+| --- | --- | --- | --- |
+| OV-11/512 runtime | Passed | Three accepted formal CPU samples; fallback false; cleanup zero. | Measurement SHA-256 `ec933862686e399c19e3ce69bdc11baae2cf10025d1a245db3dcc85c0ae3c3e0` |
+| OV-11/512 quality | Terminal | P5 crossed the fixed RAM floor; P6 was not launched. | Campaign-state SHA-256 `92101643ff26a2ccc27dd0965a6ae1a0788586c3edcbd6cab9d9b2c4d266c8e8` |
+| OV-13/512 | Terminal | Validated FP16 artefact was unavailable. | Recorded in the controlled failure and evidence registers. |
+| OV-12/512 | Not launched | Campaign closed after the OV-11 quality terminal. | Recorded in the controlled campaign state. |
+| OV-TQ-21/512 | Not launched | Campaign closed after the OV-11 quality terminal. | Recorded in the controlled campaign state. |
+| OV-TQ-22/512 | Not launched | Campaign closed after the OV-11 quality terminal. | Recorded in the controlled campaign state. |
 
-| Reference | Hash-bound source |
-| --- | --- |
-| E1 | experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-13/context-512/measurement-summary.json#sha256=5fc814f16d749e863607db5f519ee564b6459f132a0b25c2a6aab800b8c7c550 |
-| E2 | experiments/raw-results/openvino-turboquant/2026-07-30/runtime-frozen-85ed31e/OV-TQ-14/context-512/measurement-summary.json#sha256=3aea0c66a05faa64283cec1e59c16a9669fcbcb2c8520bfb3f5fadae0e0e5747 |
-| E3 | experiments/raw-results/openvino-turboquant/2026-07-30/runtime/OV-TQ-14/context-2048/measurement-summary.json#sha256=2b3fbde825b91e4768325be0ff58254110de4c5e36981cf9d570806a11e13478 |
-| Reconciliation input | experiments/raw-results/openvino-turboquant/2026-07-30/reconciliation-input.json#sha256=96f7355a9446092ddad6d68c75d73bbd956bd24cd3213f9e12db470a87410c65 |
+<!-- END WB-04 V1.9 COMPARISON -->

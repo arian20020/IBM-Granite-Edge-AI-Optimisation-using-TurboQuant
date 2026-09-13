@@ -1,8 +1,14 @@
 # Testing Commands
 
-`scripts/testing` provides the supported contributor-facing command surface for testing campaigns and final-results validation. The CLI layer stays thin: it dispatches to the proven campaign and reporting implementations without duplicating route logic.
+This folder contains the supported commands for experiment runs, result
+processing and result checks. If you only want to check the saved final results,
+follow the [experiment handoff](../../docs/testing/EXPERIMENT-HANDOFF.md).
 
-The four `Validate-Workbook05-*.ps1` files remain top-level, documented CI entrypoints supplied by current `main`; implementation helpers remain grouped under `workbook05/` and `tools/`.
+The command-line wrappers call the existing campaign and reporting code. They
+do not contain a second copy of the experiment logic.
+
+The four `Validate-Workbook05-*.ps1` files are the documented CI checks for
+Workbook 05. Their helper code is under `workbook05/` and `tools/`.
 
 ## Choose the safest entry point
 

@@ -1,16 +1,34 @@
 # Controlled Testing Workspace
 
+## Start here
+
+If you only need the finished experiment results, read the
+[experiment handoff](EXPERIMENT-HANDOFF.md). It explains what is complete, what
+is still limited and how to check the saved package without running the models
+again.
+
+Use the [report pack](EXPERIMENT-REPORT-PACK.md) when writing the dissertation.
+Use the [research requirement review](EXPERIMENT-TRACEABILITY-REVIEW.md) when
+updating the controlled traceability matrix.
+
+The files below contain the detailed controls used during testing. They are
+kept for audit and future work.
+
 **Campaign:** Granite-TurboQuant Controlled Retest Campaign v1  
 **Started:** 13 July 2026  
 **Status:** Authoritative testing campaign  
 **Previous campaign:** Preserved as legacy evidence; not automatically authoritative
 
-This directory controls application testing, model/runtime feasibility, AI-quality evaluation and final cross-route comparison.
+This directory holds the rules and records for application testing, model and
+runtime tests, output-quality checks and route comparisons.
 
 ## Choose what you need
 
 | Goal | Open this first |
 | --- | --- |
+| Get a simple overview and safe validation steps | [Experiment handoff](EXPERIMENT-HANDOFF.md) |
+| Copy checked facts into the dissertation | [Experiment report pack](EXPERIMENT-REPORT-PACK.md) |
+| Review research-requirement evidence | [Experiment traceability review](EXPERIMENT-TRACEABILITY-REVIEW.md) |
 | Read the overall findings | [Cross-route comparison report](final-results/06-cross-route-comparison/reports/cross-route-comparison-report.md) |
 | Compare the two OpenVINO campaigns in Excel | [Experimental-fork workbook](final-results/04-openvino-experimental-fork/reports/openvino-experimental-fork-results.xlsx) and [official-upstream workbook](final-results/05-openvino-official-upstream/reports/openvino-official-upstream-results.xlsx) |
 | Find one route, file or evidence record | [Final-results beginner directory guide](Final-Results-Beginner-Directory-Guide.md) |

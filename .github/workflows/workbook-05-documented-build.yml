@@ -1,0 +1,492 @@
+name: Workbook 05 documented build
+
+on:
+  pull_request:
+    branches:
+      - main
+      - testing/workbook-05-route-b-repair-implementation
+    paths:
+      - '.github/workflows/workbook-05-documented-build.yml'
+      - 'scripts/testing/**'
+      - 'tests/testing/workbook05/**'
+      - 'experiments/granite_turboquant_intel/schemas/workbook05/**'
+      - 'experiments/granite_turboquant_intel/manifests/templates/workbook05/**'
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Exact documented-build stage to execute
+        required: true
+        type: choice
+        options:
+          - route-a-runtime
+          - route-a-genai
+          - route-b-runtime
+          - route-b-genai
+      run_identity:
+        description: Safe short label for the new external workspace
+        required: true
+        default: phase2
+        type: string
+      runtime_install_directory:
+        description: Accepted Route A Runtime i-ov directory
+        required: false
+        default: ''
+        type: string
+      runtime_decision_path:
+        description: Accepted Route A Runtime decision.json path
+        required: false
+        default: ''
+        type: string
+      br8_run_id:
+        description: Exact workflow run that produced the accepted BR8 artifact
+        required: false
+        default: ''
+        type: string
+      br8_artifact_name:
+        description: Exact accepted BR8 artifact name
+        required: false
+        default: ''
+        type: string
+      br8_expected_artifact_digest:
+        description: Recorded SHA-256 digest for the accepted BR8 artifact
+        required: false
+        default: ''
+        type: string
+      br8_actual_artifact_digest:
+        description: Independently verified SHA-256 digest for the BR8 artifact
+        required: false
+        default: ''
+        type: string
+      br8_accepted_by_project_owner:
+        description: Confirms project-owner acceptance of ExecutableCandidate
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: workbook-05-documented-build-${{ github.ref }}-${{ inputs.stage || 'contract' }}
+  cancel-in-progress: false
+
+env:
+  WB05_PYTHON: C:\Program Files\Python312\python.exe
+
+jobs:
+  verify-build-contract:
+    name: Verify documented-build repository contract
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out only the documented-build control surface
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with: &sparse-checkout
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            external-design-records
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+      - name: Run the complete documented-build gate
+        shell: powershell
+        run: >-
+          & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
+          -RepositoryRoot $env:GITHUB_WORKSPACE
+          -PythonPath 'python'
+
+  collect-route-a-runtime:
+    name: Collect Route A Runtime build evidence
+    needs: verify-build-contract
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant' &&
+      inputs.stage == 'route-a-runtime'
+    runs-on: [self-hosted, Windows, X64, workbook05, intel-target]
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+    steps:
+      - name: Check out exact control files
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with: *sparse-checkout
+      - name: Run the repository gate on the Intel runner
+        run: >-
+          & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
+          -RepositoryRoot $env:GITHUB_WORKSPACE
+          -PythonPath $env:WB05_PYTHON
+      - name: Execute Route A Runtime build
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-a-runtime'
+          & '.\scripts\testing\workbook05\Invoke-Workbook05RouteARuntimeBuild.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -OutputDirectory $output `
+              -RunIdentity '${{ inputs.run_identity }}-${{ github.run_id }}-${{ github.run_attempt }}' `
+              -PythonPath $env:WB05_PYTHON
+      - name: Bind bundle metadata to this exact attempt
+        if: always()
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-a-runtime'
+          & '.\scripts\testing\workbook05\Write-Workbook05BuildBundleMetadata.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE -BundleDirectory $output `
+              -RouteId 'route-a-merged-openvino' -Component 'runtime' `
+              -SourceCommit 'b9a1f201c109e0bed74763934f79483cf6c4cbf4' `
+              -RunId '${{ github.run_id }}' -RunAttempt ${{ github.run_attempt }}
+      - name: Upload exact text-only Runtime evidence
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook-05-build-route-a-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\workbook-05-build-route-a-runtime
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false
+
+  validate-route-a-runtime:
+    name: Independently validate Route A Runtime build evidence
+    needs: collect-route-a-runtime
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.stage == 'route-a-runtime'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact validation files
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with: *sparse-checkout
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.10'}
+      - name: Download exact same-attempt artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: workbook-05-build-route-a-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\build-bundle
+      - name: Rerun repository gate
+        shell: powershell
+        run: >-
+          & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
+          -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath 'python'
+      - name: Validate artifact as untrusted data
+        # The gate restores PYTHONPATH, so this new process receives only the
+        # same pinned temporary dependency directory needed by the validator.
+        env:
+          PYTHONPATH: ${{ runner.temp }}\workbook05-build-stage-python
+        shell: powershell
+        run: >-
+          python -m scripts.testing.workbook05.build_bundle_validation
+          --bundle '${{ runner.temp }}\build-bundle'
+          --repository-root $env:GITHUB_WORKSPACE
+          --route-id route-a-merged-openvino --component runtime
+          --source-commit b9a1f201c109e0bed74763934f79483cf6c4cbf4
+          --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
+          --report '${{ runner.temp }}\route-a-runtime-validation.md'
+
+  collect-route-a-genai:
+    name: Collect Route A GenAI build evidence
+    needs: verify-build-contract
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant' &&
+      inputs.stage == 'route-a-genai'
+    runs-on: [self-hosted, Windows, X64, workbook05, intel-target]
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+    env:
+      WB05_RUNTIME_INSTALL: ${{ inputs.runtime_install_directory }}
+      WB05_RUNTIME_DECISION: ${{ inputs.runtime_decision_path }}
+    steps:
+      - name: Check out exact control files
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with: *sparse-checkout
+      - name: Run the repository gate on the Intel runner
+        run: >-
+          & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
+          -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath $env:WB05_PYTHON
+      - name: Execute source-matched Route A GenAI build
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-a-genai'
+          & '.\scripts\testing\workbook05\Invoke-Workbook05RouteAGenAIBuild.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE -OutputDirectory $output `
+              -RunIdentity '${{ inputs.run_identity }}-${{ github.run_id }}-${{ github.run_attempt }}' `
+              -RuntimeInstallDirectory $env:WB05_RUNTIME_INSTALL `
+              -RuntimeDecisionPath $env:WB05_RUNTIME_DECISION `
+              -PythonPath $env:WB05_PYTHON
+      - name: Bind bundle metadata to this exact attempt
+        if: always()
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-a-genai'
+          & '.\scripts\testing\workbook05\Write-Workbook05BuildBundleMetadata.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE -BundleDirectory $output `
+              -RouteId 'route-a-merged-openvino' -Component 'genai' `
+              -SourceCommit 'bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0' `
+              -RunId '${{ github.run_id }}' -RunAttempt ${{ github.run_attempt }}
+      - name: Upload exact text-only GenAI evidence
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook-05-build-route-a-genai-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\workbook-05-build-route-a-genai
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false
+
+  validate-route-a-genai:
+    name: Independently validate Route A GenAI build evidence
+    needs: collect-route-a-genai
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.stage == 'route-a-genai'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact validation files
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with: *sparse-checkout
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.10'}
+      - name: Download exact same-attempt artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: workbook-05-build-route-a-genai-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\build-bundle
+      - name: Rerun repository gate
+        shell: powershell
+        run: >-
+          & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
+          -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath 'python'
+      - name: Validate artifact as untrusted data
+        # Keep dependency visibility scoped to this validator process only.
+        env:
+          PYTHONPATH: ${{ runner.temp }}\workbook05-build-stage-python
+        shell: powershell
+        run: >-
+          python -m scripts.testing.workbook05.build_bundle_validation
+          --bundle '${{ runner.temp }}\build-bundle'
+          --repository-root $env:GITHUB_WORKSPACE
+          --route-id route-a-merged-openvino --component genai
+          --source-commit bd8d6542e3ca1ac30042d5d8d4202ce00b5f4af0
+          --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
+          --report '${{ runner.temp }}\route-a-genai-validation.md'
+
+  collect-route-b-runtime:
+    name: Collect conditional Route B Runtime build evidence
+    needs: verify-build-contract
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant' &&
+      inputs.stage == 'route-b-runtime'
+    runs-on: [self-hosted, Windows, X64, workbook05, intel-target]
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+    env:
+      WB05_BR8_EXPECTED_DIGEST: ${{ inputs.br8_expected_artifact_digest }}
+      WB05_BR8_ACTUAL_DIGEST: ${{ inputs.br8_actual_artifact_digest }}
+      WB05_BR8_ACCEPTED: ${{ inputs.br8_accepted_by_project_owner }}
+    steps:
+      - name: Check out exact control files
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with: *sparse-checkout
+      - name: Run the repository gate on the Intel runner
+        run: >-
+          & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
+          -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath $env:WB05_PYTHON
+      - name: Download exact accepted BR8 artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: ${{ inputs.br8_artifact_name }}
+          path: ${{ runner.temp }}\accepted-br8
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.br8_run_id }}
+      - name: Execute conditional Route B Runtime build
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-b-runtime'
+          $accepted = [Convert]::ToBoolean($env:WB05_BR8_ACCEPTED)
+          & '.\scripts\testing\workbook05\Invoke-Workbook05RouteBBuild.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE -OutputDirectory $output `
+              -RunIdentity '${{ inputs.run_identity }}-${{ github.run_id }}-${{ github.run_attempt }}' `
+              -Br8BundleDirectory (Join-Path $env:RUNNER_TEMP 'accepted-br8') `
+              -Br8ExpectedArtifactDigest $env:WB05_BR8_EXPECTED_DIGEST `
+              -Br8ActualArtifactDigest $env:WB05_BR8_ACTUAL_DIGEST `
+              -Br8AcceptedByProjectOwner $accepted -PythonPath $env:WB05_PYTHON
+      - name: Bind bundle metadata to this exact attempt
+        if: always()
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-b-runtime'
+          $accepted = [Convert]::ToBoolean($env:WB05_BR8_ACCEPTED)
+          & '.\scripts\testing\workbook05\Write-Workbook05BuildBundleMetadata.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE -BundleDirectory $output `
+              -RouteId 'route-b-experimental-qjl-polar' -Component 'runtime' `
+              -SourceCommit '1827f6458d049de11c1a8203c793af67c99935dc' `
+              -RunId '${{ github.run_id }}' -RunAttempt ${{ github.run_attempt }} `
+              -Br8Accepted $accepted -Br8Status 'ExecutableCandidate' `
+              -Br8SourceCommit '1827f6458d049de11c1a8203c793af67c99935dc' `
+              -Br8ArtifactDigest $env:WB05_BR8_ACTUAL_DIGEST
+      - name: Upload exact text-only Route B Runtime evidence
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook-05-build-route-b-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\workbook-05-build-route-b-runtime
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false
+
+  validate-route-b-runtime:
+    name: Independently validate Route B Runtime build evidence
+    needs: collect-route-b-runtime
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.stage == 'route-b-runtime'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact validation files
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with: *sparse-checkout
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.10'}
+      - name: Download exact same-attempt artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: workbook-05-build-route-b-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\build-bundle
+      - name: Rerun repository gate
+        shell: powershell
+        run: >-
+          & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
+          -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath 'python'
+      - name: Validate artifact as untrusted data
+        # Keep the pinned dependency hand-off identical for every hosted validator.
+        env:
+          PYTHONPATH: ${{ runner.temp }}\workbook05-build-stage-python
+        shell: powershell
+        run: >-
+          python -m scripts.testing.workbook05.build_bundle_validation
+          --bundle '${{ runner.temp }}\build-bundle'
+          --repository-root $env:GITHUB_WORKSPACE
+          --route-id route-b-experimental-qjl-polar --component runtime
+          --source-commit 1827f6458d049de11c1a8203c793af67c99935dc
+          --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
+          --report '${{ runner.temp }}\route-b-runtime-validation.md'
+
+  collect-route-b-genai:
+    name: Record the current Route B GenAI build boundary
+    needs: verify-build-contract
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant' &&
+      inputs.stage == 'route-b-genai'
+    runs-on: [self-hosted, Windows, X64, workbook05, intel-target]
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+    env:
+      WB05_BR8_DIGEST: ${{ inputs.br8_actual_artifact_digest }}
+      WB05_BR8_ACCEPTED: ${{ inputs.br8_accepted_by_project_owner }}
+    steps:
+      - name: Check out exact control files
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with: *sparse-checkout
+      - name: Run the repository gate on the Intel runner
+        run: >-
+          & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
+          -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath $env:WB05_PYTHON
+      - name: Download exact accepted BR8 artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: ${{ inputs.br8_artifact_name }}
+          path: ${{ runner.temp }}\accepted-br8
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.br8_run_id }}
+      - name: Validate BR8 and record unsupported GenAI boundary
+        run: |
+          $br8 = Join-Path $env:RUNNER_TEMP 'accepted-br8'
+          $report = Join-Path $env:RUNNER_TEMP 'route-b-genai-br8-validation.md'
+          & $env:WB05_PYTHON -m scripts.testing.workbook05.route_b_repair_bundle_validation --bundle-root $br8 --report $report
+          if ($LASTEXITCODE -ne 0) { throw "BR8 validation exited with code $LASTEXITCODE." }
+          if (-not [Convert]::ToBoolean($env:WB05_BR8_ACCEPTED)) { throw 'BR8 has not been accepted by the project owner.' }
+          $output = Join-Path $env:RUNNER_TEMP 'workbook-05-build-route-b-genai'
+          New-Item -ItemType Directory -Path $output -Force:$false | Out-Null
+          Import-Module '.\scripts\testing\workbook05\Workbook05.Build.psm1' -Force
+          Write-Wb05Json -Path (Join-Path $output 'decision.json') -Value ([ordered]@{
+              schema_version='1.0'; campaign_id='GTQ-WB05-MF-v1'; record_type='build-decision'
+              route_id='route-b-experimental-qjl-polar'; component='genai'
+              source_commit='1827f6458d049de11c1a8203c793af67c99935dc'; status='Blocked'
+              reasons=@('No separately reviewed Route B GenAI compatibility interface or source pair exists.')
+              required_components=@(); granite_model_test_authorised=$false; activation_claim_authorised=$false
+              packed_storage_claim_authorised=$false; performance_claim_authorised=$false; quality_claim_authorised=$false
+          })
+          & '.\scripts\testing\workbook05\Write-Workbook05BuildBundleMetadata.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE -BundleDirectory $output `
+              -RouteId 'route-b-experimental-qjl-polar' -Component 'genai' `
+              -SourceCommit '1827f6458d049de11c1a8203c793af67c99935dc' `
+              -RunId '${{ github.run_id }}' -RunAttempt ${{ github.run_attempt }} `
+              -Br8Accepted $true -Br8Status 'ExecutableCandidate' `
+              -Br8SourceCommit '1827f6458d049de11c1a8203c793af67c99935dc' `
+              -Br8ArtifactDigest $env:WB05_BR8_DIGEST
+      - name: Upload exact text-only Route B GenAI boundary
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook-05-build-route-b-genai-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\workbook-05-build-route-b-genai
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false
+
+  validate-route-b-genai:
+    name: Independently validate Route B GenAI blocked evidence
+    needs: collect-route-b-genai
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.stage == 'route-b-genai'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact validation files
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with: *sparse-checkout
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.10'}
+      - name: Download exact same-attempt artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: workbook-05-build-route-b-genai-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\build-bundle
+      - name: Rerun repository gate
+        shell: powershell
+        run: >-
+          & '.\scripts\testing\Validate-Workbook05-BuildStage.ps1'
+          -RepositoryRoot $env:GITHUB_WORKSPACE -PythonPath 'python'
+      - name: Validate blocked artifact as untrusted data
+        # The blocked Route B GenAI boundary still uses the same trusted validator.
+        env:
+          PYTHONPATH: ${{ runner.temp }}\workbook05-build-stage-python
+        shell: powershell
+        run: >-
+          python -m scripts.testing.workbook05.build_bundle_validation
+          --bundle '${{ runner.temp }}\build-bundle'
+          --repository-root $env:GITHUB_WORKSPACE
+          --route-id route-b-experimental-qjl-polar --component genai
+          --source-commit 1827f6458d049de11c1a8203c793af67c99935dc
+          --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
+          --report '${{ runner.temp }}\route-b-genai-validation.md'

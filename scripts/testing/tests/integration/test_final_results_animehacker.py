@@ -26,11 +26,17 @@ from scripts.testing.reporting.llama_adapter import (
 from scripts.testing.reporting.models import Status
 from scripts.testing.reporting.openvino_report import SECTION_ORDER
 from scripts.testing.reporting.report_model import ReportParagraph, ReportTable
+from scripts.testing.tests.integration.canonical_fixture import (
+    materialize_inventory_legacy_view,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 ROUTE = REPOSITORY_ROOT / "docs/testing/final-results/03-animehacker-tq3-0"
 RAW = Path("experiments/raw-results/animehacker-tq3-0/2026-07-18")
+RETAINED_RAW = Path(
+    "experiments/raw-results/retained/animehacker-tq3-0/2026-07-18"
+)
 
 
 @pytest.fixture
@@ -57,7 +63,6 @@ def _copy_sources(tmp_path: Path) -> Path:
         "docs/testing/Workbook-Revision-Register.csv",
         "docs/testing/Quality-Evaluation-Register.csv",
         "experiments/manifests/animehacker-tq3-0/retest-matrix.json",
-        "experiments/raw-results/animehacker-tq3-0/2026-07-18",
         "experiments/granite_turboquant_intel/prompts/fixed-feasibility-prompt-set-v1.json",
         "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json",
     ):
@@ -68,6 +73,11 @@ def _copy_sources(tmp_path: Path) -> Path:
             shutil.copytree(source, target)
         else:
             shutil.copy2(source, target)
+    materialize_inventory_legacy_view(
+        REPOSITORY_ROOT,
+        root,
+        "experiments/raw-results/animehacker-tq3-0/",
+    )
     return root
 
 
@@ -132,7 +142,7 @@ def test_missing_os_metrics_remain_literal_not_collected():
 
 def test_explicit_reconciliation_inclusion_is_required(tmp_path: Path):
     root = _copy_sources(tmp_path)
-    state_path = root / RAW / "runtime/state.json"
+    state_path = root / RETAINED_RAW / "runtime/state.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["attempts"]["AH-01"].pop("reconciled")
     state_path.write_text(json.dumps(state), encoding="utf-8")
@@ -143,7 +153,7 @@ def test_explicit_reconciliation_inclusion_is_required(tmp_path: Path):
 
 def test_summary_not_selected_by_reconciliation_cannot_enter_formal_stats(tmp_path: Path):
     root = _copy_sources(tmp_path)
-    reconciliation_path = root / RAW / "reconciliation.json"
+    reconciliation_path = root / RETAINED_RAW / "reconciliation.json"
     reconciliation = json.loads(reconciliation_path.read_text(encoding="utf-8"))
     reconciliation["recovery"]["AH-09"]["runtime"] = (
         "experiments/raw-results/animehacker-tq3-0/2026-07-18/runtime/"
@@ -157,7 +167,7 @@ def test_summary_not_selected_by_reconciliation_cannot_enter_formal_stats(tmp_pa
 
 def test_formal_summary_sample_must_equal_its_raw_measurement(tmp_path: Path):
     root = _copy_sources(tmp_path)
-    path = root / RAW / "runtime/AH-01/summary.json"
+    path = root / RETAINED_RAW / "runtime/AH-01/summary.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     payload["samples"][0]["ttft_ms"] = 999.0
     values = [row["ttft_ms"] for row in payload["samples"]]
@@ -185,8 +195,8 @@ def test_matrix_complete_entity_is_authenticated(tmp_path: Path):
 
 def test_coordinated_summary_and_measurement_edit_cannot_redefine_authority(tmp_path: Path):
     root = _copy_sources(tmp_path)
-    summary_path = root / RAW / "runtime/AH-01/summary.json"
-    measurement_path = root / RAW / "runtime/AH-01/sample-1/measurement.json"
+    summary_path = root / RETAINED_RAW / "runtime/AH-01/summary.json"
+    measurement_path = root / RETAINED_RAW / "runtime/AH-01/sample-1/measurement.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     measurement = json.loads(measurement_path.read_text(encoding="utf-8"))
     summary["samples"][0]["ttft_ms"] = 999.0
@@ -367,7 +377,7 @@ def test_build_reconciliations_and_quality_adjudications_are_bound():
 
 def test_reconciliation_status_mutation_is_rejected(tmp_path: Path):
     root = _copy_sources(tmp_path)
-    path = root / RAW / "reconciliation.json"
+    path = root / RETAINED_RAW / "reconciliation.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     payload["recovery"]["AH-10"]["status"] = "complete"
     path.write_text(json.dumps(payload), encoding="utf-8")
