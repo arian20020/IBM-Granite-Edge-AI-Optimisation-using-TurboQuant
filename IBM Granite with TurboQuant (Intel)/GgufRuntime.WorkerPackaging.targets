@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup>
+    <!-- Keep the approved managed runtime's revision metadata stable across application-only commits.
+         Runtime content remains rebuilt and hash-verified; changed binaries do not inherit evidence. -->
+    <_GgufRuntimeEvidenceSourceRevision>3f984202a3f87c0bee42cac552febfac78916f9e</_GgufRuntimeEvidenceSourceRevision>
     <GgufRuntimePackageRelativeDirectory>GgufRuntime</GgufRuntimePackageRelativeDirectory>
     <GgufRuntimeWorkerPackageRelativeDirectory>GgufRuntime\Worker</GgufRuntimeWorkerPackageRelativeDirectory>
     <GgufRuntimeAdapterPackageRelativeDirectory>GgufRuntime\Adapter</GgufRuntimeAdapterPackageRelativeDirectory>
@@ -38,9 +41,9 @@
     <MakeDir Directories="$(_GgufRuntimeWorkerRoot);$(_GgufRuntimeAdapterRoot)" />
 
     <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; restore &quot;$(_GgufRuntimeWorkerProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)&quot; -p:Configuration=Release -p:Platform=x64" />
-    <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; publish &quot;$(_GgufRuntimeWorkerProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)&quot; --output &quot;$(_GgufRuntimeWorkerRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
+    <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; publish &quot;$(_GgufRuntimeWorkerProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)&quot; --output &quot;$(_GgufRuntimeWorkerRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:SourceRevisionId=$(_GgufRuntimeEvidenceSourceRevision) -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
     <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; restore &quot;$(_GgufRuntimeAdapterProject)&quot; --runtime win-x64 --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)\Adapter&quot; -p:Configuration=Release -p:Platform=x64" />
-    <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; publish &quot;$(_GgufRuntimeAdapterProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)\Adapter&quot; --output &quot;$(_GgufRuntimeAdapterRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
+    <Exec WorkingDirectory="$(_GgufRuntimeRepositoryRoot)" Command="&quot;$(_GgufRuntimeDotNetHost)&quot; publish &quot;$(_GgufRuntimeAdapterProject)&quot; --configuration Release --runtime win-x64 --self-contained false --no-restore --artifacts-path &quot;$(_GgufRuntimeArtifactsRoot)\Adapter&quot; --output &quot;$(_GgufRuntimeAdapterRoot)&quot; -p:Configuration=Release -p:Platform=x64 -p:SourceRevisionId=$(_GgufRuntimeEvidenceSourceRevision) -p:UseAppHost=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:DebugSymbols=false -p:DebugType=None -p:CopyDebugSymbolToPublishDirectory=false" />
 
     <Exec Command="&quot;$(SystemRoot)\System32\WindowsPowerShell\v1.0\powershell.exe&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_GgufRuntimeNativeStager)&quot; -BundledPackageRoot &quot;$(_GgufRuntimeBundledPackageRoot)&quot; -StageRoot &quot;$(_GgufRuntimeNativeRoot)&quot;" />
 

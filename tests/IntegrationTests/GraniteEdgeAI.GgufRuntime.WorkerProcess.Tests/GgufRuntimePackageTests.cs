@@ -18,6 +18,25 @@ public sealed class GgufRuntimePackageTests
     ];
 
     [TestMethod]
+    public void ManagedRuntimePublishesUseTheVerifiedRevisionInsteadOfApplicationHead()
+    {
+        XDocument target = XDocument.Load(Path.Combine(FindRepositoryRoot(),
+            "IBM Granite with TurboQuant (Intel)", "GgufRuntime.WorkerPackaging.targets"));
+        Assert.AreEqual("3f984202a3f87c0bee42cac552febfac78916f9e",
+            target.Descendants("_GgufRuntimeEvidenceSourceRevision").Single().Value);
+        string[] publishes = target.Descendants("Exec")
+            .Select(element => element.Attribute("Command")!.Value)
+            .Where(command => command.Contains(" publish ", StringComparison.Ordinal)).ToArray();
+        Assert.HasCount(2, publishes);
+        foreach (string command in publishes)
+        {
+            StringAssert.Contains(command, "-p:SourceRevisionId=$(_GgufRuntimeEvidenceSourceRevision)");
+        }
+        Assert.IsFalse(target.Descendants("SourceRevisionId").Any(),
+            "The application revision must not be overridden globally.");
+    }
+
+    [TestMethod]
     public async Task VerificationScriptUsesMtpWithoutAnAppHostForWorkerClientOnly()
     {
         string root = FindRepositoryRoot();

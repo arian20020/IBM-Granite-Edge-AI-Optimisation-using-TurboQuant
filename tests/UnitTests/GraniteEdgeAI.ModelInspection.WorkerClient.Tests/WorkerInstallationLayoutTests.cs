@@ -66,15 +66,28 @@ public sealed class WorkerInstallationLayoutTests
     }
 
     [TestMethod]
+    public void LaunchRequestRetainsCanonicalPathWithinLegacyLimit()
+    {
+        using TemporaryLaunchRoot deep = TemporaryLaunchRoot.CreateDeep("fixture.exe");
+        WindowsProcessLaunchRequest request = CreateConverterLaunchRequest(deep.Executable);
+
+        Assert.IsTrue(deep.RootDirectory.Length > 120);
+        Assert.IsTrue(deep.Executable.ExecutableFinalPath.Length < 260);
+        Assert.AreEqual(deep.Executable.ExecutableFinalPath, request.ApplicationName);
+        Assert.AreEqual(deep.RootDirectory, request.WorkingDirectory);
+    }
+
+    [TestMethod]
     public void LaunchRequestShortensADeepVerifiedWorkerPathForLegacyRuntimeImports()
     {
         using TemporaryLaunchRoot deep = TemporaryLaunchRoot.CreateDeep(
-            "fixture.exe");
+            "fixture.exe", beyondLegacyLimit: true);
 
         WindowsProcessLaunchRequest request = CreateConverterLaunchRequest(
             deep.Executable);
 
-        Assert.IsTrue(deep.RootDirectory.Length > 180, deep.RootDirectory);
+        Assert.IsTrue(deep.Executable.ExecutableFinalPath.Length >= 260);
+        Assert.IsTrue(request.ApplicationName.Length < 260);
         Assert.IsTrue(
             request.WorkingDirectory.Length < deep.RootDirectory.Length,
             request.WorkingDirectory);
@@ -206,7 +219,7 @@ public sealed class WorkerInstallationLayoutTests
             return new TemporaryLaunchRoot(root, executable);
         }
 
-        internal static TemporaryLaunchRoot CreateDeep(string relativePath)
+        internal static TemporaryLaunchRoot CreateDeep(string relativePath, bool beyondLegacyLimit = false)
         {
             string root = Path.Combine(
                 Path.GetTempPath(),
@@ -215,7 +228,7 @@ public sealed class WorkerInstallationLayoutTests
                 "RuntimePackageSegmentTwo",
                 "RuntimePackageSegmentThree",
                 "RuntimePackageSegmentFour",
-                Guid.NewGuid().ToString("N"));
+                Guid.NewGuid().ToString("N") + (beyondLegacyLimit ? new string('x', 100) : string.Empty));
             string executablePath = Path.Combine(root, relativePath);
             Directory.CreateDirectory(root);
             File.Copy(
@@ -223,7 +236,9 @@ public sealed class WorkerInstallationLayoutTests
                 executablePath);
 
             VerifiedWorkerExecutable executable =
-                new WorkerExecutableResolver(relativePath).Resolve(root);
+                beyondLegacyLimit
+                    ? new VerifiedWorkerExecutable(root, executablePath, File.OpenHandle(executablePath))
+                    : new WorkerExecutableResolver(relativePath).Resolve(root);
             return new TemporaryLaunchRoot(root, executable);
         }
 

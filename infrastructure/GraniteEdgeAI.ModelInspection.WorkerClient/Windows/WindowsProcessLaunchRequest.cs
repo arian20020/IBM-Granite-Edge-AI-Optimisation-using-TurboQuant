@@ -9,7 +9,7 @@ namespace GraniteEdgeAI.ModelInspection.WorkerClient.Windows;
 /// </summary>
 internal sealed record WindowsProcessLaunchRequest
 {
-    private const int MaximumLegacyRuntimeRootCharacters = 120;
+    private const int MaximumLegacyPathCharacters = 260;
 
     internal WindowsProcessLaunchRequest(
         VerifiedWorkerExecutable executable,
@@ -51,14 +51,12 @@ internal sealed record WindowsProcessLaunchRequest
             }
 
             applicationName = executable.ExecutableFinalPath;
-            if (canonicalWorkingDirectory.Length >
-                MaximumLegacyRuntimeRootCharacters)
+            if (applicationName.Length >= MaximumLegacyPathCharacters)
             {
                 applicationName = GetShortPath(applicationName);
                 canonicalWorkingDirectory = Path.GetDirectoryName(applicationName)
                     ?? throw UntrustedWorkingDirectory();
-                if (canonicalWorkingDirectory.Length >
-                        MaximumLegacyRuntimeRootCharacters ||
+                if (applicationName.Length >= MaximumLegacyPathCharacters ||
                     !Directory.Exists(canonicalWorkingDirectory) ||
                     !File.Exists(applicationName))
                 {
