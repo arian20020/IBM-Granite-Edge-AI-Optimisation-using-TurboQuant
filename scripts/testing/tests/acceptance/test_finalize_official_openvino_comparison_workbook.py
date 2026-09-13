@@ -304,7 +304,7 @@ def test_v19_identity_is_wr037() -> None:
     text = render_complete_workbook()
     assert "Workbook version: 1.9" in text
     assert "Revision ID: WR-037" in text
-    assert "Revision date: 2026-08-01" in text
+    assert "Revision date: 2026-08-02" in text
 
 
 def test_preserves_method_material_and_replaces_results_idempotently() -> None:

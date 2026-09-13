@@ -3,7 +3,9 @@
 
 ## Purpose
 
-Planned evidence location for requirement R-M05: The project must evaluate runtime performance for every final test configuration.
+This folder was planned for the final memory and performance summaries required
+by R-M04 and R-M05. The finished, checked summaries are now in
+the [final-results package](../../../docs/testing/final-results/README.md).
 
 ## What belongs here
 

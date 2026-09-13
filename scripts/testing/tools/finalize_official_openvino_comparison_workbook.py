@@ -35,7 +35,7 @@ from scripts.testing.campaigns.openvino.comparison_reconcile import (
 
 TARGET_WORKBOOK_VERSION = "1.9"
 TARGET_REVISION_ID = "WR-037"
-TARGET_REVISION_DATE = "2026-08-01"
+TARGET_REVISION_DATE = "2026-08-02"
 COMPARISON_SECTION_TITLES = (
     "U8 STANDARD, TBQ4 and TBQ3 shared-context comparison",
     "U4, U8 and FP16 STANDARD deployment comparison",

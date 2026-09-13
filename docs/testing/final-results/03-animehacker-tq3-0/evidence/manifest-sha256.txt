@@ -9,7 +9,7 @@
 ae4bdd4c127a57b981c5d79f3c2ed33280b9f8ee35171c7ee348a6301a839796  docs/testing/final-results/03-animehacker-tq3-0/data/route.json
 205ab841a7a75f7e280755717fb391c387b4537562b55a245507a57fe4e7081e  docs/testing/final-results/03-animehacker-tq3-0/data/summaries.csv
 e42e9bfb17253e5400a2832e6959808a01f79d1bc7e86cb5e72a10e84994d4a1  docs/testing/final-results/03-animehacker-tq3-0/evidence/claim-evidence-map.csv
-034d2ab994f2046a0db67694e75878f86ab93cdf9b3036f9c5eaf60f5b55acbf  docs/testing/final-results/03-animehacker-tq3-0/evidence/evidence-index.csv
+f0fc4c633aa619d4071eb2c796c687948ddaaaa30893b5cbf40cbe6dcec5330a  docs/testing/final-results/03-animehacker-tq3-0/evidence/evidence-index.csv
 0fd9465e0849b3ea84e4baec5db288039f63ddfa186d2c3ad46f0c6538032219  docs/testing/final-results/03-animehacker-tq3-0/evidence/failures/README.md
 7b2d2e6c859810c1e29d4fdb539d307663e7db28942525c4a0cbed4128e52418  docs/testing/final-results/03-animehacker-tq3-0/evidence/failures/curated-logs/README.md
 c55668a20ee8ca7051e2b5b617e9bfae2a26351317f3517e33d368604e862599  docs/testing/final-results/03-animehacker-tq3-0/evidence/source-locations.csv

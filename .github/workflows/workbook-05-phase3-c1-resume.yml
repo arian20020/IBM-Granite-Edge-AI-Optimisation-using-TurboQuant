@@ -1,0 +1,371 @@
+name: Workbook 05 Phase 3 C1 controlled source resume
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/workbook-05-phase3-c1-resume.yml'
+      - '.github/workflows/workbook-05-phase3-assets.yml'
+      - 'docs/testing/workbook05/**'
+      - 'docs/superpowers/**'
+      - 'experiments/granite_turboquant_intel/configurations/workbook05/**'
+      - 'experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1/**'
+      - 'experiments/granite_turboquant_intel/manifests/templates/workbook05/**'
+      - 'experiments/granite_turboquant_intel/schemas/workbook05/**'
+      - 'scripts/testing/**'
+      - 'tests/testing/workbook05/**'
+  workflow_dispatch:
+    inputs:
+      confirm_controlled_source_resume:
+        description: 'Confirm the exact failed C1 source-resume operation.'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: workbook-05-phase3-c1-resume-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  repository-contract:
+    name: Verify controlled C1 source-resume repository contract
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the exact resume revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
+
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Install pinned Phase 3 validation dependency
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonCommand = Get-Command -Name python -CommandType Application -All -ErrorAction Stop |
+              Select-Object -First 1
+          $pythonPath = $pythonCommand.Source
+          $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-phase3-python'
+
+          if (Test-Path -LiteralPath $dependencyDirectory) {
+              Remove-Item -LiteralPath $dependencyDirectory -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $dependencyDirectory -Force:$false | Out-Null
+
+          & $pythonPath `
+              -m pip install `
+              --disable-pip-version-check `
+              --target $dependencyDirectory `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Phase 3 validation dependency installation exited with code $LASTEXITCODE."
+          }
+
+          $env:PYTHONPATH = $dependencyDirectory
+          $observedVersion = ((
+              & $pythonPath -c "import importlib.metadata; print(importlib.metadata.version('jsonschema'))"
+          ) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $observedVersion -ne '4.25.1') {
+              throw "Expected jsonschema 4.25.1, observed: $observedVersion"
+          }
+          "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Run complete Phase 3 repository gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\testing\Validate-Workbook05-Phase3.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -PythonPath 'python'
+
+  collect-c1-resume:
+    name: Collect controlled C1 source-resume evidence
+    needs: repository-contract
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant' &&
+      inputs.confirm_controlled_source_resume == true
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - workbook05
+      - intel-target
+    timeout-minutes: 720
+
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+
+    steps:
+      - name: Check out the exact resume revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
+
+      - name: Verify pinned machine Python and manual boundary
+        id: boundary
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonPath = 'C:\Program Files\Python312\python.exe'
+          if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) {
+              throw "Pinned Python was not found: $pythonPath"
+          }
+          $version = ((& $pythonPath --version 2>&1) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $version -ne 'Python 3.12.10') {
+              throw "Expected Python 3.12.10, observed: $version"
+          }
+          if ('${{ inputs.confirm_controlled_source_resume }}' -ne 'true') {
+              throw 'Controlled C1 source resume requires explicit confirmation.'
+          }
+          "python_path=$pythonPath" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+
+      - name: Install pinned Phase 3 validation dependency
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonPath = '${{ steps.boundary.outputs.python_path }}'
+          $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-phase3-python'
+
+          if (Test-Path -LiteralPath $dependencyDirectory) {
+              Remove-Item -LiteralPath $dependencyDirectory -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $dependencyDirectory -Force:$false | Out-Null
+
+          & $pythonPath `
+              -m pip install `
+              --disable-pip-version-check `
+              --target $dependencyDirectory `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Phase 3 validation dependency installation exited with code $LASTEXITCODE."
+          }
+          $env:PYTHONPATH = $dependencyDirectory
+          $observedVersion = ((
+              & $pythonPath -c "import importlib.metadata; print(importlib.metadata.version('jsonschema'))"
+          ) | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $observedVersion -ne '4.25.1') {
+              throw "Expected jsonschema 4.25.1, observed: $observedVersion"
+          }
+          "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Run complete Phase 3 repository gate on Intel runner
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\testing\Validate-Workbook05-Phase3.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -PythonPath '${{ steps.boundary.outputs.python_path }}'
+
+      - name: Verify exact prior artifact identity
+        env:
+          WB05_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WB05_REPOSITORY: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\testing\workbook05\Assert-Workbook05ArtifactIdentity.ps1' `
+              -Repository $env:WB05_REPOSITORY `
+              -RunId '32410714130' `
+              -RunAttempt 1 `
+              -ArtifactName 'workbook-05-phase3-assets-32410714130-1' `
+              -ExpectedArtifactDigest 'sha256:33d3ca32236d6da973c21c5d95ba36d088c5ed7384d93eb3f353dbd081671257' `
+              -ActualArtifactDigest 'sha256:33d3ca32236d6da973c21c5d95ba36d088c5ed7384d93eb3f353dbd081671257' `
+              -ExpectedHeadSha '80946fc2e06767a8aeff878deab7d31f10fd6676' `
+              -GitHubToken $env:WB05_GITHUB_TOKEN
+
+      - name: Download exact prior failed C1 artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: workbook-05-phase3-assets-32410714130-1
+          path: ${{ runner.temp }}\workbook-05-c1-prior-attempt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 32410714130
+
+      - name: Execute controlled C1 source resume
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $prior = Join-Path $env:RUNNER_TEMP 'workbook-05-c1-prior-attempt'
+          & '.\scripts\testing\workbook05\Invoke-Workbook05Phase3AssetLockResume.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -RunId '${{ github.run_id }}' `
+              -RunAttempt ${{ github.run_attempt }} `
+              -PriorBundleDirectory $prior `
+              -AcceptedDependencyDecisionSha256 '429b90548ce2b4c8463941c5b2983c8ff0cf6cc3ea3865375c8cae78d7193b49' `
+              -BasePythonPath '${{ steps.boundary.outputs.python_path }}'
+
+      - name: Stage exact text-only C1 resume evidence
+        if: always()
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = (
+              'C:\w5c\phase3-assets-${{ github.run_id }}-' +
+              '${{ github.run_attempt }}-resume\evidence'
+          )
+          $destination = Join-Path $env:RUNNER_TEMP 'workbook-05-phase3-c1-resume'
+          if (-not (Test-Path -LiteralPath $source -PathType Container)) {
+              throw "C1 resume evidence root is missing: $source"
+          }
+          if (Test-Path -LiteralPath $destination) {
+              throw "Unexpected staged C1 resume destination: $destination"
+          }
+          $sourceItem = Get-Item -LiteralPath $source -Force -ErrorAction Stop
+          if (($sourceItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+              throw "C1 resume evidence root is a reparse point: $source"
+          }
+
+          $forbidden = @(
+              '.7z', '.bin', '.ckpt', '.dll', '.exe', '.gguf', '.gz',
+              '.lib', '.onnx', '.pt', '.pth', '.pyd', '.safetensors',
+              '.so', '.tar', '.tgz', '.whl', '.xml', '.zip'
+          )
+          foreach ($item in Get-ChildItem -LiteralPath $source -Recurse -Force) {
+              if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                  throw "C1 resume evidence contains a reparse point: $($item.FullName)"
+              }
+              if (-not $item.PSIsContainer -and $item.Extension.ToLowerInvariant() -in $forbidden) {
+                  throw "C1 resume evidence contains a forbidden payload: $($item.FullName)"
+              }
+          }
+          New-Item -ItemType Directory -Path $destination -Force:$false | Out-Null
+          Get-ChildItem -LiteralPath $source -Force |
+              Copy-Item -Destination $destination -Recurse -ErrorAction Stop
+
+      - name: Upload exact text-only C1 resume evidence
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: workbook-05-phase3-c1-resume-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\workbook-05-phase3-c1-resume
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: false
+
+  validate-c1-resume:
+    name: Validate controlled C1 source-resume artifact as untrusted data
+    needs: collect-c1-resume
+    if: >-
+      always() &&
+      needs.collect-c1-resume.result != 'skipped'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact validation files
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          sparse-checkout: |
+            .github/workflows
+            docs/superpowers
+            docs/testing
+            experiments/granite_turboquant_intel/configurations/workbook05
+            experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
+            experiments/granite_turboquant_intel/manifests/templates/workbook05
+            experiments/granite_turboquant_intel/prompts
+            experiments/granite_turboquant_intel/rubrics
+            experiments/granite_turboquant_intel/schemas/workbook05
+            scripts/testing
+            tests/testing/workbook05
+
+      - name: Set up Python 3.12.10
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Install pinned Phase 3 validation dependency
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonCommand = Get-Command -Name python -CommandType Application -All -ErrorAction Stop |
+              Select-Object -First 1
+          $pythonPath = $pythonCommand.Source
+          $dependencyDirectory = Join-Path $env:RUNNER_TEMP 'workbook05-phase3-python'
+
+          if (Test-Path -LiteralPath $dependencyDirectory) {
+              Remove-Item -LiteralPath $dependencyDirectory -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $dependencyDirectory -Force:$false | Out-Null
+          & $pythonPath `
+              -m pip install `
+              --disable-pip-version-check `
+              --target $dependencyDirectory `
+              -r 'scripts/testing/workbook05/requirements.txt'
+          if ($LASTEXITCODE -ne 0) {
+              throw "Phase 3 validation dependency installation exited with code $LASTEXITCODE."
+          }
+          $env:PYTHONPATH = $dependencyDirectory
+          "PYTHONPATH=$dependencyDirectory" | Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Run complete Phase 3 repository gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & '.\scripts\testing\Validate-Workbook05-Phase3.ps1' `
+              -RepositoryRoot $env:GITHUB_WORKSPACE `
+              -PythonPath 'python'
+
+      - name: Download exact same-attempt resume artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: workbook-05-phase3-c1-resume-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\workbook-05-phase3-c1-resume
+
+      - name: Validate C1 resume artifact strictly as untrusted data
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundle = Join-Path $env:RUNNER_TEMP 'workbook-05-phase3-c1-resume'
+          $report = Join-Path $env:RUNNER_TEMP 'workbook-05-phase3-c1-resume-validation.md'
+          & python `
+              -m scripts.testing.workbook05.phase3.c1_resume_bundle_validation `
+              --bundle-root $bundle `
+              --repository-root $env:GITHUB_WORKSPACE `
+              --report $report
+          $validationExitCode = $LASTEXITCODE
+          if (Test-Path -LiteralPath $report -PathType Leaf) {
+              Get-Content -LiteralPath $report |
+                  Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+          if ($validationExitCode -ne 0) {
+              throw "C1 resume artifact validation exited with code $validationExitCode."
+          }

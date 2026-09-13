@@ -67,6 +67,10 @@ class SourceAdmissionBundleValidationTests(unittest.TestCase):
             repository / "experiments/granite_turboquant_intel",
         )
         shutil.copytree(ROOT / "docs", repository / "docs")
+        shutil.copytree(
+            ROOT / "external-design-records",
+            repository / "external-design-records",
+        )
         return repository
 
     def _source_report(

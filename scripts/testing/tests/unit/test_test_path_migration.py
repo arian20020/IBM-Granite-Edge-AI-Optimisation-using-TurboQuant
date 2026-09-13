@@ -14,7 +14,7 @@ DESTINATION_BUCKETS = ("unit", "integration", "acceptance")
 
 def _tracked_tests() -> tuple[str, ...]:
     result = subprocess.run(
-        ["git", "ls-files", "scripts/testing/tests/**/test_*.py", "scripts/testing/tests/test_*.py"],
+        ["git", "ls-files", "scripts/testing/tests/**/test_*.py"],
         cwd=ROOT,
         check=True,
         capture_output=True,

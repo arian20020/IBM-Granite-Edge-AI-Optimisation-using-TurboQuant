@@ -27,7 +27,7 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
         matrix_sha256: str = "a" * 64,
         visible_matrix_sha256: str | None = None,
         omitted_heading: str | None = None,
-        current_status: str = "Current - pending PR",
+        current_status: str = "Current - pending merge",
         blank_success_cell: bool = False,
         unsupported_winner: bool = False,
         winner_scenario: str | None = None,
@@ -149,7 +149,7 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
         for cell, value in zip(
             history.add_row().cells,
             (
-                "1.9", "2026-08-01", "Student and project tooling", "Adaptive comparison",
+                "1.9", "2026-08-02", "Student and project tooling", "Adaptive comparison",
                 "OV-11; OV-12; OV-13; OV-TQ-21; OV-TQ-22; P1-P6", "WR-037",
                 current_status,
             ),
@@ -197,8 +197,8 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
         profile = comparison_audit_profile("a" * 64)
         self.assertEqual(profile.workbook_version, "1.9")
         self.assertEqual(profile.revision_id, "WR-037")
-        self.assertEqual(profile.revision_date, "2026-08-01")
-        self.assertEqual(profile.current_status, "Current - pending PR")
+        self.assertEqual(profile.revision_date, "2026-08-02")
+        self.assertEqual(profile.current_status, "Current - pending merge")
         self.assertEqual(profile.comparison_headings, COMPARISON_SECTION_TITLES)
         self.assertEqual(
             profile.expected_ids,
@@ -228,7 +228,7 @@ class OfficialOpenVINODocxAuditTests(unittest.TestCase):
             ({"visible_matrix_sha256": "b" * 64}, "matrix SHA-256"),
             ({"omitted_heading": COMPARISON_SECTION_TITLES[0]}, "heading"),
             ({"blank_success_cell": True}, "blank"),
-            ({"current_status": "Current - pending merge"}, "current Status"),
+            ({"current_status": "Current - pending PR"}, "current Status"),
             ({"unsupported_winner": True}, "winner"),
         )
         for arguments, message in cases:

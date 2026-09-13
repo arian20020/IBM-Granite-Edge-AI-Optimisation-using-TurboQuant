@@ -12,9 +12,15 @@
 
 ## Context
 
-The project considered a bounded TurboVec-assisted knowledge-file workflow covering document import, text extraction, chunking, embeddings, vector optimisation, indexing, retrieval and Granite chat integration.
+The project considered a small TurboVec knowledge-file workflow. It would need
+document import, text extraction, chunks, embeddings, a vector index, retrieval
+and a link to Granite chat.
 
-The exact TurboVec implementation, repository, commit, licence, Windows build process, input/output contract and matched uncompressed baseline have not yet passed the technical gate. Implementing the full subsystem would also compete with the core WinUI, Granite, llama.cpp, Intel hardware, TurboQuant and evidence work.
+The project pinned and tested the TurboVec implementation. The first formal
+large-scale attempt was blocked by the host-readiness rules. A later supporting
+run tested Exact, TQ2, TQ3 and TQ4 at 1,000 and 10,000 chunks. The later run used
+a different Python environment and model export, so it supports the decision
+but does not replace the blocked formal record.
 
 ## Decision
 
@@ -27,12 +33,14 @@ The exact TurboVec implementation, repository, commit, licence, Windows build pr
 
 ## Reasons
 
-- The implementation and licence are not yet pinned.
-- Windows/Intel compatibility is not established.
-- No matched uncompressed retrieval baseline is controlled.
-- Full integration is a separate substantial subsystem.
-- Deferral protects the project’s essential application and TurboQuant contribution.
-- R-M02 still permits a useful evidence-based feasibility conclusion.
+- Exact, TQ2, TQ3 and TQ4 all completed the supporting Windows test.
+- Every compressed format passed the speed, storage and lifecycle checks but
+  failed both fixed retrieval-quality limits.
+- The Exact result was also weak, so the embedding model, export or test data
+  may have affected the absolute scores.
+- Full application integration would be a separate large piece of work.
+- R-M02 permits a useful feasibility decision without claiming product
+  integration.
 
 ## Consequences
 
@@ -45,18 +53,20 @@ The exact TurboVec implementation, repository, commit, licence, Windows build pr
 
 ### Costs
 
-- The first release will not provide a TurboVec-assisted knowledge-file UI.
-- EXP-TV-COMP-001 remains conditional and may not run.
-- The report must clearly distinguish the feasibility decision from application integration.
+- The first release does not provide a TurboVec knowledge-file interface.
+- The formal large-scale campaign remains blocked. The completed large-scale
+  run is supporting evidence only.
+- The report must keep the feasibility result separate from application
+  integration.
 
-## Evidence gate
+## Evidence used
 
-The decision may be reviewed only after all of the following exist:
+- [TurboVec feasibility result](../../testing/TurboVec-Feasibility-Result-v1.md)
+- [Supporting production-scale rerun](../../../experiments/processed-results/EXP-TV-COMP-001/production-scale-v2/supporting-rerun-2026-09-11/README.md)
+- Pinned TurboVec commit:
+  `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`
+- Superseding decision run:
+  `EXP-TV-COMP-001-20260902T231605Z-005`
 
-- repository, commit/version and licence;
-- Windows build/run instructions;
-- minimal run result with raw evidence;
-- requested and actual device/backend state;
-- input/output/vector/retrieval contract;
-- matched uncompressed baseline;
-- schedule assessment showing no displacement of core Must work.
+Any future integration needs a new approved change and stronger retrieval
+quality on representative, non-sensitive documents.

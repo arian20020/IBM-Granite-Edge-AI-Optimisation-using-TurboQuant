@@ -7,6 +7,7 @@ import os
 import re
 import tempfile
 import zipfile
+from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import openpyxl
@@ -257,6 +258,11 @@ def sanitize_workbook(source: Path, destination: Path) -> dict[str, object]:
     workbook = load_workbook(source_path, data_only=False, keep_links=True)
     replacements: list[dict[str, str]] = []
     try:
+        # openpyxl updates the modified time on every save. Fix both core
+        # timestamps so identical inputs produce identical XLSX bytes.
+        fixed_timestamp = datetime(2000, 1, 1, 0, 0, 0)
+        workbook.properties.created = fixed_timestamp
+        workbook.properties.modified = fixed_timestamp
         for sheet in workbook.worksheets:
             for row in sheet.iter_rows():
                 for cell in row:
