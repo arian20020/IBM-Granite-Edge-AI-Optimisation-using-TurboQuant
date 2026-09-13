@@ -30,6 +30,15 @@ RUBRIC = (
     REPOSITORY_ROOT
     / "experiments/granite_turboquant_intel/rubrics/quality-rubric-v1.json"
 )
+WORKFLOWS_WITH_MEASUREMENT_CONTROLS = (
+    "workbook-05-documented-build.yml",
+    "workbook-05-phase3-assets.yml",
+    "workbook-05-phase3-c1-resume.yml",
+    "workbook-05-phase3-dependency-preflight.yml",
+    "workbook-05-preflight.yml",
+    "workbook-05-runtime-resume.yml",
+    "workbook-05-source-admission.yml",
+)
 
 
 def _validate_instance(instance: dict[str, object]) -> list[object]:
@@ -42,6 +51,19 @@ def _validate_instance(instance: dict[str, object]) -> list[object]:
 
 
 class MeasurementControlTests(unittest.TestCase):
+    def test_sparse_checkouts_include_external_measurement_controls(self) -> None:
+        workflows = REPOSITORY_ROOT / ".github/workflows"
+
+        for workflow_name in WORKFLOWS_WITH_MEASUREMENT_CONTROLS:
+            with self.subTest(workflow=workflow_name):
+                text = (workflows / workflow_name).read_text(encoding="utf-8")
+                sparse_checkout_count = text.count("sparse-checkout: |")
+                control_path_count = text.count(
+                    "\n            external-design-records\n"
+                )
+                self.assertGreater(sparse_checkout_count, 0)
+                self.assertEqual(sparse_checkout_count, control_path_count)
+
     def test_measured_run_schema_requires_quality_and_separate_kv_metrics(self) -> None:
         schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
         required_resources = schema["properties"]["resources"]["required"]

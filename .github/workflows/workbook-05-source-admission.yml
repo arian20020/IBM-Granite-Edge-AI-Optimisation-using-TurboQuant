@@ -68,6 +68,7 @@ jobs:
             .github/workflows
             docs/superpowers
             docs/testing
+            external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05
             experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
             experiments/granite_turboquant_intel/manifests/templates/workbook05
@@ -178,6 +179,7 @@ jobs:
             .github/workflows
             docs/superpowers
             docs/testing
+            external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05
             experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1
             experiments/granite_turboquant_intel/manifests/templates/workbook05
