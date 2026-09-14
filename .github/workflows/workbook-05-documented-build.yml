@@ -88,7 +88,6 @@ jobs:
           fetch-depth: 1
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
             docs/testing
             external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05

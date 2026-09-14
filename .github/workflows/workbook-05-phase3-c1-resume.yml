@@ -8,7 +8,7 @@ on:
       - '.github/workflows/workbook-05-phase3-c1-resume.yml'
       - '.github/workflows/workbook-05-phase3-assets.yml'
       - 'docs/testing/workbook05/**'
-      - 'docs/superpowers/**'
+      - 'external-design-records/**'
       - 'experiments/granite_turboquant_intel/configurations/workbook05/**'
       - 'experiments/granite_turboquant_intel/manifests/campaigns/GTQ-WB05-MF-v1/**'
       - 'experiments/granite_turboquant_intel/manifests/templates/workbook05/**'
@@ -45,7 +45,6 @@ jobs:
           fetch-depth: 1
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
             docs/testing
             external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05
@@ -132,7 +131,6 @@ jobs:
           fetch-depth: 1
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
             docs/testing
             external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05
@@ -297,7 +295,6 @@ jobs:
           fetch-depth: 1
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
             docs/testing
             external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05

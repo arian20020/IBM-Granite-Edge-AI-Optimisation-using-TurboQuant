@@ -6,7 +6,7 @@ on:
       - planning/workbook-05-route-b-repair
     paths:
       - '.github/workflows/workbook-05-route-b-repair.yml'
-      - 'docs/superpowers/**'
+      - 'external-design-records/**'
       - 'scripts/testing/**'
       - 'tests/testing/workbook05/**'
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
+            external-design-records
             scripts/testing
             tests/testing/workbook05
 
@@ -90,7 +90,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
+            external-design-records
             scripts/testing
             tests/testing/workbook05
 
@@ -159,7 +159,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
+            external-design-records
             scripts/testing
             tests/testing/workbook05
 

@@ -6,8 +6,7 @@ on:
       - main
     paths:
       - '.github/workflows/workbook-05-preflight.yml'
-      - 'docs/superpowers/plans/2026-08-03-workbook-05-preflight-scaffolding.md'
-      - 'docs/superpowers/specs/2026-08-03-workbook-05-two-route-memory-frontier-design.md'
+      - 'external-design-records/**'
       - 'docs/testing/**'
       - 'scripts/testing/workbook05/**'
       - 'experiments/granite_turboquant_intel/configurations/workbook05/**'
@@ -67,7 +66,6 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
             docs/testing
             external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05
@@ -173,7 +171,6 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
             docs/testing
             external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05

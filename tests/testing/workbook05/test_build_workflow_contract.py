@@ -86,7 +86,6 @@ class DocumentedBuildWorkflowContractTests(unittest.TestCase):
         # the sparse checkout. Keep this list aligned with the already-proven
         # source-admission workflow rather than silently weakening the full gate.
         required_paths = (
-            "docs/superpowers",
             "docs/testing",
             "external-design-records",
             "experiments/granite_turboquant_intel/configurations/workbook05",

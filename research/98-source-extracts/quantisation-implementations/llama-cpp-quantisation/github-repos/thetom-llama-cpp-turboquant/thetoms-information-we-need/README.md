@@ -1,5 +1,5 @@
 **Repository:** llama-cpp-turboquant  
-**URL:** [https://github.com/TheTom/llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant?utm_source=chatgpt.com)  
+**URL:** [https://github.com/TheTom/llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant)<br>
 **Owner:** TheTom  
 **Branch:** feature/turboquant-kv-cache  
 **Commit:** Pin the exact commit used during testing; not selected yet  
@@ -1720,7 +1720,7 @@ The best use would be to treat it as your **main GGUF and llama.cpp TurboQuant i
 llama-cpp-turboquant
 
 **URL:**  
-[https://github.com/TheTom/llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant?utm_source=chatgpt.com)
+[https://github.com/TheTom/llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant)
 
 **Owner:**  
 TheTom
@@ -2627,7 +2627,7 @@ just fill it out briefly this is too long to keep a track of
 Thought for 6s
 
 **Repository:** llama-cpp-turboquant  
-**URL:** [https://github.com/TheTom/llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant?utm_source=chatgpt.com)  
+**URL:** [https://github.com/TheTom/llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant)<br>
 **Owner:** TheTom  
 **Branch:** feature/turboquant-kv-cache  
 **Commit:** Pin the exact commit used during testing; not selected yet  

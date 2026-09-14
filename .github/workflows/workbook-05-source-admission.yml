@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - '.github/workflows/workbook-05-source-admission.yml'
-      - 'docs/superpowers/**'
+      - 'external-design-records/**'
       - 'docs/testing/**'
       - 'scripts/testing/**'
       - 'tests/testing/workbook05/**'
@@ -66,7 +66,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
             docs/testing
             external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05
@@ -177,7 +176,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
             .github/workflows
-            docs/superpowers
             docs/testing
             external-design-records
             experiments/granite_turboquant_intel/configurations/workbook05
