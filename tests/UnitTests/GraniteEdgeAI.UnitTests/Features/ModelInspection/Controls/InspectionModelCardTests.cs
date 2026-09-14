@@ -36,239 +36,67 @@ public sealed class InspectionModelCardTests
     [TestCategory("WinUI")]
     public void ReadyCollapsed_UsesBalancedNaturalGeometryAndFieldOrder()
     {
-        InspectionModelCard control = CreateDetailedControl(
-            width: 840,
-            isExpanded: false);
+        InspectionModelCard control = CreateDetailedControl(width: 840, isExpanded: false);
         Border detailed = Find<Border>(control, "DetailedView");
-        Border compact = Find<Border>(control, "CompactView");
-        FrameworkElement detailedHeader = Find<FrameworkElement>(control, "DetailedHeader");
-        Grid metadataGrid = Find<Grid>(control, "MetadataGrid");
-        TextBlock[] labels = MetadataLabels(control);
-        TextBlock sectionTitle = Descendants(control)
-            .OfType<TextBlock>()
-            .Single(text => text.Text == "Model overview");
-        (string Label, string Value)[] expectedFields =
-        [
-            ("MODEL NAME", "Safe model name"),
-            ("PUBLISHER", "Not reported"),
-            ("FORMAT", "GGUF"),
-            ("QUANTISATION", "Q4_K_M"),
-            ("PARAMETERS", "3.2B"),
-            ("MODEL TYPE", "Not reported"),
-            ("DECLARED MAX CONTEXT", "131,072 tokens"),
-            ("FILE SIZE", "2.08 GB")
-        ];
+        Grid metadata = Find<Grid>(control, "MetadataGrid");
         FrameworkElement[] fields = MetadataFields(control);
-        Grid layoutRoot = Find<Grid>(control, "LayoutRoot");
-        Grid overviewPanel = Find<Grid>(control, "ModelOverviewPanel");
-        TextBlock overviewCopy = Find<TextBlock>(control, "ModelOverviewCopy");
-        Border formatChip = Find<Border>(control, "OverviewFormatChip");
-        Point titleOrigin = sectionTitle.TransformToVisual(detailed)
-            .TransformPoint(new Point());
-        Point overviewOrigin = overviewPanel.TransformToVisual(detailed)
-            .TransformPoint(new Point());
         InspectionDisclosure disclosure = control.ActiveDisclosure!;
-        Border disclosureSurface = Find<Border>(
-            disclosure,
-            "DisclosureCardSurface");
-        FrameworkElement disclosureHeader = Find<FrameworkElement>(
-            disclosure,
-            "DisclosureToggleButton");
+        Border disclosureSurface = Find<Border>(disclosure, "DisclosureCardSurface");
+        FrameworkElement disclosureHeader = Find<FrameworkElement>(disclosure, "DisclosureToggleButton");
 
-        Assert.AreEqual(840d, detailed.ActualWidth, 0.01, "model card width");
-        Assert.AreEqual(840d, layoutRoot.ActualWidth, 0.01,
-            "the model card root owns the shared 840px content edge");
-        Assert.AreEqual(layoutRoot.ActualWidth, detailed.ActualWidth, 0.01,
-            "the visible model surface shares both root edges");
-        Assert.AreEqual(0d, detailed.MinHeight, 0.01, "model card must size naturally");
+        Assert.AreEqual(840d, detailed.ActualWidth, 0.01d);
+        Assert.AreEqual(0d, detailed.MinHeight, 0.01d, "metadata sizes to its content");
+        Assert.AreEqual(new Thickness(24d, 0d, 24d, 12d), detailed.Padding);
+        Assert.AreEqual(new Thickness(0d), detailed.BorderThickness);
+        Assert.AreEqual(792d, metadata.ActualWidth, 0.01d, "metadata shares the inset content edge");
+        Assert.AreEqual(792d, disclosureSurface.ActualWidth, 0.01d);
+        Assert.AreEqual(new Thickness(24d, 8d, 24d, 16d), disclosure.Margin);
         Assert.AreEqual(
-            disclosureHeader.ActualHeight +
-                disclosureSurface.BorderThickness.Top +
+            disclosureHeader.ActualHeight + disclosureSurface.BorderThickness.Top +
                 disclosureSurface.BorderThickness.Bottom,
-            disclosure.ActualHeight,
-            1d,
-            "collapsed disclosure must not retain a trailing minimum-height tail");
-        Assert.AreEqual(840d, disclosureSurface.ActualWidth, 0.01d);
+            disclosure.ActualHeight, 1d, "collapsed disclosure has no trailing minimum-height tail");
         Assert.AreEqual(new Thickness(1d), disclosureSurface.BorderThickness);
         Assert.AreEqual(12d, disclosureSurface.CornerRadius.TopLeft, 0.01d);
-        Assert.AreEqual(Visibility.Collapsed, formatChip.Visibility,
-            "the duplicated header format badge is retired from Option B");
-        Assert.AreEqual(TextAlignment.Left, sectionTitle.TextAlignment);
-        Assert.AreEqual(HorizontalAlignment.Left, sectionTitle.HorizontalAlignment);
-        Assert.AreEqual(overviewOrigin.X + 18d, titleOrigin.X, 1d,
-            "overview heading uses the approved left card inset");
-        Assert.AreEqual(
-            "The selected model information used by this inspection.",
-            overviewCopy.Text);
-        Assert.AreEqual(TextAlignment.Left, overviewCopy.TextAlignment);
-        Assert.AreEqual(12d, detailed.CornerRadius.TopLeft, 0.01, "shared card radius");
-        Assert.AreEqual(new Thickness(24d), compact.Padding, "compact view padding");
-        Assert.AreEqual(new Thickness(18d, 14d, 26d, 12d),
-            detailedHeader.Margin, "approved overview header inset");
-        Assert.AreEqual(new Thickness(0d), metadataGrid.Margin,
-            "macro layout owns its full 840px width");
-        CollectionAssert.AreEqual(
-            ExpectedFieldOrder,
-            labels.Select(label => label.Text).ToArray());
-        CollectionAssert.AreEqual(
-            ExpectedFieldOrder,
-            metadataGrid.Children
-                .OfType<Border>()
-                .Select(field => Descendants(field)
-                    .OfType<TextBlock>()
-                    .First(text => ExpectedFieldOrder.Contains(
-                        text.Text,
-                        StringComparer.Ordinal)).Text)
-                .ToArray(),
-            "metadata field borders remain direct children in source order");
-        Assert.AreEqual(3, fields.Select(Grid.GetRow).Distinct().Count(),
-            "wide Ready metadata uses three visual data rows");
-        Assert.AreEqual(3, fields.Select(Grid.GetColumn).Distinct().Count(),
-            "wide Ready metadata uses two left columns and one right column");
-        Assert.AreEqual(2, Grid.GetColumn(Find<FrameworkElement>(
-            control,
-            "ModelConfigurationPanel")));
-        FrameworkElement configurationPanel = Find<FrameworkElement>(
-            control,
-            "ModelConfigurationPanel");
-        FrameworkElement resultSummaryPanel = Find<FrameworkElement>(
-            control,
-            "ModelResultSummaryPanel");
-        Assert.AreEqual(0, Grid.GetRow(configurationPanel));
-        Assert.AreEqual(3, Grid.GetRowSpan(configurationPanel));
-        Assert.AreEqual(2, Grid.GetColumnSpan(configurationPanel));
-        Assert.AreEqual(3, Grid.GetRow(resultSummaryPanel));
-        Assert.AreEqual(2, Grid.GetColumn(resultSummaryPanel));
-        Assert.AreEqual(2, Grid.GetColumnSpan(resultSummaryPanel));
-        Assert.AreEqual(2, Grid.GetColumn(Find<FrameworkElement>(
-            control,
-            "ModelResultSummaryPanel")));
-        TextBlock configurationHeading = Find<TextBlock>(
-            control,
-            "ModelConfigurationHeading");
-        Assert.AreEqual("Model configuration", configurationHeading.Text);
-        Assert.IsTrue(configurationHeading.ActualHeight > 0d);
-        TextBlock formatLabel = Descendants(fields[2])
-            .OfType<TextBlock>()
-            .First(text => text.Text == "FORMAT");
-        TextBlock resultSummary = Find<TextBlock>(control, "ReadyResultSummary");
-        TextBlock resultBadge = Find<TextBlock>(control, "ReadyResultBadgeText");
-        Point headingOrigin = configurationHeading
-            .TransformToVisual(detailed)
-            .TransformPoint(new Point());
-        Point formatLabelOrigin = formatLabel
-            .TransformToVisual(detailed)
-            .TransformPoint(new Point());
-        Assert.IsGreaterThanOrEqualTo(
-            headingOrigin.Y + configurationHeading.ActualHeight,
-            formatLabelOrigin.Y,
-            "configuration heading does not obscure the format field");
-        Assert.AreEqual(1, Grid.GetRow(fields[0]));
-        Assert.AreEqual(0, Grid.GetColumn(fields[0]));
-        Assert.AreEqual(1, Grid.GetRow(fields[1]));
-        Assert.AreEqual(1, Grid.GetColumn(fields[1]));
-        Assert.AreEqual(2, Grid.GetRow(fields[4]));
-        Assert.AreEqual(0, Grid.GetColumn(fields[4]));
-        Assert.AreEqual(2, Grid.GetRow(fields[5]));
-        Assert.AreEqual(1, Grid.GetColumn(fields[5]));
-        Assert.AreEqual(3, Grid.GetRow(fields[6]));
-        Assert.AreEqual(0, Grid.GetColumn(fields[6]));
-        Assert.AreEqual(3, Grid.GetRow(fields[7]));
-        Assert.AreEqual(1, Grid.GetColumn(fields[7]));
-        Assert.AreEqual(1, Grid.GetRow(fields[2]));
-        Assert.AreEqual(2, Grid.GetColumn(fields[2]));
-        Assert.AreEqual(2, Grid.GetColumnSpan(fields[2]));
-        Assert.AreEqual(2, Grid.GetRow(fields[3]));
-        Assert.AreEqual(2, Grid.GetColumn(fields[3]));
-        Assert.AreEqual(2, Grid.GetColumnSpan(fields[3]));
-        FrameworkElement[] factTiles =
+        Assert.AreEqual(Visibility.Collapsed,
+            Find<Border>(control, "OverviewFormatChip").Visibility);
+        Assert.AreEqual(Visibility.Collapsed,
+            Find<FrameworkElement>(control, "ModelOverviewPanel").Visibility);
+        CollectionAssert.AreEqual(ExpectedFieldOrder,
+            MetadataLabels(control).Select(label => label.Text).ToArray());
+
+        (int Row, int Column, string Value)[] expected =
         [
-            fields[0],
-            fields[1],
-            fields[4],
-            fields[5],
-            fields[6],
-            fields[7]
+            (1, 0, "Safe model name"),
+            (1, 1, "Not reported"),
+            (2, 2, "GGUF"),
+            (2, 3, "Q4_K_M"),
+            (1, 2, "3.2B"),
+            (1, 3, "Not reported"),
+            (2, 0, "131,072 tokens"),
+            (2, 1, "2.08 GB")
         ];
-        Assert.IsTrue(factTiles.Cast<Border>().All(field =>
-            field.BorderThickness == new Thickness(1d) &&
-            Math.Abs(field.CornerRadius.TopLeft - 9d) <= 0.01d),
-            "the six overview facts use independent soft rounded tiles");
-        Point configurationOrigin = configurationPanel
-            .TransformToVisual(detailed)
-            .TransformPoint(new Point());
-        double macroGap = configurationOrigin.X -
-            (overviewOrigin.X + overviewPanel.ActualWidth);
-        Assert.AreEqual(16d, macroGap, 1d, "approved macro gap");
-        Assert.AreEqual(
-            1.6d,
-            overviewPanel.ActualWidth / configurationPanel.ActualWidth,
-            0.04d,
-            "approved 1.6fr / 1fr overview composition");
-        Point metadataOrigin = metadataGrid.TransformToVisual(detailed)
-            .TransformPoint(new Point());
-        Point disclosureOrigin = disclosure.TransformToVisual(detailed)
-            .TransformPoint(new Point());
-        Assert.AreEqual(
-            12d,
-            disclosureOrigin.Y - detailed.ActualHeight,
-            1d,
-            "inspection details are a separate sibling card");
-        Assert.IsGreaterThanOrEqualTo(
-            metadataOrigin.Y + metadataGrid.ActualHeight - 1d,
-            disclosureOrigin.Y,
-            "inspection disclosure remains below metadata surface");
-        Assert.AreEqual("All 5 inspection checks passed", resultSummary.Text);
-        Assert.AreEqual("INSPECTED", resultBadge.Text);
-        Assert.IsTrue(resultSummary.ActualHeight > 0d);
-        Assert.IsTrue(resultBadge.ActualHeight > 0d);
-        Assert.IsTrue(labels.All(label => label.FontSize == 10d));
-        Assert.AreEqual(18d, sectionTitle.FontSize, 0.01, "section title size");
-        double expectedLeadingFactWidth = fields[0].ActualWidth;
-        double expectedTrailingFactWidth = fields[1].ActualWidth;
-        Assert.AreEqual(
-            3d,
-            expectedLeadingFactWidth - expectedTrailingFactWidth,
-            1d,
-            "the approved 18/26 edge insets preserve the balanced tile columns");
-        Thickness expectedFactPadding = ((Border)fields[0]).Padding;
-        for (int index = 0; index < expectedFields.Length; index++)
+        Assert.AreEqual(2, fields.Select(Grid.GetRow).Distinct().Count());
+        Assert.AreEqual(4, fields.Select(Grid.GetColumn).Distinct().Count());
+        for (int index = 0; index < fields.Length; index++)
         {
-            TextBlock[] fieldText = Descendants(fields[index])
-                .OfType<TextBlock>()
-                .ToArray();
-            Assert.HasCount(2, fieldText, expectedFields[index].Label);
-            Assert.AreEqual(expectedFields[index].Label, fieldText[0].Text);
-            Assert.AreEqual(expectedFields[index].Value, fieldText[1].Text);
-            Assert.IsFalse(
-                string.IsNullOrWhiteSpace(fieldText[1].Text),
-                expectedFields[index].Label);
-            Assert.AreEqual(14d, fieldText[1].FontSize, 0.01);
-            if (index is not (2 or 3))
-            {
-                double expectedColumnWidth = index is 0 or 4 or 6
-                    ? expectedLeadingFactWidth
-                    : expectedTrailingFactWidth;
-                Assert.AreEqual(expectedColumnWidth, fields[index].ActualWidth, 1d,
-                    $"{expectedFields[index].Label} width");
-                Assert.AreEqual(expectedFactPadding, ((Border)fields[index]).Padding,
-                    $"{expectedFields[index].Label} tile padding");
-            }
-            Assert.AreEqual(TextAlignment.Left, fieldText[0].TextAlignment);
-            Assert.AreEqual(
-                index is 2 or 3 ? TextAlignment.Right : TextAlignment.Left,
-                fieldText[1].TextAlignment);
-            Assert.AreEqual(0, fieldText[1].MaxLines);
-            Assert.AreNotEqual(TextWrapping.NoWrap, fieldText[1].TextWrapping);
-            Assert.IsTrue(
-                fieldText[1].ActualHeight +
-                    fieldText[1].Margin.Top +
-                    fieldText[1].Margin.Bottom +
-                    1d >= fieldText[1].DesiredSize.Height,
-                $"{expectedFields[index].Label} value must not be clipped; " +
-                $"actual={fieldText[1].ActualWidth}x{fieldText[1].ActualHeight}, " +
-                $"desired={fieldText[1].DesiredSize.Width}x{fieldText[1].DesiredSize.Height}");
+            FrameworkElement field = fields[index];
+            Assert.AreEqual(expected[index].Row, Grid.GetRow(field), ExpectedFieldOrder[index]);
+            Assert.AreEqual(expected[index].Column, Grid.GetColumn(field), ExpectedFieldOrder[index]);
+            Assert.AreEqual(1, Grid.GetColumnSpan(field), ExpectedFieldOrder[index]);
+            TextBlock[] text = Descendants(field).OfType<TextBlock>()
+                .Where(item => item.Visibility == Visibility.Visible).ToArray();
+            Assert.HasCount(2, text, ExpectedFieldOrder[index]);
+            Assert.AreEqual(ExpectedFieldOrder[index], text[0].Text);
+            Assert.AreEqual(expected[index].Value, text[1].Text);
+            Assert.AreEqual(0, text[1].MaxLines);
+            Assert.AreNotEqual(TextWrapping.NoWrap, text[1].TextWrapping);
+            Assert.IsTrue(text[1].ActualHeight + text[1].Margin.Top +
+                text[1].Margin.Bottom + 1d >= text[1].DesiredSize.Height,
+                $"{ExpectedFieldOrder[index]} value must remain readable");
         }
+        Assert.AreEqual("All 5 inspection checks passed",
+            Find<TextBlock>(control, "ReadyResultSummary").Text);
+        Assert.AreEqual("INSPECTED", Find<TextBlock>(control, "ReadyResultBadgeText").Text);
     }
 
     [UITestMethod]
@@ -317,9 +145,11 @@ public sealed class InspectionModelCardTests
             double expectedViewportWidth = disclosureSurface.ActualWidth -
                 disclosureSurface.BorderThickness.Left -
                 disclosureSurface.BorderThickness.Right - 48d;
-            Assert.AreEqual(24d, viewportLeftInset, 0.01, "report inner left inset");
-            Assert.AreEqual(24d, viewportRightInset, 0.01, "report inner right inset");
-            Assert.AreEqual(expectedViewportWidth, viewport.ActualWidth, 0.01, "nested report inner width");
+            double physicalPixel = 1d / control.XamlRoot.RasterizationScale;
+            Assert.AreEqual(24d, viewportLeftInset, physicalPixel, "report inner left inset");
+            Assert.AreEqual(24d, viewportRightInset, physicalPixel, "report inner right inset");
+            Assert.AreEqual(expectedViewportWidth, viewport.ActualWidth, 2d * physicalPixel,
+                "nested report inner width rounds both edges to physical pixels");
             Assert.IsGreaterThanOrEqualTo(
                 0d,
                 viewportOrigin.Y,
@@ -431,97 +261,27 @@ public sealed class InspectionModelCardTests
                 detail.FontSize *= 2d;
             }
 
-            FrameworkElement configurationPanel = Find<FrameworkElement>(
-                control,
-                "ModelConfigurationPanel");
-            FrameworkElement resultSummaryPanel = Find<FrameworkElement>(
-                control,
-                "ModelResultSummaryPanel");
-            TextBlock configurationHeading = Find<TextBlock>(
-                control,
-                "ModelConfigurationHeading");
-            TextBlock formatLabel = Descendants(
-                    Find<FrameworkElement>(control, "FormatField"))
-                .OfType<TextBlock>()
-                .Single(text => text.Text == "FORMAT");
-            TextBlock resultSummary = Find<TextBlock>(
-                control,
-                "ReadyResultSummary");
-            TextBlock resultBadge = Find<TextBlock>(
-                control,
-                "ReadyResultBadgeText");
-            configurationHeading.FontSize *= 2d;
-            formatLabel.FontSize *= 2d;
-            resultSummary.FontSize *= 2d;
-            resultBadge.FontSize *= 2d;
+            Assert.AreEqual(Visibility.Collapsed,
+                Find<FrameworkElement>(control, "ModelConfigurationPanel").Visibility);
+            Assert.AreEqual(Visibility.Collapsed,
+                Find<FrameworkElement>(control, "ModelResultSummaryPanel").Visibility);
+            FrameworkElement outcomeBand = Find<FrameworkElement>(control, "TerminalOutcomeBand");
+            TextBlock outcomeTitle = Find<TextBlock>(control, "TerminalOutcomeTitle");
+            TextBlock outcomeMessage = Find<TextBlock>(control, "TerminalOutcomeMessage");
+            outcomeTitle.FontSize *= 2d;
+            outcomeMessage.FontSize *= 2d;
             control.UpdateLayout();
 
-            Point headingOrigin = configurationHeading
-                .TransformToVisual(detailed)
+            AssertTextFits(outcomeTitle, outcomeBand,
+                "terminal outcome title at 200% text", requiresEmergencyWrap: false);
+            AssertTextFits(outcomeMessage, outcomeBand,
+                "terminal outcome message at 200% text", requiresEmergencyWrap: false);
+            Point messageOrigin = outcomeMessage.TransformToVisual(outcomeBand)
                 .TransformPoint(new Point());
-            Point formatLabelOrigin = formatLabel
-                .TransformToVisual(detailed)
+            Point titleOrigin = outcomeTitle.TransformToVisual(outcomeBand)
                 .TransformPoint(new Point());
-            Assert.IsGreaterThanOrEqualTo(
-                headingOrigin.Y + configurationHeading.ActualHeight,
-                formatLabelOrigin.Y,
-                "maximum-safe configuration heading remains above the format label at 200% text");
-            Point headingPanelOrigin = configurationHeading
-                .TransformToVisual(configurationPanel)
-                .TransformPoint(new Point());
-            Assert.IsGreaterThanOrEqualTo(
-                -1d,
-                headingPanelOrigin.X,
-                "maximum-safe configuration heading remains within its panel at 200% text");
-            Assert.IsGreaterThanOrEqualTo(
-                -1d,
-                headingPanelOrigin.Y,
-                "maximum-safe configuration heading remains within its panel vertically at 200% text");
-            Assert.IsTrue(
-                configurationHeading.DesiredSize.Height <=
-                    configurationHeading.ActualHeight +
-                    configurationHeading.Margin.Top +
-                    configurationHeading.Margin.Bottom +
-                    1d,
-                "maximum-safe configuration heading desired height fits its arranged bounds at 200% text");
-            Assert.IsTrue(
-                headingPanelOrigin.X + configurationHeading.ActualWidth <=
-                    configurationPanel.ActualWidth + 1d &&
-                headingPanelOrigin.Y + configurationHeading.ActualHeight <=
-                    configurationPanel.ActualHeight + 1d,
-                "maximum-safe configuration heading remains within its panel bounds at 200% text");
-            AssertTextFits(
-                resultSummary,
-                resultSummaryPanel,
-                "maximum-safe result summary at 200% text",
-                requiresEmergencyWrap: false);
-            AssertTextFits(
-                resultBadge,
-                resultSummaryPanel,
-                "maximum-safe result badge at 200% text",
-                requiresEmergencyWrap: false);
-            Rect summaryBounds = resultSummary
-                .TransformToVisual(resultSummaryPanel)
-                .TransformBounds(new Rect(
-                    0d,
-                    0d,
-                    resultSummary.ActualWidth,
-                    resultSummary.ActualHeight));
-            Rect badgeBounds = resultBadge
-                .TransformToVisual(resultSummaryPanel)
-                .TransformBounds(new Rect(
-                    0d,
-                    0d,
-                    resultBadge.ActualWidth,
-                    resultBadge.ActualHeight));
-            Rect summaryBadgeIntersection = RectHelper.Intersect(
-                summaryBounds,
-                badgeBounds);
-            Assert.IsTrue(
-                summaryBadgeIntersection.IsEmpty ||
-                summaryBadgeIntersection.Width <= 1d ||
-                summaryBadgeIntersection.Height <= 1d,
-                "maximum-safe result summary and badge do not overlap at 200% text");
+            Assert.IsTrue(messageOrigin.Y >= titleOrigin.Y + outcomeTitle.ActualHeight - 1d,
+                "terminal outcome message follows its title without overlap at 200% text");
 
             foreach (TextBlock detail in maximumDetails)
             {
@@ -542,7 +302,7 @@ public sealed class InspectionModelCardTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    [DataRow(888d, 3)]
+    [DataRow(888d, 2)]
     [DataRow(600d, 5)]
     [DataRow(599d, 8)]
     public async Task Metadata_ReflowsAtApprovedResponsiveBreakpoints(
@@ -571,7 +331,7 @@ public sealed class InspectionModelCardTests
         try
         {
             int expectedAttachedRowCount = clientWidth >= 888d
-                ? 3
+                ? 2
                 : clientWidth >= 600d ? 5 : 8;
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
@@ -579,7 +339,7 @@ public sealed class InspectionModelCardTests
                 window,
                 control,
                 effectiveWidth: 1000,
-                expectedRowCount: 3);
+                expectedRowCount: 2);
             await ResizeClientAndWaitAsync(
                 window,
                 control,
@@ -614,8 +374,8 @@ public sealed class InspectionModelCardTests
             {
                 Assert.AreEqual(1, Grid.GetRow(metadataFields[0]));
                 Assert.AreEqual(0, Grid.GetColumn(metadataFields[0]));
-                Assert.AreEqual(2, Grid.GetRow(metadataFields[4]));
-                Assert.AreEqual(3, Grid.GetRow(metadataFields[6]));
+                Assert.AreEqual(1, Grid.GetRow(metadataFields[4]));
+                Assert.AreEqual(2, Grid.GetRow(metadataFields[6]));
                 Assert.AreEqual(0, Grid.GetRow(configurationPanel));
                 Assert.AreEqual(2, Grid.GetColumn(configurationPanel));
                 Assert.AreEqual(2, Grid.GetColumnSpan(configurationPanel));
@@ -963,10 +723,10 @@ public sealed class InspectionModelCardTests
                 compact.ActualHeight,
                 1d,
                 "compact card uses its realized content, shared padding, and border thickness");
-            Assert.AreEqual(Visibility.Collapsed, formatTile.Visibility,
-                "the approved compact card has no visible format tile");
-            Assert.AreEqual(0d, compactGrid.ColumnDefinitions[0].ActualWidth, 0.01d,
-                "the retired format-tile column leaves no blank leading space");
+            Assert.AreEqual(Visibility.Visible, formatTile.Visibility,
+                "the compact card identifies the selected model file");
+            Assert.AreEqual(48d, compactGrid.ColumnDefinitions[0].ActualWidth, 0.01d,
+                "the file icon owns the leading compact column");
             Assert.AreEqual(0, Grid.GetRow(summaryPanel));
             Assert.AreEqual(0, Grid.GetRow(badge));
             Assert.IsLessThan(
@@ -1044,6 +804,7 @@ public sealed class InspectionModelCardTests
             Assert.IsTrue(
                 compact.ActualHeight > expectedCompactHeight,
                 "the compact card must grow instead of clipping scaled content");
+            host.Height = expectedCompactHeight;
             await WaitForLayoutConditionAsync(
                 host,
                 () => host.ScrollableHeight > 0d);
@@ -1064,9 +825,9 @@ public sealed class InspectionModelCardTests
 
             (InspectionModelBadgeState State, string Text)[] badgeCases =
             [
-                (InspectionModelBadgeState.ModelSelected, "MODEL SELECTED"),
-                (InspectionModelBadgeState.Inspected, "INSPECTED"),
-                (InspectionModelBadgeState.SourceModel, "SOURCE MODEL"),
+                (InspectionModelBadgeState.ModelSelected, "Inspection in progress"),
+                (InspectionModelBadgeState.Inspected, "Ready"),
+                (InspectionModelBadgeState.SourceModel, "Inspection in progress"),
                 (InspectionModelBadgeState.Incomplete, "INCOMPLETE"),
                 (InspectionModelBadgeState.Unsupported, "UNSUPPORTED"),
                 (InspectionModelBadgeState.Invalid, "INVALID"),
@@ -1086,7 +847,7 @@ public sealed class InspectionModelCardTests
                 badgeText.FontSize = 20d;
                 control.UpdateLayout();
                 await WaitForLayoutConditionAsync(
-                    badge,
+                    badgeText,
                     () => badgeText.Text == badgeCase.Text &&
                         badgeText.ActualWidth > 0d &&
                         badgeText.ActualHeight > 0d &&
@@ -1096,6 +857,9 @@ public sealed class InspectionModelCardTests
                             badgeText.ActualHeight + 1d);
 
                 Assert.AreEqual(badgeCase.Text, badgeText.Text);
+                Assert.AreEqual($"Model status: {control.GetBadgeText(badgeCase.State)}",
+                    AutomationProperties.GetName(badge),
+                    "the status badge retains its explicit accessible model state");
                 Assert.IsTrue(badge.ActualHeight >= 34d);
                 if (badgeText.ActualHeight > badgeText.FontSize * 1.5d)
                 {
@@ -1167,7 +931,17 @@ public sealed class InspectionModelCardTests
         var loaded = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         control.Loaded += (_, _) => loaded.TrySetResult(true);
-        var window = new Window { Content = control };
+        var window = new Window
+        {
+            Content = new ScrollViewer
+            {
+                Content = control,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                HorizontalScrollMode = ScrollMode.Disabled,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollMode = ScrollMode.Enabled
+            }
+        };
         window.Activate();
 
         try
@@ -1177,7 +951,7 @@ public sealed class InspectionModelCardTests
                 window,
                 control,
                 effectiveWidth: 888,
-                expectedRowCount: 3);
+                expectedRowCount: 2);
             control.Presentation = CreatePresentation(isExpanded);
             control.UpdateLayout();
             return (control, window);
@@ -1333,7 +1107,9 @@ public sealed class InspectionModelCardTests
 
     private static async Task WaitForLayoutConditionAsync(
         FrameworkElement element,
-        Func<bool> condition)
+        Func<bool> condition,
+        [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(condition))]
+        string conditionDescription = "")
     {
         var reached = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1351,7 +1127,18 @@ public sealed class InspectionModelCardTests
             element.InvalidateMeasure();
             element.UpdateLayout();
             CompleteWhenReady(null, EventArgs.Empty);
-            await reached.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            try
+            {
+                await reached.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            catch (TimeoutException exception)
+            {
+                throw new TimeoutException(
+                    $"Layout condition timed out for {element.Name}: {conditionDescription}. " +
+                    $"Theme={element.ActualTheme}, actual={element.ActualWidth}x{element.ActualHeight}, " +
+                    $"desired={element.DesiredSize.Width}x{element.DesiredSize.Height}, " +
+                    $"text='{(element as TextBlock)?.Text}', margin={element.Margin}.", exception);
+            }
         }
         finally
         {

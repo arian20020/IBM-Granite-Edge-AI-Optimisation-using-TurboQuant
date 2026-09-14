@@ -182,7 +182,7 @@ public sealed class HardwareInspectionTerminalCardTests
                 state.Kind.ToString());
             foreach (Button button in stateButtons)
             {
-                Assert.AreEqual(46d, button.MinHeight, 0.01d, state.Kind.ToString());
+                Assert.AreEqual(44d, button.MinHeight, 0.01d, state.Kind.ToString());
                 Assert.AreEqual(new CornerRadius(11), button.CornerRadius, state.Kind.ToString());
                 Assert.AreEqual((ushort)600, button.FontWeight.Weight, state.Kind.ToString());
                 Assert.IsTrue(button.UseSystemFocusVisuals, state.Kind.ToString());
@@ -254,23 +254,23 @@ public sealed class HardwareInspectionTerminalCardTests
     private static void AssertSharedJourneyPalette(FrameworkElement owner)
     {
         Assert.AreEqual(
-            ColorHelper.FromArgb(0xFF, 0x25, 0x63, 0xEB),
+            Application.Current.Resources["SystemAccentColor"],
             ((SolidColorBrush)owner.Resources[
                 "GraniteJourneyPrimaryBackgroundBrush"]).Color);
         Assert.AreEqual(
-            ColorHelper.FromArgb(0xFF, 0x1D, 0x4E, 0xD8),
+            Application.Current.Resources["SystemAccentColorDark1"],
             ((SolidColorBrush)owner.Resources[
                 "GraniteJourneyPrimaryPointerOverBrush"]).Color);
         Assert.AreEqual(
-            ColorHelper.FromArgb(0xFF, 0x1E, 0x40, 0xAF),
+            Application.Current.Resources["SystemAccentColorDark2"],
             ((SolidColorBrush)owner.Resources[
                 "GraniteJourneyPrimaryPressedBrush"]).Color);
         Assert.AreEqual(
-            Colors.White,
+            Application.Current.Resources["ControlFillColorDefault"],
             ((SolidColorBrush)owner.Resources[
                 "GraniteJourneySecondaryBackgroundBrush"]).Color);
         Assert.AreEqual(
-            ColorHelper.FromArgb(0xFF, 0xC9, 0xD7, 0xE8),
+            Application.Current.Resources["ControlStrokeColorDefault"],
             ((SolidColorBrush)owner.Resources[
                 "GraniteJourneySecondaryBorderBrush"]).Color);
     }

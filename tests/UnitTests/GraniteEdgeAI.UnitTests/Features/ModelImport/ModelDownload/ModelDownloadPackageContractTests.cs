@@ -9,7 +9,7 @@ public sealed class ModelDownloadPackageContractTests
     [TestMethod]
     public void Manifest_DeclaresOnlyTheRequiredOutboundNetworkCapability()
     {
-        string root = OptimizationImportManifestTests.FindRepositoryRoot();
+        string root = RepositoryTestPaths.FindRepositoryRoot();
         string manifestPath = Path.Combine(root, "IBM Granite with TurboQuant (Intel)", "Package.appxmanifest");
         XDocument manifest = XDocument.Load(manifestPath);
         XNamespace foundation = manifest.Root!.Name.Namespace;
@@ -26,7 +26,7 @@ public sealed class ModelDownloadPackageContractTests
     [TestMethod]
     public void Project_DoesNotPackageModelOrPartialArtifacts()
     {
-        string root = OptimizationImportManifestTests.FindRepositoryRoot();
+        string root = RepositoryTestPaths.FindRepositoryRoot();
         XDocument project = XDocument.Load(Path.Combine(root, "IBM Granite with TurboQuant (Intel)", "IBM Granite with TurboQuant (Intel).csproj"));
         string[] packagedModels = project.Descendants()
             .Select(value => value.Attribute("Include")?.Value)
@@ -42,7 +42,7 @@ public sealed class ModelDownloadPackageContractTests
     [TestMethod]
     public void CompletionNotificationContract_IsPathFree()
     {
-        string root = OptimizationImportManifestTests.FindRepositoryRoot();
+        string root = RepositoryTestPaths.FindRepositoryRoot();
         string source = File.ReadAllText(Path.Combine(root, "IBM Granite with TurboQuant (Intel)", "Features", "ModelImport", "ModelDownload", "ModelDownloadCoordinator.cs"));
         int start = source.IndexOf("internal sealed class VerifiedModelAvailableEventArgs", StringComparison.Ordinal);
         int end = source.IndexOf("internal sealed class ModelDownloadCoordinator", start, StringComparison.Ordinal);

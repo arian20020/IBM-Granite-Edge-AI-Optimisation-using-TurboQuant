@@ -44,23 +44,25 @@ public sealed class OptimizationVisualContractTests
 
     [UITestMethod]
     [TestCategory("ProgressCompletion")]
-    public async Task LiveOptimisationCompletedRowCatchesUpWithoutDelayingNextStage()
+    public async Task LiveOptimisationDrainsCompletedRowsBeforePresentingNextStage()
     {
-        var page = new OptimizationPage();
+        var page = CreateClockedPage(out ProgressClock clock);
         var current = OptimizationFixtureCatalog.All.Single(item => item.Id == "progress-optimise").Presentation;
         var next = OptimizationFixtureCatalog.All.Single(item => item.Id == "progress-validate").Presentation;
         page.ApplyPresentation(current);
         await using var host = await WinUiRenderHost.ShowAsync(page, 1000, 650);
-        StringAssert.Contains(((TextBlock)page.FindName("OptimizationStage3Status")).Text, "Active");
+        DrainToStage(page, clock, 2);
+        StringAssert.Contains(((TextBlock)page.FindName("OptimizationStage3Status")).Text, "Checking");
         Assert.AreEqual(current.OptimizationPlanId, next.OptimizationPlanId);
         page.ApplyPresentation(next);
+        DrainToStage(page, clock, 3);
         void AssertTerminal()
         {
             Assert.AreEqual("Complete", ((TextBlock)page.FindName("OptimizationStage3Status")).Text);
             var row = (FrameworkElement)page.FindName("OptimizationStage3");
             Assert.AreEqual("Complete", AutomationProperties.GetItemStatus(row));
             StringAssert.Contains(AutomationProperties.GetName(row), "Complete");
-            StringAssert.Contains(((TextBlock)page.FindName("OptimizationStage4Status")).Text, "Active");
+            StringAssert.Contains(((TextBlock)page.FindName("OptimizationStage4Status")).Text, "Checking");
             Assert.IsTrue(((ProgressBar)page.FindName("OptimizationOverallProgress")).Value < 7);
         }
         AssertTerminal();
@@ -73,8 +75,9 @@ public sealed class OptimizationVisualContractTests
     {
         var page = new OptimizationPage();
         page.ApplyPresentation(OptimizationFixtureCatalog.All.Single(item => item.Id == "progress-optimise").Presentation);
-        StringAssert.Contains(((TextBlock)page.FindName("OptimizationOverallPercentage")).Text, "Estimated");
-        StringAssert.Contains(((TextBlock)page.FindName("OptimizationStage3Status")).Text, "Estimated");
+        Assert.AreEqual("0%", ((TextBlock)page.FindName("OptimizationOverallPercentage")).Text);
+        StringAssert.Contains(AutomationProperties.GetItemStatus((FrameworkElement)page.FindName("OptimizationStage1")), "Estimated 0%");
+        Assert.AreEqual("Waiting", ((TextBlock)page.FindName("OptimizationStage3Status")).Text);
         Assert.IsTrue(((ProgressBar)page.FindName("OptimizationOverallProgress")).Value < 7);
     }
 
@@ -421,7 +424,7 @@ public sealed class OptimizationVisualContractTests
     [UITestMethod]
     public void EveryRunningFixtureActivatesOnlyItsAuthoritativeNativeProgressRing()
     {
-        OptimizationPage page = new();
+        OptimizationPage page = CreateClockedPage(out ProgressClock clock);
 
         foreach (OptimizationFixture fixture in OptimizationFixtureCatalog.All
             .Where(item => item.Presentation.Kind == OptimizationPageStateKind.Running))
@@ -431,6 +434,8 @@ public sealed class OptimizationVisualContractTests
             int expectedActive = fixture.Presentation.ProgressRows
                 .ToList()
                 .FindIndex(row => row.Status == OptimizationStageStatus.Active);
+
+            DrainToStage(page, clock, expectedActive);
 
             Assert.AreEqual(7, rings.Length, fixture.Id);
             Assert.AreEqual(1, rings.Count(ring => ring.IsActive), fixture.Id);
@@ -459,7 +464,7 @@ public sealed class OptimizationVisualContractTests
     [UITestMethod]
     public void ProgressTransitionsStopThePriorRingAndStopAllOutsideRunning()
     {
-        OptimizationPage page = new();
+        OptimizationPage page = CreateClockedPage(out ProgressClock clock);
         OptimizationPresentationState preflight = RunningFixture("progress-preflight");
         OptimizationPresentationState optimise = RunningFixture("progress-optimise");
 
@@ -467,12 +472,14 @@ public sealed class OptimizationVisualContractTests
         AssertActiveRing(page, 0);
 
         page.ApplyPresentation(optimise);
+        DrainToStage(page, clock, 2);
         AssertActiveRing(page, 2);
 
         page.ApplyPresentation(OptimizationFixtureCatalog.All.Single(item => item.Id == "confirmation").Presentation);
         AssertAllRingsStopped(page);
 
         page.ApplyPresentation(optimise);
+        DrainToStage(page, clock, 2);
         AssertActiveRing(page, 2);
         page.ApplyPresentation(OptimizationFixtureCatalog.All.Single(item => item.Id == "failed").Presentation);
         AssertAllRingsStopped(page);
@@ -511,13 +518,43 @@ public sealed class OptimizationVisualContractTests
     [UITestMethod]
     public async Task RetiringThePageStopsEveryProgressRing()
     {
-        OptimizationPage page = new();
+        OptimizationPage page = CreateClockedPage(out ProgressClock clock);
         page.ApplyPresentation(RunningFixture("progress-publish"));
+        DrainToStage(page, clock, 6);
         AssertActiveRing(page, 6);
 
         await page.RetireForNavigationAsync();
 
         AssertAllRingsStopped(page);
+    }
+
+    private static OptimizationPage CreateClockedPage(out ProgressClock clock)
+    {
+        clock = new ProgressClock();
+        var page = new OptimizationPage();
+        typeof(OptimizationPage).GetField("_operationSequence", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(page, new GraniteEdgeAI.Presentation.Progress.SerializedProgressSequence(clock));
+        return page;
+    }
+
+    private static void DrainToStage(OptimizationPage page, ProgressClock clock, int stage)
+    {
+        var tick = typeof(OptimizationPage).GetMethod("UpdateOperationEstimate", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        for (int i = 0; i < 2000 && ProgressRings(page)[stage].Visibility != Visibility.Visible; i++)
+        {
+            clock.Advance();
+            tick.Invoke(page, null);
+        }
+        Assert.AreEqual(Visibility.Visible, ProgressRings(page)[stage].Visibility, "Ordered progress did not reach the expected stage.");
+    }
+
+    private sealed class ProgressClock : TimeProvider
+    {
+        private long ticks;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => ticks;
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(ticks);
+        internal void Advance() => ticks += TimeSpan.FromMilliseconds(50).Ticks;
     }
 
     private static void AssertExportCopy(

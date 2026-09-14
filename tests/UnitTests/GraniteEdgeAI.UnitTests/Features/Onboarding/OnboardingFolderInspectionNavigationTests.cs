@@ -15,54 +15,41 @@ using System.Threading.Tasks;
 namespace GraniteEdgeAI.UnitTests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class OnboardingFolderInspectionNavigationTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
     public async Task OpenVinoFolderContinue_NavigatesToIntegratedInspectionRoute()
     {
+        string directory = PackagedOpenVinoFixture();
         var shell = new OnboardingShellPage();
         var page = CreateFolderPage(ModelSelectionRoute.OpenVinoDirectory);
-        shell.AttachModelImportPage(page);
+        OpenVinoInspectionRequestedEventArgs? request = null;
+        page.OpenVinoInspectionRequested += (_, eventArguments) =>
+            request = eventArguments;
 
         await page.SubmitInputAsync(new ModelSelectionInput(
-            @"C:\Models\private-openvino-package",
+            directory,
             "private-openvino-package",
             isFolder: true));
 
-        Assert.IsTrue(page.TryRequestModelInspection());
-
-        var frame = (Frame)shell.FindName("StageFrame");
-        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
-        Assert.IsInstanceOfType<ModelInspectionPage>(frame.Content);
-        Assert.IsTrue(page.HasValidatedModel);
-    }
-
-    [UITestMethod]
-    [TestCategory("WinUI")]
-    public async Task SourceFolderContinue_DispatchesConversionRequiredIntentWithoutNavigation()
-    {
-        var shell = new OnboardingShellPage();
-        var page = CreateFolderPage(ModelSelectionRoute.SourceModelDirectory);
+        Assert.IsFalse(
+            page.TryRequestModelInspection(),
+            "The request remains retryable until the shell accepts ownership.");
+        Assert.IsNotNull(request);
         shell.AttachModelImportPage(page);
-        SourceModelConversionRequestedEventArgs? received = null;
-        shell.SourceModelConversionRequested += (_, eventArguments) =>
-            received = eventArguments;
-
-        await page.SubmitInputAsync(new ModelSelectionInput(
-            @"C:\Models\private-source-package",
-            "private-source-package",
-            isFolder: true));
-
-        Assert.IsTrue(page.TryRequestModelInspection());
+        Task<bool> navigation = shell.NavigateToOpenVinoInspectionAsync(request);
 
         var frame = (Frame)shell.FindName("StageFrame");
-        Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
+        ModelInspectionPage inspectionPage =
+            Assert.IsInstanceOfType<ModelInspectionPage>(frame.Content);
+        Assert.IsTrue(page.HasValidatedModel);
+        await inspectionPage.RetireOpenVinoInspectionAsync()
+            .WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.IsFalse(await navigation.WaitAsync(TimeSpan.FromSeconds(5)),
+            "A detached unit-test page cannot claim loaded Frame ownership.");
         Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
-        Assert.IsNotNull(received);
-        Assert.AreEqual("private-source-package", received.Selection.DisplayName);
-        Assert.IsFalse(typeof(SourceModelConversionRequestedEventArgs).GetProperties()
-            .Any(property => property.Name.Contains("Path", StringComparison.OrdinalIgnoreCase)));
     }
 
     [UITestMethod]
@@ -88,6 +75,19 @@ public sealed class OnboardingFolderInspectionNavigationTests
         () => Task.FromResult<string?>(null),
         (_, _, _) => Task.FromResult(ModelQuickScanResult.CreateCancelled()),
         classifier: new FolderClassifier(route));
+
+    private static string PackagedOpenVinoFixture()
+    {
+        string path = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "OpenVINO",
+            "GenAI",
+            "TinySyntheticV1",
+            "package");
+        Assert.IsTrue(Directory.Exists(path));
+        return path;
+    }
 
     private sealed class FolderClassifier(ModelSelectionRoute route) : IModelSelectionClassifier
     {

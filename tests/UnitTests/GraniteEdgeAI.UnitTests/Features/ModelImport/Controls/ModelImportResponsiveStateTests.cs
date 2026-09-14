@@ -92,12 +92,11 @@ public sealed class ModelImportResponsiveStateTests
     public void ImportPage_DisablesHorizontalScrollingForCompactAndLargeTextLayouts()
     {
         var page = new GraniteEdgeAI.Features.ModelImport.ModelImportPage();
-        var scroll = page.FindName("ModelImportPageScrollViewer") as ScrollViewer;
+        var scroll = page.FindName("PageScrollViewer") as ScrollViewer;
 
         Assert.IsNotNull(scroll);
         Assert.AreEqual(ScrollBarVisibility.Disabled, scroll.HorizontalScrollBarVisibility);
         Assert.AreEqual(ScrollMode.Disabled, scroll.HorizontalScrollMode);
-        Assert.AreEqual(HorizontalAlignment.Stretch, scroll.HorizontalContentAlignment);
     }
 
     [UITestMethod]

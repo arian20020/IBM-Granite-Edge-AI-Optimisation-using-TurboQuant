@@ -16,46 +16,42 @@ namespace GraniteEdgeAI.UnitTests.Features.HardwareInspection;
 public sealed class HardwareInspectionProgressCardTests
 {
     [TestMethod]
-    [DataRow(0)]
-    [DataRow(1)]
-    [DataRow(2)]
-    [DataRow(3)]
-    [DataRow(4)]
-    [DataRow(5)]
-    [DataRow(6)]
-    public void FastCompletedStage_KeepsCopyInDisplayedState(int index)
+    public void FastCompletedStage_KeepsCopyInDisplayedState()
     {
-        var stage = (HardwareInspectionStage)index;
-        var copy = HardwareInspectionCopyCatalog.Stage(stage);
-        var completed = new HardwareInspectionStageRow(stage,
-            HardwareInspectionStageRowState.Complete, copy.Title,
-            copy.CompletedSentence, copy.Title);
-        var row = new HardwareInspectionProgressRowViewData(index + 1, completed);
+        for (int index = 0; index < 7; index++)
+        {
+            var stage = (HardwareInspectionStage)index;
+            var copy = HardwareInspectionCopyCatalog.Stage(stage);
+            var completed = new HardwareInspectionStageRow(stage,
+                HardwareInspectionStageRowState.Complete, copy.Title,
+                copy.CompletedSentence, copy.Title);
+            var row = new HardwareInspectionProgressRowViewData(index + 1, completed);
 
-        row.Update(index + 1, completed, SerializedProgressStageState.Waiting, 0, true);
-        Assert.AreEqual(string.Empty, row.Sentence);
-        row.Update(index + 1, completed, SerializedProgressStageState.Active, .12, true);
-        Assert.AreEqual(copy.ActiveExplanation, row.Sentence);
-        StringAssert.Contains(row.DisplayStatus, "Checking");
-        row.Update(index + 1, completed, SerializedProgressStageState.Completed, 1, true);
-        Assert.AreEqual(copy.CompletedSentence, row.Sentence);
-        Assert.AreEqual("Complete", row.DisplayStatus);
-        row.ApplyCancelledOutcome(isInterruptedStage: false);
-        Assert.AreEqual(copy.CompletedSentence, row.Sentence);
-        Assert.AreEqual(copy.CompletedSentence, completed.Sentence);
+            row.Update(index + 1, completed, SerializedProgressStageState.Waiting, 0, true);
+            Assert.AreEqual(string.Empty, row.Sentence);
+            row.Update(index + 1, completed, SerializedProgressStageState.Active, .12, true);
+            Assert.AreEqual(copy.ActiveExplanation, row.Sentence);
+            StringAssert.Contains(row.DisplayStatus, "Checking");
+            row.Update(index + 1, completed, SerializedProgressStageState.Completed, 1, true);
+            Assert.AreEqual(copy.CompletedSentence, row.Sentence);
+            Assert.AreEqual("Complete", row.DisplayStatus);
+            row.ApplyCancelledOutcome(isInterruptedStage: false);
+            Assert.AreEqual(copy.CompletedSentence, row.Sentence);
+            Assert.AreEqual(copy.CompletedSentence, completed.Sentence);
 
-        var waiting = new HardwareInspectionStageRow(stage,
-            HardwareInspectionStageRowState.Waiting, copy.Title,
-            copy.WaitingSentence, copy.Title);
-        row.Update(index + 1, waiting);
-        Assert.AreEqual(string.Empty, row.Sentence);
-        var active = new HardwareInspectionStageRow(stage,
-            HardwareInspectionStageRowState.Active, copy.Title,
-            copy.ActiveExplanation, copy.Title);
-        row.Update(index + 1, active);
-        Assert.AreEqual(copy.ActiveExplanation, row.Sentence);
-        row.Update(index + 1, active, SerializedProgressStageState.Active, .5, false);
-        Assert.AreEqual(copy.ActiveExplanation, row.Sentence);
+            var waiting = new HardwareInspectionStageRow(stage,
+                HardwareInspectionStageRowState.Waiting, copy.Title,
+                copy.WaitingSentence, copy.Title);
+            row.Update(index + 1, waiting);
+            Assert.AreEqual(string.Empty, row.Sentence);
+            var active = new HardwareInspectionStageRow(stage,
+                HardwareInspectionStageRowState.Active, copy.Title,
+                copy.ActiveExplanation, copy.Title);
+            row.Update(index + 1, active);
+            Assert.AreEqual(copy.ActiveExplanation, row.Sentence);
+            row.Update(index + 1, active, SerializedProgressStageState.Active, .5, false);
+            Assert.AreEqual(copy.ActiveExplanation, row.Sentence);
+        }
     }
 
     public TestContext TestContext { get; set; } = null!;
@@ -63,15 +59,17 @@ public sealed class HardwareInspectionProgressCardTests
     [TestCategory("ProgressCompletion")]
     public async Task CompletedGroupCatchesUpWhileOtherGroupsRemainActive()
     {
-        var card = new HardwareInspectionProgressCard();
+        var card = CreateClockedCard(out var clock);
         var factory = new HardwareInspectionPresentationFactory();
         object owner = new();
         var groups = new Dictionary<HardwareInspectionStage, (int Completed, int Total)>();
         card.Apply(factory.CreateActive(HardwareInspectionStage.CheckingLocalInferenceRuntimes, groups, owner));
         await using var host = await GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual.WinUiRenderHost.ShowAsync(card, 800, 600);
+        DrainUntil(card, clock, () => card.Rows[1].IsActive);
         StringAssert.Contains(card.Rows[1].DisplayStatus, "Checking");
         groups[HardwareInspectionStage.ReadingProcessorInformation] = (1, 1);
         card.Apply(factory.CreateActive(HardwareInspectionStage.CheckingLocalInferenceRuntimes, groups, owner));
+        DrainUntil(card, clock, () => card.Rows[2].IsActive);
         void AssertTerminal()
         {
             Assert.AreEqual("Complete", card.Rows[1].DisplayStatus);
@@ -97,12 +95,13 @@ public sealed class HardwareInspectionProgressCardTests
             [HardwareInspectionStage.CheckingLocalInferenceRuntimes] = (2, 2),
         };
         var state = new HardwareInspectionPresentationFactory().CreateActive(HardwareInspectionStage.CheckingLocalInferenceRuntimes, groups, new object());
-        var card = new HardwareInspectionProgressCard();
+        var card = CreateClockedCard(out var clock);
         card.Apply(state);
         Assert.AreEqual(5, state.CompletedStageCount);
         Assert.AreEqual(2, state.StageRows.Count(row => row.State == HardwareInspectionStageRowState.Waiting));
+        DrainUntil(card, clock, () => card.Rows.Take(5).All(row => row.CompletedVisibility == Visibility.Visible));
         Assert.AreEqual(5d, ((ProgressBar)card.FindName("OverallProgressBar")).Value);
-        Assert.AreEqual("Estimated 71%", ((TextBlock)card.FindName("OverallPercentage")).Text);
+        Assert.AreEqual("71%", ((TextBlock)card.FindName("OverallPercentage")).Text);
     }
 
     [TestMethod]
@@ -118,7 +117,7 @@ public sealed class HardwareInspectionProgressCardTests
     [TestCategory("ChatTextInteractionsMeasured")]
     public void SingleWorkflowBarKeepsMeasuredChecksInActiveRow()
     {
-        var card = new HardwareInspectionProgressCard();
+        var card = CreateClockedCard(out var clock);
         var factory = new HardwareInspectionPresentationFactory();
         object owner = new();
         var groups = new Dictionary<HardwareInspectionStage, (int Completed, int Total)>
@@ -134,14 +133,16 @@ public sealed class HardwareInspectionProgressCardTests
         Assert.IsNull(card.FindName("MeasuredChecksProgress"));
         Assert.IsNull(card.FindName("MeasuredChecksText"));
         Assert.IsFalse(bar.IsIndeterminate);
-        Assert.AreEqual(3d, bar.Value, .00001, "Two completed stages and two real half-complete groups.");
-        Assert.AreEqual("Checking\n50%", card.Rows[4].DisplayStatus);
-        Assert.AreEqual("Checking · 50%", card.Rows[4].Status);
+        DrainUntil(card, clock, () => card.Rows[2].DisplayStatus == "Checking\n50%");
+        Assert.AreEqual(2.5d, bar.Value, .00001, "Only the displayed active stage contributes fractional progress.");
+        Assert.AreEqual("Waiting", card.Rows[4].DisplayStatus);
+        Assert.AreEqual(string.Empty, card.Rows[4].Sentence);
         foreach (var laterStage in new[] { HardwareInspectionStage.NormalisingHardwareInformation, HardwareInspectionStage.CreatingHardwareReport })
         {
             card.Apply(factory.CreateActive(laterStage, groups, owner).WithMeasuredChecks(7, 7));
+            DrainUntil(card, clock, () => card.Rows[(int)laterStage].IsActive);
             var row = card.Rows[(int)laterStage];
-            Assert.AreEqual("Checking\nEstimated 0%", row.DisplayStatus);
+            Assert.AreEqual("Checking\n0%", row.DisplayStatus);
             StringAssert.Contains(row.AccessibleName, "Checking · Estimated 0%");
             Assert.IsFalse(row.AccessibleName.Contains("100%"));
         }
@@ -150,7 +151,7 @@ public sealed class HardwareInspectionProgressCardTests
     [TestCategory("InspectionSingleBar")]
     public async Task WorkflowEndpointInterpolatesWithoutTreatingEvidenceAsWholeFlow()
     {
-        var card = new HardwareInspectionProgressCard();
+        var card = CreateClockedCard(out var clock);
         var factory = new HardwareInspectionPresentationFactory();
         object owner = new();
         var groups = new Dictionary<HardwareInspectionStage, (int Completed, int Total)>();
@@ -159,13 +160,18 @@ public sealed class HardwareInspectionProgressCardTests
         var bar = (ProgressBar)card.FindName("OverallProgressBar");
         card.Apply(factory.CreateActive(HardwareInspectionStage.NormalisingHardwareInformation, groups, owner).WithMeasuredChecks(7, 7));
         var values = new List<double>();
-        for (int i = 0; i < 16; i++) { values.Add(bar.Value); await Task.Delay(20); }
+        for (int i = 0; i < 2000 && !card.Rows[5].IsActive; i++)
+        {
+            values.Add(bar.Value);
+            clock.Advance();
+            InvokePrivate(card, "RefreshEstimatedValues");
+        }
         Assert.IsTrue(values.All(value => value >= 0 && value < 5.1));
         Assert.IsTrue(values.Zip(values.Skip(1)).All(pair => pair.First <= pair.Second));
         if (new Windows.UI.ViewManagement.UISettings().AnimationsEnabled)
             Assert.IsTrue(values.Any(value => value > 0 && value < 5));
         Assert.IsTrue(bar.Value >= 5 && bar.Value < 5.1);
-        Assert.AreEqual("Checking\nEstimated 0%", card.Rows[5].DisplayStatus);
+        Assert.AreEqual("Checking\n0%", card.Rows[5].DisplayStatus);
         card.Apply(factory.CreateActive(HardwareInspectionStage.StartingHardwareInspection));
         Assert.AreEqual(0d, bar.Value, "A restarted workflow must reset its completed stages.");
         await host.DisposeAsync();
@@ -209,9 +215,10 @@ public sealed class HardwareInspectionProgressCardTests
     [TestCategory("WinUI")]
     public void Apply_LaterStageReplacesRowsWithoutRetainingStaleState()
     {
-        HardwareInspectionProgressCard card = new();
+        HardwareInspectionProgressCard card = CreateClockedCard(out var clock);
         card.Apply(_factory.CreateActive(HardwareInspectionStage.StartingHardwareInspection));
         card.Apply(_factory.CreateActive(HardwareInspectionStage.NormalisingHardwareInformation));
+        DrainUntil(card, clock, () => card.Rows[5].IsActive);
 
         Assert.AreEqual("Normalising hardware information", Text(card, "TitleTextBlock").Text);
         Assert.AreEqual("5 of 7 stages complete", Text(card, "CountTextBlock").Text);
@@ -418,4 +425,33 @@ public sealed class HardwareInspectionProgressCardTests
 
     private static TextBlock Text(HardwareInspectionProgressCard card, string name) =>
         (TextBlock)card.FindName(name);
+
+    private static HardwareInspectionProgressCard CreateClockedCard(out ProgressClock clock)
+    {
+        clock = new ProgressClock();
+        var card = new HardwareInspectionProgressCard();
+        typeof(HardwareInspectionProgressCard).GetField("progressSequence",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(card,
+                new SerializedProgressSequence(clock));
+        return card;
+    }
+
+    private static void DrainUntil(HardwareInspectionProgressCard card, ProgressClock clock, Func<bool> done)
+    {
+        for (int i = 0; i < 2000 && !done(); i++)
+        {
+            clock.Advance();
+            InvokePrivate(card, "RefreshEstimatedValues");
+        }
+        Assert.IsTrue(done(), "Ordered presentation did not reach the expected stage.");
+    }
+
+    private sealed class ProgressClock : TimeProvider
+    {
+        private long ticks;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => ticks;
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(ticks);
+        internal void Advance() => ticks += TimeSpan.FromMilliseconds(50).Ticks;
+    }
 }

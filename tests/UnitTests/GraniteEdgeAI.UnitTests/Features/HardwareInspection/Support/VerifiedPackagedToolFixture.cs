@@ -143,7 +143,7 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
         }
 
         string controlRoot = Path.Combine(
-            Path.GetTempPath(),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GraniteEdgeAI.HardwareInspection.Tests",
             "LlmFitFake",
             mode);
@@ -216,7 +216,7 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
         }
 
         string controlRoot = Path.Combine(
-            Path.GetTempPath(),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GraniteEdgeAI.HardwareInspection.Tests",
             "LlamaCppProbeFake",
             mode);
@@ -279,7 +279,7 @@ internal sealed class VerifiedPackagedToolFixture : IDisposable
     {
         closedModes ??= ClosedModes;
         string ownedParent = Path.GetFullPath(Path.Combine(
-            Path.GetTempPath(),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GraniteEdgeAI.HardwareInspection.Tests",
             controlFamily));
         DeleteOwnedLeafDirectory(

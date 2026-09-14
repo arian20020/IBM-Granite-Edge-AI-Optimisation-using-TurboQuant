@@ -12,7 +12,7 @@ public sealed class DiskSpaceRecoveryNavigationTests
     [TestMethod]
     public void CompatibilityBackReissuesInsteadOfLeavingHardwareDisabled()
     {
-        string source = File.ReadAllText(Path.Combine(OptimizationImportManifestTests.FindRepositoryRoot(),
+        string source = File.ReadAllText(Path.Combine(RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)", "Features", "Onboarding", "OnboardingShellPage.xaml.cs"));
         int begin = source.IndexOf("private void CompatibilityPage_BackRequested(", StringComparison.Ordinal);
         int end = source.IndexOf("private void CompatibilityPage_HardwareRetryRequested(", begin, StringComparison.Ordinal);
@@ -24,7 +24,7 @@ public sealed class DiskSpaceRecoveryNavigationTests
     [TestMethod]
     public void OptimizedChatRetainsFailureOutcomeInsteadOfSilentlyDiscardingIt()
     {
-        string source = File.ReadAllText(Path.Combine(OptimizationImportManifestTests.FindRepositoryRoot(),
+        string source = File.ReadAllText(Path.Combine(RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)", "Features", "Onboarding", "OnboardingShellPage.xaml.cs"));
         StringAssert.Contains(source, "LaunchSharedOpenVinoOptimizedAsync");
         StringAssert.Contains(source, "Chat could not start");

@@ -1,6 +1,7 @@
 using GraniteEdgeAI.Features.GgufRuntime.History;
 using GraniteEdgeAI.Features.GgufRuntime.Services;
 using GraniteEdgeAI.GgufRuntime.Contracts;
+using GraniteEdgeAI.GgufRuntime.Contracts.Commands;
 
 namespace GraniteEdgeAI.UnitTests.Features.Onboarding;
 
@@ -30,13 +31,29 @@ public sealed class SharedChatContinuityTests
         public ValueTask DisposeAsync() { Disposals++; return ValueTask.CompletedTask; }
     }
     [TestMethod]
-    public void IncompleteAssistantIsNotSilentlyOmittedOrReplayed()
+    public void IncompleteAssistantRemainsSavedButIsNotReplayed()
     {
         var conversation = ChatConversation.Create(Guid.NewGuid(), "model", "cpu", DateTimeOffset.UtcNow)
             .Append(ChatMessage.User("question", DateTimeOffset.UtcNow))
-            .Append(ChatMessage.Assistant("unfinished answer", ChatCompletionStatus.Stopped, DateTimeOffset.UtcNow));
-        Assert.Throws<InvalidOperationException>(() => GgufChatSessionAdapter.CreateInitialTurns(conversation));
+            .Append(ChatMessage.Assistant("unfinished answer", ChatCompletionStatus.Incomplete, DateTimeOffset.UtcNow));
+        Assert.ThrowsExactly<GraniteEdgeAI.Features.ChatModels.ChatHistoryReplayException>(
+            () => GgufChatSessionAdapter.CreateInitialTurns(conversation));
         Assert.AreEqual("unfinished answer", conversation.Messages[1].Content);
+    }
+
+    [TestMethod]
+    public void DeliberatelyStoppedAssistantRetainsItsTextInReplay()
+    {
+        var conversation = ChatConversation.Create(Guid.NewGuid(), "model", "cpu", DateTimeOffset.UtcNow)
+            .Append(ChatMessage.User("question", DateTimeOffset.UtcNow))
+            .Append(ChatMessage.Assistant("stopped answer", ChatCompletionStatus.Stopped, DateTimeOffset.UtcNow));
+        IReadOnlyList<GgufConversationTurn> turns = GgufChatSessionAdapter.CreateInitialTurns(conversation);
+        Assert.HasCount(2, turns);
+        Assert.AreEqual(GgufConversationRole.User, turns[0].Role);
+        Assert.AreEqual("question", turns[0].Content);
+        Assert.AreEqual(GgufConversationRole.Assistant, turns[1].Role);
+        Assert.AreEqual("stopped answer", turns[1].Content);
+        Assert.AreEqual(ChatCompletionStatus.Stopped, conversation.Messages[1].Status);
     }
     [TestMethod]
     public void OversizedReplayRejectsWithoutDiscardingSavedTurns()

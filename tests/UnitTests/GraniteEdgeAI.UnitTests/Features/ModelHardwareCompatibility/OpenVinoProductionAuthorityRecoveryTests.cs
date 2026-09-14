@@ -33,6 +33,7 @@ public sealed class OpenVinoProductionAuthorityRecoveryTests
 
     [UITestMethod]
     [TestCategory("CurrentRawOpenVinoComposition")]
+    [TestCategory("RequiresLocalModelPackage")]
     public async Task ActualRawPackageCurrentWorkersReachAlternativesAndQualifiedMinimum()
     {
         const string path = "C:/AI/Models/Granite-4.1-3B-OpenVINO-Raw";
@@ -68,15 +69,19 @@ public sealed class OpenVinoProductionAuthorityRecoveryTests
         var modes = optimization.ExactSafeModes;
         Assert.IsTrue(modes.Any(item => item.Mode.OpenVinoKvCache == OpenVinoKvCacheFormat.U4));
         Assert.IsTrue(modes.Any(item => item.Mode.OpenVinoKvCache == OpenVinoKvCacheFormat.TurboQuantTbq3));
-        CollectionAssert.AreEqual(
-            new[] { 10, 30, 50, 70, 90 },
-            optimization.SafeSliderModes
-                .Select(item => item.Mode.SliderValue)
-                .Cast<int>()
-                .ToArray());
-        Assert.AreEqual(2, optimization.SafeSliderSelectedIndex);
-        Assert.AreEqual(CompatibilityOptimizationLabelCode.Balanced,
-            optimization.SafeSliderModes[2].Mode.LabelCode);
+        // The page maps preference bands; the authority supplies exact safe candidates.
+        foreach (var (weights, cache) in new[]
+        {
+            (OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.TurboQuantTbq3),
+            (OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.TurboQuantTbq4),
+            (OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.U4),
+            (OpenVinoWeightFormat.Int4, OpenVinoKvCacheFormat.U8),
+            (OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.RouteDefault)
+        })
+        {
+            Assert.IsTrue(modes.Any(item => item.Mode.OpenVinoWeights == weights
+                && item.Mode.OpenVinoKvCache == cache), $"Missing released choice: {weights}/{cache}");
+        }
         var presentation = CompatibilityPresentationFactory.From(evaluation);
         Assert.IsNotNull(presentation.MemoryOverview);
         Assert.IsNotNull(presentation.MemoryOverview.MinimumRequiredBytes);
@@ -89,6 +94,7 @@ public sealed class OpenVinoProductionAuthorityRecoveryTests
 
     [UITestMethod]
     [TestCategory("CurrentRetainedOpenVinoU4")]
+    [TestCategory("RequiresLocalModelPackage")]
     public async Task ActualRetainedPackageReachesVerifiedU4IssuerWhileFailedDefaultRemainsBlocked()
     {
         const string path = "C:/Users/Student/AppData/Local/GraniteEdgeAI/Optimization/OpenVinoOutputs/output-05c2cd0580c54e18a110091fff7473bc-1";

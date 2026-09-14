@@ -116,10 +116,10 @@ public sealed class A1BackendProductionReachabilityTests
     }
 
     [TestMethod]
-    public void GgufChat_HasTwoIntentionalLaunchersAndOneLifetimeOwner()
+    public void GgufChat_HasThreeIntentionalLaunchersAndOneLifetimeOwner()
     {
         string applicationRoot = Path.Combine(
-            OptimizationImportManifestTests.FindRepositoryRoot(),
+            RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)");
         string callers = ReadProductionTree(
             applicationRoot,
@@ -127,7 +127,7 @@ public sealed class A1BackendProductionReachabilityTests
         string owner = ReadProduction(
             "Features", "GgufRuntime", "ChatDemoController.cs");
 
-        Assert.AreEqual(2, Occurrences(
+        Assert.AreEqual(3, Occurrences(
             callers, ".CreateInitializedChatAsync("));
         Assert.AreEqual(0, Occurrences(
             callers, ".InitializeAsync();"));
@@ -149,7 +149,7 @@ public sealed class A1BackendProductionReachabilityTests
     public void ReleaseChatProductionTreeContainsNoDemoAuthority()
     {
         string applicationRoot = Path.Combine(
-            OptimizationImportManifestTests.FindRepositoryRoot(),
+            RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)");
         string source = ReadProductionTree(applicationRoot);
 
@@ -174,13 +174,13 @@ public sealed class A1BackendProductionReachabilityTests
 
     private static string ReadProduction(params string[] relativePath) =>
         File.ReadAllText(Path.Combine(
-            OptimizationImportManifestTests.FindRepositoryRoot(),
+            RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)",
             Path.Combine(relativePath)));
 
     private static string ReadAllProduction()
     {
-        string root = OptimizationImportManifestTests.FindRepositoryRoot();
+        string root = RepositoryTestPaths.FindRepositoryRoot();
         return string.Join(
             Environment.NewLine,
             new[]

@@ -142,27 +142,25 @@ public sealed class ImportModelCardTests
 
         await page.BrowseFilesAsync();
 
-        var card = (ImportModelCard)page.FindName(
-            "ImportModelCardControl");
         Assert.AreEqual(1, scanInteractionCount);
         Assert.AreEqual(selectedPath, page.SelectedModelPath);
         Assert.IsFalse(page.HasValidatedModel);
         Assert.IsFalse(
             ((Button)page.FindName(
-                "ContinueToModelInspectionButton")).IsEnabled);
-        Assert.AreEqual(ImportModelCardState.ScanFailed, card.CurrentState);
+                "BtnContinueToInspection")).IsEnabled);
+        Assert.AreEqual(ImportModelCardState.ScanFailed, page.CurrentImportState);
         Assert.AreEqual(
             Visibility.Visible,
-            GetElement(card, "FailureView").Visibility);
+            GetElement(page, "FailureView").Visibility);
         Assert.AreEqual(
             failureCode,
-            GetTextBlock(card, "FailureCodeTextBlock").Text);
+            GetTextBlock(page, "FailureCodeTextBlock").Text);
         Assert.AreEqual(
             userMessage,
-            GetTextBlock(card, "FailureMessageTextBlock").Text);
+            GetTextBlock(page, "FailureMessageTextBlock").Text);
         Assert.AreNotEqual(
             technicalMessage,
-            GetTextBlock(card, "FailureMessageTextBlock").Text);
+            GetTextBlock(page, "FailureMessageTextBlock").Text);
     }
 
     [UITestMethod]
@@ -181,9 +179,7 @@ public sealed class ImportModelCardTests
                         "Unexpected bytes at offset zero.")),
             classifier: new AcceptedGgufClassifier());
         await page.BrowseFilesAsync();
-        var card = (ImportModelCard)page.FindName(
-            "ImportModelCardControl");
-        var removeButton = (Button)card.FindName(
+        var removeButton = (Button)page.FindName(
             "RemoveFailedModelButton");
 
         InvokeButton(removeButton);
@@ -192,25 +188,25 @@ public sealed class ImportModelCardTests
         Assert.IsFalse(page.HasValidatedModel);
         Assert.IsFalse(
             ((Button)page.FindName(
-                "ContinueToModelInspectionButton")).IsEnabled);
+                "BtnContinueToInspection")).IsEnabled);
         Assert.AreEqual(
             ImportModelCardState.AwaitingSelection,
-            card.CurrentState);
+            page.CurrentImportState);
         Assert.AreEqual(
             Visibility.Visible,
-            GetElement(card, "AwaitingSelectionView").Visibility);
+            GetElement(page, "AwaitingSelectionView").Visibility);
         Assert.AreEqual(
             Visibility.Collapsed,
-            GetElement(card, "FailureView").Visibility);
+            GetElement(page, "FailureView").Visibility);
         Assert.AreEqual(
             string.Empty,
-            GetTextBlock(card, "FailureCodeTextBlock").Text);
+            GetTextBlock(page, "FailureCodeTextBlock").Text);
         Assert.AreEqual(
             string.Empty,
-            GetTextBlock(card, "FailureMessageTextBlock").Text);
+            GetTextBlock(page, "FailureMessageTextBlock").Text);
         Assert.AreEqual(
             string.Empty,
-            GetTextBlock(card, "FailureFileNameTextBlock").Text);
+            GetTextBlock(page, "FailureFileNameTextBlock").Text);
     }
 
     [UITestMethod]
@@ -233,9 +229,7 @@ public sealed class ImportModelCardTests
             classifier: new AcceptedGgufClassifier());
 
         Task browseTask = page.BrowseFilesAsync();
-        var card = (ImportModelCard)page.FindName(
-            "ImportModelCardControl");
-        var cancelButton = (Button)card.FindName("CancelScanButton");
+        var cancelButton = (Button)page.FindName("RemoveLocalMetadataModelButton");
 
         InvokeButton(cancelButton);
         scanCompletion.SetResult(
@@ -250,25 +244,25 @@ public sealed class ImportModelCardTests
         Assert.IsFalse(page.HasValidatedModel);
         Assert.IsFalse(
             ((Button)page.FindName(
-                "ContinueToModelInspectionButton")).IsEnabled);
+                "BtnContinueToInspection")).IsEnabled);
         Assert.AreEqual(
             ImportModelCardState.AwaitingSelection,
-            card.CurrentState);
+            page.CurrentImportState);
         Assert.AreEqual(
             Visibility.Visible,
-            GetElement(card, "AwaitingSelectionView").Visibility);
+            GetElement(page, "AwaitingSelectionView").Visibility);
         Assert.AreEqual(
             Visibility.Collapsed,
-            GetElement(card, "FailureView").Visibility);
+            GetElement(page, "FailureView").Visibility);
         Assert.AreEqual(
             string.Empty,
-            GetTextBlock(card, "FailureCodeTextBlock").Text);
+            GetTextBlock(page, "FailureCodeTextBlock").Text);
         Assert.AreEqual(
             string.Empty,
-            GetTextBlock(card, "FailureMessageTextBlock").Text);
+            GetTextBlock(page, "FailureMessageTextBlock").Text);
         Assert.AreEqual(
             string.Empty,
-            GetTextBlock(card, "FailureFileNameTextBlock").Text);
+            GetTextBlock(page, "FailureFileNameTextBlock").Text);
     }
 
     [UITestMethod]
@@ -365,7 +359,7 @@ public sealed class ImportModelCardTests
                 "SuccessDeclaredContextTextBlock").Text);
 
         Button browse = (Button)card.FindName("ChooseModelFileButton");
-        Assert.AreEqual(46d, browse.Height);
+        Assert.AreEqual(44d, browse.Height);
         Assert.AreEqual(new CornerRadius(11), browse.CornerRadius);
         Assert.AreEqual(FontWeights.SemiBold.Weight, browse.FontWeight.Weight);
         Assert.AreEqual(
@@ -443,13 +437,9 @@ public sealed class ImportModelCardTests
 
         await page.BrowseFilesAsync();
 
-        var card =
-            (ImportModelCard)page.FindName(
-                "ImportModelCardControl");
-
         var continueButton =
             (Button)page.FindName(
-                "ContinueToModelInspectionButton");
+                "BtnContinueToInspection");
 
         Assert.AreEqual(
             selectedPath,
@@ -467,25 +457,25 @@ public sealed class ImportModelCardTests
 
         Assert.AreEqual(
             ImportModelCardState.ScanSucceeded,
-            card.CurrentState);
+            page.CurrentImportState);
 
         Assert.AreEqual(
             Visibility.Visible,
             GetElement(
-                card,
-                "SuccessView").Visibility);
+                page,
+                "LocalMetadataCardView").Visibility);
 
         Assert.AreEqual(
             "5.1 GB",
             GetTextBlock(
-                card,
-                "SuccessFileSizeTextBlock").Text);
+                page,
+                "LocalMetadataFileSizeTextBlock").Text);
 
         Assert.AreEqual(
             "128K tokens",
             GetTextBlock(
-                card,
-                "SuccessDeclaredContextTextBlock").Text);
+                page,
+                "LocalMetadataDeclaredContextTextBlock").Text);
     }
 
     [UITestMethod]
@@ -523,13 +513,9 @@ public sealed class ImportModelCardTests
 
         await page.BrowseFilesAsync();
 
-        var card =
-            (ImportModelCard)page.FindName(
-                "ImportModelCardControl");
-
         var removeButton =
-            (Button)card.FindName(
-                "RemoveSucceededModelButton");
+            (Button)page.FindName(
+                "RemoveLocalMetadataModelButton");
 
         InvokeButton(removeButton);
 
@@ -544,29 +530,29 @@ public sealed class ImportModelCardTests
 
         Assert.IsFalse(
             ((Button)page.FindName(
-                "ContinueToModelInspectionButton")).IsEnabled);
+                "BtnContinueToInspection")).IsEnabled);
 
         Assert.AreEqual(
             ImportModelCardState.AwaitingSelection,
-            card.CurrentState);
+            page.CurrentImportState);
 
         Assert.AreEqual(
             Visibility.Visible,
             GetElement(
-                card,
+                page,
                 "AwaitingSelectionView").Visibility);
 
         Assert.AreEqual(
             Visibility.Collapsed,
             GetElement(
-                card,
-                "SuccessView").Visibility);
+                page,
+                "LocalMetadataCardView").Visibility);
 
         Assert.AreEqual(
             string.Empty,
             GetTextBlock(
-                card,
-                "SuccessModelNameTextBlock").Text);
+                page,
+                "LocalMetadataModelNameTextBlock").Text);
     }
 
     private static void InvokeButton(Button button)
@@ -590,6 +576,20 @@ public sealed class ImportModelCardTests
         string elementName)
     {
         return (TextBlock)card.FindName(elementName);
+    }
+
+    private static FrameworkElement GetElement(
+        ModelImportPage page,
+        string elementName)
+    {
+        return (FrameworkElement)page.FindName(elementName);
+    }
+
+    private static TextBlock GetTextBlock(
+        ModelImportPage page,
+        string elementName)
+    {
+        return (TextBlock)page.FindName(elementName);
     }
 
     private sealed class AcceptedGgufClassifier : IModelSelectionClassifier

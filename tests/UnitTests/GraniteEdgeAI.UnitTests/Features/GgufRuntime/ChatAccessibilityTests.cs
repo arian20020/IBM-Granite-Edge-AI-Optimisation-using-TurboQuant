@@ -108,23 +108,23 @@ public sealed class ChatAccessibilityTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public void BrandImagesAreDecorativeAndDoNotDuplicateTheApplicationName()
+    public void BrandImagesExposeOnlyTheIntentionalApplicationName()
     {
         var page = new ChatPage();
-        Image[] brandImages =
-        [
-            Assert.IsInstanceOfType<Image>(page.FindName("BrandLockup")),
-            Assert.IsInstanceOfType<Image>(page.FindName("EmptyStateBrandMark"))
-        ];
+        Image lockup = Assert.IsInstanceOfType<Image>(page.FindName("BrandLockup"));
+        Image emptyMark = Assert.IsInstanceOfType<Image>(
+            page.FindName("EmptyStateBrandMark"));
 
-        foreach (Image image in brandImages)
-        {
-            Assert.AreEqual(
-                AccessibilityView.Raw,
-                AutomationProperties.GetAccessibilityView(image));
-            Assert.AreEqual(string.Empty, AutomationProperties.GetName(image));
-            Assert.IsFalse(image.IsTabStop);
-        }
+        Assert.AreEqual(
+            AccessibilityView.Content,
+            AutomationProperties.GetAccessibilityView(lockup));
+        Assert.AreEqual("Granite Edge AI", AutomationProperties.GetName(lockup));
+        Assert.IsFalse(lockup.IsTabStop);
+        Assert.AreEqual(
+            AccessibilityView.Raw,
+            AutomationProperties.GetAccessibilityView(emptyMark));
+        Assert.AreEqual(string.Empty, AutomationProperties.GetName(emptyMark));
+        Assert.IsFalse(emptyMark.IsTabStop);
     }
 
     [UITestMethod]

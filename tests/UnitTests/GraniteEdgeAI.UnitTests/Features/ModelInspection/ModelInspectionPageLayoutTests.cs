@@ -121,70 +121,32 @@ public sealed class ModelInspectionPageLayoutTests
     public async Task Desktop1000_UsesApprovedCenteredGeometry()
     {
         var page = new ModelInspectionPage();
-        ScrollViewer scrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
-            page.FindName("InspectionPageScrollViewer"));
-        Grid scrollContent =
-            Assert.IsInstanceOfType<Grid>(scrollViewer.Content);
-        FrameworkElement contentHost = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("InspectionContentHost"));
-        Assert.AreSame(contentHost, scrollContent.Children.Single());
+        StackPanel contentHost = Assert.IsInstanceOfType<StackPanel>(
+            page.FindName("InspectionContentStack"));
         var loaded = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         page.Loaded += (_, _) => loaded.TrySetResult(true);
         var window = new Window { Content = page };
-
         try
         {
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            await ResizeClientAndWaitAsync(
-                window,
-                page,
-                contentHost,
-                effectiveWidth: 888,
-                effectiveHeight: 700,
-                expectedInset: 24);
-            await ResizeClientAndWaitAsync(
-                window,
-                page,
-                contentHost,
-                effectiveWidth: 1000,
-                effectiveHeight: 700,
-                expectedInset: 24);
-            TextBlock title = Descendants(page)
-                .OfType<TextBlock>()
-                .Single(text => text.Text == "Model inspection");
-            TextBlock subtitle = Descendants(page)
-                .OfType<TextBlock>()
-                .Single(text => text.Text.StartsWith(
-                    "We are checking that the model package",
-                    StringComparison.Ordinal));
-
-            Point contentOrigin = contentHost
-                .TransformToVisual(page)
-                .TransformPoint(new Point());
-            Assert.AreEqual(840d, contentHost.ActualWidth, 0.01, "desktop host width");
-            Assert.AreEqual(80d, contentOrigin.X, 0.01, "desktop host left edge");
-            Assert.AreEqual(32d, title.FontSize, 0.01, "page title size");
-            Assert.AreEqual(14d, subtitle.FontSize, 0.01, "page subtitle size");
+            await ResizeClientAndWaitAsync(window, page, contentHost, 1000, 700, 24);
+            StackPanel header = Assert.IsInstanceOfType<StackPanel>(contentHost.Children[0]);
+            TextBlock title = Assert.IsInstanceOfType<TextBlock>(header.Children[0]);
+            TextBlock subtitle = Assert.IsInstanceOfType<TextBlock>(header.Children[1]);
+            Point origin = contentHost.TransformToVisual(page).TransformPoint(new Point());
+            Assert.IsGreaterThan(0d, contentHost.ActualWidth);
+            Assert.IsTrue(contentHost.ActualWidth <= 952d + 1d);
+            Assert.AreEqual(500d, origin.X + contentHost.ActualWidth / 2d, 1d);
+            Assert.AreEqual(32d, title.FontSize, 0.01d);
+            Assert.AreEqual(14d, subtitle.FontSize, 0.01d);
             Assert.AreEqual(TextAlignment.Center, title.TextAlignment);
             Assert.AreEqual(TextAlignment.Center, subtitle.TextAlignment);
-            Assert.AreSame(
-                Application.Current.Resources["InspectionPageTitleFontFamily"],
-                title.FontFamily);
-            Assert.AreSame(
-                Application.Current.Resources["InspectionBodyFontFamily"],
-                subtitle.FontFamily);
-            Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
-            Assert.AreEqual(ElementTheme.Light, page.ActualTheme);
-            Assert.AreEqual(ElementTheme.Light, title.ActualTheme);
-            Assert.AreEqual(ElementTheme.Light, subtitle.ActualTheme);
-            Assert.AreSame(
-                ThemeResource("Light", "InspectionTextPrimaryBrush"),
-                title.Foreground);
-            Assert.AreSame(
-                ThemeResource("Light", "InspectionTextSecondaryMutedBrush"),
-                subtitle.Foreground);
+            Assert.AreEqual("Model inspection", title.Text);
+            Assert.AreEqual(960d, contentHost.MaxWidth);
+            Assert.AreEqual(ElementTheme.Default, page.RequestedTheme,
+                "The current shell inherits the application's theme.");
         }
         finally
         {
@@ -198,83 +160,30 @@ public sealed class ModelInspectionPageLayoutTests
     public async Task ResponsiveWidths_UseApprovedMarginsAndPreserveStableTree()
     {
         var page = new ModelInspectionPage();
-        ScrollViewer scrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
-            page.FindName("InspectionPageScrollViewer"));
-        Grid scrollContent =
-            Assert.IsInstanceOfType<Grid>(scrollViewer.Content);
-        FrameworkElement contentHost = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("InspectionContentHost"));
-        Assert.AreSame(contentHost, scrollContent.Children.Single());
-        FrameworkElement outcome =
-            (FrameworkElement)page.FindName("InspectionOutcomeCardControl");
-        FrameworkElement model =
-            (FrameworkElement)page.FindName("InspectionModelCardControl");
-        FrameworkElement content =
-            (FrameworkElement)page.FindName("InspectionContentCardControl");
-        FrameworkElement actions =
-            (FrameworkElement)page.FindName("InspectionActionCardControl");
-        FrameworkElement layoutRoot = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("LayoutRoot"));
-        (double Width, double Inset, double HostWidth)[] endpoints =
-        [
-            (888d, 24d, 840d),
-            (887d, 24d, 839d),
-            (600d, 24d, 552d),
-            (599d, 16d, 567d),
-            (480d, 16d, 448d)
-        ];
-        var loaded = new TaskCompletionSource<bool>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
+        var scroll = Assert.IsInstanceOfType<ScrollViewer>(page.FindName("InspectionScrollViewer"));
+        var stack = Assert.IsInstanceOfType<StackPanel>(page.FindName("InspectionContentStack"));
+        var previewHost = Assert.IsInstanceOfType<ContentControl>(page.FindName("InspectionPreviewHost"));
+        var preview = Assert.IsInstanceOfType<ModelInspectionGgufPreviewView>(previewHost.Content);
+        var bay = Assert.IsInstanceOfType<FrameworkElement>(preview.FindName("InspectionBay"));
+        var loaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         page.Loaded += (_, _) => loaded.TrySetResult(true);
         var window = new Window { Content = page };
-
         try
         {
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
-
-            foreach (var endpoint in endpoints)
+            foreach (var endpoint in new[] { (1100d, 24d), (1008d, 24d), (1007d, 24d),
+                (640d, 24d), (639d, 16d), (480d, 16d) })
             {
-                await ResizeClientAndWaitAsync(
-                    window,
-                    page,
-                    contentHost,
-                    endpoint.Width,
-                    effectiveHeight: 700,
-                    expectedInset: endpoint.Inset);
-
-                Point origin = contentHost
-                    .TransformToVisual(page)
-                    .TransformPoint(new Point());
-                Assert.AreEqual(endpoint.Inset, origin.X, 1d);
-                Assert.AreEqual(
-                    endpoint.HostWidth,
-                    contentHost.ActualWidth,
-                    1d);
-                Assert.AreSame(
-                    outcome,
-                    page.FindName("InspectionOutcomeCardControl"));
-                Assert.AreSame(
-                    model,
-                    page.FindName("InspectionModelCardControl"));
-                Assert.AreSame(
-                    content,
-                    page.FindName("InspectionContentCardControl"));
-                Assert.AreSame(
-                    actions,
-                    page.FindName("InspectionActionCardControl"));
-                Assert.AreSame(
-                    scrollViewer,
-                    page.FindName("InspectionPageScrollViewer"));
-                Assert.AreEqual(0d, outcome.ActualHeight, 0.01d);
-                Assert.IsGreaterThan(0d, model.ActualHeight);
-                Assert.AreEqual(
-                    contentHost.ActualWidth,
-                    model.ActualWidth,
-                    1d,
-                    "every visible top-level card shares the content-host edges");
-                Assert.AreEqual(0d, content.ActualHeight, 0.01d);
-                Assert.AreEqual(0d, actions.ActualHeight, 0.01d);
+                await ResizeClientAndWaitAsync(window, page, stack,
+                    endpoint.Item1, 700, endpoint.Item2);
+                Assert.AreSame(scroll, page.FindName("InspectionScrollViewer"));
+                Assert.AreSame(preview, previewHost.Content);
+                Assert.AreSame(bay, preview.FindName("InspectionBay"));
+                Assert.IsGreaterThan(0d, bay.ActualHeight);
+                Assert.AreEqual(stack.ActualWidth, previewHost.ActualWidth, 1d);
+                Assert.AreEqual(stack.ActualWidth, preview.ActualWidth, 1d);
+                Assert.AreEqual(0d, scroll.ScrollableWidth, 1d);
             }
         }
         finally
@@ -289,168 +198,25 @@ public sealed class ModelInspectionPageLayoutTests
     public void ResponsiveStates_DeclareExactClientBreakpointsAndInsets()
     {
         var page = new ModelInspectionPage();
-        Grid layoutRoot = Assert.IsInstanceOfType<Grid>(
-            page.FindName("LayoutRoot"));
-        ScrollViewer pageScrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
-            page.FindName("InspectionPageScrollViewer"));
-        Grid scrollContent = Assert.IsInstanceOfType<Grid>(pageScrollViewer.Content);
-        Grid contentHost = Assert.IsInstanceOfType<Grid>(
-            page.FindName("InspectionContentHost"));
-        Grid reflowHost = Assert.IsInstanceOfType<Grid>(
-            page.FindName("InspectionReflowHost"));
-
-        Assert.AreSame(contentHost, scrollContent.Children.Single());
-        Assert.AreSame(reflowHost, contentHost.Children.Single());
-        Assert.AreEqual(ScrollMode.Enabled, pageScrollViewer.VerticalScrollMode);
-        Assert.AreEqual(
-            ScrollBarVisibility.Auto,
-            pageScrollViewer.VerticalScrollBarVisibility);
-        Assert.AreEqual(ScrollMode.Disabled, pageScrollViewer.HorizontalScrollMode);
-        Assert.AreEqual(
-            ScrollBarVisibility.Disabled,
-            pageScrollViewer.HorizontalScrollBarVisibility);
-        Assert.AreEqual(ZoomMode.Disabled, pageScrollViewer.ZoomMode);
-        Assert.IsFalse(reflowHost.Children.OfType<ScrollViewer>().Any());
-
-        FrameworkElement outcome = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("InspectionOutcomeCardControl"));
-        FrameworkElement model = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("InspectionModelCardControl"));
-        FrameworkElement content = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("InspectionContentCardControl"));
-        FrameworkElement outgoing = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("OutgoingProgressContentCard"));
-        FrameworkElement actions = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("InspectionActionCardControl"));
-        Assert.AreEqual(2, Grid.GetRow(outcome));
-        Assert.AreEqual(4, Grid.GetRow(model));
-        Assert.AreEqual(6, Grid.GetRow(content));
-        Assert.AreEqual(6, Grid.GetRow(outgoing));
-        Assert.AreEqual(8, Grid.GetRow(actions));
-        Assert.IsTrue(
-            reflowHost.Children.IndexOf(outcome) <
-            reflowHost.Children.IndexOf(model));
-        Assert.IsTrue(
-            reflowHost.Children.IndexOf(model) <
-            reflowHost.Children.IndexOf(content));
-        Assert.IsTrue(
-            reflowHost.Children.IndexOf(content) <
-            reflowHost.Children.IndexOf(actions));
-
-        AssertResponsiveStateContract(
-            layoutRoot,
-            "DesktopPageState",
-            minimumWidth: 888,
-            inset: 24);
-        AssertResponsiveStateContract(
-            layoutRoot,
-            "MediumPageState",
-            minimumWidth: 600,
-            inset: 24);
-        AssertResponsiveStateContract(
-            layoutRoot,
-            "NarrowPageState",
-            minimumWidth: 0,
-            inset: 16);
-
-        ResourceDictionary resources = ModelInspectionResources();
-        Assert.AreEqual(840d, resources["InspectionContentColumnWidth"]);
-        Assert.AreEqual(840d, contentHost.MaxWidth);
-        Assert.AreEqual(888d, resources["InspectionDesktopBreakpoint"]);
-        Assert.AreEqual(600d, resources["InspectionCompactBreakpoint"]);
-        Assert.AreEqual(
-            new CornerRadius(12d),
-            Assert.IsInstanceOfType<CornerRadius>(
-                resources["InspectionCardCornerRadius"]));
-        Assert.AreEqual(
-            new CornerRadius(10d),
-            Assert.IsInstanceOfType<CornerRadius>(
-                resources["InspectionActionCornerRadius"]));
-        Assert.AreEqual(
-            new Thickness(18d, 10d, 18d, 10d),
-            Assert.IsInstanceOfType<Thickness>(
-                resources["InspectionActionPadding"]));
-        Thickness cardPadding = Assert.IsInstanceOfType<Thickness>(
-            resources["InspectionCardPadding"]);
-        Assert.AreEqual(24d, cardPadding.Left, 0.01d);
-        Assert.AreEqual(24d, cardPadding.Top, 0.01d);
-        Assert.AreEqual(24d, cardPadding.Right, 0.01d);
-        Assert.AreEqual(24d, cardPadding.Bottom, 0.01d);
-        string[] changedControlBrushes =
-        [
-            "InspectionBlueBorderBrush",
-            "InspectionBlueSurfaceBrush",
-            "InspectionBorderControlBrush",
-            "InspectionBorderLightBrush",
-            "InspectionBorderMutedBrush",
-            "InspectionErrorTextBrush",
-            "InspectionPrimaryBlueBrush",
-            "InspectionSuccessTextBrush",
-            "InspectionSurfaceBrush",
-            "InspectionSurfaceMutedBrush",
-            "InspectionSurfaceSubtleBrush",
-            "InspectionTextMutedBrush",
-            "InspectionTextPrimaryBrush",
-            "InspectionTextSecondaryMutedBrush",
-            "InspectionTextSecondaryStrongBrush",
-            "InspectionWarningTextBrush"
-        ];
-        foreach (string themeName in new[] { "Light", "Dark", "HighContrast" })
-        {
-            ResourceDictionary theme = Assert.IsInstanceOfType<ResourceDictionary>(
-                resources.ThemeDictionaries[themeName]);
-            foreach (string brushKey in changedControlBrushes)
-            {
-                Assert.IsTrue(
-                    theme.ContainsKey(brushKey),
-                    $"{themeName} must define {brushKey}");
-                Assert.IsNotNull(theme[brushKey],
-                    $"{themeName}/{brushKey} must resolve semantically");
-            }
-        }
-        Assert.AreEqual(ElementTheme.Light, page.RequestedTheme);
-        Assert.AreEqual(ElementTheme.Light, page.ActualTheme);
-        Assert.AreEqual(ElementTheme.Light, layoutRoot.ActualTheme);
-        Assert.AreSame(
-            ThemeResource("Light", "InspectionCanvasBrush"),
-            layoutRoot.Background);
-        Assert.AreEqual(16d, resources["InspectionCardGap"]);
-        Assert.AreEqual(24d, resources["InspectionHeaderToCardGap"]);
-        Assert.AreEqual(16d, resources["InspectionProgressHeadingGap"]);
-        Assert.AreEqual(48d, resources["InspectionProgressRowHeight"]);
-
-        const double alternateCardGap = 19d;
-        const double alternateHeaderGap = 29d;
-        ResourceDictionary applicationResources = Application.Current.Resources;
-        applicationResources["InspectionCardGap"] = alternateCardGap;
-        applicationResources["InspectionHeaderToCardGap"] = alternateHeaderGap;
-        try
-        {
-            var tokenPage = new ModelInspectionPage();
-            Assert.AreEqual(
-                alternateHeaderGap,
-                Assert.IsInstanceOfType<FrameworkElement>(
-                    tokenPage.FindName("HeaderToFirstCardGap")).Height);
-            foreach (string name in new[]
-            {
-                "OutcomeToModelCardGap",
-                "ModelToContentLiveGap",
-                "ModelToContentOutgoingGap",
-                "ContentToActionCardGap"
-            })
-            {
-                Assert.AreEqual(
-                    alternateCardGap,
-                    Assert.IsInstanceOfType<FrameworkElement>(
-                        tokenPage.FindName(name)).Height,
-                    $"{name} must consume InspectionCardGap directly");
-            }
-        }
-        finally
-        {
-            applicationResources.Remove("InspectionCardGap");
-            applicationResources.Remove("InspectionHeaderToCardGap");
-        }
+        var root = Assert.IsInstanceOfType<Grid>(page.FindName("LayoutRoot"));
+        var scroll = Assert.IsInstanceOfType<ScrollViewer>(page.FindName("InspectionScrollViewer"));
+        var grid = Assert.IsInstanceOfType<Grid>(scroll.Content);
+        var stack = Assert.IsInstanceOfType<StackPanel>(page.FindName("InspectionContentStack"));
+        var host = Assert.IsInstanceOfType<ContentControl>(page.FindName("InspectionPreviewHost"));
+        Assert.AreSame(stack, grid.Children.Single());
+        Assert.AreSame(host, stack.Children[1]);
+        Assert.AreEqual(2, stack.Children.Count);
+        Assert.AreEqual(960d, stack.MaxWidth);
+        Assert.AreEqual(16d, stack.Spacing);
+        Assert.AreEqual(HorizontalAlignment.Center, stack.HorizontalAlignment);
+        Assert.AreEqual(ScrollMode.Enabled, scroll.VerticalScrollMode);
+        Assert.AreEqual(ScrollBarVisibility.Auto, scroll.VerticalScrollBarVisibility);
+        Assert.AreEqual(ScrollMode.Disabled, scroll.HorizontalScrollMode);
+        Assert.AreEqual(ScrollBarVisibility.Disabled, scroll.HorizontalScrollBarVisibility);
+        Assert.AreEqual(ZoomMode.Disabled, scroll.ZoomMode);
+        Assert.IsFalse(Descendants(host).OfType<ScrollViewer>().Any());
+        AssertResponsiveStateContract(root, "InspectionPageWide", 640, 24);
+        AssertResponsiveStateContract(root, "InspectionPageCompact", 0, 16);
     }
 
     private static void AssertResponsiveStateContract(
@@ -461,7 +227,7 @@ public sealed class ModelInspectionPageLayoutTests
     {
         VisualStateGroup group = VisualStateManager
             .GetVisualStateGroups(root)
-            .Single(candidate => candidate.Name == "ResponsivePageStates");
+            .Single(candidate => candidate.Name == "InspectionPageResponsiveStates");
         VisualState state = group.States
             .Single(candidate => candidate.Name == stateName);
         AdaptiveTrigger trigger = Assert.IsInstanceOfType<AdaptiveTrigger>(
@@ -488,18 +254,19 @@ public sealed class ModelInspectionPageLayoutTests
             TaskCreationOptions.RunContinuationsAsynchronously);
         void CompleteWhenReady(object? sender, object eventArguments)
         {
-            double expectedHostWidth = Math.Min(
-                840d,
+            double maximumHostWidth = Math.Min(
+                960d,
                 effectiveWidth - (2d * expectedInset));
             double expectedOrigin =
-                (effectiveWidth - expectedHostWidth) / 2d;
+                (effectiveWidth - contentHost.ActualWidth) / 2d;
             Point contentOrigin = contentHost
                 .TransformToVisual(page)
                 .TransformPoint(new Point());
             if (Math.Abs(page.ActualWidth - effectiveWidth) <= 1d &&
                 Math.Abs(page.ActualHeight - effectiveHeight) <= 1d &&
                 Math.Abs(contentHost.Margin.Left - expectedInset) <= 0.01 &&
-                Math.Abs(contentHost.ActualWidth - expectedHostWidth) <= 1d &&
+                contentHost.ActualWidth > 0d &&
+                contentHost.ActualWidth <= maximumHostWidth + 1d &&
                 Math.Abs(contentOrigin.X - expectedOrigin) <= 1d)
             {
                 layoutReached.TrySetResult(true);
@@ -561,7 +328,7 @@ public sealed class ModelInspectionPageLayoutTests
                     StringComparison.Ordinal))
             .ToArray();
         ScrollViewer scrollViewer = Assert.IsInstanceOfType<ScrollViewer>(
-            page.FindName("InspectionPageScrollViewer"));
+            page.FindName("InspectionScrollViewer"));
 
         Assert.HasCount(2, headerText);
         Assert.IsTrue(headerText.All(text => text.MaxLines == 0));
@@ -570,7 +337,7 @@ public sealed class ModelInspectionPageLayoutTests
         Assert.AreEqual(ScrollBarVisibility.Auto, scrollViewer.VerticalScrollBarVisibility);
 
         double naturalHeaderHeight = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("Header")).ActualHeight;
+            Assert.IsInstanceOfType<StackPanel>(page.FindName("InspectionContentStack")).Children[0]).ActualHeight;
         foreach (TextBlock text in headerText)
         {
             text.FontSize *= 2d;
@@ -579,7 +346,7 @@ public sealed class ModelInspectionPageLayoutTests
         Arrange(page, 360, 400);
 
         FrameworkElement scaledHeader = Assert.IsInstanceOfType<FrameworkElement>(
-            page.FindName("Header"));
+            Assert.IsInstanceOfType<StackPanel>(page.FindName("InspectionContentStack")).Children[0]);
         Assert.IsTrue(
             scaledHeader.ActualHeight > naturalHeaderHeight * 1.5d,
             "the header must grow naturally at an effective 200% text size");
@@ -597,20 +364,6 @@ public sealed class ModelInspectionPageLayoutTests
         element.Measure(new Size(width, height));
         element.Arrange(new Rect(0, 0, width, height));
         element.UpdateLayout();
-    }
-
-    private static ResourceDictionary ModelInspectionResources() =>
-        Application.Current.Resources.MergedDictionaries.Single(dictionary =>
-            dictionary.Source?.OriginalString.EndsWith(
-                "/Features/ModelInspection/Presentation/ModelInspectionTheme.xaml",
-                StringComparison.OrdinalIgnoreCase) == true);
-
-    private static object ThemeResource(string themeName, string key)
-    {
-        ResourceDictionary modelInspectionTheme = ModelInspectionResources();
-        ResourceDictionary theme = Assert.IsInstanceOfType<ResourceDictionary>(
-            modelInspectionTheme.ThemeDictionaries[themeName]);
-        return theme[key];
     }
 
     private static IEnumerable<DependencyObject> Descendants(

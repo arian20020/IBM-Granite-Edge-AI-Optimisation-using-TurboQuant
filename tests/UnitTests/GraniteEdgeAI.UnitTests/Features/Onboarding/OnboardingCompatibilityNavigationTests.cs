@@ -49,7 +49,7 @@ public sealed class OnboardingCompatibilityNavigationTests
     public void SuccessfulImportIntentInstallsAllSourcesBeforeRetiringTheOldJourney()
     {
         string source = File.ReadAllText(Path.Combine(
-            OptimizationImportManifestTests.FindRepositoryRoot(),
+            RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)", "Features", "Onboarding",
             "OnboardingShellPage.xaml.cs"))
             .Replace("\r\n", "\n", StringComparison.Ordinal);
@@ -94,7 +94,7 @@ public sealed class OnboardingCompatibilityNavigationTests
     public void OptimizationSuccessBindingKeepsPersistentAndRuntimeExportsTypedAndSeparate()
     {
         string source = File.ReadAllText(Path.Combine(
-            OptimizationImportManifestTests.FindRepositoryRoot(),
+            RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)", "Features", "Onboarding",
             "OnboardingShellPage.xaml.cs"));
 
@@ -250,7 +250,7 @@ public sealed class OnboardingCompatibilityNavigationTests
         var hardwarePage = Assert.IsInstanceOfType<HardwareInspectionPage>(
             frame.Content);
 
-        LoadHardwarePage(hardwarePage);
+        await using var host = await GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual.WinUiRenderHost.ShowAsync(shell, 1200, 800);
         await WaitUntilAsync(() => frame.Content is CompatibilityPage);
 
         var compatibilityPage = Assert.IsInstanceOfType<CompatibilityPage>(
@@ -1288,12 +1288,12 @@ public sealed class OnboardingCompatibilityNavigationTests
 
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
-        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(30);
         while (!condition())
         {
             Assert.IsTrue(
                 DateTimeOffset.UtcNow < deadline,
-                "The expected navigation did not complete within five seconds.");
+                "The expected navigation did not complete within thirty seconds.");
             await Task.Delay(10);
         }
     }

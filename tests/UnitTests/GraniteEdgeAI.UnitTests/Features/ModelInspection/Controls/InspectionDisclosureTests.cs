@@ -518,8 +518,24 @@ public sealed class InspectionDisclosureTests
                 contentPresenter.ActualWidth + actionHost.ActualWidth <=
                     headerLayout.ActualWidth + 0.01d,
                 "the wrapping header and absolute action cannot intersect");
-            Assert.IsTrue(header.ActualHeight + 1d >= header.DesiredSize.Height,
-                "scaled header copy must grow vertically instead of clipping");
+            // DesiredSize describes the measure request, while a TextBlock's
+            // rendered text can be shorter. Check the allocated layout space
+            // and containment instead of requiring those heights to match.
+            Rect headerSlot = Microsoft.UI.Xaml.Controls.Primitives.LayoutInformation
+                .GetLayoutSlot(header);
+            Assert.IsTrue(headerSlot.Height + 1d >= header.DesiredSize.Height,
+                "scaled header must receive its requested layout height; " +
+                $"slot={headerSlot.Height}; desired={header.DesiredSize.Height}");
+            Assert.IsTrue(contentPresenter.ActualHeight + 1d >= header.DesiredSize.Height,
+                "the presenter must reserve the scaled header's requested height");
+            Rect headerBounds = header.TransformToVisual(contentPresenter)
+                .TransformBounds(new Rect(0d, 0d, header.ActualWidth, header.ActualHeight));
+            Assert.IsTrue(headerBounds.Top >= -1d &&
+                headerBounds.Bottom <= contentPresenter.ActualHeight + 1d &&
+                headerBounds.Left >= -1d &&
+                headerBounds.Right <= contentPresenter.ActualWidth + 1d,
+                "scaled header text must stay inside its allocated presenter");
+            Assert.IsFalse(header.IsTextTrimmed, "scaled header text must remain untrimmed");
             Assert.IsGreaterThan(normalHeaderHeight, headerLayout.ActualHeight,
                 "the disclosure header grows naturally at representative 200% text");
             Assert.AreEqual(

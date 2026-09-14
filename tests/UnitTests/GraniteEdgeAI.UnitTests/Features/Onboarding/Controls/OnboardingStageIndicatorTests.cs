@@ -16,6 +16,8 @@ namespace GraniteEdgeAI.UnitTests;
 public sealed class OnboardingStageIndicatorTests
 {
     private const string ActiveBrushKey = "OnboardingIndicatorActiveBrush";
+    private const string ActiveSurfaceBrushKey =
+        "OnboardingIndicatorActiveSurfaceBrush";
     private const string SurfaceBrushKey = "OnboardingIndicatorSurfaceBrush";
     private const string InactiveSurfaceBrushKey =
         "OnboardingIndicatorInactiveSurfaceBrush";
@@ -31,6 +33,8 @@ public sealed class OnboardingStageIndicatorTests
         "OnboardingIndicatorSuccessSurfaceBrush";
     private const string SuccessBorderBrushKey =
         "OnboardingIndicatorSuccessBorderBrush";
+    private const string SuccessTextBrushKey =
+        "OnboardingIndicatorSuccessTextBrush";
     private const string NotCompleteSurfaceBrushKey =
         "OnboardingIndicatorNotCompleteSurfaceBrush";
     private const string NotCompleteBorderBrushKey =
@@ -94,7 +98,7 @@ public sealed class OnboardingStageIndicatorTests
 
         Assert.IsTrue(double.IsNaN(indicator.Height));
         Assert.AreEqual(128d, indicator.MinHeight);
-        Assert.AreEqual(900d, layoutGrid.MaxWidth);
+        Assert.AreEqual(960d, layoutGrid.MaxWidth);
 
         foreach (StepElementNames step in Steps)
         {
@@ -223,15 +227,17 @@ public sealed class OnboardingStageIndicatorTests
         indicator.CurrentStage = OnboardingStage.InspectModel;
 
         Assert.AreEqual(
-            "Model setup progress. Step 2 of 5: Inspect model. " +
-            "Inspection in progress.",
+            "Model setup. Inspect model, step 2 of 5.",
             AutomationProperties.GetName(indicator));
+        Assert.AreEqual(
+            "Inspection in progress",
+            AutomationProperties.GetItemStatus(indicator));
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
     [DataRow((int)InspectionFooterStatus.InProgress, true, (int)InspectionStatusGlyphKind.Success, "IN PROGRESS", "Inspection in progress")]
-    [DataRow((int)InspectionFooterStatus.Complete, false, (int)InspectionStatusGlyphKind.Success, "COMPLETE", "Inspection complete")]
+    [DataRow((int)InspectionFooterStatus.Complete, true, (int)InspectionStatusGlyphKind.Success, "COMPLETE", "Inspection complete")]
     [DataRow((int)InspectionFooterStatus.NotComplete, false, (int)InspectionStatusGlyphKind.NotComplete, "NOT COMPLETE", "Inspection not complete")]
     [DataRow((int)InspectionFooterStatus.Interrupted, false, (int)InspectionStatusGlyphKind.Error, "INTERRUPTED", "Inspection interrupted")]
     public void InspectionStatus_MapsAllFourNonNavigatingStates(
@@ -273,28 +279,35 @@ public sealed class OnboardingStageIndicatorTests
             (InspectionFooterStatus)statusValue switch
             {
                 InspectionFooterStatus.InProgress =>
-                    (ActiveBrushKey, ActiveBrushKey),
+                    (ActiveSurfaceBrushKey, ActiveBrushKey),
                 InspectionFooterStatus.Complete =>
-                    (SuccessSurfaceBrushKey, SuccessBorderBrushKey),
+                    (ActiveSurfaceBrushKey, ActiveBrushKey),
                 InspectionFooterStatus.NotComplete =>
                     (NotCompleteSurfaceBrushKey, NotCompleteBorderBrushKey),
                 InspectionFooterStatus.Interrupted =>
                     (SurfaceBrushKey, ErrorBrushKey),
                 _ => throw new ArgumentOutOfRangeException(nameof(statusValue))
             };
-        Assert.AreSame(GetBrush(indicator, backgroundKey), statusBox.Background);
-        Assert.AreSame(GetBrush(indicator, borderKey), statusBox.BorderBrush);
+        AssertBrushColorEquals(
+            GetBrush(indicator, backgroundKey),
+            statusBox.Background);
+        AssertBrushColorEquals(
+            GetBrush(indicator, borderKey),
+            statusBox.BorderBrush);
         Assert.IsTrue(
             GetTextBlock(indicator, "StageEyebrowText").Text.EndsWith(
                 expectedEyebrowStatus,
                 StringComparison.Ordinal));
-        StringAssert.Contains(
-            AutomationProperties.GetName(indicator),
-            expectedAutomationStatus);
         Assert.AreEqual(
-            liveNotifications,
+            expectedAutomationStatus,
+            AutomationProperties.GetItemStatus(indicator));
+        Assert.AreEqual(
+            liveNotifications +
+                ((InspectionFooterStatus)statusValue == InspectionFooterStatus.InProgress
+                    ? 0
+                    : 1),
             indicator.LiveRegionChangeNotificationCount,
-            "Inspection-status changes must not duplicate content-card announcements.");
+            "A changed inspection status must raise one live-region notification.");
     }
 
     [UITestMethod]
@@ -328,8 +341,9 @@ public sealed class OnboardingStageIndicatorTests
             InspectionStatusGlyphKind.Success,
             GetGlyph(indicator, "InspectModelStepGlyph").Kind);
         Assert.AreEqual(
-            "Model setup progress. Step 3 of 5: Check hardware fit.",
+            "Model setup. Check hardware fit, step 3 of 5.",
             AutomationProperties.GetName(indicator));
+        Assert.AreEqual(string.Empty, AutomationProperties.GetItemStatus(indicator));
     }
 
     private static void AssertProgress(
@@ -342,7 +356,9 @@ public sealed class OnboardingStageIndicatorTests
         Assert.AreEqual(expectedStage, indicator.CurrentStage);
         int currentStepNumber = (int)expectedStage;
         SolidColorBrush activeBrush = GetBrush(indicator, ActiveBrushKey);
-        SolidColorBrush surfaceBrush = GetBrush(indicator, SurfaceBrushKey);
+        SolidColorBrush activeSurfaceBrush = GetBrush(
+            indicator,
+            ActiveSurfaceBrushKey);
         SolidColorBrush inactiveSurfaceBrush = GetBrush(
             indicator,
             InactiveSurfaceBrushKey);
@@ -362,6 +378,9 @@ public sealed class OnboardingStageIndicatorTests
         SolidColorBrush successBorderBrush = GetBrush(
             indicator,
             SuccessBorderBrushKey);
+        SolidColorBrush successTextBrush = GetBrush(
+            indicator,
+            SuccessTextBrushKey);
 
         for (int index = 0; index < Steps.Length; index++)
         {
@@ -388,9 +407,9 @@ public sealed class OnboardingStageIndicatorTests
                 Assert.AreEqual(
                     AccessibilityView.Raw,
                     AutomationProperties.GetAccessibilityView(stepGlyph));
-                Assert.AreSame(successSurfaceBrush, stepBox.Background);
-                Assert.AreSame(successBorderBrush, stepBox.BorderBrush);
-                Assert.AreSame(activeBrush, stepLabel.Foreground);
+                AssertBrushColorEquals(successSurfaceBrush, stepBox.Background);
+                AssertBrushColorEquals(successBorderBrush, stepBox.BorderBrush);
+                AssertBrushColorEquals(successTextBrush, stepLabel.Foreground);
                 Assert.AreEqual(FontWeights.SemiBold, stepLabel.FontWeight);
             }
             else if (stepNumber == currentStepNumber)
@@ -398,10 +417,10 @@ public sealed class OnboardingStageIndicatorTests
                 Assert.AreEqual(expectedValues[index], stepValue.Text);
                 Assert.AreEqual(Visibility.Visible, stepValue.Visibility);
                 Assert.AreEqual(Visibility.Collapsed, stepGlyph.Visibility);
-                Assert.AreSame(activeBrush, stepBox.Background);
-                Assert.AreSame(activeBrush, stepBox.BorderBrush);
-                Assert.AreSame(surfaceBrush, stepValue.Foreground);
-                Assert.AreSame(primaryTextBrush, stepLabel.Foreground);
+                AssertBrushColorEquals(activeSurfaceBrush, stepBox.Background);
+                AssertBrushColorEquals(activeBrush, stepBox.BorderBrush);
+                AssertBrushColorEquals(activeBrush, stepValue.Foreground);
+                AssertBrushColorEquals(primaryTextBrush, stepLabel.Foreground);
                 Assert.AreEqual(FontWeights.SemiBold, stepLabel.FontWeight);
             }
             else
@@ -409,10 +428,10 @@ public sealed class OnboardingStageIndicatorTests
                 Assert.AreEqual(expectedValues[index], stepValue.Text);
                 Assert.AreEqual(Visibility.Visible, stepValue.Visibility);
                 Assert.AreEqual(Visibility.Collapsed, stepGlyph.Visibility);
-                Assert.AreSame(inactiveSurfaceBrush, stepBox.Background);
-                Assert.AreSame(inactiveBorderBrush, stepBox.BorderBrush);
-                Assert.AreSame(mutedTextBrush, stepValue.Foreground);
-                Assert.AreSame(secondaryTextBrush, stepLabel.Foreground);
+                AssertBrushColorEquals(inactiveSurfaceBrush, stepBox.Background);
+                AssertBrushColorEquals(inactiveBorderBrush, stepBox.BorderBrush);
+                AssertBrushColorEquals(mutedTextBrush, stepValue.Foreground);
+                AssertBrushColorEquals(secondaryTextBrush, stepLabel.Foreground);
                 Assert.AreEqual(FontWeights.Normal, stepLabel.FontWeight);
             }
         }
@@ -427,15 +446,17 @@ public sealed class OnboardingStageIndicatorTests
         string expectedEyebrow = expectedStage == OnboardingStage.InspectModel
             ? "MODEL SETUP · STEP 2 OF 5 IN PROGRESS"
             : $"MODEL SETUP · STEP {currentStepNumber} OF 5";
-        string expectedAutomation = expectedStage == OnboardingStage.InspectModel
-            ? "Model setup progress. Step 2 of 5: Inspect model. " +
-              "Inspection in progress."
-            : $"Model setup progress. Step {currentStepNumber} of 5: " +
-              $"{expectedDisplayName}.";
+        string expectedAutomation =
+            $"Model setup. {expectedDisplayName}, step {currentStepNumber} of 5.";
         Assert.AreEqual(
             expectedEyebrow,
             GetTextBlock(indicator, "StageEyebrowText").Text);
         Assert.AreEqual(expectedAutomation, AutomationProperties.GetName(indicator));
+        Assert.AreEqual(
+            expectedStage == OnboardingStage.InspectModel
+                ? "Inspection in progress"
+                : string.Empty,
+            AutomationProperties.GetItemStatus(indicator));
     }
 
     private static Border GetBorder(
@@ -471,6 +492,13 @@ public sealed class OnboardingStageIndicatorTests
         string resourceKey)
     {
         return (SolidColorBrush)indicator.Resources[resourceKey];
+    }
+
+    private static void AssertBrushColorEquals(
+        SolidColorBrush expected,
+        Brush actual)
+    {
+        Assert.AreEqual(expected.Color, ((SolidColorBrush)actual).Color);
     }
 
     private sealed record StepElementNames(

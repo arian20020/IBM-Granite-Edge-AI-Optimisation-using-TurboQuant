@@ -90,9 +90,18 @@ public sealed class HardwareInspectionCompletionNavigationTests
             Unload(page);
         };
 
-        Load(page);
-        page.AuthorizeStart();
-        await WaitForAsync(() => completions == 1);
+        Window window = new() { Content = page };
+        try
+        {
+            window.Activate();
+            page.AuthorizeStart();
+            await WaitForAsync(() => completions == 1);
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
 
         Assert.IsNotNull(viewModel.Snapshot.Handoff);
         Assert.AreEqual(
@@ -181,11 +190,12 @@ public sealed class HardwareInspectionCompletionNavigationTests
 
     private static async Task WaitForAsync(Func<bool> predicate)
     {
-        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(3);
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(30);
         while (!predicate() && DateTimeOffset.UtcNow < deadline)
         {
             await Task.Delay(10);
         }
+        Assert.IsTrue(predicate(), "The expected inspection state was not reached before the timeout.");
     }
 
     private static ModelInspectionHandoff ModelHandoff()

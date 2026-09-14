@@ -5,6 +5,7 @@ using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
 using GraniteEdgeAI.Features.ModelInspection.Services;
 using GraniteEdgeAI.Features.ModelInspection.ViewModels;
+using GraniteEdgeAI.Features.ModelInspection.Views;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -104,141 +105,86 @@ public sealed class ModelInspectionAccessibilityTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task RenderedTerminal_ActionsStatusAndFutureHelpAreNotColorOnly()
+    public async Task RenderedTerminal_RecoveryAndStatusAreNotColorOnly()
     {
         ModelInspectionPage page = ModelInspectionVisualTestScenario.CreatePage();
-        ModelInspectionVisualTestScenario.Apply(
-            page,
-            ModelInspectionVisualTestScenario.CreatePresentation(
-                ModelInspectionFigmaState.OperationalFailure));
-
-        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
-            page,
-            width: 1000,
-            height: 700);
+        ModelInspectionVisualTestScenario.Apply(page,
+            ModelInspectionVisualTestScenario.CreatePresentation(ModelInspectionFigmaState.OperationalFailure));
+        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(page, 1000, 700);
         await host.CaptureAsync();
-        page.UpdateLayout();
-
-        InspectionOutcomeCard outcome = Element<InspectionOutcomeCard>(
-            page,
-            "InspectionOutcomeCardControl");
-        Border iconContainer = Element<Border>(outcome, "OutcomeIconContainer");
-        InspectionStatusGlyph glyph = Element<InspectionStatusGlyph>(
-            outcome,
-            "OutcomeIcon");
-        TextBlock title = Element<TextBlock>(outcome, "OutcomeTitle");
-        ContentControl focusTarget = Element<ContentControl>(
-            outcome,
-            "OutcomeFocusTarget");
+        ModelInspectionPreviewProjection preview = Projection(page);
+        FrameworkElement outcome = preview.OutcomeSurface;
+        TextBlock title = Assert.IsInstanceOfType<TextBlock>(preview.OutcomeFocusTarget);
+        Border iconContainer = Element<Border>(preview.Element, "FailureOutcomeGlyphSurface");
+        FontIcon glyph = ModelInspectionRenderedStateTests.Descendants(iconContainer).OfType<FontIcon>().Single();
         Assert.AreEqual(Visibility.Visible, iconContainer.Visibility);
         Assert.AreEqual(Visibility.Visible, glyph.Visibility);
-        Assert.AreEqual(InspectionStatusGlyphKind.Error, glyph.Kind);
-        Assert.AreEqual(22d, glyph.SurfaceSize, 0.01d);
-        Assert.AreEqual(
-            AccessibilityView.Raw,
-            AutomationProperties.GetAccessibilityView(iconContainer));
-        Assert.AreEqual(
-            AccessibilityView.Raw,
-            AutomationProperties.GetAccessibilityView(glyph));
-        Assert.IsFalse(string.IsNullOrWhiteSpace(title.Text));
-        Assert.AreEqual(title.Text, AutomationProperties.GetName(focusTarget));
-        Assert.AreEqual(
-            outcome.Presentation.AutomationName,
-            AutomationProperties.GetName(outcome));
-
-        InspectionActionCard actions = Element<InspectionActionCard>(
-            page,
-            "InspectionActionCardControl");
-        Button secondaryOne = Element<Button>(actions, "SecondaryActionOneButton");
-        Button secondaryTwo = Element<Button>(actions, "SecondaryActionTwoButton");
-        Button primary = Element<Button>(actions, "PrimaryActionButton");
-        CollectionAssert.AreEqual(
-            new[] { 0, 1, 2 },
-            new[]
-            {
-                secondaryOne.TabIndex,
-                secondaryTwo.TabIndex,
-                primary.TabIndex
-            });
-        foreach (Button button in new[] { secondaryOne, secondaryTwo, primary })
-        {
-            Assert.AreEqual(Visibility.Visible, button.Visibility);
-            Assert.IsGreaterThanOrEqualTo(44d, button.ActualHeight);
-        }
-
-        Assert.IsFalse(secondaryTwo.IsEnabled);
-        Assert.AreEqual(
-            "Coming later",
-            AutomationProperties.GetHelpText(secondaryTwo));
-        Assert.AreEqual("Coming later", ToolTipService.GetToolTip(secondaryTwo));
-        TextBlock adjacentHelp = Element<TextBlock>(
-            actions,
-            "SecondaryActionTwoFutureHelpText");
-        Assert.AreEqual(Visibility.Visible, adjacentHelp.Visibility);
-        Assert.AreEqual("Coming later", adjacentHelp.Text);
-        Assert.AreEqual(
-            $"{AutomationProperties.GetName(secondaryTwo)}. Coming later",
-            AutomationProperties.GetName(adjacentHelp));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(glyph.Glyph));
+        Assert.AreEqual(AccessibilityView.Raw, AutomationProperties.GetAccessibilityView(glyph));
+        Assert.AreEqual(preview.OutcomePresentation.Title, title.Text);
+        Assert.AreEqual(AutomationHeadingLevel.Level2, AutomationProperties.GetHeadingLevel(title));
+        Assert.AreEqual(preview.OutcomePresentation.AutomationName, AutomationProperties.GetName(outcome));
+        Button recovery = Element<Button>(preview.Element, "BtnChooseAnotherModelFailure");
+        Assert.AreEqual("Choose another model", recovery.Content);
+        Assert.AreEqual("Choose another model", AutomationProperties.GetName(recovery));
+        Assert.IsTrue(recovery.IsEnabled);
+        Assert.IsGreaterThanOrEqualTo(44d, recovery.ActualHeight);
+        Assert.IsTrue(recovery.Focus(FocusState.Keyboard));
+        Assert.AreSame(recovery, FocusManager.GetFocusedElement(page.XamlRoot));
+        Assert.HasCount(1, ModelInspectionRenderedStateTests.Descendants(outcome).OfType<Button>()
+            .Where(button => button.Visibility == Visibility.Visible && button.ActualHeight > 0).ToArray());
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task ExpandedReport_ExposesBoundedRowNamesAndKeyboardScrollFocus()
+    public async Task ExpandedEvidence_ExposesWarningAndKeyboardDisclosureWithPageScroll()
     {
         ModelInspectionPage page = ModelInspectionVisualTestScenario.CreatePage();
-        ModelInspectionVisualTestScenario.Apply(
-            page,
-            ModelInspectionVisualTestScenario.CreatePresentation(
-                ModelInspectionFigmaState.ReadyWithWarningsExpanded));
-
-        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
-            page,
-            width: 1000,
-            height: 700);
+        ModelInspectionVisualTestScenario.Apply(page,
+            ModelInspectionVisualTestScenario.CreatePresentation(ModelInspectionFigmaState.ReadyWithWarningsExpanded));
+        ModelInspectionPreviewProjection preview = Projection(page);
+        preview.SetDisclosureState(true);
+        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(page, 760, 420);
         await host.CaptureAsync();
-        page.UpdateLayout();
-
-        InspectionContentCard content = Element<InspectionContentCard>(
-            page,
-            "InspectionContentCardControl");
-        ScrollViewer report = Element<ScrollViewer>(
-            content,
-            "ExpandedReportScrollViewer");
-        TextBlock[] namedRows = ModelInspectionRenderedStateTests
-            .Descendants(report)
-            .OfType<TextBlock>()
-            .Where(text =>
-                AutomationProperties.GetAccessibilityView(text) ==
-                    AccessibilityView.Content &&
-                !string.IsNullOrWhiteSpace(
-                    AutomationProperties.GetName(text)))
-            .ToArray();
-        Assert.AreEqual(content.Presentation.ExpandedItems.Count, namedRows.Length);
-        Assert.IsNotEmpty(namedRows);
-        foreach (TextBlock row in namedRows)
-        {
-            string name = AutomationProperties.GetName(row);
-            Assert.IsTrue(name.Length <= 512, name);
-            Assert.IsTrue(
-                name.EndsWith(".", StringComparison.Ordinal),
-                name);
-        }
-        CollectionAssert.AreEquivalent(
-            content.Presentation.ExpandedItems
-                .Select(item => item.AutomationName)
-                .ToArray(),
-            namedRows
-                .Select(AutomationProperties.GetName)
-                .ToArray());
-
-        Assert.AreEqual(172d, report.MaxHeight, 0.01d);
-        Assert.IsTrue(report.IsTabStop);
-        Assert.IsTrue(report.Focus(FocusState.Keyboard));
-        Assert.AreSame(report, FocusManager.GetFocusedElement(page.XamlRoot));
+        Expander disclosure = Assert.IsInstanceOfType<Expander>(preview.ActiveDisclosure);
+        Assert.IsTrue(disclosure.IsExpanded);
+        AutomationPeer peer = FrameworkElementAutomationPeer.CreatePeerForElement(disclosure);
+        Assert.IsNotNull(peer);
+        var provider = Assert.IsInstanceOfType<IExpandCollapseProvider>(peer.GetPattern(PatternInterface.ExpandCollapse));
+        Assert.AreEqual(ExpandCollapseState.Expanded, provider.ExpandCollapseState);
+        Border evidence = Element<Border>(preview.Element, "WarningEvidenceBody");
+        string name = AutomationProperties.GetName(evidence);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(name));
+        Assert.IsTrue(name.Length <= 512, name);
+        Assert.IsTrue(name.EndsWith(".", StringComparison.Ordinal), name);
+        TextBlock[] text = ModelInspectionRenderedStateTests.Descendants(evidence).OfType<TextBlock>().ToArray();
+        Assert.IsNotEmpty(text);
+        Assert.IsTrue(text.All(row => !string.IsNullOrWhiteSpace(row.Text)));
+        ScrollViewer scroll = Element<ScrollViewer>(page, "InspectionScrollViewer");
+        Assert.AreEqual(ScrollMode.Enabled, scroll.VerticalScrollMode);
+        Assert.IsGreaterThan(0d, scroll.ScrollableHeight);
+        var header = ModelInspectionRenderedStateTests.Descendants(disclosure)
+            .OfType<Microsoft.UI.Xaml.Controls.Primitives.ToggleButton>()
+            .Single(button => button.Name == "ExpanderHeader");
+        Assert.IsTrue(header.IsTabStop);
+        Assert.IsTrue(header.Focus(FocusState.Keyboard));
+        Assert.AreSame(header, FocusManager.GetFocusedElement(page.XamlRoot));
+        provider.Collapse();
+        await host.CaptureAsync();
+        Assert.AreEqual(ExpandCollapseState.Collapsed, provider.ExpandCollapseState);
+        Assert.AreSame(header, FocusManager.GetFocusedElement(page.XamlRoot));
+        provider.Expand();
+        await host.CaptureAsync();
+        Assert.AreEqual(ExpandCollapseState.Expanded, provider.ExpandCollapseState);
+        Assert.AreSame(header, FocusManager.GetFocusedElement(page.XamlRoot));
+        Assert.IsTrue(scroll.ChangeView(null, scroll.ScrollableHeight, null, true));
+        await host.CaptureAsync();
+        Assert.AreEqual(scroll.ScrollableHeight, scroll.VerticalOffset, 1d);
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    [TestCategory("DeferredInspectionPresentation")]
     public async Task FractionOnlyProgress_DoesNotRepeatTheSamePoliteAnnouncement()
     {
         var service = new ControlledInspectionService();
@@ -256,46 +202,36 @@ public sealed class ModelInspectionAccessibilityTests
             width: 888,
             height: 700);
         await host.CaptureAsync();
+        DependencyObject initialFocus = Assert.IsInstanceOfType<DependencyObject>(
+            FocusManager.GetFocusedElement(page.XamlRoot));
+        Assert.IsTrue(ModelInspectionRenderedStateTests.Descendants(page).Contains(initialFocus));
+        ModelInspectionPreviewProjection preview = Projection(page);
+        int beforeInspectionAnnouncementCount = preview.ProgressAnnouncementCount;
         Task run = page.StartInspectionIfReadyAsync()!;
 
         try
         {
             dispatcher.RunAll();
             await host.CaptureAsync();
-            TextBlock pageHeading = Element<TextBlock>(page, "PageTitle");
+            int startupAnnouncementCount = preview.ProgressAnnouncementCount;
+            Assert.AreEqual(beforeInspectionAnnouncementCount + 1, startupAnnouncementCount,
+                "Starting an inspection must announce once. History: " +
+                string.Join(" | ", preview.ProgressAnnouncementHistory));
             Assert.AreSame(
-                pageHeading,
+                initialFocus,
                 FocusManager.GetFocusedElement(page.XamlRoot),
-                "Startup must retain the initial page heading as the " +
-                "semantic focus target.");
+                "Startup must preserve effective focus already inside the page.");
             call.Report(ActiveProgress(stageFraction: 0.25));
             dispatcher.RunAll();
+            await host.CaptureAsync();
             Assert.AreSame(
-                pageHeading,
+                initialFocus,
                 FocusManager.GetFocusedElement(page.XamlRoot),
-                "The first genuine stage must preserve untouched heading focus.");
+                "The first genuine stage must preserve existing page focus.");
 
-            InspectionContentCard content = Element<InspectionContentCard>(
-                page,
-                "InspectionContentCardControl");
-            Border completedCountChip = Element<Border>(
-                content,
-                "ProgressCompletedCountChip");
-            TextBlock completedCountText = ModelInspectionRenderedStateTests
-                .Descendants(completedCountChip)
-                .OfType<TextBlock>()
-                .Single();
-            Assert.AreEqual(
-                AccessibilityView.Raw,
-                AutomationProperties.GetAccessibilityView(completedCountChip));
-            Assert.AreEqual(
-                AccessibilityView.Content,
-                AutomationProperties.GetAccessibilityView(completedCountText));
-            Assert.AreEqual(
-                page.CurrentPresentation!.ContentCard.ProgressSummary,
-                AutomationProperties.GetName(completedCountText));
+            FrameworkElement content = preview.ContentSurface;
             int meaningfulAnnouncementCount =
-                content.LiveRegionChangeNotificationCount;
+                preview.ProgressAnnouncementCount;
             string meaningfulAnnouncement = AutomationProperties.GetName(content);
             var initialProgressRegionKey =
                 page.CurrentPresentation!.RegionKeys.Progress;
@@ -308,20 +244,19 @@ public sealed class ModelInspectionAccessibilityTests
                 AutomationLiveSetting.Polite,
                 AutomationProperties.GetLiveSetting(content));
             Assert.AreEqual(
-                2,
+                startupAnnouncementCount + 1,
                 meaningfulAnnouncementCount,
-                "Startup and the first genuine stage each announce once.");
+                "The first genuine stage must announce once. History: " +
+                string.Join(" | ", preview.ProgressAnnouncementHistory));
             Assert.IsFalse(string.IsNullOrWhiteSpace(meaningfulAnnouncement));
 
-            InspectionActionCard actions = Element<InspectionActionCard>(
-                page,
-                "InspectionActionCardControl");
-            Button cancel = Element<Button>(actions, "CancelActionButton");
+            Button cancel = preview.CancelActionButton;
             Assert.IsTrue(cancel.Focus(FocusState.Keyboard));
             Assert.AreSame(cancel, FocusManager.GetFocusedElement(page.XamlRoot));
 
             call.Report(ActiveProgress(stageFraction: 0.75));
             dispatcher.RunAll();
+            await host.CaptureAsync();
 
             Assert.AreSame(
                 cancel,
@@ -330,7 +265,7 @@ public sealed class ModelInspectionAccessibilityTests
 
             Assert.AreEqual(
                 meaningfulAnnouncementCount,
-                content.LiveRegionChangeNotificationCount,
+                preview.ProgressAnnouncementCount,
                 "A fraction-only visual update must not repeat identical speech.");
             Assert.AreEqual(
                 meaningfulAnnouncement,
@@ -364,9 +299,10 @@ public sealed class ModelInspectionAccessibilityTests
                 stageFraction: 0.3,
                 userMessage: ChangedDetail));
             dispatcher.RunAll();
+            await host.CaptureAsync();
             Assert.AreEqual(
                 meaningfulAnnouncementCount + 1,
-                content.LiveRegionChangeNotificationCount,
+                preview.ProgressAnnouncementCount,
                 "A meaningful detail change must announce exactly once.");
             Assert.AreEqual(ChangedDetail, AutomationProperties.GetName(content));
 
@@ -384,7 +320,7 @@ public sealed class ModelInspectionAccessibilityTests
                 "A later genuine stage must not steal the user's current focus.");
             Assert.AreEqual(
                 meaningfulAnnouncementCount + 2,
-                content.LiveRegionChangeNotificationCount,
+                preview.ProgressAnnouncementCount,
                 "A meaningful stage change must announce exactly once.");
         }
         finally
@@ -405,125 +341,64 @@ public sealed class ModelInspectionAccessibilityTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task InProcessLiveRegionHook_TerminalIsOncePerAttemptAndRetryRepeats()
+    public async Task InProcessLiveRegionHook_TerminalIsOncePerAttemptAndNewAttemptRepeats()
     {
         var service = new ControlledInspectionService();
-        ModelInspectionExecutionResult failure =
-            ModelInspectionExecutionResult.OperationalFailure(
-                PresentationTestData.CreateFailure());
-        service.QueueCall(failure);
+        ModelInspectionExecutionResult failure = ModelInspectionExecutionResult.OperationalFailure(
+            PresentationTestData.CreateFailure());
         service.QueueCall(failure);
         var dispatcher = new ManualRenderDispatcher();
-        ModelInspectionPage page = CreateInjectedPage(
-            service,
-            dispatcher,
-            new RecordingAnimationDriver(),
-            new RecordingMotionSettings(animationsEnabled: false));
-
+        ModelInspectionPage page = CreateInjectedPage(service, dispatcher,
+            new RecordingAnimationDriver(), new RecordingMotionSettings(false));
         try
         {
-            Task initialRun = page.StartInspectionIfReadyAsync()!;
+            Task run = page.StartInspectionIfReadyAsync()!;
             dispatcher.RunAll();
-            await initialRun.WaitAsync(UiTimeout);
+            await run.WaitAsync(UiTimeout);
             dispatcher.RunAll();
-            await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
-                page,
-                width: 1000,
-                height: 700);
+            await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(page, 1000, 700);
             await host.CaptureAsync();
-            InspectionOutcomeCard outcome = Element<InspectionOutcomeCard>(
-                page,
-                "InspectionOutcomeCardControl");
-            InspectionContentCard content = Element<InspectionContentCard>(
-                page,
-                "InspectionContentCardControl");
-            InspectionActionCard actions = Element<InspectionActionCard>(
-                page,
-                "InspectionActionCardControl");
-            Button cancel = Element<Button>(actions, "CancelActionButton");
-            Assert.AreEqual(
-                AutomationLiveSetting.Assertive,
-                AutomationProperties.GetLiveSetting(outcome));
-            Assert.AreEqual(1, outcome.LiveRegionChangeNotificationCount);
-            Assert.AreEqual(
-                0d,
-                Element<Border>(content, "ContentCardShell").MinHeight,
-                0.01d);
-            Assert.AreEqual(
-                0d,
-                Element<Border>(actions, "ResultView").MinHeight,
-                0.01d);
-            Assert.IsGreaterThan(0d, content.ActualHeight);
-            Assert.IsGreaterThan(0d, actions.ActualHeight);
-            AssertUniformVisibleCardGaps(page);
-
-            ModelInspectionPagePresentation terminal =
-                page.CurrentPresentation!;
-            ModelInspectionRenderCoordinator coordinator = Coordinator(page);
+            var preview = Projection(page);
+            FrameworkElement outcome = preview.OutcomeSurface;
+            Assert.AreEqual(AutomationLiveSetting.Assertive, AutomationProperties.GetLiveSetting(outcome));
+            Assert.AreEqual(1, preview.OutcomeAnnouncementCount);
+            Assert.IsGreaterThan(0d, outcome.ActualHeight);
+            var terminal = page.CurrentPresentation!;
+            var coordinator = Coordinator(page);
             coordinator.RequestRender(new ModelInspectionViewSnapshot(
-                new ModelInspectionRenderKey(
-                    terminal.RenderKey.AttemptGeneration,
+                new ModelInspectionRenderKey(terminal.RenderKey.AttemptGeneration,
                     terminal.RenderKey.PresentationRevision + 1),
-                isRunActive: true,
-                isCancellationRequested: false,
-                progress: ActiveProgress(stageFraction: 0.5),
-                terminalResult: null));
+                true, false, ActiveProgress(0.5), null));
             dispatcher.RunAll();
             await host.CaptureAsync();
-            Assert.AreEqual(Visibility.Collapsed, outcome.CardVisibility);
-            Assert.IsGreaterThan(0d, content.ActualHeight);
-            Assert.AreEqual(184d, cancel.ActualWidth, 1d);
-            Assert.IsGreaterThanOrEqualTo(44d, cancel.ActualHeight);
-            AssertUniformVisibleCardGaps(page);
-            Assert.AreEqual(
-                1,
-                outcome.LiveRegionChangeNotificationCount,
-                "Hiding the outcome in the same attempt must not announce it.");
-
+            Assert.AreEqual(Visibility.Collapsed, outcome.Visibility);
+            Assert.IsGreaterThan(0d, preview.ContentSurface.ActualHeight);
+            Assert.IsGreaterThanOrEqualTo(44d, preview.CancelActionButton.ActualHeight);
+            Assert.AreEqual(1, preview.OutcomeAnnouncementCount);
             coordinator.RequestRender(new ModelInspectionViewSnapshot(
-                new ModelInspectionRenderKey(
-                    terminal.RenderKey.AttemptGeneration,
+                new ModelInspectionRenderKey(terminal.RenderKey.AttemptGeneration,
                     terminal.RenderKey.PresentationRevision + 2),
-                isRunActive: false,
-                isCancellationRequested: false,
-                progress: null,
-                terminalResult: failure));
+                false, false, null, failure));
             dispatcher.RunAll();
             await host.CaptureAsync();
-            Assert.AreEqual(Visibility.Visible, outcome.CardVisibility);
-            Assert.AreEqual(
-                0d,
-                Element<Border>(content, "ContentCardShell").MinHeight,
-                0.01d);
-            Assert.AreEqual(
-                0d,
-                Element<Border>(actions, "ResultView").MinHeight,
-                0.01d);
-            Assert.IsGreaterThan(0d, content.ActualHeight);
-            Assert.IsGreaterThan(0d, actions.ActualHeight);
-            AssertUniformVisibleCardGaps(page);
-            Assert.AreEqual(
-                1,
-                outcome.LiveRegionChangeNotificationCount,
-                "A real same-attempt hide/show render must remain deduplicated.");
-
-            page.ViewModel!.RetryCommand.Execute(null);
-            await Task.Yield();
+            Assert.AreEqual(Visibility.Visible, outcome.Visibility);
+            Assert.AreEqual(1, preview.OutcomeAnnouncementCount,
+                "Showing the same outcome within an attempt must remain deduplicated.");
+            coordinator.RequestRender(new ModelInspectionViewSnapshot(
+                new ModelInspectionRenderKey(terminal.RenderKey.AttemptGeneration + 1, 1),
+                true, false, ActiveProgress(0.5), null));
             dispatcher.RunAll();
-            if (page.CurrentInspectionTask is not null)
-            {
-                await page.CurrentInspectionTask.WaitAsync(UiTimeout);
-            }
+            coordinator.RequestRender(new ModelInspectionViewSnapshot(
+                new ModelInspectionRenderKey(terminal.RenderKey.AttemptGeneration + 1, 2),
+                false, false, null, failure));
             dispatcher.RunAll();
-
-            Assert.AreEqual(
-                2,
-                outcome.LiveRegionChangeNotificationCount,
-                "Retry creates a new attempt and may announce the same outcome once.");
+            await host.CaptureAsync();
+            Assert.AreEqual(2, preview.OutcomeAnnouncementCount,
+                "A new inspection attempt may announce the same outcome once.");
         }
         finally
         {
-            InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
+            InvokeNavigation(page, "OnNavigatedFrom", null);
         }
     }
 
@@ -554,22 +429,15 @@ public sealed class ModelInspectionAccessibilityTests
         }
 
         ModelInspectionPage page = ModelInspectionVisualTestScenario.CreatePage();
-        Assert.IsTrue(Element<TextBlock>(page, "PageTitle").UseSystemFocusVisuals);
-        foreach (Button button in ModelInspectionRenderedStateTests
-            .Descendants(page)
-            .OfType<Button>())
+        ModelInspectionVisualTestScenario.Apply(page,
+            ModelInspectionVisualTestScenario.CreatePresentation(ModelInspectionFigmaState.OperationalFailure));
+        foreach (Button button in ModelInspectionRenderedStateTests.Descendants(page).OfType<Button>())
         {
             Assert.IsTrue(button.UseSystemFocusVisuals, button.Name);
         }
-        Assert.IsTrue(Element<ScrollViewer>(
-            Element<InspectionModelCard>(page, "InspectionModelCardControl"),
-            "InspectionChecksScrollViewer").UseSystemFocusVisuals);
-        Assert.IsTrue(Element<ScrollViewer>(
-            Element<InspectionContentCard>(page, "InspectionContentCardControl"),
-            "ExpandedReportScrollViewer").UseSystemFocusVisuals);
-        Assert.IsTrue(Element<ContentControl>(
-            Element<InspectionOutcomeCard>(page, "InspectionOutcomeCardControl"),
-            "OutcomeFocusTarget").UseSystemFocusVisuals);
+        Assert.IsTrue(Element<ScrollViewer>(page, "InspectionScrollViewer").UseSystemFocusVisuals);
+        Assert.IsTrue(Element<Button>(Projection(page).Element,
+            "BtnChooseAnotherModelFailure").UseSystemFocusVisuals);
     }
 
     [UITestMethod]
@@ -591,8 +459,12 @@ public sealed class ModelInspectionAccessibilityTests
 
         FrameworkElement contentHost = Element<FrameworkElement>(
             page,
-            "InspectionContentHost");
-        Assert.AreEqual(328d, contentHost.ActualWidth, 1d);
+            "InspectionContentStack");
+        Assert.IsGreaterThan(0d, contentHost.ActualWidth);
+        Assert.IsTrue(contentHost.ActualWidth <= 328d + 1d);
+        var contentOrigin = contentHost.TransformToVisual(page)
+            .TransformPoint(new Windows.Foundation.Point());
+        Assert.AreEqual(180d, contentOrigin.X + contentHost.ActualWidth / 2d, 1d);
         Button[] visibleButtons = ModelInspectionRenderedStateTests
             .Descendants(page)
             .OfType<Button>()
@@ -691,18 +563,10 @@ public sealed class ModelInspectionAccessibilityTests
             Assert.IsNotNull(page.CurrentPresentation);
             ModelInspectionPagePresentation presentation =
                 page.CurrentPresentation;
-            InspectionContentCard outgoing = Element<InspectionContentCard>(
-                page,
-                "OutgoingProgressContentCard");
-            InspectionContentCard content = Element<InspectionContentCard>(
-                page,
-                "InspectionContentCardControl");
-            InspectionOutcomeCard outcome = Element<InspectionOutcomeCard>(
-                page,
-                "InspectionOutcomeCardControl");
-            InspectionActionCard actions = Element<InspectionActionCard>(
-                page,
-                "InspectionActionCardControl");
+            ModelInspectionPreviewProjection preview = Projection(page);
+            FrameworkElement content = preview.ContentSurface;
+            FrameworkElement outcome = preview.OutcomeSurface;
+            FrameworkElement actions = Element<FrameworkElement>(preview.Element, "FailureNextStepBand");
             await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
                 page,
                 width: 888,
@@ -722,10 +586,10 @@ public sealed class ModelInspectionAccessibilityTests
                 presentation.State,
                 presentation.OutcomeCard.Kind,
                 presentation.ContentCard.Mode,
-                outgoing.Visibility,
+                content.Visibility,
                 AutomationProperties.GetLiveSetting(content),
                 AutomationProperties.GetLiveSetting(outcome),
-                outcome.LiveRegionChangeNotificationCount,
+                preview.OutcomeAnnouncementCount,
                 AutomationProperties.GetName(outcome),
                 driver.TotalStartCount,
                 geometry);
@@ -825,45 +689,8 @@ public sealed class ModelInspectionAccessibilityTests
         where T : DependencyObject =>
         ModelInspectionRenderedStateTests.Element<T>(root, name);
 
-    private static void AssertUniformVisibleCardGaps(ModelInspectionPage page)
-    {
-        FrameworkElement header = Element<FrameworkElement>(page, "Header");
-        FrameworkElement[] visibleCards =
-        [
-            Element<InspectionOutcomeCard>(page, "InspectionOutcomeCardControl"),
-            Element<InspectionModelCard>(page, "InspectionModelCardControl"),
-            Element<InspectionContentCard>(page, "InspectionContentCardControl"),
-            Element<InspectionActionCard>(page, "InspectionActionCardControl")
-        ];
-        visibleCards = visibleCards
-            .Where(card =>
-                card.Visibility == Visibility.Visible &&
-                card.ActualHeight > 0d)
-            .ToArray();
-        Assert.IsNotEmpty(visibleCards);
-        Assert.AreEqual(24d, VerticalGap(page, header, visibleCards[0]), 1d);
-        for (int index = 1; index < visibleCards.Length; index++)
-        {
-            Assert.AreEqual(
-                16d,
-                VerticalGap(page, visibleCards[index - 1], visibleCards[index]),
-                1d);
-        }
-    }
-
-    private static double VerticalGap(
-        FrameworkElement root,
-        FrameworkElement upper,
-        FrameworkElement lower)
-    {
-        Windows.Foundation.Point upperOrigin = upper
-            .TransformToVisual(root)
-            .TransformPoint(new Windows.Foundation.Point());
-        Windows.Foundation.Point lowerOrigin = lower
-            .TransformToVisual(root)
-            .TransformPoint(new Windows.Foundation.Point());
-        return lowerOrigin.Y - (upperOrigin.Y + upper.ActualHeight);
-    }
+    private static ModelInspectionPreviewProjection Projection(ModelInspectionPage page) =>
+        ModelInspectionVisualTestScenario.Projection(page);
 
     private sealed class ControlledInspectionService : IModelInspectionService
     {

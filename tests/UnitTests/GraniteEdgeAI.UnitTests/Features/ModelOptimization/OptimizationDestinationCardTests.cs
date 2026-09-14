@@ -49,11 +49,15 @@ public sealed class OptimizationDestinationCardTests
 
         card.Apply(OptimizationFixtureCatalog.All.Single(item => item.Id == "success-persistent").Presentation);
         Assert.AreEqual("Chat with this model", card.PrimaryActionText);
-        Assert.AreEqual("Save model to this computer", card.SecondaryActionText);
+        CollectionAssert.AreEqual(
+            new[] { "Chat with this model", "Import another model", "Save model to this computer" },
+            ((OptimizationOutcomeCard)card.FindName("DestinationCore")).VisibleActionTexts.ToArray());
 
         card.Apply(OptimizationFixtureCatalog.All.Single(item => item.Id == "success-runtime-profile").Presentation);
         Assert.AreEqual("Chat with this model", card.PrimaryActionText);
-        Assert.AreEqual("Done", card.SecondaryActionText);
+        CollectionAssert.AreEqual(
+            new[] { "Chat with this model", "Import another model", "Save model and settings" },
+            ((OptimizationOutcomeCard)card.FindName("DestinationCore")).VisibleActionTexts.ToArray());
     }
 
     [UITestMethod]
@@ -85,7 +89,8 @@ public sealed class OptimizationDestinationCardTests
         card.Apply(OptimizationFixtureCatalog.All.Single(item => item.Id == "success-runtime-profile").Presentation);
         Assert.IsFalse(card.BindVerifiedExport(Target(persistent.OptimizationPlanId), new ImmediateExportService()));
         Assert.IsFalse(card.IsActionEnabled(OptimizationCommand.Save));
-        Assert.IsTrue(card.IsActionEnabled(OptimizationCommand.Done));
+        Assert.IsFalse(card.IsActionEnabled(OptimizationCommand.Done));
+        Assert.IsTrue(card.IsActionEnabled(OptimizationCommand.ImportAnotherModel));
     }
 
     [UITestMethod]
@@ -97,6 +102,7 @@ public sealed class OptimizationDestinationCardTests
         page.ApplyPresentation(presentation);
         Assert.IsTrue(page.BindVerifiedExport(Target(presentation.OptimizationPlanId), service));
         Task<bool> operation = page.TryStartExportAsync();
+        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Task retirement = page.RetireForNavigationAsync();
         Assert.AreSame(retirement, page.RetireForNavigationAsync());
         Assert.IsFalse(retirement.IsCompleted);
@@ -108,7 +114,7 @@ public sealed class OptimizationDestinationCardTests
     }
 
     [UITestMethod]
-    public async Task PageOwnsExportWithoutDisablingBackOrChatWhileSaving()
+    public async Task PageOwnsExportBlocksImportButKeepsChatWhileSaving()
     {
         var page = new GraniteEdgeAI.Features.ModelOptimization.OptimizationPage();
         OptimizationPresentationState presentation = PersistentPresentation();
@@ -124,7 +130,8 @@ public sealed class OptimizationDestinationCardTests
 
         Assert.AreEqual(OptimizationExportStateKind.Running, page.ExportState.Kind);
         Assert.IsFalse(save.IsEnabled);
-        Assert.IsTrue(back.IsEnabled);
+        Assert.AreEqual(OptimizationCommand.ImportAnotherModel, back.Tag);
+        Assert.IsFalse(back.IsEnabled);
         Assert.IsTrue(chat.IsEnabled);
         Assert.AreEqual(Visibility.Visible,
             ((Button)page.FindName("BtnCancelExport")).Visibility);
@@ -133,6 +140,7 @@ public sealed class OptimizationDestinationCardTests
             new OptimizationExportReceipt(Target(presentation.OptimizationPlanId), "published-1")));
         Assert.IsTrue(await operation);
         Assert.AreEqual(OptimizationExportStateKind.Succeeded, page.ExportState.Kind);
+        Assert.IsTrue(back.IsEnabled);
     }
 
     [UITestMethod]
@@ -538,7 +546,12 @@ public sealed class OptimizationDestinationCardTests
     private sealed class BlockingExportService : IOptimizationExportService
     {
         private readonly TaskCompletionSource<OptimizationExportResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken) => _completion.Task;
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task<OptimizationExportResult> ExportAsync(VerifiedPersistentExportTarget target, IProgress<OptimizationExportProgress> progress, CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            return _completion.Task;
+        }
         internal void Complete(OptimizationExportResult result) => _completion.SetResult(result);
     }
 

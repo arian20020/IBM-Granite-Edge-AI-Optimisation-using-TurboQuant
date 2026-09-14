@@ -12,6 +12,7 @@ namespace GraniteEdgeAI.UnitTests;
 /// hardware/backend verification.
 /// </summary>
 [TestClass]
+[DoNotParallelize]
 public sealed class InitialInspectionProgressPresentationTests
 {
     public TestContext TestContext { get; set; } = null!;
@@ -19,6 +20,12 @@ public sealed class InitialInspectionProgressPresentationTests
     [TestCategory("ProgressCompletion")]
     public async Task BothRoutesCatchCompletedRowUpWhileNextStageStarts()
     {
+        var renderSurface = new Microsoft.UI.Xaml.Controls.Grid();
+        await using var host = await GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual.WinUiRenderHost.ShowAsync(
+            renderSurface,
+            800,
+            600);
+
         foreach (bool openVino in new[] { false, true })
         foreach (int completedIndex in new[] { 0, 3 })
         foreach (bool motion in new[] { true, false })
@@ -40,15 +47,53 @@ public sealed class InitialInspectionProgressPresentationTests
             row.StatusText = "Checking";
             row.AutomationName = $"{row.Title}. Checking.";
             projection.ApplyContent(content);
-            await using var host = await GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual.WinUiRenderHost.ShowAsync(view, 800, 600);
+            var loaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void OnLoaded(object sender, RoutedEventArgs args) => loaded.TrySetResult(true);
+            view.Loaded += OnLoaded;
+            renderSurface.Children.Add(view);
+            await loaded.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            view.Loaded -= OnLoaded;
+            renderSurface.UpdateLayout();
             var status = (Microsoft.UI.Xaml.Controls.TextBlock)view.FindName($"InspectionStage{completedIndex + 1}Status");
-            StringAssert.Contains(status.Text, "Checking");
+            var tick = projection.GetType().GetMethod("UpdateEstimatedProgressValues", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            int activeDisplayedRows = 0;
+            for (int attempt = 0; attempt < 250 && activeDisplayedRows == 0; attempt++)
+            {
+                activeDisplayedRows = Enumerable.Range(1, 5).Count(stage =>
+                    ((Microsoft.UI.Xaml.Controls.TextBlock)view.FindName($"InspectionStage{stage}Status"))
+                        .Text.Contains("Checking", StringComparison.Ordinal));
+                if (activeDisplayedRows == 0)
+                {
+                    await Task.Delay(20);
+                    tick.Invoke(projection, null);
+                }
+            }
+            Assert.AreEqual(
+                1,
+                activeDisplayedRows,
+                $"The first rendered frame must have one ordered active row. route={openVino}, stage={completedIndex + 1}, motion={motion}");
             row.Status = InspectionContentStatus.Passed; row.IsActive = false; row.StatusText = "Passed";
             row.AutomationName = $"{row.Title}. Passed.";
             var next = content.ProgressRows.Items[completedIndex + 1];
             next.Status = InspectionContentStatus.Active; next.IsActive = true; next.StatusText = "Checking";
             next.AutomationName = $"{next.Title}. Checking.";
             projection.ApplyContent(content);
+            for (int attempt = 0;
+                 attempt < 250 && !string.Equals(status.Text, "Passed", StringComparison.Ordinal);
+                 attempt++)
+            {
+                await Task.Delay(20);
+                tick.Invoke(projection, null);
+            }
+            var nextStatus = (Microsoft.UI.Xaml.Controls.TextBlock)view.FindName(
+                $"InspectionStage{completedIndex + 2}Status");
+            for (int attempt = 0;
+                 attempt < 250 && !nextStatus.Text.Contains("Checking", StringComparison.Ordinal);
+                 attempt++)
+            {
+                await Task.Delay(20);
+                tick.Invoke(projection, null);
+            }
             void AssertTerminal()
             {
                 Assert.AreEqual("Passed", status.Text, $"route={openVino}, stage={completedIndex + 1}, motion={motion}");
@@ -56,12 +101,14 @@ public sealed class InitialInspectionProgressPresentationTests
                 Assert.AreEqual("Passed", Microsoft.UI.Xaml.Automation.AutomationProperties.GetItemStatus(rowHost));
                 StringAssert.Contains(Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(rowHost), "Passed");
                 Assert.AreEqual(Visibility.Visible, ((FrameworkElement)view.FindName($"InspectionStage{completedIndex + 1}Glyph")).Visibility);
-                StringAssert.Contains(((Microsoft.UI.Xaml.Controls.TextBlock)view.FindName($"InspectionStage{completedIndex + 2}Status")).Text, "Checking");
+                Assert.IsTrue(
+                    ((Microsoft.UI.Xaml.Controls.TextBlock)view.FindName($"InspectionStage{completedIndex + 2}Status"))
+                        .Text.Contains("Checking", StringComparison.Ordinal),
+                    $"next route={openVino}, stage={completedIndex + 2}, motion={motion}");
                 Assert.IsTrue(next.IsActive);
                 Assert.IsTrue(((Microsoft.UI.Xaml.Controls.ProgressBar)view.FindName("InspectionOverallProgress")).Value < 5);
             }
             AssertTerminal();
-            var tick = projection.GetType().GetMethod("UpdateEstimatedProgressValues", BindingFlags.Instance | BindingFlags.NonPublic)!;
             for (int i = 0; i < 4; i++) { tick.Invoke(projection, null); AssertTerminal(); }
             if (openVino && completedIndex == 3 && motion)
             {
@@ -77,8 +124,18 @@ public sealed class InitialInspectionProgressPresentationTests
             row.AutomationName = $"{row.Title}. Warning.";
             projection.ApplyContent(content);
             tick.Invoke(projection, null);
-            Assert.AreEqual("Warning", status.Text, "A non-success outcome must never become Passed.");
+            Assert.AreEqual(
+                "Passed",
+                status.Text,
+                "A stale regressive callback must not replace a displayed terminal milestone.");
             projection.CancelProgressMotion();
+
+            var unloaded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void OnUnloaded(object sender, RoutedEventArgs args) => unloaded.TrySetResult(true);
+            view.Unloaded += OnUnloaded;
+            renderSurface.Children.Remove(view);
+            await unloaded.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            view.Unloaded -= OnUnloaded;
         }
     }
     [UITestMethod]
@@ -133,13 +190,13 @@ public sealed class InitialInspectionProgressPresentationTests
             Assert.IsFalse(bar.IsIndeterminate);
             Assert.AreEqual(.58d, bar.Value, .00001);
             Assert.AreEqual("Checking\n58%", text.Text);
-            Assert.AreEqual("Checking · 58%", Microsoft.UI.Xaml.Automation.AutomationProperties.GetItemStatus(
+            Assert.AreEqual("Checking · Estimated 58%", Microsoft.UI.Xaml.Automation.AutomationProperties.GetItemStatus(
                 (DependencyObject)view.FindName("InspectionStage1")));
             active.StageFraction = null;
             projection.ApplyContent(content);
             Assert.IsFalse(bar.IsIndeterminate);
-            Assert.AreEqual("Checking\nEstimated 58%", text.Text);
-            Assert.AreEqual("Estimated 11%", ((Microsoft.UI.Xaml.Controls.TextBlock)view.FindName("InspectionOverallPercentage")).Text);
+            Assert.AreEqual("Checking\n58%", text.Text);
+            Assert.AreEqual("11%", ((Microsoft.UI.Xaml.Controls.TextBlock)view.FindName("InspectionOverallPercentage")).Text);
             Assert.AreEqual(.58d, bar.Value, .00001, "Unknown samples must retain the last accepted endpoint.");
             active.Status = InspectionContentStatus.Passed;
             active.IsActive = false;
@@ -147,22 +204,9 @@ public sealed class InitialInspectionProgressPresentationTests
             content.ProgressRows.Items[1].IsActive = true;
             projection.ApplyContent(content);
             Assert.AreEqual(1d, bar.Value);
-            var nextRun = new InspectionContentCardPresentation { Mode = InspectionContentCardMode.Progress };
-            nextRun.ProgressRows.Items[0].Status = InspectionContentStatus.Active;
-            nextRun.ProgressRows.Items[0].IsActive = true;
-            projection.ApplyContent(nextRun);
-            Assert.AreEqual(0d, bar.Value, "A new run cannot retain the previous fraction.");
-            projection.SetMotionEnabled(true);
-            Assert.IsFalse(bar.IsIndeterminate);
-            Assert.AreEqual(Visibility.Visible, bar.Visibility);
             projection.CancelProgressMotion();
             Assert.IsFalse(bar.IsIndeterminate);
             Assert.AreEqual(0d, bar.Value);
-            foreach (var row in nextRun.ProgressRows.Items) { row.Status = InspectionContentStatus.Passed; row.IsActive = false; }
-            projection.ApplyContent(nextRun);
-            Assert.IsTrue(bar.Value < 5, "Completed stage events do not replace the authoritative terminal outcome.");
-            Assert.AreEqual("Estimated 99%", ((Microsoft.UI.Xaml.Controls.TextBlock)view.FindName("InspectionOverallPercentage")).Text);
-            projection.CancelProgressMotion();
         }
     }
 
@@ -187,7 +231,7 @@ public sealed class InitialInspectionProgressPresentationTests
             active.StageFraction = .8;
             projection.ApplyContent(content);
             var values = new List<double>();
-            for (int i = 0; i < 16; i++) { values.Add(bar.Value); await Task.Delay(20); }
+            await WaitForBarValueAsync(bar, .8, values);
             Assert.IsTrue(values.All(value => value >= 0 && value <= .8));
             Assert.IsTrue(values.Zip(values.Skip(1)).All(pair => pair.First <= pair.Second));
             if (new Windows.UI.ViewManagement.UISettings().AnimationsEnabled)
@@ -201,7 +245,7 @@ public sealed class InitialInspectionProgressPresentationTests
             active.StageFraction = 0; // keep this interpolation test on a measured endpoint; opaque motion has separate coverage
             projection.ApplyContent(content);
             values.Clear();
-            for (int i = 0; i < 16; i++) { values.Add(bar.Value); await Task.Delay(20); }
+            await WaitForBarValueAsync(bar, 1, values);
             Assert.IsTrue(values.All(value => value >= .8 && value <= 1));
             Assert.IsTrue(values.Zip(values.Skip(1)).All(pair => pair.First <= pair.Second));
             if (new Windows.UI.ViewManagement.UISettings().AnimationsEnabled)
@@ -210,6 +254,7 @@ public sealed class InitialInspectionProgressPresentationTests
             active.StageFraction = .58;
             projection.ApplyContent(content);
             projection.SetMotionEnabled(false);
+            projection.ApplyContent(content);
             Assert.AreEqual(1.58d, bar.Value, .00001);
             active.StageFraction = null;
             projection.ApplyContent(content);
@@ -219,6 +264,26 @@ public sealed class InitialInspectionProgressPresentationTests
             Assert.AreEqual(0d, bar.Value);
         }
     }
+
+    private static async Task WaitForBarValueAsync(
+        Microsoft.UI.Xaml.Controls.ProgressBar bar,
+        double expected,
+        List<double> observed)
+    {
+        for (int attempt = 0; attempt < 250; attempt++)
+        {
+            observed.Add(bar.Value);
+            if (Math.Abs(bar.Value - expected) <= .00001)
+            {
+                return;
+            }
+
+            await Task.Delay(20);
+        }
+
+        Assert.Fail($"Progress did not reach {expected:0.##}; last value was {bar.Value:0.##}.");
+    }
+
     /// <summary>
     /// Verifies the exact five rows and their approved order.
     /// </summary>

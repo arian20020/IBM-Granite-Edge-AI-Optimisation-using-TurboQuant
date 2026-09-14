@@ -77,7 +77,8 @@ public sealed class HardwareInspectionJourneyTests
             await viewModel.ActivateAsync();
 
             CollectionAssert.AreEqual(expectedStages, activeTitles.ToArray());
-            Assert.AreEqual(7, pacer.WaitCount);
+            Assert.AreEqual(0, pacer.WaitCount,
+                "Accepted evidence is published immediately; the view owns completion pacing.");
             Assert.AreEqual(expected, viewModel.Snapshot.Presentation.Kind);
             Assert.IsFalse(viewModel.Snapshot.IsRunActive);
         }

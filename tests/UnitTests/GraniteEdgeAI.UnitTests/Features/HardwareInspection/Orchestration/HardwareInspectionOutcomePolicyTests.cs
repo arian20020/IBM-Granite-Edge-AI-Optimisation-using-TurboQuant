@@ -13,7 +13,7 @@ public sealed class HardwareInspectionOutcomePolicyTests
     public void FromResolution_MapsCleanWarningAndFailureWithoutLeakingDiagnostics()
     {
         Guid inspectionId = Guid.NewGuid();
-        HardwareEvidenceResolutionResult baseline = ResolvedBaseline();
+        HardwareEvidenceResolutionResult baseline = ResolvedBaseline(inspectionId);
         HardwareEvidenceResolutionResult clean = HardwareEvidenceResolutionResult.Success(
             baseline.Snapshot!,
             baseline.Evidence,
@@ -119,13 +119,13 @@ public sealed class HardwareInspectionOutcomePolicyTests
                 (HardwareEvidenceCollectionFailureCode)99));
     }
 
-    private static HardwareEvidenceResolutionResult ResolvedBaseline()
+    private static HardwareEvidenceResolutionResult ResolvedBaseline(Guid inspectionId)
     {
         HardwareEvidenceResolver resolver = new(
             new HardwareResolutionTestData.FixedTimeProvider(
                 HardwareResolutionTestData.Now));
         HardwareEvidenceResolutionResult result = resolver.Resolve(
-            Guid.NewGuid(),
+            inspectionId,
             HardwareResolutionTestData.CompleteEvidence());
         Assert.IsTrue(result.IsResolved);
         return result;

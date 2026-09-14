@@ -245,7 +245,7 @@ public sealed class CompatibilityRenderedStateTests
     public void CompatibilityPage_LocalStaticResourceReferencesResolve()
     {
         string pagePath = System.IO.Path.Combine(
-            OptimizationImportManifestTests.FindRepositoryRoot(),
+            RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)",
             "Features",
             "ModelHardwareCompatibility",
@@ -275,7 +275,7 @@ public sealed class CompatibilityRenderedStateTests
     public void CompatibilityPage_UsesPlainLanguageRamEndpointCopy()
     {
         string pagePath = System.IO.Path.Combine(
-            OptimizationImportManifestTests.FindRepositoryRoot(),
+            RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)",
             "Features",
             "ModelHardwareCompatibility",

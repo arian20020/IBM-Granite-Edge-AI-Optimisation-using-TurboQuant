@@ -21,14 +21,15 @@ public sealed class ModelInspectionAssetContractTests
     private static readonly IReadOnlyDictionary<string, string> LightPalette =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["InspectionTextPrimaryBrush"] = "#101828",
+            ["InspectionTextPrimaryBrush"] = "#111827",
             ["InspectionTextSecondaryStrongBrush"] = "#344054",
             ["InspectionTextSecondaryBrush"] = "#475467",
-            ["InspectionTextSecondaryMutedBrush"] = "#667085",
-            ["InspectionTextMutedBrush"] = "#7A8797",
-            ["InspectionTextSubtleBrush"] = "#98A2B3",
+            ["InspectionTextSecondaryMutedBrush"] = "#5B677A",
+            ["InspectionTextMutedBrush"] = "#758196",
+            ["InspectionTextSubtleBrush"] = "#758196",
             ["InspectionPrimaryBlueBrush"] = "#0F62FE",
             ["InspectionBlueSurfaceBrush"] = "#EEF5FF",
+            ["InspectionWaitingSurfaceBrush"] = "#EEF1F5",
             ["InspectionBlueBorderStrongBrush"] = "#BDD3FF",
             ["InspectionBlueBorderBrush"] = "#C9D9F2",
             ["InspectionSuccessSurfaceBrush"] = "#E9F7F1",
@@ -44,7 +45,7 @@ public sealed class ModelInspectionAssetContractTests
             ["InspectionErrorTextBrush"] = "#B42318",
             ["InspectionErrorTextStrongBrush"] = "#7A271A",
             ["InspectionErrorBorderBrush"] = "#EDB3AD",
-            ["InspectionCanvasBrush"] = "#F6F8FB",
+            ["InspectionCanvasBrush"] = "#F8FAFD",
             ["InspectionSurfaceBrush"] = "#FFFFFF",
             ["InspectionSurfaceSubtleBrush"] = "#F7F9FC",
             ["InspectionSurfaceMutedBrush"] = "#F8FAFC",
@@ -65,6 +66,7 @@ public sealed class ModelInspectionAssetContractTests
             ["InspectionTextSubtleBrush"] = "#667085",
             ["InspectionPrimaryBlueBrush"] = "#78A9FF",
             ["InspectionBlueSurfaceBrush"] = "#102A56",
+            ["InspectionWaitingSurfaceBrush"] = "#273142",
             ["InspectionBlueBorderStrongBrush"] = "#4589FF",
             ["InspectionBlueBorderBrush"] = "#2D5F9A",
             ["InspectionSuccessSurfaceBrush"] = "#12372E",
@@ -172,12 +174,12 @@ public sealed class ModelInspectionAssetContractTests
             ["InspectionBodyFontSize"] = 14,
             ["InspectionHelperFontSize"] = 12,
             ["InspectionLabelFontSize"] = 10,
-            ["InspectionContentColumnWidth"] = 840,
+            ["InspectionContentColumnWidth"] = 1120,
             ["InspectionNestedRowWidth"] = 792,
             ["InspectionStandardButtonHeight"] = 46,
             ["InspectionMinimumTargetSize"] = 44,
-            ["InspectionDesktopBreakpoint"] = 888,
-            ["InspectionCompactBreakpoint"] = 600
+            ["InspectionDesktopBreakpoint"] = 1008,
+            ["InspectionCompactBreakpoint"] = 640
         });
 
         Assert.IsInstanceOfType<Thickness>(theme["InspectionCardPadding"]);

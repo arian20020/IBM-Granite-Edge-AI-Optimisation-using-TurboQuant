@@ -51,7 +51,7 @@ public sealed class OptimizedGgufChatRecoveryTests
     [TestMethod]
     public void OptimizedRegistrationUsesConfigurationAndRetainedVerifiedCustody()
     {
-        string shell = File.ReadAllText(Path.Combine(OptimizationImportManifestTests.FindRepositoryRoot(),
+        string shell = File.ReadAllText(Path.Combine(RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)", "Features", "Onboarding", "OnboardingShellPage.xaml.cs"));
         StringAssert.Contains(shell, "target.Result.ConfigurationSha256[..24]");
         StringAssert.Contains(shell, "target.RetainVerifiedCustody()");

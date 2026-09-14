@@ -32,13 +32,19 @@ public sealed class HardwareInspectionPresentationContractTests
         for (int index = 0; index < stages.Length; index++)
         {
             HardwareInspectionPresentationState state = _factory.CreateActive(stages[index]);
+            bool groupedProbeStage = index is >= 1 and <= 4;
+            int expectedCompleted = groupedProbeStage ? 1 : index;
+            int expectedActive = groupedProbeStage ? index : 1;
+            int expectedWaiting = 7 - expectedCompleted - expectedActive;
             Assert.AreEqual(HardwareInspectionPresentationKind.Active, state.Kind);
-            Assert.AreEqual(index, state.CompletedStageCount);
+            Assert.AreEqual(expectedCompleted, state.CompletedStageCount);
             Assert.AreEqual(7, state.StageRows.Count);
-            Assert.AreEqual(1, state.StageRows.Count(row => row.State == HardwareInspectionStageRowState.Active));
-            Assert.AreEqual(index, state.StageRows.Count(row => row.State == HardwareInspectionStageRowState.Complete));
-            Assert.AreEqual(6 - index, state.StageRows.Count(row => row.State == HardwareInspectionStageRowState.Waiting));
-            Assert.AreEqual(stages[index], state.StageRows.Single(row => row.State == HardwareInspectionStageRowState.Active).Stage);
+            Assert.AreEqual(expectedActive, state.StageRows.Count(row => row.State == HardwareInspectionStageRowState.Active));
+            Assert.AreEqual(expectedCompleted, state.StageRows.Count(row => row.State == HardwareInspectionStageRowState.Complete));
+            Assert.AreEqual(expectedWaiting, state.StageRows.Count(row => row.State == HardwareInspectionStageRowState.Waiting));
+            Assert.AreEqual(
+                HardwareInspectionStageRowState.Active,
+                state.StageRows.Single(row => row.Stage == stages[index]).State);
             Assert.IsFalse(state.DetailsAvailable);
             Assert.IsFalse(state.ReportCreated);
             AssertAction(state, HardwareInspectionActionKind.CancelInspection, visible: true, enabled: true);
@@ -59,7 +65,8 @@ public sealed class HardwareInspectionPresentationContractTests
         Assert.AreEqual("Starts after processor information is read.", memory.WaitingSentence);
 
         HardwareInspectionPresentationState graphics = _factory.CreateActive(HardwareInspectionStage.DetectingGraphicsHardware);
-        HardwareInspectionStageRow active = graphics.StageRows.Single(row => row.State == HardwareInspectionStageRowState.Active);
+        HardwareInspectionStageRow active = graphics.StageRows.Single(
+            row => row.Stage == HardwareInspectionStage.DetectingGraphicsHardware);
         Assert.AreEqual(
             "Active — Detecting graphics hardware. Checking graphics devices and keeping dedicated and shared memory separate. State: Active.",
             active.AccessibleName);

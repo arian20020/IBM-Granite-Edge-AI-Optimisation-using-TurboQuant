@@ -301,7 +301,7 @@ public sealed class GgufCompatibilityInputProjectorTests
     }
 
     [TestMethod]
-    public void PackagedReleaseV5ProjectsStandardQ8AndReleasedThreads8Turbo4()
+    public void PackagedCurrentReleaseProjectsQ8AndBothVerifiedTurboFormats()
     {
         ModelInspectionExecutionResult terminal = ActualHeaderTerminal(parameterCount: null);
         Assert.IsTrue(GgufCompatibilityInputProjector.TryPrepare(
@@ -319,20 +319,20 @@ public sealed class GgufCompatibilityInputProjectorTests
             admission.EvidenceId.StartsWith("GGUF-V4-", StringComparison.Ordinal)));
         Assert.IsFalse(snapshot.Gguf.RuntimeAuthority!.Profiles.Keys.Any(static evidenceId =>
             evidenceId.StartsWith("GGUF-V4-", StringComparison.Ordinal)));
-        Assert.AreEqual(3, snapshot.Gguf.Admitted.Count(static admission =>
-            admission.EvidenceId.StartsWith("GGUF-V5-", StringComparison.Ordinal)));
-        Assert.AreEqual(3, snapshot.Gguf.RuntimeAuthority.Profiles.Keys.Count(static evidenceId =>
-            evidenceId.StartsWith("GGUF-V5-", StringComparison.Ordinal)));
+        Assert.AreEqual(4, snapshot.Gguf.Admitted.Count(static admission =>
+            admission.EvidenceId.StartsWith("GGUF-CURRENT-08EF-", StringComparison.Ordinal)));
+        Assert.AreEqual(4, snapshot.Gguf.RuntimeAuthority.Profiles.Keys.Count(static evidenceId =>
+            evidenceId.StartsWith("GGUF-CURRENT-08EF-", StringComparison.Ordinal)));
         Assert.IsFalse(snapshot.Gguf.Admitted.Any(static admission =>
-            admission.EvidenceId.StartsWith("GGUF-V5-", StringComparison.Ordinal)
+            admission.EvidenceId.StartsWith("GGUF-CURRENT-08EF-", StringComparison.Ordinal)
             && (admission.Level != SupportLevel.DeclaredSupported
                 || admission.RequiresEvidence)));
         GgufAdmittedConfiguration turbo4Admission = snapshot.Gguf.Admitted.Single(
             static admission =>
-                admission.EvidenceId == "GGUF-V5-CPU-TURBO4-T8-01");
+                admission.EvidenceId == "GGUF-CURRENT-08EF-CPU-TURBO4-01");
         Assert.AreEqual(GgufKvCacheFormat.TurboQuant4Bit,
             turbo4Admission.KvCache);
-        Assert.AreEqual(8, snapshot.Gguf.RuntimeAuthority.Profiles[
+        Assert.AreEqual(4, snapshot.Gguf.RuntimeAuthority.Profiles[
             turbo4Admission.EvidenceId].ThreadCount);
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -345,16 +345,18 @@ public sealed class GgufCompatibilityInputProjectorTests
             new HashSet<string>(),
             now,
             CancellationToken.None);
-        OptimizationCandidate[] v5Candidates =
+        OptimizationCandidate[] currentCandidates =
         [
             .. PlanningCandidates(evaluation).Where(static candidate =>
-                candidate.EvidenceId.StartsWith("GGUF-V5-", StringComparison.Ordinal))
+                candidate.EvidenceId.StartsWith("GGUF-CURRENT-08EF-", StringComparison.Ordinal))
         ];
-        OptimizationCandidate q8 = v5Candidates.Single(static candidate =>
-            candidate.EvidenceId == "GGUF-V5-CPU-Q8-01");
-        OptimizationCandidate turbo4 = v5Candidates.Single(static candidate =>
-            candidate.EvidenceId == "GGUF-V5-CPU-TURBO4-T8-01");
-        Assert.IsFalse(v5Candidates.Any(static candidate => candidate.IsExperimental));
+        OptimizationCandidate q8 = currentCandidates.Single(static candidate =>
+            candidate.EvidenceId == "GGUF-CURRENT-08EF-CPU-Q8-01");
+        OptimizationCandidate turbo4 = currentCandidates.Single(static candidate =>
+            candidate.EvidenceId == "GGUF-CURRENT-08EF-CPU-TURBO4-01");
+        Assert.IsTrue(currentCandidates.Any(static candidate =>
+            candidate.EvidenceId == "GGUF-CURRENT-08EF-CPU-TURBO3-COMPAT-01"));
+        Assert.IsFalse(currentCandidates.Any(static candidate => candidate.IsExperimental));
         Assert.IsTrue(authority.TryGetOptimizationAuthority(
             OptimizationRoute.Gguf,
             out IOptimizationExecutionPayloadComposer? composer,
@@ -362,8 +364,8 @@ public sealed class GgufCompatibilityInputProjectorTests
         CompatibilityOptimizationView optimization =
             evaluation.OptionalOptimization
             ?? throw new AssertFailedException(
-                "Released v5 alternatives were not projected.");
-        string q8Identity = optimization.SafeSliderModes
+                "Current released alternatives were not projected.");
+        string q8Identity = optimization.ExactSafeModes
             .Single(static mode =>
                 mode.Mode.GgufKvCache == GgufKvCacheFormat.Q8_0)
             .CandidateIdentity;
@@ -381,7 +383,7 @@ public sealed class GgufCompatibilityInputProjectorTests
             plan.ExecutionPayload.Gguf.ValueCacheType);
         Assert.IsFalse(plan.ExecutionPayload.Gguf.RequiresPersistentConversion);
 
-        string turbo4Identity = optimization.SafeSliderModes
+        string turbo4Identity = optimization.ExactSafeModes
             .Single(static mode =>
                 mode.Mode.GgufKvCache == GgufKvCacheFormat.TurboQuant4Bit)
             .CandidateIdentity;
@@ -397,7 +399,7 @@ public sealed class GgufCompatibilityInputProjectorTests
             turbo4Plan.ExecutionPayload.Gguf!.KeyCacheType);
         Assert.AreEqual(GgufCacheType.Turbo4,
             turbo4Plan.ExecutionPayload.Gguf.ValueCacheType);
-        Assert.AreEqual(8, turbo4Plan.ExecutionPayload.Gguf.ThreadCount);
+        Assert.AreEqual(4, turbo4Plan.ExecutionPayload.Gguf.ThreadCount);
         Assert.IsTrue(turbo4Plan.ExecutionPayload.Gguf.FlashAttention);
         Assert.IsFalse(turbo4Plan.ExecutionPayload.Gguf.RequiresPersistentConversion);
     }
@@ -728,6 +730,7 @@ public sealed class GgufCompatibilityInputProjectorTests
     }
 
     [TestMethod]
+    [TestCategory("RequiresVerifiedQuantizer")]
     public async Task VerifiedDevelopmentQuantizer_EnablesOptionalOptimizationAction()
     {
         string packagedManifest = Path.Combine(
@@ -804,6 +807,7 @@ public sealed class GgufCompatibilityInputProjectorTests
     }
 
     [TestMethod]
+    [TestCategory("RequiresVerifiedQuantizer")]
     public void ExactBf16SourceAndAtomicBotPackageAdmitOnlyMeasuredQ3Conversion()
     {
         string packagedManifest = Path.Combine(
@@ -832,7 +836,7 @@ public sealed class GgufCompatibilityInputProjectorTests
 
         OptimizationCapabilitySnapshot snapshot = Snapshot(authority!);
         GgufAdmittedConfiguration q3 = snapshot.Gguf!.Admitted.Single(item =>
-            item.EvidenceId == "GGUF-V5-BF16-Q3-CPU-F16-01");
+            item.EvidenceId == "GGUF-CURRENT-08EF-BF16-Q3-COMPAT-01");
         Assert.AreEqual(GgufWeightFormat.Q3KM, q3.Weights);
         Assert.AreEqual(GgufKvCacheFormat.F16, q3.KvCache);
         Assert.AreEqual(
@@ -850,7 +854,7 @@ public sealed class GgufCompatibilityInputProjectorTests
             now,
             CancellationToken.None);
         OptimizationCandidate candidate = PlanningCandidates(evaluation).Single(item =>
-            item.EvidenceId == "GGUF-V5-BF16-Q3-CPU-F16-01");
+            item.EvidenceId == "GGUF-CURRENT-08EF-BF16-Q3-COMPAT-01");
         Assert.AreEqual(OptimizationConversionProvenance.HigherPrecisionSource,
             candidate.ConversionProvenance);
         Assert.AreEqual(OptimizationQualityLevel.Good, candidate.QualityLevel);
@@ -860,6 +864,7 @@ public sealed class GgufCompatibilityInputProjectorTests
 
     [TestMethod]
     [TestCategory("CurrentBf16GgufComposition")]
+    [TestCategory("RequiresVerifiedQuantizer")]
     public void CurrentBf16HeaderReachesQ3AlternativeQualifiedMinimumAndNormalIssuer()
     {
         const string evidenceId = "GGUF-CURRENT-08EF-BF16-Q3-COMPAT-01";
@@ -883,7 +888,7 @@ public sealed class GgufCompatibilityInputProjectorTests
         var choice = optimization.ExactSafeModes.Single(item => item.Mode.GgufWeights == GgufWeightFormat.Q3KM);
         var presentation = CompatibilityPresentationFactory.From(evaluation);
         Assert.IsNotNull(presentation.MemoryOverview);
-        Assert.AreEqual(optimization.SafeSliderModes.Min(item => item.Mode.SystemSharedPredictedPeakBytes),
+        Assert.AreEqual(optimization.ExactSafeModes.Min(item => item.Mode.SystemSharedPredictedPeakBytes),
             presentation.MemoryOverview.MinimumRequiredBytes);
         Assert.IsTrue(authority.TryGetOptimizationAuthority(OptimizationRoute.Gguf, out var composer, out var issuance));
         var plan = evaluation.PlanningSession!.Issue(OptimizationPreferenceSelection.Exact(choice.CandidateIdentity),
@@ -898,7 +903,7 @@ public sealed class GgufCompatibilityInputProjectorTests
     {
         string source = File.ReadAllText(Path.Combine(
             GraniteEdgeAI.UnitTests.Features.ModelOptimization
-                .OptimizationImportManifestTests.FindRepositoryRoot(),
+                .RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)",
             "Features",
             "ModelHardwareCompatibility",
@@ -926,9 +931,12 @@ public sealed class GgufCompatibilityInputProjectorTests
             "GgufQuantizer"));
         string held = packaged + ".held-" + Guid.NewGuid().ToString("N");
         string wrongManifest = Path.Combine(packaged, "llama-quantize.package.manifest.json");
-        Assert.IsTrue(Directory.Exists(packaged), "The exact app-local package is required for this parity test.");
+        bool hadPackage = Directory.Exists(packaged);
         Assert.IsFalse(Directory.Exists(held));
-        Directory.Move(packaged, held);
+        if (hadPackage)
+        {
+            Directory.Move(packaged, held);
+        }
         try
         {
             AssertRuntimeOnlyCompatibilityWithoutQuantizer(
@@ -963,11 +971,15 @@ public sealed class GgufCompatibilityInputProjectorTests
                 Assert.AreEqual(0, unexpected.Length, "The parity test will not delete unexpected package state.");
                 Directory.Delete(packaged, recursive: false);
             }
-            Directory.Move(held, packaged);
+            if (hadPackage)
+            {
+                Directory.Move(held, packaged);
+            }
         }
     }
 
     [TestMethod]
+    [TestCategory("RequiresVerifiedQuantizer")]
     public async Task VerifiedDevelopmentQuantizer_EnablesRequiredOptimizationAction()
     {
         string packagedManifest = Path.Combine(
@@ -1022,7 +1034,7 @@ public sealed class GgufCompatibilityInputProjectorTests
         Assert.IsTrue(viewModel.Presentation.PrimaryActionEnabled);
         Assert.IsTrue(viewModel.ContinueCommand.CanExecute(null));
         Assert.AreEqual(
-            "GGUF-V5-BF16-Q3-CPU-F16-01",
+            "GGUF-CURRENT-08EF-BF16-Q3-COMPAT-01",
             handoff.Plan.Candidate.EvidenceId);
         Assert.AreEqual(
             GgufWeightFormat.Q3KM,

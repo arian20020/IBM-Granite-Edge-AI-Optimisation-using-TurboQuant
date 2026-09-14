@@ -91,7 +91,7 @@ public sealed class BoundedProgressEstimatorTests
     }
 
     [TestMethod]
-    public void MeasurementsNeverBecomeElapsedTimeOrSyntheticHighWater()
+    public void MeasuredProgressStopsEstimationWithoutMovingTheDisplayBackward()
     {
         var clock = new ManualClock();
         object estimator = Create(clock);
@@ -99,11 +99,12 @@ public sealed class BoundedProgressEstimatorTests
         Update(estimator, owner, 1, "step", null);
         clock.Advance(300);
         Assert.IsTrue(Value(estimator) > .2);
+        double estimated = Value(estimator);
         Update(estimator, owner, 2, "step", .2);
-        Assert.AreEqual(.2, Value(estimator));
+        Assert.AreEqual(estimated, Value(estimator));
         Assert.IsFalse(Estimated(estimator));
         clock.Advance(300);
-        Assert.AreEqual(.2, Value(estimator));
+        Assert.AreEqual(estimated, Value(estimator));
         Update(estimator, owner, 3, "step", 1);
         Assert.AreEqual(1d, Value(estimator), "A measured phase may finish without claiming overall success.");
     }

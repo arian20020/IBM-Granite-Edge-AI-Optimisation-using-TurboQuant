@@ -235,9 +235,18 @@ public sealed class InspectionProgressRowsTests
         CollectionAssert.AreEqual(
             new[] { 0, 1 },
             result.RowChanges.Select(change => change.RowIndex).ToArray());
-        Assert.IsTrue(result.RowChanges.All(change =>
-            change.StatusChanged && change.DetailChanged));
-        string[] expectedRowNotifications =
+        Assert.IsTrue(result.RowChanges[0].StatusChanged);
+        Assert.IsFalse(result.RowChanges[0].DetailChanged);
+        Assert.IsTrue(result.RowChanges[1].StatusChanged);
+        Assert.IsTrue(result.RowChanges[1].DetailChanged);
+        string[] expectedCompletedRowNotifications =
+        [
+            nameof(InspectionContentItemPresentation.Status),
+            nameof(InspectionContentItemPresentation.StatusText),
+            nameof(InspectionContentItemPresentation.IsActive),
+            nameof(InspectionContentItemPresentation.AutomationName)
+        ];
+        string[] expectedActiveRowNotifications =
         [
             nameof(InspectionContentItemPresentation.Status),
             nameof(InspectionContentItemPresentation.StatusText),
@@ -248,13 +257,13 @@ public sealed class InspectionProgressRowsTests
             nameof(InspectionContentItemPresentation.AutomationName)
         ];
         CollectionAssert.AreEqual(
-            expectedRowNotifications,
+            expectedCompletedRowNotifications,
             notifications[0].ToArray());
         CollectionAssert.AreEqual(
-            expectedRowNotifications,
+            expectedActiveRowNotifications,
             notifications[1].ToArray());
-        Assert.HasCount(expectedRowNotifications.Length, notifications[0]);
-        Assert.HasCount(expectedRowNotifications.Length, notifications[1]);
+        Assert.HasCount(expectedCompletedRowNotifications.Length, notifications[0]);
+        Assert.HasCount(expectedActiveRowNotifications.Length, notifications[1]);
         for (int index = 2; index < rows.Items.Count; index++)
         {
             Assert.HasCount(

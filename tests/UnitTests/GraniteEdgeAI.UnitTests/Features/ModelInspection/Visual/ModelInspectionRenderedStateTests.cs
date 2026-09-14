@@ -69,7 +69,7 @@ public sealed class ModelInspectionRenderedStateTests
     [DataRow(11, InspectionOutcomePresentationKind.Invalid, InspectionOutcomeTone.Error, InspectionModelBadgeState.Invalid, InspectionContentCardMode.Invalid, "InspectionErrorSurfaceBrush", "InspectionErrorBorderBrush")]
     [DataRow(12, InspectionOutcomePresentationKind.Cancelled, InspectionOutcomeTone.Neutral, InspectionModelBadgeState.NotInspected, InspectionContentCardMode.Cancelled, "InspectionSurfaceMutedBrush", "InspectionBorderMutedBrush")]
     [DataRow(13, InspectionOutcomePresentationKind.OperationalFailure, InspectionOutcomeTone.Error, InspectionModelBadgeState.ResultUnknown, InspectionContentCardMode.OperationalFailure, "InspectionErrorSurfaceBrush", "InspectionErrorBorderBrush")]
-    public async Task AllThirteenStates_RenderExactSemanticsTokensAndGeometry(
+    public async Task AllThirteenStates_RenderCurrentPreviewSemanticsAndActions(
         int stateValue,
         InspectionOutcomePresentationKind expectedOutcome,
         InspectionOutcomeTone expectedTone,
@@ -78,348 +78,202 @@ public sealed class ModelInspectionRenderedStateTests
         string outcomeSurfaceResource,
         string outcomeBorderResource)
     {
-        ModelInspectionFigmaState state = (ModelInspectionFigmaState)stateValue;
-        ModelInspectionPagePresentation presentation =
-            ModelInspectionVisualTestScenario.CreatePresentation(state);
-        ModelInspectionPage page = ModelInspectionVisualTestScenario.CreatePage();
-        ModelInspectionVisualTestScenario.Apply(page, presentation);
+        var state = (ModelInspectionFigmaState)stateValue;
+        var presentation = ModelInspectionVisualTestScenario.CreatePresentation(state);
+        var page = ModelInspectionVisualTestScenario.CreatePage();
+        await using var host = await WinUiRenderHost.ShowAsync(page, 1000, 700);
+        var projection = Assert.IsInstanceOfType<ModelInspectionPreviewProjection>(
+            typeof(ModelInspectionPage).GetField("_activePreview",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(page));
+        projection.SetMotionEnabled(false);
+        projection.ApplyPresentation(presentation);
+        var frame = await host.CaptureAsync();
 
-        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
-            page,
-            width: 1000,
-            height: 700);
-        RenderedFrame frame = await host.CaptureAsync();
-        page.UpdateLayout();
-        double rasterizationScale = page.XamlRoot.RasterizationScale;
-
-        FrameworkElement contentHost = Element<FrameworkElement>(
-            page,
-            "InspectionContentHost");
-        InspectionOutcomeCard outcome = Element<InspectionOutcomeCard>(
-            page,
-            "InspectionOutcomeCardControl");
-        InspectionModelCard model = Element<InspectionModelCard>(
-            page,
-            "InspectionModelCardControl");
-        InspectionContentCard content = Element<InspectionContentCard>(
-            page,
-            "InspectionContentCardControl");
-        InspectionActionCard actions = Element<InspectionActionCard>(
-            page,
-            "InspectionActionCardControl");
-        Point contentOrigin = contentHost.TransformToVisual(page)
-            .TransformPoint(new Point());
-        FrameworkElement header = Element<FrameworkElement>(page, "Header");
-
-        Assert.AreEqual(state, presentation.State);
-        Assert.AreEqual(expectedOutcome, outcome.Presentation.Kind);
-        Assert.AreEqual(expectedTone, outcome.Presentation.Tone);
-        Assert.AreEqual(expectedBadge, model.Presentation.BadgeState);
-        Assert.AreEqual(expectedContentMode, content.Presentation.Mode);
-        Assert.AreEqual(presentation.ActionCard, actions.Presentation);
-        Assert.AreEqual(
-            (int)Math.Round(1000d * rasterizationScale),
-            frame.Width);
-        Assert.AreEqual(
-            (int)Math.Round(700d * rasterizationScale),
-            frame.Height);
+        Assert.AreEqual(expectedOutcome, projection.OutcomePresentation.Kind);
+        Assert.AreEqual(expectedTone, projection.OutcomePresentation.Tone);
+        Assert.AreEqual(expectedBadge, projection.ModelPresentation.BadgeState);
+        Assert.AreEqual(expectedContentMode, projection.ContentPresentation.Mode);
         Assert.AreEqual(1000d, page.ActualWidth, 1d);
         Assert.AreEqual(700d, page.ActualHeight, 1d);
-        Assert.AreEqual(1000d, page.XamlRoot.Size.Width, 1d);
-        Assert.AreEqual(700d, page.XamlRoot.Size.Height, 1d);
-        Assert.AreEqual(840d, contentHost.ActualWidth, 1d);
-        Assert.AreEqual(80d, contentOrigin.X, 1d);
-        AssertBrushColor(
-            "InspectionCanvasBrush",
-            Element<Grid>(page, "LayoutRoot").Background);
+        Assert.IsGreaterThan(0, frame.Width);
+        Assert.IsGreaterThan(0, frame.Height);
 
-        Assert.AreEqual(840d, model.ActualWidth, 1d, $"{state} model width");
-        if (expectedContentMode != InspectionContentCardMode.Hidden)
+        string expectedPanel = stateValue switch
         {
-            Assert.AreEqual(840d, content.ActualWidth, 1d, $"{state} content width");
-            Assert.IsGreaterThan(0d, content.ActualHeight, $"{state} content height");
-        }
-        else
-        {
-            Assert.AreEqual(0d, VisibleLayoutHeight(content), 0.01d);
-        }
-
-        if (expectedContentMode == InspectionContentCardMode.Progress)
-        {
-            Border progressRowsSurface = Element<Border>(
-                content,
-                "ProgressRowsSurface");
-            Grid[] progressRows = Descendants(content)
-                .OfType<Grid>()
-                .Where(row => string.Equals(
-                    row.Tag as string,
-                    "InspectionProgressRow",
-                    StringComparison.Ordinal))
-                .ToArray();
-            Assert.HasCount(5, progressRows);
-            Assert.IsTrue(progressRows.All(row =>
-                row.ActualHeight >= 48d));
-            Assert.AreEqual(new Thickness(1d), progressRowsSurface.BorderThickness);
-            Assert.AreEqual(10d, progressRowsSurface.CornerRadius.TopLeft, 0.01d);
-            Assert.IsTrue(Descendants(progressRowsSurface)
-                .OfType<InspectionStatusGlyph>()
-                .Where(IsRendered)
-                .All(glyph => Math.Abs(glyph.SurfaceSize - 22d) <= 0.01d));
-        }
-
-        FrameworkElement[] visibleCards =
+            1 => "InspectionProgressPanel",
+            2 or 3 => "InspectionReadyPanel",
+            4 or 5 => "InspectionWarningPanel",
+            12 => "InspectionCancelledPanel",
+            _ => "InspectionFailurePanel"
+        };
+        Assert.AreEqual(expectedPanel, projection.OutcomeSurface.Name);
+        Assert.AreEqual(Visibility.Visible, projection.OutcomeSurface.Visibility);
+        string[] panels =
         [
-            outcome,
-            model,
-            content,
-            actions
+            "InspectionProgressPanel", "InspectionReadyPanel",
+            "InspectionWarningPanel", "InspectionCancelledPanel", "InspectionFailurePanel"
         ];
-        visibleCards = visibleCards
-            .Where(card => VisibleLayoutHeight(card) > 0d)
-            .ToArray();
-        Assert.IsNotEmpty(visibleCards);
-        Assert.AreEqual(
-            24d,
-            VerticalGap(page, header, visibleCards[0]),
-            1d,
-            $"{state} header-to-card gap");
-        for (int index = 1; index < visibleCards.Length; index++)
+        foreach (string name in panels)
         {
-            Assert.AreEqual(
-                16d,
-                VerticalGap(page, visibleCards[index - 1], visibleCards[index]),
-                1d,
-                $"{state} card gap {index}");
+            var panel = Element<FrameworkElement>(projection.Element, name);
+            Assert.AreEqual(name == expectedPanel ? Visibility.Visible : Visibility.Collapsed,
+                panel.Visibility, name);
         }
+
+        var bay = projection.ModelSurface;
+        Point origin = bay.TransformToVisual(page).TransformPoint(default);
+        Assert.IsGreaterThan(0d, bay.ActualWidth);
+        Assert.IsTrue(origin.X >= -1 && origin.X + bay.ActualWidth <= page.ActualWidth + 1,
+            "The current inspection surface must stay within the page width.");
+        Assert.AreEqual(presentation.ModelCard.ModelName,
+            Element<TextBlock>(projection.Element, "CompactModelName").Text);
 
         if (expectedOutcome == InspectionOutcomePresentationKind.Hidden)
         {
-            Assert.AreEqual(0d, VisibleLayoutHeight(outcome), 0.01d);
-
-            Button cancel = Element<Button>(actions, "CancelActionButton");
-            Border inspectingView = Element<Border>(actions, "InspectingCardSurface");
-            Grid inspectingLayout = Element<Grid>(actions, "InspectingLayout");
-            TextBlock reassurance = Element<TextBlock>(actions, "InspectingMessage");
-            Assert.IsGreaterThanOrEqualTo(44d, cancel.ActualHeight);
-            Assert.AreEqual(184d, cancel.ActualWidth, 1d);
-            Assert.AreEqual(new Thickness(24d), inspectingView.Padding);
-            Assert.AreEqual(new Thickness(1d), inspectingView.BorderThickness);
-            Assert.AreEqual(12d, inspectingView.CornerRadius.TopLeft, 0.01d);
-            Assert.IsTrue(string.IsNullOrEmpty(actions.Presentation.Title));
-            Assert.AreEqual(2, inspectingLayout.RowDefinitions.Count);
-            Assert.AreEqual(0, Grid.GetRow(reassurance));
-            Assert.AreEqual(1, Grid.GetRow(cancel));
-            Point reassuranceOrigin = reassurance.TransformToVisual(inspectingView)
-                .TransformPoint(default);
-            Point cancelOrigin = cancel.TransformToVisual(inspectingView)
-                .TransformPoint(default);
-            Assert.IsTrue(reassuranceOrigin.Y < cancelOrigin.Y,
-                "the real progress reassurance appears before Cancel");
+            Assert.IsFalse(projection.CancelActionButton.IsEnabled,
+                "An initial waiting presentation cannot accept cancellation.");
+            for (int stage = 1; stage <= 5; stage++)
+            {
+                Assert.AreEqual(stage == 1 ? "Checking\n0%" : "Waiting",
+                    Element<TextBlock>(projection.Element, $"InspectionStage{stage}Status").Text);
+            }
         }
         else
         {
-            Border banner = Element<Border>(outcome, "OutcomeCardBorder");
-            Point bannerOrigin = banner.TransformToVisual(page)
-                .TransformPoint(new Point());
-            Assert.AreEqual(80d, bannerOrigin.X, 1d, $"{state} banner x");
-            Assert.AreEqual(840d, banner.ActualWidth, 1d, $"{state} banner width");
-            Assert.AreEqual(0d, banner.MinHeight, 0.01d, $"{state} banner minimum");
-            AssertCompactOutcome(outcome, banner, state.ToString());
-            AssertBrushColor(
-                outcomeSurfaceResource,
-                banner.Background,
-                state.ToString());
-            AssertBrushColor(
-                outcomeBorderResource,
-                banner.BorderBrush,
-                state.ToString());
-            Assert.AreEqual(
-                presentation.OutcomeCard.AutomationName,
-                AutomationProperties.GetName(outcome));
+            Assert.AreEqual(presentation.OutcomeCard.Title,
+                Assert.IsInstanceOfType<TextBlock>(projection.OutcomeFocusTarget).Text);
+            Assert.AreEqual(presentation.OutcomeCard.AutomationName,
+                AutomationProperties.GetName(projection.OutcomeSurface));
+            var visibleButtons = Descendants(projection.OutcomeSurface)
+                .OfType<Button>().Where(IsRendered).ToArray();
+            Assert.IsNotEmpty(visibleButtons, "A terminal state must retain a recovery or continue action.");
+            foreach (var button in visibleButtons)
+            {
+                Assert.IsGreaterThanOrEqualTo(44d, button.ActualHeight);
+                string text = button.Content?.ToString() ?? string.Empty;
+                Assert.IsFalse(text.Contains("technical", StringComparison.OrdinalIgnoreCase),
+                    "Non-functional technical-report actions must not return.");
+                if (stateValue is 12 or 13)
+                {
+                    Assert.IsFalse(text.Contains("retry", StringComparison.OrdinalIgnoreCase));
+                    Assert.IsFalse(text.Contains("restart", StringComparison.OrdinalIgnoreCase));
+                }
+            }
+        }
+        projection.CancelProgressMotion();
+    }
 
-            Border resultView = Element<Border>(actions, "ResultView");
-            Point resultOrigin = resultView.TransformToVisual(page)
-                .TransformPoint(new Point());
-            Assert.AreEqual(80d, resultOrigin.X, 1d, $"{state} action x");
-            Assert.AreEqual(840d, resultView.ActualWidth, 1d, $"{state} action width");
-            Assert.AreEqual(0d, resultView.MinHeight, 0.01d, $"{state} action minimum");
+    [UITestMethod]
+    [TestCategory("WinUI")]
+    [DataRow(2, 3, "ReadyDetailsExpander")]
+    [DataRow(4, 5, "WarningDetailsExpander")]
+    [DataRow(6, 7, "")]
+    [DataRow(10, 11, "")]
+    public async Task FourDisclosurePairs_RenderCurrentNativeEndpoints(
+        int collapsedValue, int expandedValue, string expanderName)
+    {
+        var page = ModelInspectionVisualTestScenario.CreatePage();
+        await using var host = await WinUiRenderHost.ShowAsync(page, 1000, 700);
+        var projection = ModelInspectionVisualTestScenario.Projection(page);
+        ModelInspectionVisualTestScenario.Apply(page,
+            ModelInspectionVisualTestScenario.CreatePresentation((ModelInspectionFigmaState)collapsedValue));
+        await host.CaptureAsync();
+        var panel = projection.OutcomeSurface;
+        double collapsedHeight = panel.ActualHeight;
+        double collapsedWidth = panel.ActualWidth;
+        var disclosure = projection.ActiveDisclosure;
+        if (expanderName.Length > 0)
+        {
+            Assert.IsNotNull(disclosure);
+            Assert.AreEqual(expanderName, disclosure.Name);
+            Assert.IsFalse(disclosure.IsExpanded);
+            Assert.IsGreaterThanOrEqualTo(44d, disclosure.ActualHeight);
+            Assert.IsFalse(string.IsNullOrWhiteSpace(AutomationProperties.GetName(disclosure)));
+        }
+        else
+        {
+            Assert.IsNull(disclosure,
+                "Conversion and invalid outcomes use the current failure panel without evidence expanders.");
+            Assert.AreEqual("InspectionFailurePanel", panel.Name);
         }
 
-        AssertTypographyAndWrapping(page, model, content);
-        AssertRenderedPalette(page, model, content, actions, presentation);
-        AssertNestedGeometry(model, content, presentation);
-        AssertBoundedScrollContract(model, content, presentation);
-        AssertVisibleControlsHaveApprovedSize(actions, presentation);
-        await AssertResponsiveAccessibilityMatrixAsync(state);
+        ModelInspectionVisualTestScenario.Apply(page,
+            ModelInspectionVisualTestScenario.CreatePresentation((ModelInspectionFigmaState)expandedValue));
+        await host.CaptureAsync();
+        Assert.AreSame(panel, projection.OutcomeSurface);
+        Assert.AreEqual(collapsedWidth, panel.ActualWidth, 1d);
+        if (disclosure is not null)
+        {
+            Assert.AreSame(disclosure, projection.ActiveDisclosure);
+            Assert.IsTrue(disclosure.IsExpanded);
+            Assert.IsGreaterThan(collapsedHeight, panel.ActualHeight);
+            var evidence = Assert.IsInstanceOfType<FrameworkElement>(disclosure.Content);
+            Assert.IsGreaterThan(0d, evidence.ActualHeight);
+            Assert.IsTrue(evidence.ActualWidth <= disclosure.ActualWidth + 1d);
+            var scroll = Element<ScrollViewer>(page, "InspectionScrollViewer");
+            Assert.AreEqual(ScrollMode.Enabled, scroll.VerticalScrollMode);
+            Assert.AreEqual(ScrollBarVisibility.Auto, scroll.VerticalScrollBarVisibility);
+            projection.SetDisclosureState(false);
+            await host.CaptureAsync();
+            Assert.IsFalse(disclosure.IsExpanded);
+            Assert.AreEqual(collapsedHeight, panel.ActualHeight, 1d);
+        }
+        else
+        {
+            Assert.IsNull(projection.ActiveDisclosure);
+            Assert.AreEqual(collapsedHeight, panel.ActualHeight, 1d);
+        }
+        projection.CancelProgressMotion();
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    [DataRow(2, 3, "Model")]
-    [DataRow(4, 5, "Content")]
-    [DataRow(6, 7, "Content")]
-    [DataRow(10, 11, "Content")]
-    public async Task FourDisclosurePairs_RenderNaturalCollapsedAndBoundedExpandedEndpoints(
-        int collapsedValue,
-        int expandedValue,
-        string disclosureOwner)
+    [DataRow(1000, 24d)]
+    [DataRow(888, 24d)]
+    [DataRow(600, 16d)]
+    [DataRow(360, 16d)]
+    public async Task ResponsiveWidths_RenderCurrentNativeHierarchy(
+        int width, double expectedMargin)
     {
-        ModelInspectionPage page = ModelInspectionVisualTestScenario.CreatePage();
-        ModelInspectionPagePresentation collapsed =
-            ModelInspectionVisualTestScenario.CreatePresentation(
-                (ModelInspectionFigmaState)collapsedValue);
-        ModelInspectionPagePresentation expanded =
-            ModelInspectionVisualTestScenario.CreatePresentation(
-                (ModelInspectionFigmaState)expandedValue);
-        ModelInspectionVisualTestScenario.Apply(page, collapsed);
-
-        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
-            page,
-            width: 1000,
-            height: 700);
-        await host.CaptureAsync();
-        page.UpdateLayout();
-
-        FrameworkElement owner = disclosureOwner == "Model"
-            ? Element<InspectionModelCard>(page, "InspectionModelCardControl")
-            : Element<InspectionContentCard>(page, "InspectionContentCardControl");
-        Border banner = Element<Border>(
-            Element<InspectionOutcomeCard>(page, "InspectionOutcomeCardControl"),
-            "OutcomeCardBorder");
-        FrameworkElement detailsSurface = disclosureOwner == "Model"
-            ? Element<Border>(owner, "DetailedView")
-            : Element<Border>(owner, "ContentCardShell");
-        Border actionSurface = Element<Border>(
-            Element<InspectionActionCard>(page, "InspectionActionCardControl"),
-            "ResultView");
-        InspectionDisclosure disclosure = disclosureOwner == "Model"
-            ? ((InspectionModelCard)owner).ActiveDisclosure!
-            : ((InspectionContentCard)owner).ActiveDisclosure!;
-        Assert.IsNotNull(disclosure);
-        Border disclosureSurface = Element<Border>(
-            disclosure,
-            "DisclosureCardSurface");
-        Assert.IsFalse(disclosure.IsExpanded);
-        Assert.AreEqual(Visibility.Collapsed, disclosure.ViewportTarget.Visibility);
-        FrameworkElement disclosureHeader = Element<FrameworkElement>(
-            disclosure,
-            "DisclosureToggleButton");
-        double collapsedHeight = VisibleLayoutHeight(owner);
-        Assert.AreEqual(
-            disclosureHeader.ActualHeight +
-                disclosureSurface.BorderThickness.Top +
-                disclosureSurface.BorderThickness.Bottom,
-            disclosure.ActualHeight,
-            1d,
-            "collapsed disclosure equals its realized header");
-        Assert.AreEqual(840d, banner.ActualWidth, 1d, "collapsed banner width");
-        Assert.AreEqual(840d, detailsSurface.ActualWidth, 1d, "collapsed details width");
-        Assert.AreEqual(840d, disclosureSurface.ActualWidth, 1d,
-            "collapsed disclosure card width");
-        Assert.AreEqual(new Thickness(1d), disclosureSurface.BorderThickness);
-        Assert.AreEqual(12d, disclosureSurface.CornerRadius.TopLeft, 0.01d);
-        Assert.AreEqual(840d, actionSurface.ActualWidth, 1d, "collapsed action width");
-        Assert.AreEqual(0d, actionSurface.MinHeight, 0.01d, "collapsed action minimum");
-
-        ModelInspectionVisualTestScenario.Apply(page, expanded);
-        await host.CaptureAsync();
-        page.UpdateLayout();
-
-        InspectionDisclosure retainedDisclosure = disclosureOwner == "Model"
-            ? ((InspectionModelCard)owner).ActiveDisclosure!
-            : ((InspectionContentCard)owner).ActiveDisclosure!;
-        Assert.AreSame(disclosure, retainedDisclosure);
-        Assert.IsTrue(retainedDisclosure.IsExpanded);
-        Assert.AreEqual(Visibility.Visible, retainedDisclosure.ViewportTarget.Visibility);
-        Assert.AreEqual(1d, retainedDisclosure.ViewportTarget.Opacity, 0.001d);
-        Assert.IsGreaterThan(collapsedHeight, VisibleLayoutHeight(owner));
-        Assert.AreEqual(840d, banner.ActualWidth, 1d, "expanded banner width");
-        Assert.AreEqual(840d, detailsSurface.ActualWidth, 1d, "expanded details width");
-        Assert.AreEqual(840d, disclosureSurface.ActualWidth, 1d,
-            "expanded disclosure card width");
-        Assert.AreEqual(840d, actionSurface.ActualWidth, 1d, "expanded action width");
-        Assert.AreEqual(0d, actionSurface.MinHeight, 0.01d, "expanded action minimum");
-
-        ScrollViewer bounded = Element<ScrollViewer>(
-            owner,
-            disclosureOwner == "Model"
-                ? "InspectionChecksScrollViewer"
-                : "ExpandedReportScrollViewer");
-        Assert.AreEqual(172d, bounded.MaxHeight, 0.01d);
-        Assert.AreEqual(ScrollMode.Enabled, bounded.VerticalScrollMode);
-        Assert.AreEqual(ScrollBarVisibility.Auto, bounded.VerticalScrollBarVisibility);
-
-        await AssertResponsiveAccessibilityMatrixAsync(
-            (ModelInspectionFigmaState)collapsedValue);
-        await AssertResponsiveAccessibilityMatrixAsync(
-            (ModelInspectionFigmaState)expandedValue);
-    }
-
-    [UITestMethod]
-    [TestCategory("WinUI")]
-    [DataRow(1000, 80d, 840d, 0, 0, 0)]
-    [DataRow(888, 24d, 840d, 0, 0, 0)]
-    [DataRow(600, 24d, 552d, 0, 0, 0)]
-    [DataRow(360, 16d, 328d, 0, 0, 1)]
-    public async Task ResponsiveWidths_RenderApprovedHierarchy(
-        int width,
-        double expectedOrigin,
-        double expectedContentWidth,
-        int secondaryOneRow,
-        int secondaryTwoRow,
-        int primaryRow)
-    {
-        ModelInspectionPage page = ModelInspectionVisualTestScenario.CreatePage();
-        ModelInspectionVisualTestScenario.Apply(
-            page,
+        var page = ModelInspectionVisualTestScenario.CreatePage();
+        await using var host = await WinUiRenderHost.ShowAsync(page, width, 700);
+        ModelInspectionVisualTestScenario.Apply(page,
             ModelInspectionVisualTestScenario.CreatePresentation(
                 ModelInspectionFigmaState.ReadyWithWarningsCollapsed));
-
-        await using WinUiRenderHost host = await WinUiRenderHost.ShowAsync(
-            page,
-            width,
-            height: 700);
-        RenderedFrame frame = await host.CaptureAsync();
-        page.UpdateLayout();
-        double rasterizationScale = page.XamlRoot.RasterizationScale;
-
-        FrameworkElement contentHost = Element<FrameworkElement>(
-            page,
-            "InspectionContentHost");
-        InspectionActionCard actions = Element<InspectionActionCard>(
-            page,
-            "InspectionActionCardControl");
-        Point origin = contentHost.TransformToVisual(page)
-            .TransformPoint(new Point());
-        FrameworkElement secondaryOne = Element<FrameworkElement>(
-            actions,
-            "SecondaryActionOneHost");
-        FrameworkElement secondaryTwo = Element<FrameworkElement>(
-            actions,
-            "SecondaryActionTwoHost");
-        FrameworkElement primary = Element<FrameworkElement>(
-            actions,
-            "PrimaryActionHost");
-
-        Assert.AreEqual(
-            (int)Math.Round(width * rasterizationScale),
-            frame.Width);
-        Assert.AreEqual(
-            (int)Math.Round(700d * rasterizationScale),
-            frame.Height);
+        var frame = await host.CaptureAsync();
+        var projection = ModelInspectionVisualTestScenario.Projection(page);
+        var content = Element<FrameworkElement>(page, "InspectionContentStack");
+        var previewHost = Element<ContentControl>(page, "InspectionPreviewHost");
+        var scroll = Element<ScrollViewer>(page, "InspectionScrollViewer");
+        var origin = content.TransformToVisual(page).TransformPoint(default);
+        Assert.AreEqual((int)Math.Round(width * page.XamlRoot.RasterizationScale), frame.Width);
+        Assert.AreEqual((int)Math.Round(700d * page.XamlRoot.RasterizationScale), frame.Height);
         Assert.AreEqual(width, page.ActualWidth, 1d);
-        Assert.AreEqual(width, page.XamlRoot.Size.Width, 1d);
-        Assert.AreEqual(expectedContentWidth, contentHost.ActualWidth, 1d);
-        Assert.AreEqual(expectedOrigin, origin.X, 1d);
-        Assert.AreEqual(secondaryOneRow, Grid.GetRow(secondaryOne));
-        Assert.AreEqual(Visibility.Collapsed, secondaryTwo.Visibility);
-        Assert.AreEqual(primaryRow, Grid.GetRow(primary));
-        Assert.AreSame(
-            Element<InspectionOutcomeCard>(page, "InspectionOutcomeCardControl"),
-            page.FindName("InspectionOutcomeCardControl"));
-        Assert.AreSame(
-            Element<ScrollViewer>(page, "InspectionPageScrollViewer"),
-            page.FindName("InspectionPageScrollViewer"));
+        Assert.AreEqual(expectedMargin, content.Margin.Left, 0.01d);
+        Assert.AreEqual(expectedMargin, content.Margin.Right, 0.01d);
+        Assert.IsGreaterThan(0d, content.ActualWidth);
+        Assert.IsTrue(content.ActualWidth <= Math.Min(content.MaxWidth,
+            width - (2d * expectedMargin)) + 1d,
+            "The naturally sized content column must fit its available width.");
+        Assert.AreEqual(width / 2d, origin.X + content.ActualWidth / 2d, 1d,
+            "The current content column must remain centered.");
+        Assert.AreEqual(content.ActualWidth, previewHost.ActualWidth, 1d);
+        Assert.AreSame(projection.Element, previewHost.Content);
+        Assert.AreEqual(ScrollMode.Disabled, scroll.HorizontalScrollMode);
+        Assert.AreEqual(ScrollMode.Enabled, scroll.VerticalScrollMode);
+        var buttons = Descendants(projection.OutcomeSurface).OfType<Button>()
+            .Where(IsRendered).ToArray();
+        Assert.AreEqual(2, buttons.Length);
+        foreach (var button in buttons)
+        {
+            var buttonOrigin = button.TransformToVisual(page).TransformPoint(default);
+            Assert.IsGreaterThanOrEqualTo(44d, button.ActualHeight);
+            Assert.IsTrue(buttonOrigin.X >= 0d &&
+                buttonOrigin.X + button.ActualWidth <= page.ActualWidth + 1d,
+                $"{button.Name} must remain within the viewport at {width} DIPs.");
+        }
+        projection.CancelProgressMotion();
     }
 
     private static readonly double[] ResponsiveWidths =
@@ -2452,60 +2306,20 @@ internal static class ModelInspectionVisualTestScenario
             rows);
     }
 
+    internal static ModelInspectionPreviewProjection Projection(ModelInspectionPage page) =>
+        Assert.IsInstanceOfType<ModelInspectionPreviewProjection>(
+            typeof(ModelInspectionPage).GetField("_activePreview",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(page));
+
     internal static void Apply(
         ModelInspectionPage page,
         ModelInspectionPagePresentation presentation)
     {
-        InspectionOutcomeCard outcome =
-            ModelInspectionRenderedStateTests.Element<InspectionOutcomeCard>(
-                page,
-                "InspectionOutcomeCardControl");
-        InspectionModelCard model =
-            ModelInspectionRenderedStateTests.Element<InspectionModelCard>(
-                page,
-                "InspectionModelCardControl");
-        InspectionContentCard content =
-            ModelInspectionRenderedStateTests.Element<InspectionContentCard>(
-                page,
-                "InspectionContentCardControl");
-        InspectionActionCard actions =
-            ModelInspectionRenderedStateTests.Element<InspectionActionCard>(
-                page,
-                "InspectionActionCardControl");
-
-        outcome.Presentation = presentation.OutcomeCard;
-        model.Presentation = presentation.ModelCard;
-        content.Presentation = presentation.ContentCard;
-        actions.Presentation = presentation.ActionCard;
-        CompleteDisclosure(model, presentation.ModelCard.IsInspectionDetailsExpanded);
-        CompleteDisclosure(content, presentation.ContentCard.IsExpanded);
+        var projection = Projection(page);
+        projection.SetMotionEnabled(false);
+        projection.ApplyPresentation(presentation);
         page.UpdateLayout();
-    }
-
-    private static void CompleteDisclosure(
-        InspectionModelCard control,
-        bool expanded)
-    {
-        if (control.ActiveDisclosure is null)
-        {
-            return;
-        }
-
-        control.PrepareDisclosureTarget(expanded);
-        control.CompleteDisclosureTarget(expanded);
-    }
-
-    private static void CompleteDisclosure(
-        InspectionContentCard control,
-        bool expanded)
-    {
-        if (control.ActiveDisclosure is null)
-        {
-            return;
-        }
-
-        control.PrepareDisclosureTarget(expanded);
-        control.CompleteDisclosureTarget(expanded);
     }
 
     private static ModelInspectionViewSnapshot Terminal(

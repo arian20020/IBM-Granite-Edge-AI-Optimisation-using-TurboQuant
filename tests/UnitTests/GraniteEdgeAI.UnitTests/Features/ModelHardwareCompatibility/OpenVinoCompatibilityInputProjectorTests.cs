@@ -130,7 +130,7 @@ public sealed class OpenVinoCompatibilityInputProjectorTests
     }
 
     [UITestMethod]
-    public void ExactExperimentedPackageOffersOnlyItsVerifiedInt4CacheFormats()
+    public void ConstrainedExperimentedPackageOffersOnlyItsSafeVerifiedInt4CacheFormat()
     {
         PreparedOpenVinoCompatibilityInput prepared = PrepareExactExperimentedInput();
         Assert.IsTrue(OpenVinoOptimizationProductionAuthority.TryCreate(
@@ -173,7 +173,6 @@ public sealed class OpenVinoCompatibilityInputProjectorTests
         CollectionAssert.AreEquivalent(
             new[]
             {
-                OpenVinoKvCachePrecision.U8,
                 OpenVinoKvCachePrecision.U4
             },
             selectedCaches.ToArray());
@@ -324,7 +323,7 @@ public sealed class OpenVinoCompatibilityInputProjectorTests
 
         var weights = new HashSet<OpenVinoWeightPrecision>();
         var caches = new HashSet<OpenVinoKvCachePrecision>();
-        var qualities = new HashSet<OptimizationQualityLevel>();
+        var qualities = new HashSet<decimal>();
         foreach (int value in new[] { 0, 25, 50, 75, 100 })
         {
             OptimizationExecutionPlan plan = evaluation.PlanningSession!.Issue(
@@ -341,18 +340,16 @@ public sealed class OpenVinoCompatibilityInputProjectorTests
                 "An issued exact-runtime plan must survive execution preflight.");
             weights.Add(plan.ExecutionPayload.OpenVino!.TargetWeightPrecision);
             caches.Add(plan.ExecutionPayload.OpenVino.KvCachePrecision);
-            qualities.Add(plan.Candidate.Evidence!.Quality.Level);
+            qualities.Add(plan.Candidate.Evidence!.Quality.Value);
         }
 
-        CollectionAssert.IsSubsetOf(
+        CollectionAssert.AreEquivalent(
             new[]
             {
-                OpenVinoWeightPrecision.FourBit,
-                OpenVinoWeightPrecision.MxFp4
+                OpenVinoWeightPrecision.FourBit
             },
             weights.ToArray(),
-            "The exact INT4 and MXFP4 executions must both be reachable from "
-                + "the safe preference control.");
+            "The released low-memory choices use INT4 weights.");
         CollectionAssert.IsSubsetOf(
             new[]
             {
@@ -362,8 +359,7 @@ public sealed class OpenVinoCompatibilityInputProjectorTests
             caches.ToArray(),
             "Both real-model TurboQuant cache codecs must be reachable.");
         Assert.IsTrue(qualities.Count > 1,
-            "Moving between independently graded configurations must update "
-                + "the expected-quality label.");
+            "Independently measured configurations retain distinct quality scores even when their labels share a band.");
     }
 
     [TestMethod]
@@ -464,7 +460,7 @@ public sealed class OpenVinoCompatibilityInputProjectorTests
     }
 
     [UITestMethod]
-    public void ImportedInt4PackageRetainsItsVerifiedPrecisionAndChatAuthority()
+    public void UnverifiedImportedInt4PackageRetainsPrecisionWithoutInventingChatAuthority()
     {
         OpenVinoStaticPackageEvidence evidence = new(
             1, Sha256, Sha256, 1_704_489_303, "granite",
@@ -504,19 +500,17 @@ public sealed class OpenVinoCompatibilityInputProjectorTests
             authority,
             7UL * 1024 * 1024 * 1024);
         Assert.AreEqual(
-            CompatibilityScreenState.EstimatedCompatible,
+            CompatibilityScreenState.NotEstablished,
             evaluation.Screen.State,
-            "The imported INT4 package must be assessed as its compact baseline, not as raw FP16.");
+            "The synthetic worker and source identities do not establish a verified execution route.");
         CompatibilityPresentation presentation =
             CompatibilityPresentationFactory.From(evaluation);
-        Assert.IsTrue(presentation.PrimaryActionEnabled);
-        var renderedPage = new CompatibilityPage { StartAutomatically = false };
-        renderedPage.Apply(presentation);
+        Assert.IsFalse(presentation.PrimaryActionEnabled);
         using var custody = new ModelSourceCustodyRegistry();
         using var registry = new CurrentModelChatLaunchRegistry(custody);
-        Assert.IsNotNull(
+        Assert.IsNull(
             authority.ResolveCurrentModel(evaluation, registry),
-            "A compatible optimized package must retain a launchable current-model handoff.");
+            "Unverified identities must not produce a current-model launch handoff.");
     }
 
     [TestMethod]

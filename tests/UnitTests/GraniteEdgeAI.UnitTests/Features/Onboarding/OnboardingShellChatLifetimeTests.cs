@@ -16,7 +16,7 @@ public sealed class OnboardingShellChatLifetimeTests
 {
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task ImportModelAwaitsRetirementAndNavigatesExactlyOnce()
+    public async Task ImportModelKeepsTheSharedChatOwnerAndNavigatesExactlyOnce()
     {
         var reporter = new BoundedApplicationFaultReporter(4);
         var session = new ShellSession(
@@ -30,11 +30,15 @@ public sealed class OnboardingShellChatLifetimeTests
         int navigations = 0;
         frame.Navigated += (_, _) => navigations++;
 
-        await InvokeTask(shell, "RetireChatAndNavigateToImportAsync", page);
+        await InvokeTask(
+            shell,
+            "RetireChatAndNavigateToImportAsync",
+            page,
+            ModelImportPresentationMode.AllSources);
 
-        Assert.AreEqual(1, session.DisposeCount);
+        Assert.AreEqual(0, session.DisposeCount);
         Assert.AreEqual(1, navigations);
-        Assert.HasCount(1, reporter.Capture());
+        Assert.HasCount(0, reporter.Capture());
         Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
         Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
     }

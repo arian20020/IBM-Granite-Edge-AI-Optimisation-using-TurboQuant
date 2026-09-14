@@ -10,6 +10,22 @@ public partial class UnitTestApp : Application
 
     public UnitTestApp()
     {
+        UnhandledException += (_, args) =>
+        {
+            // Keep native UI failures diagnosable without treating them as handled.
+            try
+            {
+                string details = args.Exception.ToString();
+                string path = System.IO.Path.Combine(
+                    Windows.Storage.ApplicationData.Current.LocalFolder.Path,
+                    $"test-host-unhandled-{Environment.ProcessId}.log");
+                System.IO.File.WriteAllText(path, details[..Math.Min(details.Length, 65536)]);
+            }
+            catch
+            {
+                // Logging must not replace or suppress the original test-host failure.
+            }
+        };
         InitializeComponent();
     }
 

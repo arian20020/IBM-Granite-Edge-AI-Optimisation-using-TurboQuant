@@ -16,7 +16,7 @@ public sealed class ModelFilePickerTests
     {
         var page = new ModelImportPage();
         var continueButton = (Button)page.FindName(
-            "ContinueToModelInspectionButton");
+            "BtnContinueToInspection");
 
         Assert.IsNull(page.SelectedModelPath);
         Assert.IsFalse(page.HasValidatedModel);
@@ -226,6 +226,6 @@ public sealed class ModelFilePickerTests
 
     private static Button GetContinueButton(ModelImportPage page)
     {
-        return (Button)page.FindName("ContinueToModelInspectionButton");
+        return (Button)page.FindName("BtnContinueToInspection");
     }
 }

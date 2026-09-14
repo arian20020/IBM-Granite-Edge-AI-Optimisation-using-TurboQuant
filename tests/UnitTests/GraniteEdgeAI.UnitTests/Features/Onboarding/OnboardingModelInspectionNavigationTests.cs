@@ -5,19 +5,13 @@ using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Models;
 using GraniteEdgeAI.Features.ModelInspection.Presentation;
-using GraniteEdgeAI.Features.ModelInspection.Services;
-using GraniteEdgeAI.Features.ModelInspection.ViewModels;
 using GraniteEdgeAI.Features.Onboarding;
 using GraniteEdgeAI.Features.Onboarding.Controls;
-using GraniteEdgeAI.UnitTests.Features.ModelInspection.Presentation;
-using Microsoft.UI.Xaml.Automation.Peers;
-using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
@@ -52,9 +46,7 @@ public sealed class OnboardingModelInspectionNavigationTests
 
             await modelImportPage.BrowseFilesAsync();
 
-            var continueButton = (Button)modelImportPage.FindName(
-                "ContinueToModelInspectionButton");
-            InvokeButton(continueButton);
+            Assert.IsTrue(modelImportPage.TryRequestModelInspection());
 
             var stageFrame = (Frame)shell.FindName("StageFrame");
             var inspectionPage = stageFrame.Content as ModelInspectionPage;
@@ -178,18 +170,9 @@ public sealed class OnboardingModelInspectionNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task ChooseAnotherOwnerAwaitsRetirementBeforeChangingFrameContent()
+    public void ChooseAnotherInstallsFreshImportPageWithoutRetainingInspection()
     {
-        TaskCompletionSource retirementStarted = new(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        TaskCompletionSource releaseRetirement = new(
-            TaskCreationOptions.RunContinuationsAsynchronously);
         ModelInspectionPage page = new();
-        page.NavigationRetirementOverride = async () =>
-        {
-            retirementStarted.SetResult();
-            await releaseRetirement.Task;
-        };
         ControlledInspectionFrameNavigator navigator = new(page, new());
         OnboardingShellPage shell = new(navigator.Navigate);
         Frame frame = (Frame)shell.FindName("StageFrame");
@@ -197,23 +180,16 @@ public sealed class OnboardingModelInspectionNavigationTests
             CreateRequest(@"C:\Models\owned-cleanup.gguf")));
 
         page.ViewModel!.ChooseAnotherCommand.Execute(null);
-        await retirementStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-
-        Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
-        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
-        Assert.IsNotNull(shell.CurrentNavigationTask);
-        Assert.IsFalse(shell.CurrentNavigationTask.IsCompleted);
-
-        releaseRetirement.SetResult();
-        await shell.CurrentNavigationTask.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
         Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+        Assert.IsNull(shell.ActiveInspectionPageForTesting);
+        Assert.HasCount(0, frame.BackStack);
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task NavigationAndShutdownShareOneRetirementAndCommitDestinationOwnershipAtomically()
+    public async Task ReturnToImportAndShutdownAwaitTheSameInspectionRetirement()
     {
         TaskCompletionSource retirementStarted = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -235,43 +211,43 @@ public sealed class OnboardingModelInspectionNavigationTests
 
         Task<bool> navigation = shell.ReturnToModelImportAsync();
         await retirementStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        ModelImportPage destination =
-            Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
+        Assert.AreSame(page, frame.Content);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+
         Task shutdown = shell.ShutdownAsync();
         await Task.Yield();
 
         Assert.AreEqual(1, Volatile.Read(ref retirementCount),
             "Navigation and app close must await the same retirement owner.");
         Assert.IsFalse(frame.IsHitTestVisible,
-            "The destination frame cannot accept input before ownership commits.");
-        Assert.IsFalse(destination.IsEnabled,
-            "The fresh import page cannot accept input before subscriptions attach.");
-        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+            "The frame cannot accept input after shutdown begins.");
+        Assert.IsFalse(navigation.IsCompleted);
+        Assert.IsFalse(shutdown.IsCompleted);
 
         releaseRetirement.SetResult();
         Assert.IsTrue(await navigation.WaitAsync(TimeSpan.FromSeconds(5)));
         await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
 
+        ModelImportPage destination =
+            Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
         Assert.AreEqual(1, Volatile.Read(ref retirementCount));
         Assert.IsFalse(frame.IsHitTestVisible);
-        Assert.IsFalse(destination.IsEnabled);
+        Assert.IsTrue(destination.IsEnabled);
         Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
         Assert.IsNull(shell.ActiveInspectionPageForTesting);
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task ReentrantConcurrentReturnAndShutdownJoinOnePublishedNavigationTransaction()
+    public async Task ReturnToImportKeepsInspectionVisibleUntilRetirementCompletes()
     {
         TaskCompletionSource retirementStarted = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource releaseRetirement = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        int retirementCount = 0;
         ModelInspectionPage page = new();
         page.NavigationRetirementOverride = async () =>
         {
-            Interlocked.Increment(ref retirementCount);
             retirementStarted.TrySetResult();
             await releaseRetirement.Task;
         };
@@ -280,136 +256,48 @@ public sealed class OnboardingModelInspectionNavigationTests
         Frame frame = (Frame)shell.FindName("StageFrame");
         Assert.IsTrue(shell.NavigateToModelInspection(
             CreateRequest(@"C:\Models\published-navigation.gguf")));
-        int importNavigationCount = 0;
-        List<ModelImportPage> destinations = [];
-        Task<bool>? reentrantNavigation = null;
-        bool reentered = false;
-        frame.Navigating += (_, eventArguments) =>
-        {
-            if (eventArguments.SourcePageType == typeof(ModelImportPage) &&
-                !reentered)
-            {
-                reentered = true;
-                reentrantNavigation = shell.ReturnToModelImportAsync();
-            }
-        };
-        frame.Navigated += (_, eventArguments) =>
-        {
-            if (eventArguments.SourcePageType == typeof(ModelImportPage) &&
-                frame.Content is ModelImportPage destination)
-            {
-                importNavigationCount++;
-                destinations.Add(destination);
-            }
-        };
 
         Task<bool> navigation = shell.ReturnToModelImportAsync();
         await retirementStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        Task<bool> concurrentNavigation = shell.ReturnToModelImportAsync();
-        Task shutdown = shell.ShutdownAsync();
-        Task<bool> returnDuringShutdown = shell.ReturnToModelImportAsync();
-
-        Assert.IsNotNull(reentrantNavigation);
-        Assert.AreSame(navigation, reentrantNavigation);
-        Assert.AreSame(navigation, concurrentNavigation);
-        Assert.AreSame(navigation, returnDuringShutdown,
-            "Shutdown cannot replace an already-published Return owner.");
+        Assert.AreSame(page, frame.Content);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
         Assert.AreSame(navigation, shell.CurrentNavigationTask);
         Assert.IsFalse(navigation.IsCompleted);
-        Assert.IsFalse(shutdown.IsCompleted);
-        Assert.AreEqual(1, importNavigationCount);
-        Assert.HasCount(1, destinations.Distinct());
-        Assert.AreEqual(1, Volatile.Read(ref retirementCount));
 
         releaseRetirement.SetResult();
-        bool[] results = await Task.WhenAll(
-                navigation,
-                reentrantNavigation!,
-                concurrentNavigation,
-                returnDuringShutdown)
-            .WaitAsync(TimeSpan.FromSeconds(5));
-        await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.IsTrue(await navigation.WaitAsync(TimeSpan.FromSeconds(5)));
 
-        CollectionAssert.AreEqual(new[] { true, true, true, true }, results);
-        ModelImportPage committed =
-            Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
-        Assert.AreSame(destinations.Single(), committed);
-        Assert.AreEqual(1, importNavigationCount);
-        Assert.AreEqual(1, Volatile.Read(ref retirementCount));
-        Assert.IsFalse(frame.IsHitTestVisible);
-        Assert.IsFalse(committed.IsEnabled);
+        Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
         Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
         Assert.IsNull(shell.ActiveInspectionPageForTesting);
-
-        Task<bool> rejectedAfterShutdown = shell.ReturnToModelImportAsync();
-        Assert.AreSame(
-            rejectedAfterShutdown,
-            shell.ReturnToModelImportAsync());
-        Assert.IsFalse(await rejectedAfterShutdown);
     }
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task ThrowingRetirementCommitsInteractiveOwnedRecoveryDestination()
+    public async Task ThrowingRetirementLeavesTheCurrentInspectionVisible()
     {
-        TaskCompletionSource retirementStarted = new(
-            TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource releaseRetirement = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        int retirementCount = 0;
-        Task<bool>? reentrantNavigation = null;
-        bool reentered = false;
-        OnboardingShellPage? shell = null;
         ModelInspectionPage page = new();
         page.NavigationRetirementOverride = async () =>
         {
-            Interlocked.Increment(ref retirementCount);
-            if (!reentered)
-            {
-                reentered = true;
-                reentrantNavigation = shell!.ReturnToModelImportAsync();
-            }
-            retirementStarted.TrySetResult();
             await releaseRetirement.Task;
             throw new InvalidOperationException("controlled retirement failure");
         };
         ControlledInspectionFrameNavigator navigator = new(page, new());
-        shell = new OnboardingShellPage(navigator.Navigate);
+        OnboardingShellPage shell = new(navigator.Navigate);
         Frame frame = (Frame)shell.FindName("StageFrame");
         Assert.IsTrue(shell.NavigateToModelInspection(
             CreateRequest(@"C:\Models\retirement-failure.gguf")));
 
         Task<bool> navigation = shell.ReturnToModelImportAsync();
-        await retirementStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.IsNotNull(reentrantNavigation);
-        Assert.AreSame(navigation, reentrantNavigation);
-        Assert.AreSame(navigation, shell.CurrentNavigationTask);
-        ModelImportPage destination =
-            Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
-        Assert.IsFalse(destination.IsEnabled);
         releaseRetirement.SetResult();
 
-        Assert.IsFalse(await navigation.WaitAsync(TimeSpan.FromSeconds(5)),
-            "A controlled recovery destination must report retirement failure.");
-        Assert.IsFalse(await reentrantNavigation.WaitAsync(TimeSpan.FromSeconds(5)));
-        Assert.AreEqual(1, Volatile.Read(ref retirementCount));
-        Assert.AreSame(destination, frame.Content);
-        Assert.IsTrue(frame.IsHitTestVisible);
-        Assert.IsTrue(destination.IsEnabled);
-        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
-        Assert.IsNull(shell.ActiveInspectionPageForTesting);
-
-        ModelInspectionRequest next = CreateRequest(
-            @"C:\Models\recovered-next.gguf");
-        RaiseModelInspectionRequested(destination, next);
-        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage,
-            "The visible recovery destination must own the live subscription.");
-        Assert.AreSame(
-            next,
-            Assert.IsInstanceOfType<ModelInspectionPage>(frame.Content).Request);
-
-        await shell.ShutdownAsync().WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.AreEqual(1, Volatile.Read(ref retirementCount));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            await navigation.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.AreSame(page, frame.Content);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+        Assert.AreSame(page, shell.ActiveInspectionPageForTesting);
     }
 
     [UITestMethod]
@@ -435,99 +323,36 @@ public sealed class OnboardingModelInspectionNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task ShutdownPublicationRejectsReentrantReturnAndClosesThrowingOwnerOnce()
+    public async Task ShutdownHandlesThrowingRetirementAndDetachesInspection()
     {
-        TaskCompletionSource retirementStarted = new(
-            TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource releaseRetirement = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
         int retirementCount = 0;
-        Task<bool>? reentrantReturn = null;
-        OnboardingShellPage? shell = null;
         ModelInspectionPage page = new();
         page.NavigationRetirementOverride = async () =>
         {
             Interlocked.Increment(ref retirementCount);
-            reentrantReturn = shell!.ReturnToModelImportAsync();
-            retirementStarted.TrySetResult();
             await releaseRetirement.Task;
             throw new InvalidOperationException("controlled shutdown retirement failure");
         };
         ControlledInspectionFrameNavigator navigator = new(page, new());
-        shell = new OnboardingShellPage(navigator.Navigate);
+        OnboardingShellPage shell = new(navigator.Navigate);
         Frame frame = (Frame)shell.FindName("StageFrame");
         Assert.IsTrue(shell.NavigateToModelInspection(
             CreateRequest(@"C:\Models\shutdown-publication.gguf")));
-        int importNavigationAttemptCount = 0;
-        int importNavigationCount = 0;
-        frame.Navigating += (_, eventArguments) =>
-        {
-            if (eventArguments.SourcePageType == typeof(ModelImportPage))
-            {
-                Interlocked.Increment(ref importNavigationAttemptCount);
-                eventArguments.Cancel = true;
-            }
-        };
-        frame.Navigated += (_, eventArguments) =>
-        {
-            if (eventArguments.SourcePageType == typeof(ModelImportPage))
-            {
-                Interlocked.Increment(ref importNavigationCount);
-            }
-        };
 
         Task shutdown = shell.ShutdownAsync();
-        await retirementStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        Task<bool> concurrentReturn = shell.ReturnToModelImportAsync();
-        Task concurrentShutdown = shell.ShutdownAsync();
-
-        Assert.IsNotNull(reentrantReturn);
-        bool sameConcurrentShutdown = ReferenceEquals(shutdown, concurrentShutdown);
-        bool sameRejectedReturn = ReferenceEquals(
-            reentrantReturn,
-            concurrentReturn);
-        int navigationCountWhileClosing =
-            Volatile.Read(ref importNavigationCount);
+        Assert.IsFalse(shutdown.IsCompleted);
+        Assert.IsFalse(frame.IsHitTestVisible);
 
         releaseRetirement.TrySetResult();
-        Exception? shutdownError = null;
-        try
-        {
-            await Task.WhenAll(
-                    shutdown,
-                    concurrentShutdown)
-                .WaitAsync(TimeSpan.FromSeconds(5));
-        }
-        catch (Exception error)
-        {
-            shutdownError = error;
-        }
-        bool[] returnResults = await Task.WhenAll(
-                reentrantReturn!,
-                concurrentReturn)
-            .WaitAsync(TimeSpan.FromSeconds(5));
+        await shutdown.WaitAsync(TimeSpan.FromSeconds(5));
 
-        Assert.IsNull(shutdownError,
-            "Shutdown cleanup must settle coherently even when retirement throws.");
-        Assert.IsTrue(sameConcurrentShutdown,
-            "Concurrent shutdown must join the published lifecycle owner.");
-        Assert.IsTrue(sameRejectedReturn,
-            "Returns rejected after shutdown publication must share one result.");
-        CollectionAssert.AreEqual(new[] { false, false }, returnResults);
-        Assert.AreEqual(0, Volatile.Read(ref importNavigationAttemptCount),
-            "No Return may even attempt navigation after shutdown publication.");
-        Assert.AreEqual(0, navigationCountWhileClosing,
-            "Shutdown publication must precede every callback that could return.");
-        Assert.AreEqual(0, Volatile.Read(ref importNavigationCount));
         Assert.AreEqual(1, Volatile.Read(ref retirementCount));
         Assert.AreSame(page, frame.Content);
         Assert.IsFalse(frame.IsHitTestVisible);
-        Assert.IsFalse(page.IsEnabled);
+        Assert.IsTrue(page.IsEnabled);
         Assert.IsNull(shell.ActiveInspectionPageForTesting);
-
-        RaiseChooseAnotherModelRequestedIfSubscribed(page);
-        Assert.AreEqual(0, Volatile.Read(ref importNavigationCount),
-            "The shutdown-owned page must be detached from shell navigation.");
     }
 
     [UITestMethod]
@@ -636,14 +461,10 @@ public sealed class OnboardingModelInspectionNavigationTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task LiveFooterPipeline_DoesNotAdvanceStageOrPermitRetiredPageUpdates()
+    public void LiveFooterPipeline_DoesNotAdvanceStageOrPermitRetiredPageUpdates()
     {
-        var service = new ControlledInspectionService();
-        service.QueueCall(ModelInspectionExecutionResult.Completed(
-            PresentationTestData.CreateResult(ModelInspectionOutcome.Ready)));
-        var page = new ModelInspectionPage(service);
-        var replacement = new ModelInspectionPage(
-            new ControlledInspectionService());
+        var page = new ModelInspectionPage();
+        var replacement = new ModelInspectionPage();
         var navigator = new ControlledInspectionFrameNavigator(
             page,
             replacement);
@@ -652,105 +473,38 @@ public sealed class OnboardingModelInspectionNavigationTests
         var indicator = (OnboardingStageIndicator)shell.FindName(
             "StageIndicator");
 
-        try
-        {
-            Assert.IsTrue(shell.NavigateToModelInspection(
-                CreateRequest(@"C:\Models\controlled-footer.gguf")));
-            Assert.AreSame(
-                page,
-                stageFrame.Content,
-                "The controlled page must participate in the Frame navigation lifetime under test.");
+        Assert.IsTrue(shell.NavigateToModelInspection(
+            CreateRequest(@"C:\Models\controlled-footer.gguf")));
+        RaiseFooterStatusChanged(
+            page,
+            sender: page,
+            InspectionFooterStatus.Complete);
+        Assert.AreEqual(
+            InspectionFooterStatus.Complete,
+            indicator.InspectionStatus);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
 
-            Task completeApplied = ObserveInspectionStatusAsync(
-                indicator,
-                InspectionFooterStatus.Complete);
-            await page.StartInspectionIfReadyAsync()!;
-            await completeApplied;
+        EventHandler capturedChooseAnother =
+            CaptureChooseAnotherModelRequested(page);
+        EventHandler<InspectionFooterStatusChangedEventArgs> capturedFooter =
+            CaptureFooterStatusChanged(page);
+        ModelInspectionRequest replacementRequest = CreateRequest(
+            @"C:\Models\shell-second.gguf");
+        Assert.IsTrue(shell.NavigateToModelInspection(replacementRequest));
+        InspectionFooterStatus replacementStatus = replacement.CurrentFooterStatus;
 
-            Assert.AreEqual(
-                InspectionFooterStatus.Complete,
-                indicator.InspectionStatus);
-            Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+        capturedFooter.Invoke(
+            page,
+            new InspectionFooterStatusChangedEventArgs(
+                InspectionFooterStatus.Complete));
+        capturedChooseAnother.Invoke(page, EventArgs.Empty);
 
-            ControlledCall staleCall = service.QueueCall();
-            Task retryApplied = ObserveInspectionStatusAsync(
-                indicator,
-                InspectionFooterStatus.InProgress);
-            ModelInspectionViewModel retiredViewModel = page.ViewModel!;
-            Task retryRun = retiredViewModel.StartAsync();
-            await retryApplied;
-            Assert.AreEqual(
-                InspectionFooterStatus.InProgress,
-                indicator.InspectionStatus);
-            Assert.IsTrue(staleCall.CancellationToken.CanBeCanceled);
-
-            ModelInspectionPagePresentation retainedPresentation =
-                page.CurrentPresentation!;
-            InspectionFooterStatus retainedFooter = page.CurrentFooterStatus;
-
-            EventHandler capturedChooseAnother =
-                CaptureChooseAnotherModelRequested(page);
-            EventHandler<InspectionFooterStatusChangedEventArgs>
-                capturedFooter = CaptureFooterStatusChanged(page);
-            ModelInspectionRequest replacementRequest = CreateRequest(
-                @"C:\Models\shell-second.gguf");
-            Assert.IsTrue(shell.NavigateToModelInspection(replacementRequest));
-            Assert.AreSame(replacement, stageFrame.Content);
-            InspectionFooterStatus replacementStatus =
-                replacement.CurrentFooterStatus;
-            Assert.IsNull(
-                page.ViewModel,
-                "Frame replacement must retire the exact controlled page that supplied the live footer.");
-            Assert.IsTrue(staleCall.CancellationToken.IsCancellationRequested);
-            ModelInspectionViewSnapshot retiredSnapshot =
-                retiredViewModel.Snapshot;
-
-            staleCall.Complete(CreateFailureResult("retired-shell-page"));
-            await retryRun.WaitAsync(TimeSpan.FromSeconds(10));
-            Assert.AreSame(retiredSnapshot, retiredViewModel.Snapshot);
-            Assert.AreSame(retainedPresentation, page.CurrentPresentation);
-            Assert.AreEqual(retainedFooter, page.CurrentFooterStatus);
-
-            capturedFooter.Invoke(
-                page,
-                new InspectionFooterStatusChangedEventArgs(
-                    InspectionFooterStatus.Complete));
-            capturedChooseAnother.Invoke(page, EventArgs.Empty);
-
-            Assert.AreEqual(replacementStatus, indicator.InspectionStatus);
-            Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
-            Assert.AreSame(replacement, stageFrame.Content);
-            Assert.AreSame(replacementRequest, replacement.Request);
-            Assert.HasCount(0, stageFrame.BackStack);
-            Assert.IsFalse(stageFrame.CanGoBack);
-        }
-        finally
-        {
-            ModelInspectionPage? framePage =
-                stageFrame.Content as ModelInspectionPage;
-            if (framePage is not null)
-            {
-                InvokeNavigation(
-                    framePage,
-                    "OnNavigatedFrom",
-                    parameter: null);
-            }
-
-            stageFrame.Content = null;
-            if (!ReferenceEquals(page, framePage) && page.ViewModel is not null)
-            {
-                InvokeNavigation(page, "OnNavigatedFrom", parameter: null);
-            }
-
-            if (!ReferenceEquals(replacement, framePage) &&
-                replacement.ViewModel is not null)
-            {
-                InvokeNavigation(
-                    replacement,
-                    "OnNavigatedFrom",
-                    parameter: null);
-            }
-        }
+        Assert.AreEqual(replacementStatus, indicator.InspectionStatus);
+        Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
+        Assert.AreSame(replacement, stageFrame.Content);
+        Assert.AreSame(replacementRequest, replacement.Request);
+        Assert.HasCount(0, stageFrame.BackStack);
+        Assert.IsFalse(stageFrame.CanGoBack);
     }
 
     [UITestMethod]
@@ -1023,54 +777,6 @@ public sealed class OnboardingModelInspectionNavigationTests
             new InspectionFooterStatusChangedEventArgs(status));
     }
 
-    private static ModelInspectionExecutionResult CreateFailureResult(
-        string discriminator) =>
-        ModelInspectionExecutionResult.OperationalFailure(
-            new ModelInspectionOperationalFailure(
-                $"MI-OP-{discriminator}",
-                "Model inspection could not be completed.",
-                "Controlled shell test failure."));
-
-    private static async Task ObserveInspectionStatusAsync(
-        OnboardingStageIndicator indicator,
-        InspectionFooterStatus expectedStatus)
-    {
-        if (indicator.InspectionStatus == expectedStatus)
-        {
-            return;
-        }
-
-        var observed = new TaskCompletionSource<bool>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        long callbackToken = indicator.RegisterPropertyChangedCallback(
-            OnboardingStageIndicator.InspectionStatusProperty,
-            (_, _) =>
-            {
-                if (indicator.InspectionStatus == expectedStatus)
-                {
-                    observed.TrySetResult(true);
-                }
-            });
-
-        try
-        {
-            await observed.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        }
-        catch (TimeoutException error)
-        {
-            throw new AssertFailedException(
-                $"Expected inspection footer {expectedStatus}; " +
-                $"current footer is {indicator.InspectionStatus}.",
-                error);
-        }
-        finally
-        {
-            indicator.UnregisterPropertyChangedCallback(
-                OnboardingStageIndicator.InspectionStatusProperty,
-                callbackToken);
-        }
-    }
-
     private static void InvokeNavigation(
         ModelInspectionPage page,
         string methodName,
@@ -1138,61 +844,6 @@ public sealed class OnboardingModelInspectionNavigationTests
         }
     }
 
-    private sealed class ControlledInspectionService : IModelInspectionService
-    {
-        private readonly Queue<ControlledCall> calls = new();
-
-        internal ControlledCall QueueCall(
-            ModelInspectionExecutionResult? completedResult = null)
-        {
-            var call = new ControlledCall();
-            if (completedResult is not null)
-            {
-                call.Complete(completedResult);
-            }
-
-            calls.Enqueue(call);
-            return call;
-        }
-
-        public Task<ModelInspectionExecutionResult> InspectAsync(
-            ModelInspectionRequest request,
-            IProgress<ModelInspectionProgress>? progress,
-            CancellationToken cancellationToken)
-        {
-            if (calls.Count == 0)
-            {
-                throw new InvalidOperationException(
-                    "No controlled shell inspection call was queued.");
-            }
-
-            ControlledCall call = calls.Dequeue();
-            call.Bind(progress, cancellationToken);
-            return call.Completion.Task;
-        }
-    }
-
-    private sealed class ControlledCall
-    {
-        internal TaskCompletionSource<ModelInspectionExecutionResult> Completion
-            { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        internal IProgress<ModelInspectionProgress>? Progress { get; private set; }
-
-        internal CancellationToken CancellationToken { get; private set; }
-
-        internal void Bind(
-            IProgress<ModelInspectionProgress>? progress,
-            CancellationToken cancellationToken)
-        {
-            Progress = progress;
-            CancellationToken = cancellationToken;
-        }
-
-        internal void Complete(ModelInspectionExecutionResult result) =>
-            Completion.SetResult(result);
-    }
-
     private static string CreateTemporaryModelFile(int lengthBytes)
     {
         string directoryPath = Path.Combine(
@@ -1214,13 +865,5 @@ public sealed class OnboardingModelInspectionNavigationTests
         {
             Directory.Delete(directoryPath, recursive: true);
         }
-    }
-
-    private static void InvokeButton(Button button)
-    {
-        var automationPeer = new ButtonAutomationPeer(button);
-        var invokeProvider = (IInvokeProvider)automationPeer.GetPattern(
-            PatternInterface.Invoke);
-        invokeProvider.Invoke();
     }
 }

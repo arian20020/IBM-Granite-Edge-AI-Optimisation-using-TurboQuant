@@ -74,6 +74,7 @@ public sealed class ModelInspectionPresentationFactoryTests
             userMessage: "Checking tokenizer evidence.");
         var progressRows = new InspectionProgressRows();
         progressRows.Reset(new ModelInspectionRenderKey(1, 0));
+        ApplyCompletedProgress(progressRows, completedStageCount: 2);
         ModelInspectionViewSnapshot snapshot = new(
             new ModelInspectionRenderKey(1, 3),
             isRunActive: true,
@@ -209,12 +210,12 @@ public sealed class ModelInspectionPresentationFactoryTests
 
     [TestMethod]
     [TestCategory("WinUI")]
-    [DataRow((int)ModelInspectionOutcome.Ready, 1, 2)]
-    [DataRow((int)ModelInspectionOutcome.ReadyWithWarnings, 1, 2)]
-    [DataRow((int)ModelInspectionOutcome.ConversionRequired, 1, 2)]
-    [DataRow((int)ModelInspectionOutcome.IncompletePackage, 2, 1)]
-    [DataRow((int)ModelInspectionOutcome.Unsupported, 1, 1)]
-    [DataRow((int)ModelInspectionOutcome.Invalid, 1, 1)]
+    [DataRow((int)ModelInspectionOutcome.Ready, 1, 1)]
+    [DataRow((int)ModelInspectionOutcome.ReadyWithWarnings, 1, 1)]
+    [DataRow((int)ModelInspectionOutcome.ConversionRequired, 1, 1)]
+    [DataRow((int)ModelInspectionOutcome.IncompletePackage, 2, 0)]
+    [DataRow((int)ModelInspectionOutcome.Unsupported, 1, 0)]
+    [DataRow((int)ModelInspectionOutcome.Invalid, 1, 0)]
     public void Create_CompletedOutcomeKeepsNavigationActiveAndFutureActionsExplicit(
         int outcomeValue,
         int expectedActiveCount,
@@ -319,7 +320,7 @@ public sealed class ModelInspectionPresentationFactoryTests
         AssertRecoveryActions(
             presentation.ActionCard,
             expectedPrimaryText: "Retry inspection",
-            expectedFutureCount: 1);
+            expectedFutureCount: 0);
 
         StringAssert.DoesNotContain(
             FlattenVisibleText(presentation),
@@ -372,6 +373,25 @@ public sealed class ModelInspectionPresentationFactoryTests
                 chooseCommand ?? PresentationTestData.CreateCommand()),
             isDisclosureExpanded: false,
             new InspectionProgressRows());
+    }
+
+    private static void ApplyCompletedProgress(
+        InspectionProgressRows rows,
+        int completedStageCount)
+    {
+        for (int stage = 1; stage <= completedStageCount; stage++)
+        {
+            ModelInspectionProgress progress = new(
+                (ModelInspectionStage)stage,
+                ModelInspectionStageStatus.Completed,
+                completedStageCount: stage,
+                totalStageCount: 5,
+                stageFraction: 1,
+                userMessage: "Completed.");
+            rows.Apply(InspectionProgressPresentationFactory.Create(
+                progress,
+                new ModelInspectionRenderKey(1, stage)));
+        }
     }
 
     [TestMethod]

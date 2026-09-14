@@ -567,9 +567,11 @@ public sealed class HardwareInspectionPageTests
                 HardwareInspectionPresentationKind.Active,
                 page.CurrentState?.Kind);
 
+            bool unloaded = false;
+            page.Unloaded += (_, _) => unloaded = true;
             window.Content = null;
             detached = true;
-            await WaitForAsync(() => page.XamlRoot is null);
+            await WaitForAsync(() => unloaded);
             run.Complete(HardwareInspectionRunResult.CreateCancelled(run.InspectionId));
             await Task.Delay(180);
 

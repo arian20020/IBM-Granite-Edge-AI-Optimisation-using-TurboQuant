@@ -407,6 +407,8 @@
                       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Contracts\GraniteEdgeAI.GgufRuntime.Contracts.csproj"
                       Condition="'$(Platform)' == 'x64'" />
+    <ProjectReference Include="..\..\..\shared\GraniteEdgeAI.GgufRuntime.Transport\GraniteEdgeAI.GgufRuntime.Transport.csproj"
+                      Condition="'$(Platform)' == 'x64'" />
     <ProjectReference Include="..\..\..\runtime\GraniteEdgeAI.GgufRuntime.Capabilities\GraniteEdgeAI.GgufRuntime.Capabilities.csproj"
                       Condition="'$(Platform)' == 'x64'" />
     <ProjectReference Include="..\..\..\runtime\GraniteEdgeAI.GgufQuantization.Capabilities\GraniteEdgeAI.GgufQuantization.Capabilities.csproj"

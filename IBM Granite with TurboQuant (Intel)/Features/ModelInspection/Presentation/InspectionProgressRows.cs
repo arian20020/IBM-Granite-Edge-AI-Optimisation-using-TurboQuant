@@ -27,6 +27,7 @@ public sealed class InspectionProgressRows : INotifyPropertyChanged
 
     internal InspectionProgressRows()
     {
+        Array.Fill(_presentedDetails, string.Empty);
         _items = Array.AsReadOnly(
         [
             CreateStage(
@@ -100,7 +101,7 @@ public sealed class InspectionProgressRows : INotifyPropertyChanged
         _ownerKey = ownerKey;
         _lastAppliedRevision = -1;
         _lastAppliedUpdate = null;
-        Array.Clear(_presentedDetails);
+        Array.Fill(_presentedDetails, string.Empty);
         SetProgressSummary(InitialSummary);
         foreach (InspectionContentItemPresentation item in _items)
         {

@@ -1109,7 +1109,7 @@ public sealed class CompatibilityPresentationFactoryTests
 
         Assert.IsNotNull(presentation.MemoryClarity);
         Assert.AreEqual(0UL, presentation.MemoryClarity.AdditionalFreeRequiredBytes);
-        StringAssert.Contains(presentation.OutcomeTitle, "storage");
+        StringAssert.Contains(presentation.OutcomeTitle, "disk space");
         StringAssert.Contains(presentation.OutcomeDetail, "2 GB");
         Assert.IsFalse(
             presentation.OutcomeDetail.Contains(

@@ -17,7 +17,7 @@ static async Task<int> RunAsync(string[] arguments)
     }
 
     string controlRoot = Path.GetFullPath(Path.Combine(
-        Path.GetTempPath(),
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "GraniteEdgeAI.HardwareInspection.Tests",
         "LlmFitFake",
         mode));

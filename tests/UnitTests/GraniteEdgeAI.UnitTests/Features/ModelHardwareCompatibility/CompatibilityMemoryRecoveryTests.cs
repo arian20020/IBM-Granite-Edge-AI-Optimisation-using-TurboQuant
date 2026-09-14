@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Reflection;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility;
+#if DEBUG
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.DebugFixtures;
+#endif
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Infrastructure;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.Presentation;
 using GraniteEdgeAI.Features.ModelHardwareCompatibility.ViewModels;
@@ -92,8 +94,8 @@ public sealed class CompatibilityMemoryRecoveryTests
         Assert.IsFalse(collected);
         string xaml = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(), "IBM Granite with TurboQuant (Intel)",
-            "Features", "ModelHardwareCompatibility", "CompatibilityPage.xaml"));
-        StringAssert.Contains(xaml, "Refresh memory and check again");
+            "Features", "ModelHardwareCompatibility", "CompatibilityPage.xaml.cs"));
+        StringAssert.Contains(xaml, "Restart hardware inspection");
         Assert.IsFalse(xaml.Contains("release its own temporary memory",
             StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(xaml.Contains("Release app memory",

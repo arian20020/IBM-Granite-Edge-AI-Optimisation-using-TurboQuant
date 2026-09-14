@@ -505,6 +505,28 @@ public sealed class OpenVinoPromptSurfaceTests
         {
             4L,
             new ModelInspectionProgress(
+                ModelInspectionStage.CheckModelPackage,
+                ModelInspectionStageStatus.Completed,
+                completedStageCount: 1,
+                totalStageCount: 5,
+                stageFraction: 1d,
+                "Model package checked.")
+        });
+        applyProgress.Invoke(page, new object[]
+        {
+            4L,
+            new ModelInspectionProgress(
+                ModelInspectionStage.ReadModelConfiguration,
+                ModelInspectionStageStatus.Completed,
+                completedStageCount: 2,
+                totalStageCount: 5,
+                stageFraction: 1d,
+                "Model configuration read.")
+        });
+        applyProgress.Invoke(page, new object[]
+        {
+            4L,
+            new ModelInspectionProgress(
                 ModelInspectionStage.ValidateTokenizerAndChatSetup,
                 ModelInspectionStageStatus.Active,
                 completedStageCount: 2,
@@ -520,13 +542,13 @@ public sealed class OpenVinoPromptSurfaceTests
                 preview,
                 "InspectionProgressPanel").Visibility);
         Assert.AreEqual(
-            "Passed",
+            "Checking\n0%",
             PreviewElement<TextBlock>(preview, "InspectionStage1Status").Text);
         Assert.AreEqual(
-            "Passed",
+            "Waiting",
             PreviewElement<TextBlock>(preview, "InspectionStage2Status").Text);
         Assert.AreEqual(
-            "Checking\n50%",
+            "Waiting",
             PreviewElement<TextBlock>(preview, "InspectionStage3Status").Text);
         Assert.AreEqual("2 of 5 checks complete",
             preview.ContentPresentation.ProgressRows.ProgressSummary);

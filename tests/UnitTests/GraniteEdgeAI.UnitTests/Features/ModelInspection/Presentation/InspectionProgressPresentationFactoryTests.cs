@@ -47,6 +47,13 @@ public sealed class InspectionProgressPresentationFactoryTests
     {
         InspectionProgressRows rows = new();
         rows.Reset(new ModelInspectionRenderKey(1, 0));
+        long revision = 0;
+        ApplyCompletedStages(
+            rows,
+            ModelInspectionStage.ValidateTokenizerAndChatSetup,
+            ref revision);
+        InspectionContentStatus[] before =
+            rows.Items.Select(item => item.Status).ToArray();
         ModelInspectionProgress progress = CreateProgress(
             ModelInspectionStage.ValidateTokenizerAndChatSetup,
             ModelInspectionStageStatus.Active,
@@ -55,10 +62,11 @@ public sealed class InspectionProgressPresentationFactoryTests
         InspectionProgressRowsUpdate update =
             InspectionProgressPresentationFactory.Create(
                 progress,
-                new ModelInspectionRenderKey(1, 1));
+                new ModelInspectionRenderKey(1, ++revision));
 
-        Assert.IsTrue(rows.Items.All(item =>
-            item.Status == InspectionContentStatus.Waiting));
+        CollectionAssert.AreEqual(
+            before,
+            rows.Items.Select(item => item.Status).ToArray());
         Assert.AreEqual(
             ModelInspectionStage.ValidateTokenizerAndChatSetup,
             update.Key.Stage);
@@ -78,12 +86,19 @@ public sealed class InspectionProgressPresentationFactoryTests
     {
         InspectionProgressRows rows = new();
         rows.Reset(new ModelInspectionRenderKey(1, 0));
+        long revision = 0;
+        ApplyCompletedStages(
+            rows,
+            ModelInspectionStage.ReadModelConfiguration,
+            ref revision);
+        InspectionContentStatus[] before =
+            rows.Items.Select(item => item.Status).ToArray();
         ModelInspectionProgress progress = CreateProgress(
             ModelInspectionStage.ReadModelConfiguration,
             ModelInspectionStageStatus.Active,
             completedStageCount: 1);
         ModelInspectionViewSnapshot snapshot = new(
-            new ModelInspectionRenderKey(1, 1),
+            new ModelInspectionRenderKey(1, ++revision),
             isRunActive: true,
             isCancellationRequested: false,
             progress,
@@ -101,8 +116,9 @@ public sealed class InspectionProgressPresentationFactoryTests
                 rows);
 
         Assert.AreSame(rows, presentation.ContentCard.ProgressRows);
-        Assert.IsTrue(rows.Items.All(item =>
-            item.Status == InspectionContentStatus.Waiting));
+        CollectionAssert.AreEqual(
+            before,
+            rows.Items.Select(item => item.Status).ToArray());
         Assert.AreEqual(snapshot.RenderKey, presentation.ProgressRowsUpdate.OwnerKey);
         Assert.AreEqual(
             presentation.RegionKeys.Progress,
@@ -131,7 +147,8 @@ public sealed class InspectionProgressPresentationFactoryTests
             Assert.AreEqual(InspectionContentStatus.Passed, completed.Status);
             Assert.AreEqual("Passed", completed.StatusText);
             Assert.IsFalse(completed.IsActive);
-            Assert.AreEqual(Visibility.Collapsed, completed.DetailVisibility);
+            Assert.AreEqual(Visibility.Visible, completed.DetailVisibility);
+            Assert.AreEqual("Completed.", completed.Detail);
         }
 
         foreach (InspectionContentItemPresentation waiting in
@@ -310,12 +327,35 @@ public sealed class InspectionProgressPresentationFactoryTests
     {
         InspectionProgressRows rows = new();
         rows.Reset(new ModelInspectionRenderKey(1, 0));
+        long revision = 0;
+        ApplyCompletedStages(rows, progress.Stage, ref revision);
+
         InspectionProgressRowsUpdate update =
             InspectionProgressPresentationFactory.Create(
                 progress,
-                new ModelInspectionRenderKey(1, 1));
+                new ModelInspectionRenderKey(1, ++revision));
         rows.Apply(update);
         return InitialInspectionProgressPresentationFactory.Create(rows);
+    }
+
+    private static void ApplyCompletedStages(
+        InspectionProgressRows rows,
+        ModelInspectionStage currentStage,
+        ref long revision)
+    {
+        for (int stage = 1; stage < (int)currentStage; stage++)
+        {
+            ModelInspectionProgress completed = new(
+                (ModelInspectionStage)stage,
+                ModelInspectionStageStatus.Completed,
+                completedStageCount: stage,
+                totalStageCount: 5,
+                stageFraction: 1,
+                userMessage: "Completed.");
+            rows.Apply(InspectionProgressPresentationFactory.Create(
+                completed,
+                new ModelInspectionRenderKey(1, ++revision)));
+        }
     }
 
     private static ModelInspectionProgress CreateProgress(

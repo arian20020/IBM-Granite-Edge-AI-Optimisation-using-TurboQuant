@@ -20,7 +20,7 @@ public sealed class ModelImportDropAccessibilityTests
     [TestCategory("WinUI")]
     public void AwaitingSelection_UsesVisibleRoundedDashedDropBorder()
     {
-        var card = new ImportModelCard();
+        var card = new ImportModelCard { RequestedTheme = ElementTheme.Light };
         var border = card.FindName("AwaitingSelectionBorder") as Rectangle;
 
         Assert.IsNotNull(border);
@@ -32,8 +32,8 @@ public sealed class ModelImportDropAccessibilityTests
         Assert.IsTrue(border.RadiusY > 0);
         Assert.AreEqual(20d, border.RadiusX);
         Assert.AreEqual(20d, border.RadiusY);
-        Assert.AreEqual("#FAFBFD", BrushColor(border.Fill));
-        Assert.AreEqual("#C7D2E1", BrushColor(border.Stroke));
+        Assert.AreEqual("#FFFFFF", BrushColor(border.Fill));
+        Assert.AreEqual("#D7E0EC", BrushColor(border.Stroke));
         Assert.AreEqual(Visibility.Visible, border.Visibility);
     }
 
@@ -41,7 +41,7 @@ public sealed class ModelImportDropAccessibilityTests
     [TestCategory("WinUI")]
     public void ValidDrag_SubtlyDarkensDropCardSurface()
     {
-        var card = new ImportModelCard();
+        var card = new ImportModelCard { RequestedTheme = ElementTheme.Light };
 
         card.ShowDragValidation(isValid: true);
 
@@ -49,8 +49,8 @@ public sealed class ModelImportDropAccessibilityTests
         Assert.AreEqual(1.5d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
         var hoverOverlay = GetRectangle(card, "ValidDragHoverOverlay");
         Assert.AreEqual(Visibility.Visible, hoverOverlay.Visibility);
-        Assert.AreEqual("#000000", BrushColor(hoverOverlay.Fill));
-        Assert.AreEqual(0x10, BrushOpacity(hoverOverlay.Fill));
+        Assert.AreEqual("#EDF4FF", BrushColor(hoverOverlay.Fill));
+        Assert.AreEqual(0xFF, BrushOpacity(hoverOverlay.Fill));
         Assert.IsNull(card.FindName("DropValidationStatusTextBlock"));
     }
 
@@ -99,8 +99,8 @@ public sealed class ModelImportDropAccessibilityTests
 
         var hoverOverlay = GetRectangle(card, "ValidDragHoverOverlay");
         Assert.AreEqual(Visibility.Visible, hoverOverlay.Visibility);
-        Assert.AreEqual("#000000", BrushColor(hoverOverlay.Fill));
-        Assert.AreEqual(0x10, BrushOpacity(hoverOverlay.Fill));
+        Assert.AreEqual("#162B49", BrushColor(hoverOverlay.Fill));
+        Assert.AreEqual(0xFF, BrushOpacity(hoverOverlay.Fill));
         Assert.AreEqual(1.5d, GetRectangle(card, "AwaitingSelectionBorder").StrokeThickness);
     }
 
@@ -109,14 +109,16 @@ public sealed class ModelImportDropAccessibilityTests
     public void DropSurface_IsHitTestableAndDescribesPickerParity()
     {
         var page = new ModelImportPage();
-        var target = page.FindName("ModelDropTarget") as Grid;
+        var target = page.FindName("LocalImportStateHost") as Grid;
+        var dropCard = page.FindName("LocalModelDropTarget") as Border;
 
         Assert.IsNotNull(target);
+        Assert.IsNotNull(dropCard);
         Assert.IsTrue(target.AllowDrop);
         Assert.IsNotNull(target.Background);
-        Assert.AreEqual("Model drop area", AutomationProperties.GetName(target));
-        StringAssert.Contains(AutomationProperties.GetHelpText(target), "Choose model file");
-        StringAssert.Contains(AutomationProperties.GetHelpText(target), "OpenVINO model folder");
+        Assert.AreEqual("Local model import state host", AutomationProperties.GetName(target));
+        StringAssert.Contains(AutomationProperties.GetName(dropCard), "GGUF file");
+        StringAssert.Contains(AutomationProperties.GetName(dropCard), "OpenVINO model folder");
     }
 
     [UITestMethod]
@@ -124,12 +126,11 @@ public sealed class ModelImportDropAccessibilityTests
     public void DropSurface_ExposesOneAccessiblePickerAction()
     {
         var page = new ModelImportPage();
-        var card = (ImportModelCard)page.FindName("ImportModelCardControl");
-        var fileButton = (Button)card.FindName("ChooseModelFileButton");
-        Assert.IsTrue(fileButton.MinHeight >= 44);
-        Assert.AreEqual("Choose model file", AutomationProperties.GetName(fileButton));
-        StringAssert.Contains(AutomationProperties.GetHelpText(fileButton), "OpenVINO");
-        Assert.IsNull(card.FindName("ChooseModelFolderButton"));
+        var fileButton = (Button)page.FindName("BtnChooseLocalModel");
+        Assert.AreEqual(44d, fileButton.Height);
+        Assert.AreEqual("Choose model", AutomationProperties.GetName(fileButton));
+        Assert.AreEqual("Choose model", fileButton.Content?.ToString());
+        Assert.IsNull(page.FindName("ChooseModelFolderButton"));
     }
 
     [UITestMethod]
@@ -150,7 +151,7 @@ public sealed class ModelImportDropAccessibilityTests
             ?? throw new AssertFailedException("RejectDroppedSelectionAsync did not return a Task.");
         await completion;
 
-        var announcement = (TextBlock)page.FindName("SelectionAnnouncement");
+        var announcement = (TextBlock)page.FindName("LocalImportStateStatus");
         Assert.AreEqual(Visibility.Visible, announcement.Visibility);
         Assert.AreEqual(
             "Drop only one model file or model folder at a time.",
@@ -181,9 +182,14 @@ public sealed class ModelImportDropAccessibilityTests
         await page.SubmitInputAsync(
             new ModelSelectionInput(@"C:\Models\granite", "granite", isFolder: true));
 
-        var announcement = (TextBlock)page.FindName("SelectionAnnouncement");
-        Assert.AreEqual(Visibility.Collapsed, announcement.Visibility);
-        Assert.AreEqual(string.Empty, announcement.Text);
+        var announcement = (TextBlock)page.FindName("LocalImportStateStatus");
+        Assert.AreEqual(Visibility.Visible, announcement.Visibility);
+        Assert.AreEqual(
+            "OpenVINO folder selected · Ready for model inspection",
+            announcement.Text);
+        Assert.IsFalse(announcement.Text.Contains(
+            "Drop only one model file",
+            StringComparison.Ordinal));
     }
 
     private static Rectangle GetRectangle(ImportModelCard card, string name) =>

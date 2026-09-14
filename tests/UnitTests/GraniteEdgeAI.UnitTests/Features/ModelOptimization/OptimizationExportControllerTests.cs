@@ -469,17 +469,40 @@ public sealed class OptimizationExportControllerTests
         };
         controller.Bind(Target());
         Task<bool> operation = controller.TryStartAsync();
-        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        Assert.IsTrue(controller.TryCancel());
-        await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        service.Complete(OptimizationExportResult.Cancelled());
-        await pending.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        Assert.IsFalse(await controller.TryRetryAsync());
+        string checkpoint = "provider start";
+        try
+        {
+            await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            Assert.IsTrue(controller.TryCancel());
+            checkpoint = "cancellation callback start";
+            await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            // Keep the provider pending until the overall cleanup timeout is
+            // observed. Completing it first starts a second callback timeout,
+            // so the Failed event does not identify which path this test reached.
+            checkpoint = "cleanup failure publication";
+            await pending.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            Assert.IsFalse(await controller.TryRetryAsync());
 
-        release.Set();
-        await operation.WaitAsync(TimeSpan.FromSeconds(1));
-        await reconciled.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        Assert.AreEqual(OptimizationExportStateKind.Cancelled, controller.State.Kind);
+            service.Complete(OptimizationExportResult.Cancelled());
+            release.Set();
+            checkpoint = "export operation completion after callback release";
+            await operation.WaitAsync(TimeSpan.FromSeconds(1));
+            checkpoint = "cancelled state publication after callback release";
+            await reconciled.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            Assert.AreEqual(OptimizationExportStateKind.Cancelled, controller.State.Kind);
+        }
+        catch (TimeoutException exception)
+        {
+            throw new TimeoutException(
+                $"Timed out waiting for {checkpoint}. State={controller.State.Kind}; " +
+                $"Failure={controller.State.Failure}; CleanupPending={controller.IsCleanupPending}; " +
+                $"Operation={operation.Status}; Reconciliation={controller.CleanupReconciliation.Status}; " +
+                $"CallbackCount={service.CallbackCount}.", exception);
+        }
+        finally
+        {
+            release.Set();
+        }
     }
 
     [TestMethod]

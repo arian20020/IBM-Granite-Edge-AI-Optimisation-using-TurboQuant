@@ -425,6 +425,7 @@ public sealed class HardwareInspectionViewModelTests
 
         viewModel.Deactivate();
         long retiredRevision = viewModel.Snapshot.Revision;
+        await WaitForAsync(() => call.CancellationToken.IsCancellationRequested);
         Assert.IsTrue(call.CancellationToken.IsCancellationRequested);
         Assert.IsFalse(viewModel.Snapshot.IsRunActive);
 

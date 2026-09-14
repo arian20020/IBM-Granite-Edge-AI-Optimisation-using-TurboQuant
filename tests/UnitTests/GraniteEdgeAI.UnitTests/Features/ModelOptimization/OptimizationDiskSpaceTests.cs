@@ -30,7 +30,7 @@ public sealed class OptimizationDiskSpaceTests
     [TestMethod]
     public void GgufPreflightConsumesCandidateTotalWithoutAddingSourceAgain()
     {
-        string source = File.ReadAllText(Path.Combine(OptimizationImportManifestTests.FindRepositoryRoot(),
+        string source = File.ReadAllText(Path.Combine(RepositoryTestPaths.FindRepositoryRoot(),
             "IBM Granite with TurboQuant (Intel)", "Features", "ModelOptimization", "Execution", "Gguf",
             "GgufOptimizationJourneyInfrastructure.cs"));
         StringAssert.Contains(source, "plan.Candidate.Metrics.DiskObligationBytes");

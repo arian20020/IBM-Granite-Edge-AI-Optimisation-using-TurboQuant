@@ -105,7 +105,7 @@ public sealed partial class HardwareInspectionPage : Page
         presentation = null;
         summary = null;
         details = null;
-        if (_viewModel is null)
+        if (_viewModel is null || !_isLoaded || !_isActive)
         {
             return false;
         }

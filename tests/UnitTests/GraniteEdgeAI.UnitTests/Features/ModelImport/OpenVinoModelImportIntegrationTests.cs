@@ -3,8 +3,6 @@ using GraniteEdgeAI.Features.ModelImport.QuickScan;
 using GraniteEdgeAI.Features.ModelImport.Selection;
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.Onboarding;
-using Microsoft.UI.Xaml.Automation.Peers;
-using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
@@ -12,6 +10,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 namespace GraniteEdgeAI.UnitTests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class OpenVinoModelImportIntegrationTests
 {
     [UITestMethod]
@@ -37,7 +36,8 @@ public sealed class OpenVinoModelImportIntegrationTests
                 isFolder: true));
 
             Assert.IsNull(request, "selection must not navigate before Continue");
-            InvokeButton((Button)page.FindName("ContinueToModelInspectionButton"));
+            Assert.IsFalse(page.TryRequestModelInspection(),
+                "without an accepting shell, the navigation request is not accepted");
             Assert.IsNotNull(request);
             Assert.IsNull(request.GetType().GetProperty(
                 "DirectoryPath",
@@ -49,7 +49,7 @@ public sealed class OpenVinoModelImportIntegrationTests
                 "the directory must not enter the GGUF file-path property");
             Assert.AreEqual(1, requestCount);
             Assert.IsFalse(page.TryRequestModelInspection(),
-                "without an accepting shell, the navigation request is not accepted");
+                "without an accepting shell, a repeated request is still not accepted");
             Assert.AreEqual(2, requestCount);
             Assert.AreEqual(ModelSelectionRoute.OpenVinoDirectory, page.CurrentRoute);
         }
@@ -63,33 +63,32 @@ public sealed class OpenVinoModelImportIntegrationTests
     [TestCategory("WinUI")]
     public async Task OpenVinoContinueNavigatesOnboardingToTheExistingInspectionPage()
     {
-        string directory = Path.Combine(Path.GetTempPath(), $"ov-onboard-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(directory);
-        try
-        {
-            OnboardingShellPage shell = new();
-            ModelImportPage page = CreatePage(ModelSelectionRoute.OpenVinoDirectory);
-            shell.AttachModelImportPage(page);
-            await page.SubmitInputAsync(new ModelSelectionInput(
-                directory,
-                "OpenVINO package",
-                isFolder: true));
+        string directory = PackagedOpenVinoFixture();
+        OnboardingShellPage shell = new();
+        ModelImportPage page = CreatePage(ModelSelectionRoute.OpenVinoDirectory);
+        OpenVinoInspectionRequestedEventArgs? request = null;
+        page.OpenVinoInspectionRequested += (_, eventArguments) =>
+            request = eventArguments;
+        await page.SubmitInputAsync(new ModelSelectionInput(
+            directory,
+            "OpenVINO package",
+            isFolder: true));
 
-            InvokeButton((Button)page.FindName("ContinueToModelInspectionButton"));
+        Assert.IsFalse(
+            page.TryRequestModelInspection(),
+            "The request remains retryable until the shell accepts ownership.");
+        Assert.IsNotNull(request);
+        shell.AttachModelImportPage(page);
+        Task<bool> navigation = shell.NavigateToOpenVinoInspectionAsync(request);
 
-            Frame frame = (Frame)shell.FindName("StageFrame");
-            ModelInspectionPage inspectionPage =
-                Assert.IsInstanceOfType<ModelInspectionPage>(frame.Content);
-            Assert.AreEqual(OnboardingStage.InspectModel, shell.CurrentStage);
-            if (inspectionPage.CurrentOpenVinoInspectionTask is Task inspection)
-            {
-                await inspection;
-            }
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
+        Frame frame = (Frame)shell.FindName("StageFrame");
+        ModelInspectionPage inspectionPage =
+            Assert.IsInstanceOfType<ModelInspectionPage>(frame.Content);
+        await inspectionPage.RetireOpenVinoInspectionAsync()
+            .WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.IsFalse(await navigation.WaitAsync(TimeSpan.FromSeconds(5)),
+            "A detached unit-test page cannot claim loaded Frame ownership.");
+        Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
     }
 
     [UITestMethod]
@@ -161,7 +160,7 @@ public sealed class OpenVinoModelImportIntegrationTests
                 path,
                 Path.GetFileName(path),
                 isFolder: false));
-            InvokeButton((Button)page.FindName("ContinueToModelInspectionButton"));
+            Assert.IsTrue(page.TryRequestModelInspection());
 
             Assert.AreEqual(ModelSelectionRoute.Gguf, page.CurrentRoute);
             Assert.AreEqual(1, scans);
@@ -180,10 +179,17 @@ public sealed class OpenVinoModelImportIntegrationTests
         (_, _, _) => throw new AssertFailedException("directory route must not quick-scan"),
         classifier: new StubClassifier(route));
 
-    private static void InvokeButton(Button button)
+    private static string PackagedOpenVinoFixture()
     {
-        ButtonAutomationPeer peer = new(button);
-        ((IInvokeProvider)peer.GetPattern(PatternInterface.Invoke)).Invoke();
+        string path = Path.Combine(
+            AppContext.BaseDirectory,
+            "TestFixtures",
+            "OpenVINO",
+            "GenAI",
+            "TinySyntheticV1",
+            "package");
+        Assert.IsTrue(Directory.Exists(path));
+        return path;
     }
 
     private sealed class StubClassifier(ModelSelectionRoute route) :

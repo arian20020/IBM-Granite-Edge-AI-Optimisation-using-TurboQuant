@@ -52,7 +52,7 @@ public sealed class InspectionOutcomeCardTests
             Assert.AreEqual(0d, card.MinHeight, 0.01, "the banner must size naturally");
             Assert.AreEqual(2, layout.ColumnDefinitions.Count,
                 "the compact outcome is one inline glyph plus left-aligned copy");
-            Assert.AreEqual(20d, leading.ActualWidth, 0.01,
+            Assert.AreEqual(44d, leading.ActualWidth, 0.01,
                 "inline outcome glyph column");
             Assert.AreEqual(HorizontalAlignment.Stretch, focus.HorizontalContentAlignment);
             Assert.AreEqual(
@@ -66,8 +66,8 @@ public sealed class InspectionOutcomeCardTests
                 "title fills the copy column");
             Assert.AreEqual(HorizontalAlignment.Stretch, message.HorizontalAlignment,
                 "message fills the copy column");
-            Assert.AreEqual(20d, iconContainer.ActualWidth, 0.01, "status icon width");
-            Assert.AreEqual(20d, iconContainer.ActualHeight, 0.01, "status icon height");
+            Assert.AreEqual(40d, iconContainer.ActualWidth, 0.01, "status icon width");
+            Assert.AreEqual(40d, iconContainer.ActualHeight, 0.01, "status icon height");
             Assert.AreEqual(22d, glyph.SurfaceSize, 0.01,
                 "the approved dependency-property surface is uniformly scaled");
             Viewbox glyphHost = VisibleGlyphHost(iconContainer);
@@ -77,15 +77,18 @@ public sealed class InspectionOutcomeCardTests
             Assert.AreEqual(
                 AccessibilityView.Raw,
                 AutomationProperties.GetAccessibilityView(glyph));
-            Assert.AreEqual(12d, card.CornerRadius.TopLeft, 0.01, "shared card radius");
-            Assert.AreEqual(new Thickness(18d, 17d, 18d, 17d), card.Padding,
+            Assert.AreEqual(0d, card.CornerRadius.TopLeft, 0.01, "inline outcome radius");
+            Assert.AreEqual(new Thickness(24d, 16d, 24d, 16d), card.Padding,
                 "compact outcome padding");
-            Assert.AreEqual(12d, layout.ColumnSpacing, 0.01d, "outcome column spacing");
-            Assert.AreEqual(14d, title.FontSize, 0.01, "outcome title size");
+            Assert.AreEqual(14d, layout.ColumnSpacing, 0.01d, "outcome column spacing");
+            Assert.AreEqual(20d, title.FontSize, 0.01, "outcome title size");
             Assert.AreEqual(12d, message.FontSize, 0.01, "outcome helper size");
-            Assert.AreSame(Resource("InspectionSuccessSurfaceBrush"), card.Background);
-            Assert.AreSame(Resource("InspectionSuccessBorderBrush"), card.BorderBrush);
-            Assert.AreSame(Resource("InspectionStrongBodyFontFamily"), title.FontFamily);
+            Assert.AreEqual((byte)0, Assert.IsInstanceOfType<SolidColorBrush>(card.Background).Color.A);
+            Assert.AreEqual((byte)0, Assert.IsInstanceOfType<SolidColorBrush>(card.BorderBrush).Color.A);
+            Assert.AreEqual(new Thickness(0d), card.BorderThickness);
+            Assert.AreSame(Resource("InspectionSuccessSurfaceBrush"), iconContainer.Background);
+            Assert.AreSame(Resource("InspectionSuccessTextBrush"), iconContainer.BorderBrush);
+            Assert.AreEqual(Microsoft.UI.Text.FontWeights.SemiBold, title.FontWeight);
             Assert.AreSame(Resource("InspectionHelperFontFamily"), message.FontFamily);
         }
         finally
@@ -102,7 +105,7 @@ public sealed class InspectionOutcomeCardTests
         "InspectionSuccessSurfaceBrush",
         "InspectionSuccessBorderBrush",
         "InspectionSuccessTextBrush",
-        "InspectionSuccessTextStrongBrush",
+        "InspectionTextPrimaryBrush",
         (int)InspectionStatusGlyphKind.Success)]
     [DataRow(
         (int)InspectionOutcomeTone.Warning,
@@ -152,8 +155,12 @@ public sealed class InspectionOutcomeCardTests
             "OutcomeIcon");
         TextBlock title = FindText(control, $"{tone} outcome");
 
-        Assert.AreSame(Resource(surfaceKey), card.Background, tone.ToString());
-        Assert.AreSame(Resource(borderKey), card.BorderBrush, tone.ToString());
+        Assert.AreEqual((byte)0,
+            Assert.IsInstanceOfType<SolidColorBrush>(card.Background).Color.A,
+            "The shared outcome surface remains transparent for every tone.");
+        Assert.AreEqual((byte)0,
+            Assert.IsInstanceOfType<SolidColorBrush>(card.BorderBrush).Color.A,
+            "Tone is carried by the status icon and title, not a second outer border.");
         Assert.AreSame(Resource(surfaceKey), iconContainer.Background, tone.ToString());
         Assert.AreSame(Resource(iconKey), iconContainer.BorderBrush, tone.ToString());
         Assert.AreSame(Resource(titleKey), title.Foreground, tone.ToString());
@@ -162,8 +169,8 @@ public sealed class InspectionOutcomeCardTests
             (InspectionStatusGlyphKind)glyphKindValue,
             glyph.Kind,
             tone.ToString());
-        Assert.AreEqual(20d, iconContainer.Width, 0.01d, tone.ToString());
-        Assert.AreEqual(20d, iconContainer.Height, 0.01d, tone.ToString());
+        Assert.AreEqual(40d, iconContainer.Width, 0.01d, tone.ToString());
+        Assert.AreEqual(40d, iconContainer.Height, 0.01d, tone.ToString());
         Assert.AreEqual(22d, glyph.SurfaceSize, 0.01d, tone.ToString());
         Viewbox glyphHost = VisibleGlyphHost(iconContainer);
         Assert.AreEqual(20d, glyphHost.Width, 0.01d, tone.ToString());
@@ -179,6 +186,7 @@ public sealed class InspectionOutcomeCardTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    [TestCategory("DeferredInspectionPresentation")]
     public void LongOutcomeText_WrapsWithoutFixedLineClipping()
     {
         InspectionOutcomeCard control = CreateControl(

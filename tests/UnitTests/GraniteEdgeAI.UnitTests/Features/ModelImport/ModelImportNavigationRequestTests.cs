@@ -2,8 +2,6 @@ using GraniteEdgeAI.Features.ModelImport;
 using GraniteEdgeAI.Features.ModelImport.Controls;
 using GraniteEdgeAI.Features.ModelImport.FileImport;
 using GraniteEdgeAI.Features.ModelImport.QuickScan;
-using Microsoft.UI.Xaml.Automation.Peers;
-using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.VisualStudio.TestTools.UnitTesting.AppContainer;
 using System;
@@ -23,7 +21,7 @@ public sealed class ModelImportNavigationRequestTests
     {
         var page = new ModelImportPage();
         var continueButton = (Button)page.FindName(
-            "ContinueToModelInspectionButton");
+            "BtnContinueToInspection");
 
         Assert.IsFalse(continueButton.IsEnabled);
     }
@@ -41,7 +39,7 @@ public sealed class ModelImportNavigationRequestTests
             await page.BrowseFilesAsync();
 
             var continueButton = (Button)page.FindName(
-                "ContinueToModelInspectionButton");
+                "BtnContinueToInspection");
 
             Assert.IsTrue(page.HasValidatedModel);
             Assert.IsTrue(continueButton.IsEnabled);
@@ -71,9 +69,7 @@ public sealed class ModelImportNavigationRequestTests
 
             await page.BrowseFilesAsync();
 
-            var continueButton = (Button)page.FindName(
-                "ContinueToModelInspectionButton");
-            InvokeButton(continueButton);
+            Assert.IsTrue(page.TryRequestModelInspection());
 
             Assert.AreEqual(1, requestCount);
             Assert.IsNotNull(capturedRequest);
@@ -120,8 +116,8 @@ public sealed class ModelImportNavigationRequestTests
             }
 
             var continueButton = (Button)page.FindName(
-                "ContinueToModelInspectionButton");
-            InvokeButton(continueButton);
+                "BtnContinueToInspection");
+            Assert.IsFalse(page.TryRequestModelInspection());
 
             AssertChangedSelectionFailure(
                 page,
@@ -154,8 +150,8 @@ public sealed class ModelImportNavigationRequestTests
             File.Delete(selectedPath);
 
             var continueButton = (Button)page.FindName(
-                "ContinueToModelInspectionButton");
-            InvokeButton(continueButton);
+                "BtnContinueToInspection");
+            Assert.IsFalse(page.TryRequestModelInspection());
 
             AssertChangedSelectionFailure(
                 page,
@@ -212,13 +208,11 @@ public sealed class ModelImportNavigationRequestTests
         string selectedPath,
         int requestCount)
     {
-        var importCard = (ImportModelCard)page.FindName(
-            "ImportModelCardControl");
-        var failureCode = (TextBlock)importCard.FindName(
+        var failureCode = (TextBlock)page.FindName(
             "FailureCodeTextBlock");
-        var failureMessage = (TextBlock)importCard.FindName(
+        var failureMessage = (TextBlock)page.FindName(
             "FailureMessageTextBlock");
-        var failureFileName = (TextBlock)importCard.FindName(
+        var failureFileName = (TextBlock)page.FindName(
             "FailureFileNameTextBlock");
 
         Assert.AreEqual(0, requestCount);
@@ -226,7 +220,7 @@ public sealed class ModelImportNavigationRequestTests
         Assert.IsNull(page.ValidatedScanResult);
         Assert.IsNull(page.SelectedModelPath);
         Assert.IsFalse(continueButton.IsEnabled);
-        Assert.AreEqual(ImportModelCardState.ScanFailed, importCard.CurrentState);
+        Assert.AreEqual(ImportModelCardState.ScanFailed, page.CurrentImportState);
         Assert.AreEqual("model-selection-changed", failureCode.Text);
         Assert.AreEqual(
             "The selected model changed after validation. Choose the model again.",
@@ -258,13 +252,5 @@ public sealed class ModelImportNavigationRequestTests
         {
             Directory.Delete(directoryPath, recursive: true);
         }
-    }
-
-    private static void InvokeButton(Button button)
-    {
-        var automationPeer = new ButtonAutomationPeer(button);
-        var invokeProvider = (IInvokeProvider)automationPeer.GetPattern(
-            PatternInterface.Invoke);
-        invokeProvider.Invoke();
     }
 }

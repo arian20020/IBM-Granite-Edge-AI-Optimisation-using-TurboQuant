@@ -1,2 +1,3 @@
-// run independent test methods in parallel as the test suite grows
-[assembly: Parallelize(Scope = ExecutionScope.MethodLevel)]
+// The packaged WinUI host owns one desktop UI thread. Run one test at a time
+// so independent test windows cannot race during activation or shutdown.
+[assembly: Parallelize(Workers = 1, Scope = ExecutionScope.MethodLevel)]

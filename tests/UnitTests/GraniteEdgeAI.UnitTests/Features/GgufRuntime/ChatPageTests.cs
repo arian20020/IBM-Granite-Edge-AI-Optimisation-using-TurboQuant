@@ -86,20 +86,20 @@ public sealed class ChatPageTests
         Assert.AreEqual(
             Windows.UI.Color.FromArgb(255, 238, 242, 247),
             Assert.IsInstanceOfType<SolidColorBrush>(
-                Application.Current.Resources["GgufChatUserBubbleBrush"]).Color);
+                LightChatResources()["GgufChatUserBubbleBrush"]).Color);
         Assert.AreEqual(
             Assert.IsInstanceOfType<SolidColorBrush>(
-                Application.Current.Resources["GgufChatTextBrush"]).Color,
+                LightChatResources()["GgufChatTextBrush"]).Color,
             Assert.IsInstanceOfType<SolidColorBrush>(
-                Application.Current.Resources["GgufChatUserBubbleTextBrush"]).Color);
+                LightChatResources()["GgufChatUserBubbleTextBrush"]).Color);
         Assert.AreEqual(
             Microsoft.UI.Colors.Transparent,
             Assert.IsInstanceOfType<SolidColorBrush>(
-                Application.Current.Resources["GgufChatAssistantBubbleBrush"]).Color);
+                LightChatResources()["GgufChatAssistantBubbleBrush"]).Color);
         Assert.AreEqual(
             Windows.UI.Color.FromArgb(255, 17, 24, 39),
             Assert.IsInstanceOfType<SolidColorBrush>(
-                Application.Current.Resources["GgufChatAssistantBubbleTextBrush"]).Color);
+                LightChatResources()["GgufChatAssistantBubbleTextBrush"]).Color);
     }
 
     [UITestMethod]
@@ -529,6 +529,7 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    [TestCategory("DeferredChatAutoScroll")]
     public async Task DeferredFollowScrollsOverflowAfterLayout()
     {
         var page = new ChatPage();
@@ -539,11 +540,13 @@ public sealed class ChatPageTests
 
         page.SynchronizeTranscript(conversationId, messages, forceFollowLatest: true);
         await host.CaptureAsync();
+        await host.CaptureAsync();
         ListView transcript = Assert.IsInstanceOfType<ListView>(
             page.FindName("TranscriptList"));
         ScrollViewer? scrollViewerCandidate = FindDescendant<ScrollViewer>(transcript);
         Assert.IsNotNull(scrollViewerCandidate);
         ScrollViewer scrollViewer = scrollViewerCandidate;
+        await WaitForFollowAsync(scrollViewer);
         Assert.IsGreaterThan(0, scrollViewer.ScrollableHeight);
         Assert.IsLessThanOrEqualTo(
             1,
@@ -591,6 +594,7 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    [TestCategory("DeferredChatAutoScroll")]
     public async Task SwitchingOverflowingConversationFollowsTheNewTranscript()
     {
         var page = new ChatPage();
@@ -601,17 +605,21 @@ public sealed class ChatPageTests
 
         page.SynchronizeTranscript(Guid.NewGuid(), firstMessages, forceFollowLatest: true);
         await host.CaptureAsync();
+        await host.CaptureAsync();
         ListView transcript = Assert.IsInstanceOfType<ListView>(
             page.FindName("TranscriptList"));
         ScrollViewer? scrollViewerCandidate = FindDescendant<ScrollViewer>(transcript);
         Assert.IsNotNull(scrollViewerCandidate);
         ScrollViewer scrollViewer = scrollViewerCandidate;
+        await WaitForFollowAsync(scrollViewer);
         Assert.IsLessThanOrEqualTo(
             1,
             scrollViewer.ScrollableHeight - scrollViewer.VerticalOffset);
 
         page.SynchronizeTranscript(Guid.NewGuid(), secondMessages, forceFollowLatest: true);
         await host.CaptureAsync();
+        await host.CaptureAsync();
+        await WaitForFollowAsync(scrollViewer);
 
         Assert.IsGreaterThan(0, scrollViewer.ScrollableHeight);
         Assert.IsLessThanOrEqualTo(
@@ -692,6 +700,16 @@ public sealed class ChatPageTests
             Assert.IsInstanceOfType<SolidColorBrush>(text.Foreground).Color);
     }
 
+    private static ResourceDictionary LightChatResources()
+    {
+        ResourceDictionary chatTheme = Application.Current.Resources.MergedDictionaries
+            .Single(dictionary =>
+                dictionary.ThemeDictionaries.ContainsKey("Light") &&
+                ((ResourceDictionary)dictionary.ThemeDictionaries["Light"])
+                    .ContainsKey("GgufChatUserBubbleBrush"));
+        return (ResourceDictionary)chatTheme.ThemeDictionaries["Light"];
+    }
+
     private static ChatMessage[] CreateLongMessages()
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -724,6 +742,16 @@ public sealed class ChatPageTests
         }
 
         return null;
+    }
+
+    private static async Task WaitForFollowAsync(ScrollViewer scrollViewer)
+    {
+        DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+        while (scrollViewer.ScrollableHeight - scrollViewer.VerticalOffset > 1
+            && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+        }
     }
 
     private static void Invoke(Button button)

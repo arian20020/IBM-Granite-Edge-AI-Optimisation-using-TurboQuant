@@ -57,7 +57,6 @@ public sealed class ModelDownloadCardTests
         [
             "ModelNameText",
             "ModelPackageSummaryText",
-            "ModelDescriptionText",
             "EstimatedMemoryValueText",
             "ContextLengthValueText",
             "EfficiencyEndpointText",
@@ -165,6 +164,15 @@ public sealed class ModelDownloadCardTests
     {
         var service = new BlockingDownloadService();
         var coordinator = new ModelDownloadCoordinator(service, new UnrestrictedNetworkPolicy());
+        var interrupted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        coordinator.StateChanged += (_, state) =>
+        {
+            if (state.Stage == ModelDownloadStage.Interrupted)
+            {
+                interrupted.TrySetResult(true);
+            }
+        };
         var card = new ModelDownloadCard();
         card.Attach(coordinator);
         Task operation = coordinator.StartAsync(50, false, CancellationToken.None);
@@ -176,6 +184,9 @@ public sealed class ModelDownloadCardTests
         var invoke = (IInvokeProvider)peer.GetPattern(PatternInterface.Invoke)!;
         invoke.Invoke();
         await operation.WaitAsync(TimeSpan.FromSeconds(2));
+        // The download task settles before the button's cancellation handler
+        // publishes its final state. Wait for that state, not one dispatcher turn.
+        await interrupted.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await DrainDispatcherAsync(card);
 
         Assert.AreEqual(0, service.DiscardCalls);

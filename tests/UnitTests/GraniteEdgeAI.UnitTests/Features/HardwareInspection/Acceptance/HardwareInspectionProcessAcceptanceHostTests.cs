@@ -22,7 +22,10 @@ public sealed class HardwareInspectionProcessAcceptanceHostTests
             names.Add((string)name.GetValue(test)!);
         }
 
-        Assert.HasCount(87, names);
+        Assert.HasCount(108, names);
+        Assert.IsTrue(names.Any(name => name.EndsWith(
+            ".HardwareInspectionProgressCardTests.FastCompletedStage_KeepsCopyInDisplayedState",
+            StringComparison.Ordinal)));
         Assert.IsTrue(names.Any(name => name.Contains(
             ".HardwareInspectionPageTests.",
             StringComparison.Ordinal)));

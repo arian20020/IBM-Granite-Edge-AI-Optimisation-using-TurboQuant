@@ -39,7 +39,7 @@ public sealed class InspectionStatusGlyphTests
     [DataRow(InspectionStatusGlyphKind.Waiting, 36d)]
     [DataRow(InspectionStatusGlyphKind.NotComplete, 36d)]
     [DataRow(InspectionStatusGlyphKind.Active, 30d)]
-    public async Task EveryApprovedKindAndSurface_UsesCenteredVectorGeometry(
+    public async Task EveryApprovedKindAndSurface_UsesCenteredStatusGeometry(
         InspectionStatusGlyphKind kind,
         double surfaceSize)
     {
@@ -87,9 +87,24 @@ public sealed class InspectionStatusGlyphTests
                 .Single(element => Equals(element.Tag, $"GlyphKind:{kindName}"));
             Assert.AreEqual(Visibility.Visible, kindRoot.Visibility);
             Shape[] shapes = Descendants(kindRoot).OfType<Shape>().ToArray();
-            Assert.IsNotEmpty(shapes, $"{kindName} must use vector geometry.");
+            if (kind == InspectionStatusGlyphKind.Error)
+            {
+                FontIcon errorIcon = Descendants(kindRoot).OfType<FontIcon>().Single();
+                Assert.AreEqual("\uE711", errorIcon.Glyph);
+                Assert.AreEqual("Segoe Fluent Icons", errorIcon.FontFamily.Source);
+                Assert.AreEqual(AccessibilityView.Raw,
+                    AutomationProperties.GetAccessibilityView(errorIcon));
+                Rect iconBounds = errorIcon.TransformToVisual(glyph).TransformBounds(
+                    new Rect(0, 0, errorIcon.ActualWidth, errorIcon.ActualHeight));
+                Assert.AreEqual(surfaceSize / 2d, CenterX(iconBounds), .5d);
+                Assert.AreEqual(surfaceSize / 2d, CenterY(iconBounds), .5d);
+            }
+            else
+            {
+                Assert.IsNotEmpty(shapes, $"{kindName} must use vector geometry.");
+                Assert.HasCount(0, Descendants(kindRoot).OfType<FontIcon>());
+            }
             Assert.HasCount(0, Descendants(kindRoot).OfType<SymbolIcon>());
-            Assert.HasCount(0, Descendants(kindRoot).OfType<FontIcon>());
             Assert.HasCount(0, Descendants(kindRoot).OfType<ProgressRing>());
 
             TextBlock[] decorativeText = Descendants(kindRoot)
@@ -106,12 +121,12 @@ public sealed class InspectionStatusGlyphTests
                     string.Empty,
                     AutomationProperties.GetName(decorativeText[0]));
             }
-            else
+            else if (kind != InspectionStatusGlyphKind.Error)
             {
                 Assert.HasCount(
                     0,
                     decorativeText,
-                    "StageNumber is the only decorative-text exception.");
+                    "Vector marks must not introduce decorative text.");
             }
 
             switch (kindName)
@@ -122,7 +137,6 @@ public sealed class InspectionStatusGlyphTests
                 case "Warning":
                     AssertWarningGeometry(kindRoot);
                     break;
-                case "Error":
                 case "Information":
                     AssertOpticalCenter(kindRoot, kindName);
                     break;
@@ -339,7 +353,7 @@ public sealed class InspectionStatusGlyphTests
             host.UpdateLayout();
 
             AssertSurface(model, 22d, "Success", visualSize: 20d);
-            AssertSurface(progress, 22d, "Waiting", visualSize: 20d);
+            AssertSurface(progress, 40d, "Waiting", visualSize: 32d);
             AssertSurface(disclosure, 22d, "Warning", visualSize: 20d);
             AssertSurface(onboarding, 36d, "Success");
             AssertSurface(outcome, 22d, "Success", visualSize: 20d);
@@ -506,6 +520,11 @@ public sealed class InspectionStatusGlyphTests
             .Where(brush => brush is not null)
             .Cast<Brush>()
             .ToArray();
+        if (kindName == "Error")
+        {
+            markBrushes = Descendants(kindRoot).OfType<FontIcon>()
+                .Select(icon => icon.Foreground).ToArray();
+        }
         if (kindName == "Waiting")
         {
             markBrushes =

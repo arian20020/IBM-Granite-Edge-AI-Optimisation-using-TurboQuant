@@ -5,8 +5,66 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Thickness x:Key="ModelImportOutlineThickness">1</Thickness>
+                    <SolidColorBrush x:Key="ModelImportSurfaceBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="ModelImportSubtleSurfaceBrush" Color="#F8FAFD" />
+                    <SolidColorBrush x:Key="ModelImportBorderBrush" Color="#D7E0EC" />
+                    <SolidColorBrush x:Key="ModelImportTextBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="ModelImportMutedTextBrush" Color="#5B677A" />
+                    <SolidColorBrush x:Key="ModelImportSubtleTextBrush" Color="#758196" />
+                    <SolidColorBrush x:Key="ModelImportAccentBrush" Color="#0F62FE" />
+                    <SolidColorBrush x:Key="ModelImportAccentSurfaceBrush" Color="#EDF4FF" />
+                    <SolidColorBrush x:Key="ModelImportAccentBorderBrush" Color="#8BB4FF" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBrush" Color="#087A55" />
+                    <SolidColorBrush x:Key="ModelImportSuccessSurfaceBrush" Color="#ECF8F3" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBorderBrush" Color="#A9DDCB" />
+                    <SolidColorBrush x:Key="ModelImportErrorBrush" Color="#B42318" />
+                    <SolidColorBrush x:Key="ModelImportErrorSurfaceBrush" Color="#FEF3F2" />
+                    <SolidColorBrush x:Key="ModelImportErrorBorderBrush" Color="#FECDCA" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Thickness x:Key="ModelImportOutlineThickness">1</Thickness>
+                    <SolidColorBrush x:Key="ModelImportSurfaceBrush" Color="#151D2B" />
+                    <SolidColorBrush x:Key="ModelImportSubtleSurfaceBrush" Color="#1B2535" />
+                    <SolidColorBrush x:Key="ModelImportBorderBrush" Color="#344054" />
+                    <SolidColorBrush x:Key="ModelImportTextBrush" Color="#F9FAFB" />
+                    <SolidColorBrush x:Key="ModelImportMutedTextBrush" Color="#CBD5E1" />
+                    <SolidColorBrush x:Key="ModelImportSubtleTextBrush" Color="#98A2B3" />
+                    <SolidColorBrush x:Key="ModelImportAccentBrush" Color="#78A9FF" />
+                    <SolidColorBrush x:Key="ModelImportAccentSurfaceBrush" Color="#162B49" />
+                    <SolidColorBrush x:Key="ModelImportAccentBorderBrush" Color="#4589FF" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBrush" Color="#6FD2AE" />
+                    <SolidColorBrush x:Key="ModelImportSuccessSurfaceBrush" Color="#12372E" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBorderBrush" Color="#236B59" />
+                    <SolidColorBrush x:Key="ModelImportErrorBrush" Color="#FFB4AB" />
+                    <SolidColorBrush x:Key="ModelImportErrorSurfaceBrush" Color="#3A1D22" />
+                    <SolidColorBrush x:Key="ModelImportErrorBorderBrush" Color="#7A2E38" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <Thickness x:Key="ModelImportOutlineThickness">1</Thickness>
+                    <SolidColorBrush x:Key="ModelImportSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportSubtleSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportMutedTextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportSubtleTextBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="ModelImportAccentSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportAccentBorderBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportSuccessSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportSuccessBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportErrorBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="ModelImportErrorSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="ModelImportErrorBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <ResourceDictionary
+                    Source="ms-appx:///Features/Onboarding/Presentation/GraniteJourneyActionPalette.xaml" />
                 <ResourceDictionary
                     Source="ms-appx:///Features/ModelInspection/Presentation/ModelInspectionTheme.xaml" />
                 <ResourceDictionary

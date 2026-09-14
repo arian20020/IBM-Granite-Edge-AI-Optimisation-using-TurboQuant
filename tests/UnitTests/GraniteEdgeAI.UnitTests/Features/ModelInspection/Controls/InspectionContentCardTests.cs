@@ -124,7 +124,7 @@ public sealed class InspectionContentCardTests
             Assert.AreEqual(ModelInspectionFigmaState.InspectionProgress, page.State);
             Assert.AreEqual("Inspection progress", page.ContentCard.SectionTitle);
             Assert.AreEqual("0 of 5 checks complete", page.ContentCard.ProgressSummary);
-            Assert.AreEqual(new Thickness(24d), progressView.Padding, "progress view padding");
+            Assert.AreEqual(new Thickness(24d, 16d, 24d, 8d), progressView.Padding, "progress view padding");
             Assert.HasCount(5, rows);
             Assert.IsTrue(rows.All(row => row.ActualHeight >= 48d));
             Assert.IsTrue(rows.All(row => Math.Abs(row.ActualHeight - 48d) <= 1d));
@@ -132,7 +132,7 @@ public sealed class InspectionContentCardTests
             foreach (Grid row in rows)
             {
                 Assert.AreEqual(
-                    24d,
+                    36d,
                     row.ColumnDefinitions[0].ActualWidth,
                     0.01d,
                     "the glyph and step-number column is fixed");
@@ -151,22 +151,18 @@ public sealed class InspectionContentCardTests
                 AssertVerticallyCentred(row, status, "progress status");
                 Assert.AreEqual(
                     12d,
-                    copy.Margin.Left,
+                    row.ColumnSpacing,
                     0.01d,
                     "copy begins at the approved inset after the glyph column");
             }
-            Assert.AreEqual(new Thickness(1d), progressRowsSurface.BorderThickness);
-            Assert.AreEqual(10d, progressRowsSurface.CornerRadius.TopLeft, 0.01d);
-            Assert.AreSame(
-                Application.Current.Resources["InspectionSurfaceSubtleBrush"],
-                progressRowsSurface.Background);
-            Assert.AreSame(
-                Application.Current.Resources["InspectionBorderLightBrush"],
-                progressRowsSurface.BorderBrush);
+            Assert.AreEqual(new Thickness(0d), progressRowsSurface.BorderThickness);
+            Assert.AreEqual(0d, progressRowsSurface.CornerRadius.TopLeft, 0.01d);
+            Assert.AreEqual((byte)0,
+                Assert.IsInstanceOfType<SolidColorBrush>(progressRowsSurface.Background).Color.A);
             AssertInRange(
                 VerticalGap(heading, rows[0], content),
-                14d,
-                16d,
+                23d,
+                25d,
                 "heading to first row gap");
             Assert.HasCount(10, connectors, "connector identities remain in the row template");
             Assert.IsTrue(connectors.All(connector =>
@@ -174,11 +170,14 @@ public sealed class InspectionContentCardTests
                     connector.ActualWidth <= 0.01d ||
                     connector.ActualHeight <= 0.01d),
                 "the retired vertical connector rail must occupy no visible geometry");
-            AssertInRange(
-                ContentBottomWhitespace(content, rows[^1]),
-                24d,
-                25d,
-                "progress card bottom inset plus the grouped-list border");
+            double naturalProgressHeight = progressView.Padding.Top +
+                heading.DesiredSize.Height + 16d + progressRowsSurface.Margin.Top +
+                progressRowsSurface.ActualHeight + progressView.Padding.Bottom;
+            double expectedBottomInset = progressView.Padding.Bottom +
+                Math.Max(0d, progressView.MinHeight - naturalProgressHeight);
+            Assert.AreEqual(expectedBottomInset, ContentBottomWhitespace(content, rows[^1]),
+                1d / content.XamlRoot.RasterizationScale,
+                "bottom inset includes spare height reserved by the progress minimum height");
             Assert.AreEqual(
                 AccessibilityView.Raw,
                 AutomationProperties.GetAccessibilityView(completedCountChip));
@@ -188,14 +187,11 @@ public sealed class InspectionContentCardTests
             Assert.AreEqual(
                 page.ContentCard.ProgressSummary,
                 AutomationProperties.GetName(completedCountText));
+            Assert.AreEqual((byte)0,
+                Assert.IsInstanceOfType<SolidColorBrush>(completedCountChip.Background).Color.A);
+            Assert.AreEqual(new Thickness(0d), completedCountChip.BorderThickness);
             Assert.AreSame(
-                Application.Current.Resources["InspectionBlueSurfaceBrush"],
-                completedCountChip.Background);
-            Assert.AreSame(
-                Application.Current.Resources["InspectionBlueBorderBrush"],
-                completedCountChip.BorderBrush);
-            Assert.AreSame(
-                Application.Current.Resources["InspectionPrimaryBlueBrush"],
+                Application.Current.Resources["InspectionTextSecondaryMutedBrush"],
                 completedCountText.Foreground);
             Assert.HasCount(5, waitingLabels);
             Assert.IsTrue(waitingLabels.All(label => ReferenceEquals(
@@ -204,7 +200,7 @@ public sealed class InspectionContentCardTests
                 "waiting labels use the approved muted semantic colour");
             Assert.HasCount(5, waitingGlyphs);
             Assert.IsTrue(waitingGlyphs.All(glyph =>
-                Math.Abs(glyph.SurfaceSize - 22d) < 0.01d));
+                Math.Abs(glyph.SurfaceSize - 40d) < 0.01d));
             CollectionAssert.AreEquivalent(
                 new[] { "1", "2", "3", "4", "5" },
                 waitingGlyphs.Select(glyph => glyph.StageNumber).ToArray());
@@ -820,14 +816,7 @@ public sealed class InspectionContentCardTests
         InspectionProgressRows rows = new();
         rows.Reset(new ModelInspectionRenderKey(1, 0));
         InspectionContentCardPresentation startupPresentation =
-            InitialInspectionProgressPresentationFactory.Create(
-                rows,
-                new InspectionStartupPresentation
-                {
-                    Visibility = Visibility.Visible,
-                    Summary = "Starting model inspection",
-                    AutomationName = "Model inspection is starting."
-                });
+            InitialInspectionProgressPresentationFactory.Create(rows);
         InspectionContentCardPresentation presentation =
             InitialInspectionProgressPresentationFactory.Create(rows);
         var driver = new RecordingProgressAnimationDriver();
@@ -858,19 +847,16 @@ public sealed class InspectionContentCardTests
             Grid startupRow = Assert.IsInstanceOfType<Grid>(
                 control.FindName("StartupStatusRow"));
             Grid[] startupRows = ProgressRows(control);
+            Assert.AreEqual(Visibility.Collapsed, startupRow.Visibility,
+                "startup uses the progress stages instead of a separate row");
             AssertInRange(
-                VerticalGap(heading, startupRow, control),
-                14d,
-                16d,
-                "heading to startup gap");
-            AssertInRange(
-                VerticalGap(startupRow, startupRows[0], control),
-                14d,
-                16d,
-                "startup to first row gap");
+                VerticalGap(heading, startupRows[0], control),
+                23d,
+                25d,
+                "heading to first progress stage gap");
             Assert.AreEqual(22d, startupGlyph.SurfaceSize, 0.01d);
-            Assert.IsTrue(startupGlyph.IsPrecisionOrbitRunning,
-                "visible startup glyph starts its precision orbit");
+            Assert.IsFalse(startupGlyph.IsPrecisionOrbitRunning,
+                "the retired startup glyph must not animate");
 
             control.Presentation = presentation;
             await Task.Yield();
@@ -882,8 +868,8 @@ public sealed class InspectionContentCardTests
             Grid[] collapsedStartupRows = ProgressRows(control);
             AssertInRange(
                 VerticalGap(heading, collapsedStartupRows[0], control),
-                14d,
-                16d,
+                23d,
+                25d,
                 "heading to first row gap after startup collapses");
 
             InspectionContentItemPresentation rowBefore = rows.Items[1];
@@ -914,7 +900,16 @@ public sealed class InspectionContentCardTests
                 .Single(glyph =>
                     IsEffectivelyVisible(glyph) &&
                     glyph.Kind == InspectionStatusGlyphKind.Active);
-            Assert.AreEqual(22d, activeGlyph.SurfaceSize);
+            Assert.AreEqual(40d, activeGlyph.SurfaceSize);
+            DependencyObject? glyphAncestor = VisualTreeHelper.GetParent(activeGlyph);
+            while (glyphAncestor is not null &&
+                glyphAncestor is not Viewbox && !ReferenceEquals(glyphAncestor, control))
+            {
+                glyphAncestor = VisualTreeHelper.GetParent(glyphAncestor);
+            }
+            Viewbox activeGlyphHost = Assert.IsInstanceOfType<Viewbox>(glyphAncestor);
+            Assert.AreEqual(32d, activeGlyphHost.Width);
+            Assert.AreEqual(32d, activeGlyphHost.Height);
             Assert.IsTrue(activeGlyph.IsMotionEnabled,
                 "active stage glyph retains the motion policy");
             Assert.IsTrue(activeGlyph.IsPrecisionOrbitRunning,
@@ -968,10 +963,13 @@ public sealed class InspectionContentCardTests
             Assert.IsTrue(quarterGlyph.IsPrecisionOrbitRunning,
                 "fraction-only updates retain the active precision orbit");
             Assert.AreEqual(orbitStartCount, quarterGlyph.PrecisionOrbitStartCount);
-            Assert.IsTrue(EnumerateDescendants(control)
+            // This legacy content-card control omits percentage labels; the page's
+            // current progress surface has separate coverage for its percentages.
+            Assert.AreEqual(0.25d, rows.Items[1].StageFraction);
+            Assert.IsFalse(EnumerateDescendants(control)
                 .OfType<TextBlock>()
-                .Any(text => text.Text == "25%"),
-                "fraction-only updates remain visible text evidence");
+                .Any(text => text.Text.EndsWith('%')),
+                "fraction-only updates must not restore the retired percentage label");
 
             Grid activeRow = EnumerateDescendants(control)
                 .OfType<Grid>()
@@ -1006,10 +1004,10 @@ public sealed class InspectionContentCardTests
                         activeRow))
                 .ToArray();
             Assert.AreEqual(
-                1,
+                0,
                 directFractionText.Length,
-                "Native fraction text must occupy its own trailing column.");
-            Assert.AreEqual("25%", directFractionText[0].Text);
+                "the progress row no longer reserves a trailing percentage column");
+            Assert.AreEqual(3, activeRow.ColumnDefinitions.Count);
             StackPanel copyPanel = EnumerateDescendants(activeRow)
                 .OfType<StackPanel>()
                 .Single(panel =>
@@ -1033,9 +1031,8 @@ public sealed class InspectionContentCardTests
                 $"control={control.ActualWidth}");
             Assert.AreEqual(1, Grid.GetRowSpan(glyphHost));
             Assert.AreEqual(0, Grid.GetRow(statusOwner));
-            Assert.AreEqual(0, Grid.GetRow(directFractionText[0]));
-            Assert.AreEqual(20d, glyphHost.ActualWidth, 0.01d);
-            Assert.AreEqual(20d, glyphHost.ActualHeight, 0.01d);
+            Assert.AreEqual(32d, glyphHost.ActualWidth, 0.01d);
+            Assert.AreEqual(32d, glyphHost.ActualHeight, 0.01d);
             Border activeSurface = EnumerateDescendants(activeRow)
                 .OfType<Border>()
                 .Single(border => string.Equals(
@@ -1057,8 +1054,7 @@ public sealed class InspectionContentCardTests
                 .Where(text =>
                     text.Text == "Read model configuration" ||
                     text.Text == "Reading validated configuration." ||
-                    text.Text == "Checking" ||
-                    text.Text == "25%")
+                    text.Text == "Checking")
                 .ToArray();
             Assert.IsNotEmpty(scalableActiveText);
             TextBlock[] scalableProgressText = activeProgressRows
@@ -1082,15 +1078,12 @@ public sealed class InspectionContentCardTests
                 .TransformPoint(default);
             Point statusOrigin = statusOwner.TransformToVisual(activeRow)
                 .TransformPoint(default);
-            Point fractionOrigin = directFractionText[0]
-                .TransformToVisual(activeRow)
-                .TransformPoint(default);
             Assert.IsTrue(
                 copyOrigin.X + copyPanel.ActualWidth <= statusOrigin.X + 1d,
                 "wide scaled status evidence remains after the stage copy");
             Assert.IsTrue(
-                statusOrigin.X + statusOwner.ActualWidth <= fractionOrigin.X + 1d,
-                "scaled status and fraction evidence do not collide");
+                statusOrigin.X + statusOwner.ActualWidth <= activeRow.ActualWidth + 1d,
+                "scaled status remains within the progress row");
             Assert.IsTrue(ProgressConnectors(control).All(connector =>
                     connector.Visibility == Visibility.Collapsed ||
                     connector.ActualWidth <= 0.01d ||
@@ -1134,10 +1127,11 @@ public sealed class InspectionContentCardTests
             Assert.AreEqual(
                 orbitStartCount,
                 threeQuarterGlyph.PrecisionOrbitStartCount);
-            Assert.IsTrue(EnumerateDescendants(control)
+            Assert.AreEqual(0.75d, rows.Items[1].StageFraction);
+            Assert.IsFalse(EnumerateDescendants(control)
                 .OfType<TextBlock>()
-                .Any(text => text.Text == "75%"),
-                "three-quarter fraction remains visible text evidence");
+                .Any(text => text.Text.EndsWith('%')),
+                "three-quarter progress must not restore the retired percentage label");
 
             InspectionProgressRowsApplyResult completeFraction = rows.Apply(
                 new InspectionProgressRowsUpdate(
@@ -1176,10 +1170,11 @@ public sealed class InspectionContentCardTests
             Assert.AreEqual(
                 orbitStartCount,
                 completeFractionGlyph.PrecisionOrbitStartCount);
-            Assert.IsTrue(EnumerateDescendants(control)
+            Assert.AreEqual(1d, rows.Items[1].StageFraction);
+            Assert.IsFalse(EnumerateDescendants(control)
                 .OfType<TextBlock>()
-                .Any(text => text.Text == "100%"),
-                "complete fraction remains visible text evidence");
+                .Any(text => text.Text.EndsWith('%')),
+                "complete fraction must not restore the retired percentage label");
 
             rows.Apply(new InspectionProgressRowsUpdate(
                 new ModelInspectionProgressRegionKey(
@@ -1219,7 +1214,7 @@ public sealed class InspectionContentCardTests
                 warningStatus.Foreground);
             Assert.IsTrue(visibleGlyphs.Any(glyph =>
                     glyph.Kind == InspectionStatusGlyphKind.Warning &&
-                    Math.Abs(glyph.SurfaceSize - 22d) < 0.01d),
+                    Math.Abs(glyph.SurfaceSize - 40d) < 0.01d),
                 "warning rows retain the approved compact glyph footprint");
             Assert.IsFalse(visibleGlyphs.Any(glyph =>
                 glyph.Kind == InspectionStatusGlyphKind.Active));

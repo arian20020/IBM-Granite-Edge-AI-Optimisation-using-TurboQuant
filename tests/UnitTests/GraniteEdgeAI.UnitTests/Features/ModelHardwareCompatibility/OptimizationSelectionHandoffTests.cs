@@ -559,7 +559,7 @@ public sealed class OptimizationSelectionHandoffTests
             ggufKvCache: GgufKvCacheFormat.F16);
         ConstructorInfo constructor = typeof(CompatibilityScreenModel)
             .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(candidate => candidate.GetParameters().Length == 9);
+            .Single(candidate => candidate.GetParameters().Length == 11);
         return (CompatibilityScreenModel)constructor.Invoke(
         [
             CompatibilityScreenState.OptimisationRequired,
@@ -570,7 +570,9 @@ public sealed class OptimizationSelectionHandoffTests
             true,
             setup,
             optimization,
-            true
+            true,
+            null,
+            null
         ]);
     }
 
