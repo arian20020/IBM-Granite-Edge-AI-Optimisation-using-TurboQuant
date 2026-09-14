@@ -555,6 +555,7 @@ public sealed class ChatPageTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
+    [TestCategory("DeferredChatAutoScroll")]
     public async Task PendingFollowDoesNotOverrideManualScrollAway()
     {
         var page = new ChatPage();

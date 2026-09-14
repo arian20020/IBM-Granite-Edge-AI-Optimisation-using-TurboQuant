@@ -60,6 +60,24 @@ public sealed class ExternalProcessRunnerPackagedTests
             "Launch preflight failed: kill-on-close Job Object could not be created.");
         job.Dispose();
         TrustedToolOperationEnvironment environment;
+        var environmentFailures = new List<string>();
+        object diagnosticGate = new();
+        int diagnosticThread = Environment.CurrentManagedThreadId;
+        EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> observeEnvironmentFailure =
+            (_, args) =>
+            {
+                if (Environment.CurrentManagedThreadId != diagnosticThread) return;
+                string stack = args.Exception.StackTrace ?? string.Empty;
+                if (!stack.Contains("TrustedToolOperationEnvironment", StringComparison.Ordinal)
+                    && !stack.Contains("TrustedToolEnvironmentPolicy", StringComparison.Ordinal)) return;
+                lock (diagnosticGate)
+                {
+                    if (environmentFailures.Count >= 8) return;
+                    string detail = $"{args.Exception.GetType().FullName}: {args.Exception.Message}\n{stack}";
+                    environmentFailures.Add(detail[..Math.Min(detail.Length, 4096)]);
+                }
+            };
+        AppDomain.CurrentDomain.FirstChanceException += observeEnvironmentFailure;
         try
         {
             environment = TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: false);
@@ -71,7 +89,12 @@ public sealed class ExternalProcessRunnerPackagedTests
                 $"LocalApplicationData={Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)}; " +
                 $"SystemRoot={Environment.GetEnvironmentVariable("SystemRoot")}; " +
                 $"WINDIR={Environment.GetEnvironmentVariable("WINDIR")}; " +
-                $"OS={Environment.OSVersion}; BaseDirectory={AppContext.BaseDirectory}.", exception);
+                $"OS={Environment.OSVersion}; BaseDirectory={AppContext.BaseDirectory}. " +
+                $"Original environment exceptions: {string.Join("\n---\n", environmentFailures)}", exception);
+        }
+        finally
+        {
+            AppDomain.CurrentDomain.FirstChanceException -= observeEnvironmentFailure;
         }
         environment.Dispose();
         Assert.IsTrue(environment.CleanupSucceeded,

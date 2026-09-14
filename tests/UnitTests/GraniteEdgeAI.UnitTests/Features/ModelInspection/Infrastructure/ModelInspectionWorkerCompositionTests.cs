@@ -111,11 +111,39 @@ public sealed class ModelInspectionWorkerCompositionTests
         IInspectionWorkerClient client = ModelInspectionWorkerComposition
             .CreateDefaultClient();
 
-        WorkerClientResult result = await client.ExecuteAsync(
+        var clientFailures = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        int failureCount = 0;
+        EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> observeClientFailure =
+            (_, args) =>
+            {
+                string stack = args.Exception.StackTrace ?? string.Empty;
+                if (!stack.Contains("GraniteEdgeAI.ModelInspection.WorkerClient", StringComparison.Ordinal)
+                    && !stack.Contains("TrustedToolOperationEnvironment", StringComparison.Ordinal)
+                    && !stack.Contains("TrustedToolEnvironmentPolicy", StringComparison.Ordinal)) return;
+                if (Interlocked.Increment(ref failureCount) > 12) return;
+                string detail = $"{args.Exception.GetType().FullName}: {args.Exception.Message}\n{stack}";
+                clientFailures.Enqueue(detail[..Math.Min(detail.Length, 4096)]);
+            };
+        WorkerClientResult result;
+        AppDomain.CurrentDomain.FirstChanceException += observeClientFailure;
+        try
+        {
+            result = await client.ExecuteAsync(
                 command,
                 new DelegatingProgress<WorkerProgressMessage>(progress.Add),
                 CancellationToken.None)
-            .WaitAsync(TimeSpan.FromSeconds(30));
+                .WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException(
+                $"Packaged inspection failed. Original client exceptions: {string.Join("\n---\n", clientFailures)}; " +
+                DescribeWorkerRuntimeContext(approvedRoot), exception);
+        }
+        finally
+        {
+            AppDomain.CurrentDomain.FirstChanceException -= observeClientFailure;
+        }
 
         result.Validate();
         Assert.IsNull(result.Failure,
@@ -124,6 +152,7 @@ public sealed class ModelInspectionWorkerCompositionTests
             $"StandardErrorTruncated={result.StandardErrorTruncated}; " +
             $"StandardError={result.RetainedStandardError}; " +
             $"SecondaryDiagnostics={string.Join(", ", result.SecondaryDiagnostics)}; " +
+            $"Original client exceptions: {string.Join("\n---\n", clientFailures)}; " +
             DescribeWorkerRuntimeContext(approvedRoot));
         Assert.IsNotNull(result.TerminalMessage);
         Assert.AreEqual(

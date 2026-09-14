@@ -301,6 +301,7 @@ public sealed class GgufCompatibilityInputProjectorTests
     }
 
     [TestMethod]
+    [TestCategory("RequiresVerifiedGgufRuntimeClosure")]
     public void PackagedCurrentReleaseProjectsQ8AndBothVerifiedTurboFormats()
     {
         ModelInspectionExecutionResult terminal = ActualHeaderTerminal(parameterCount: null);
@@ -923,7 +924,16 @@ public sealed class GgufCompatibilityInputProjectorTests
 
     [TestMethod]
     [DoNotParallelize]
+    [TestCategory("RequiresVerifiedGgufRuntimeClosure")]
     public void AbsentOrWrongAppLocalQuantizerPreservesRuntimeOnlyCompatibility()
+        => AssertAbsentAndWrongQuantizerPackages(expectsQ4PlanningSession: true);
+
+    [TestMethod]
+    [DoNotParallelize]
+    public void AbsentOrWrongAppLocalQuantizerNeverEnablesPersistentConversion()
+        => AssertAbsentAndWrongQuantizerPackages(expectsQ4PlanningSession: null);
+
+    private static void AssertAbsentAndWrongQuantizerPackages(bool? expectsQ4PlanningSession)
     {
         string packaged = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
@@ -941,7 +951,7 @@ public sealed class GgufCompatibilityInputProjectorTests
         {
             AssertRuntimeOnlyCompatibilityWithoutQuantizer(
                 "absent package",
-                expectsPlanningSession: true);
+                expectsPlanningSession: expectsQ4PlanningSession);
             AssertRuntimeOnlyCompatibilityWithoutQuantizer(
                 "absent package BF16",
                 expectsPlanningSession: false,
@@ -951,7 +961,7 @@ public sealed class GgufCompatibilityInputProjectorTests
             File.WriteAllText(wrongManifest, "{}", System.Text.Encoding.UTF8);
             AssertRuntimeOnlyCompatibilityWithoutQuantizer(
                 "wrong package",
-                expectsPlanningSession: true);
+                expectsPlanningSession: expectsQ4PlanningSession);
             AssertRuntimeOnlyCompatibilityWithoutQuantizer(
                 "wrong package BF16",
                 expectsPlanningSession: false,
@@ -1084,7 +1094,7 @@ public sealed class GgufCompatibilityInputProjectorTests
 
     private static void AssertRuntimeOnlyCompatibilityWithoutQuantizer(
         string scenario,
-        bool expectsPlanningSession,
+        bool? expectsPlanningSession,
         ModelInspectionExecutionResult? terminal = null)
     {
         terminal ??= ActualHeaderTerminal(parameterCount: null);
@@ -1128,21 +1138,24 @@ public sealed class GgufCompatibilityInputProjectorTests
             now,
             CancellationToken.None);
 
-        if (expectsPlanningSession)
+        if (expectsPlanningSession is true)
         {
             Assert.IsNotNull(evaluation.PlanningSession, scenario + " planning session");
-            Assert.IsTrue(
-                PlanningCandidates(evaluation).All(static candidate =>
-                    !candidate.Metrics.RequiresPersistentChange),
-                scenario + " exposed a persistent conversion candidate");
         }
-        else
+        else if (expectsPlanningSession is false)
         {
             Assert.IsNull(evaluation.PlanningSession, scenario + " planning session");
             Assert.IsNull(
                 evaluation.OptionalOptimization,
                 scenario + " optional optimization");
         }
+        // A newly built runtime may have no released optimization evidence.
+        // Regardless of availability, missing quantizer authority must never
+        // admit persistent conversion; the release-only test also requires plans.
+        Assert.IsTrue(
+            PlanningCandidates(evaluation).All(static candidate =>
+                !candidate.Metrics.RequiresPersistentChange),
+            scenario + " exposed a persistent conversion candidate");
         OptimizationExecutionPayload current = CurrentPayload(authority);
         Assert.IsNotNull(current.Gguf, scenario + " current GGUF payload");
         Assert.IsNull(current.Gguf.Quantiser, scenario + " current quantizer");
