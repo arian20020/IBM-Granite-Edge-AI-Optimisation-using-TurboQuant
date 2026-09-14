@@ -1,15 +1,15 @@
 # Cross-Register Validation Audit
 
 **Document ID:** AUD-RACL-001  
-**Version:** 1.2<br>
-**Status:** Completed — developer validation passed; final evidence update recorded<br>
+**Version:** 1.4<br>
+**Status:** Completed — developer validation passed; recovery review recorded<br>
 **Owner:** Arian B  
 **Audit date:** 2026-07-14  
-**Status synchronised:** 2026-09-13<br>
+**Status synchronised:** 2026-09-14<br>
 **Reviewer:** Arian B  
 **Review independence:** Self-review  
 **Approval scope:** Developer working baseline  
-**Related review:** `RV-008`  
+**Related reviews:** `RV-008`; `RV-009`; `RV-010`; `RV-011`<br>
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`
@@ -20,10 +20,10 @@ This audit checks whether the project has a coherent, proportionate and operatio
 
 ## Audited evidence
 
-- Risk Register v0.6 and Risk Consolidation Map;
-- Assumption Register v0.5;
+- Risk Register v0.7 and Risk Consolidation Map;
+- Assumption Register v0.7;
 - Constraint Register v0.3;
-- Licence Register v0.4 and Licence Review Notes v1.1;
+- Licence Register v0.5 and Licence Review Notes v1.2;
 - RACL README, Control and Validation Plan and Review Log;
 - PRs `#22`–`#26`;
 - controlled RTM workbook v1.3.1, SHA-256 `2414c6790c2815a75edfcab0c9f35462dd334fe14d8c16e9810e80261f098e96`.
@@ -52,7 +52,7 @@ This audit checks whether the project has a coherent, proportionate and operatio
 |---|---|
 | Operational risks | 37 |
 | Original risk IDs preserved | `R-001`–`R-254` |
-| Planning assumptions | 17: 8 Confirmed, 1 Rejected for the tested scope, 8 Pending |
+| Planning assumptions | 17: 9 Confirmed, 1 Rejected for the tested scope, 7 Pending |
 | Active constraints | 15 |
 | Licence records | 18 |
 | Material contradictions found | 0 |
@@ -70,7 +70,11 @@ The controlled workbook, evidence records and audit now agree. Continuing risk-t
 
 ## Final evidence update
 
-`RV-009` checked the registers against main commit `1d6fdfe1e8054c5ec489ff6ac3547a108ffa312b`, final experiment release `unified-final-results-2026-09-01-v2`, and the final TurboVec evidence. It added scoped outcomes and exact dependency identities. Pending checks remain visible, so this update does not approve the final release package or claim completed user or estimator validation.
+`RV-009` checked the registers against repository evidence baseline `1d6fdfe1e8054c5ec489ff6ac3547a108ffa312b`, final experiment release `unified-final-results-2026-09-01-v2`, and the final TurboVec evidence. `RV-010` corrected the repeatability assumption, current risk wording, evidence links and dependency identities. Pending checks remain visible, so these updates do not approve the final release package or claim completed repeatability, user or estimator validation.
+
+## Independent recovery update
+
+`RV-011` compared an independent OneDrive restore with the original report-cut-off evidence. All 226 final-evidence files and 2,482 raw-evidence files matched by relative path, byte length and SHA-256 hash. This confirms `A-001` and `A-015` for the two tested folders. The check must be repeated if either folder changes.
 
 ## Claim boundary
 

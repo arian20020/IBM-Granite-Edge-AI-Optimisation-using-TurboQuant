@@ -1,15 +1,15 @@
 # Risk, Assumption, Constraint and Licence Control and Validation Plan
 
 **Document ID:** PLAN-RACL-001  
-**Version:** 1.7<br>
+**Version:** 1.9<br>
 **Status:** Active control plan  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
-**Last reviewed:** 2026-09-13<br>
+**Last reviewed:** 2026-09-14<br>
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
-**Related reviews:** `RV-004`–`RV-009`
+**Related reviews:** `RV-004`–`RV-011`
 
 ## Purpose
 
@@ -31,7 +31,7 @@ This plan controls how risks, assumptions, constraints and licences are recorded
 | Assumption Register | `A-001`–`A-017` approved for planning | Confirm/reject only with stated evidence |
 | Constraint Register | `C-001`–`C-015` approved Active | Check compliance at dependent gates |
 | Licence Register | `L-001`–`L-018` reviewed | Complete exact release-package review later |
-| Cross-register audit | Passed as `AUD-RACL-001` / `RV-008` | Revalidate after material changes |
+| Cross-register audit | Passed as `AUD-RACL-001`; updated through `RV-011` | Revalidate after material changes |
 | G-M05 / PD-05 / EP-007 evidence | Implemented, Validated and Verified | Maintain event-driven controls |
 | Controlled RTM | v1.3.1 synchronised | New revision required for later status changes |
 
@@ -41,7 +41,7 @@ This plan controls how risks, assumptions, constraints and licences are recorded
 2. Risk consolidation — `RV-004`.
 3. Assumption-set and constraint approval — `RV-006`.
 4. Initial licence review — `RV-007`.
-5. Cross-register audit — `AUD-RACL-001` / `RV-008`.
+5. Cross-register audit — `AUD-RACL-001`; updates reviewed through `RV-011`.
 6. Evidence records for G-M05, PD-05 and EP-007.
 7. RTM v1.3.1 status synchronisation and checksum control.
 

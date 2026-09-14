@@ -3,12 +3,12 @@
 > Final review note: TurboVec commit `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49` is MIT-licensed, but the project decision is **DEMONSTRATOR_ONLY**. This does not approve application adoption or final package distribution.
 
 **Document ID:** NOTE-LIC-001  
-**Version:** 1.1<br>
+**Version:** 1.2<br>
 **Status:** Initial engineering review complete — final release-package review pending  
 **Owner / reviewer:** Arian B  
 **Review date:** 2026-09-13<br>
 **Related register:** [Licence Register](Licence-Register.md)  
-**Related reviews:** `RV-007`; `RV-009`
+**Related reviews:** `RV-007`; `RV-009`; `RV-010`
 
 ## 1. Purpose and boundary
 
@@ -154,6 +154,7 @@ Sources reviewed:
 - pinned commit: `ccab9f325e6ce2a270a87daf01ae4e443bcf2d49`
 - wheel SHA-256: `CD855E0B318A57DC57C733F9A62AE98DE5192F4F6C2C760E305523E8CEB1B090`
 - repository licence: MIT
+- controlled identity record: [`identities.json`](../../experiments/raw-results/turbovec/EXP-TV-COMP-001-20260902T231605Z-005/identities.json)
 
 The supporting production-scale run is `EXP-TV-COMP-001-20260902T231605Z-005`. The technical decision is `DEMONSTRATOR_ONLY` because the compressed formats did not meet the retrieval-quality requirements.
 
@@ -185,30 +186,46 @@ Without an explicit licence, external users do not automatically receive broad p
 
 **Decision:** Pending owner decision. Select and add a project licence only after considering UCL, IBM/Intel partner, third-party code and submission requirements.
 
-### 3.15 IBM Granite 4.0 H Micro GGUF application models
+### 3.15 Experiment model artefacts
 
 Source reviewed:
 
-- official model card: <https://huggingface.co/ibm-granite/granite-4.0-h-micro-GGUF>
+- [final evidence manifest](../testing/final-results/catalog/evidence-manifest.csv)
+
+The final manifest records the identities and hashes that are available for the retained GGUF, quantised and OpenVINO experiment artefacts. Some planned artefacts were unavailable and remain marked as unavailable. The evidence package does not give permission to distribute every derived model.
+
+**Decision:** controlled evidence use is allowed for the recorded artefacts. Final distribution remains Pending until each model's source licence, conversion path, notices and package contents are checked.
+
+### 3.16 IBM Granite 4.0 H Micro GGUF application models
+
+Source reviewed:
+
+- official model card at the pinned revision: <https://huggingface.co/ibm-granite/granite-4.0-h-micro-GGUF/blob/51ce07a9c9cfa971ca359d9625836bf8a4a1b61f/README.md>
 - pinned revision: `51ce07a9c9cfa971ca359d9625836bf8a4a1b61f`
+- local catalogue: [`PinnedGraniteModelCatalog.cs`](../../shared/GraniteEdgeAI.ModelDownload.Authority/PinnedGraniteModelCatalog.cs)
 - licence recorded by the official model card: Apache-2.0
 
 The application catalogue records five exact filenames, byte lengths and SHA-256 hashes. Downloads are checked against that catalogue before use.
 
 **Decision:** verified download and project use are permitted under Apache-2.0. The model files are not approved for bundling inside the application package without a separate package review.
 
-### 3.16 LLamaSharp and CPU backend
+### 3.17 LLamaSharp and CPU backend
 
 Sources reviewed:
 
 - NuGet packages `LLamaSharp` and `LLamaSharp.Backend.Cpu`, version `0.27.0`
 - repository: <https://github.com/SciSharp/LLamaSharp>
-- package-recorded commit: `7cbbc45e421d55794d5050d126e0b96511007007`
+- source tag: `v0.27.0`
+- LLamaSharp commit: `7cbbc45e421d55794d5050d126e0b96511007007`
+- mapped llama.cpp commit: `3f7c29d318e317b63f54c558bc69803963d7d88c`
+- local identity authority: [`PinnedApplicationRuntime.cs`](../../runtime/GraniteEdgeAI.ModelInspection.LlamaSharp/PinnedApplicationRuntime.cs)
 - package licence: MIT
+- local LLamaSharp notice: [`LICENSE.LLamaSharp.txt`](../../third-party/licenses/LICENSE.LLamaSharp.txt)
+- local llama.cpp notice: [`LICENSE.llama.cpp.txt`](../../third-party/licenses/LICENSE.llama.cpp.txt)
 
 **Decision:** application use is permitted. Final packaging remains Restricted until the native llama.cpp backend files and notices included by the CPU package are recorded.
 
-### 3.17 PdfPig
+### 3.18 PdfPig
 
 Sources reviewed:
 
@@ -216,6 +233,7 @@ Sources reviewed:
 - repository: <https://github.com/UglyToad/PdfPig>
 - package-recorded commit: `f131f642976936e06ee91cb19d3ed728f9dd18b6`
 - package licence: Apache-2.0
+- controlled identity record: [`identities.json`](../../experiments/raw-results/turbovec/EXP-TV-COMP-001-20260902T231605Z-005/identities.json)
 
 **Decision:** use in the separate TurboVec PDF extraction demonstrator is permitted. Distribution remains Restricted until the Apache licence and any required notices are included.
 

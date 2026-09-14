@@ -1,0 +1,208 @@
+% This fragment uses the longtable, booktabs and array packages.
+% The main report defines the P column type used below.
+
+\chapter{Risk, Assumption, Licence, and Known-Issue Registers}
+\label{app:risks}
+
+This appendix keeps the main report-facing records. The full risks, validation
+methods, evidence links, licence duties and review history are stored in
+\path{docs/risks/Risk-Register.md},
+\path{docs/risks/Assumption-Register.md},
+\path{docs/risks/Licence-Register.md} and
+\path{docs/risks/Licence-Review-Notes.md}.
+
+\section{Risk Register}
+
+Table~\ref{tab:risk-register} lists the six main risks at the report cut-off.
+
+\begingroup
+\small
+\setlength{\LTpre}{4pt}
+\setlength{\LTpost}{4pt}
+\renewcommand{\arraystretch}{0.96}
+\begin{longtable}{@{}P{0.09\dimexpr\linewidth-8\tabcolsep\relax}P{0.30\dimexpr\linewidth-8\tabcolsep\relax}P{0.16\dimexpr\linewidth-8\tabcolsep\relax}P{0.31\dimexpr\linewidth-8\tabcolsep\relax}P{0.14\dimexpr\linewidth-8\tabcolsep\relax}@{}}
+    \caption{Main project risks at the report cut-off}
+    \label{tab:risk-register} \\
+    \toprule
+    \textbf{ID} & \textbf{Risk} & \textbf{Rating} &
+    \textbf{Control} & \textbf{Status} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{ID} & \textbf{Risk} & \textbf{Rating} &
+    \textbf{Control} & \textbf{Status} \\
+    \midrule
+    \endhead
+
+    R-001 & The project may miss the final deadline. & Medium / High &
+    Protect the core scope and move lower-priority work through change control. & Open \\
+
+    R-026 & The application may fail to build or run on a clean Windows computer. &
+    Medium / High & Pin dependencies and complete a clean release test. & Open \\
+
+    R-033 & Long operations may freeze, fail to cancel or leave processes running. &
+    Medium / High & Keep work off the UI thread and test cancellation and cleanup. & Open \\
+
+    R-046 & A downloaded model may be untrusted, incomplete or corrupt. &
+    Medium / High & Use approved sources and check the filename, size and SHA-256 hash. & Open \\
+
+    R-123 & The memory-fit estimate may accept an unsafe setup or reject one that fits. &
+    Medium / High & Keep a safety reserve, label estimates and complete
+    calibration later. & Open \\
+
+    R-245 & The application or report may claim more than the evidence proves. &
+    Medium / High & Link claims to evidence and state the exact model, runtime, device and
+    configuration tested. & Open \\
+    \bottomrule
+\end{longtable}
+\endgroup
+
+\section{Experiment-Derived Known Issues}
+
+The remaining limits include failed or unavailable SYCL and OpenVINO cases,
+incomplete device tracing, unfinished estimator and application studies, and
+TurboVec build and quality failures. These limits still apply where other
+configurations passed.
+
+\section{Assumption Log}
+
+Table~\ref{tab:assumption-log} gives the selected final outcomes and their
+evidence limits. Across the full register, nine assumptions are confirmed, one
+is rejected for the tested scope and seven remain pending. An independent
+OneDrive recovery test restored all 2,708 final and raw evidence files with
+matching paths, sizes and SHA-256 hashes, confirming A-001 and A-015. The full
+register contains all 17 assumptions.
+
+\begingroup
+\small
+\setlength{\LTpre}{4pt}
+\setlength{\LTpost}{4pt}
+\renewcommand{\arraystretch}{0.96}
+\begin{longtable}{@{}P{0.09\dimexpr\linewidth-6\tabcolsep\relax}P{0.30\dimexpr\linewidth-6\tabcolsep\relax}P{0.47\dimexpr\linewidth-6\tabcolsep\relax}P{0.14\dimexpr\linewidth-6\tabcolsep\relax}@{}}
+    \caption{Selected final assumption outcomes}
+    \label{tab:assumption-log} \\
+    \toprule
+    \textbf{ID} & \textbf{Assumption} & \textbf{Evidence and limit} &
+    \textbf{Outcome} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{ID} & \textbf{Assumption} & \textbf{Evidence and limit} &
+    \textbf{Outcome} \\
+    \midrule
+    \endhead
+
+    A-005 & A selected Granite model can run through OpenVINO. &
+    Conversion, loading and generation passed on the test computer, but unavailable
+    artefacts limited wider testing. &
+    \textbf{Confirmed} \\
+
+    A-006 & The available Windows and Intel hardware supports the required routes. &
+    Selected CPU and graphics routes ran on the recorded test computer; this does
+    not prove support elsewhere. &
+    \textbf{Confirmed} \\
+
+    A-007 & The application can always identify the device that performed inference. &
+    Device evidence was incomplete for some OpenVINO runs. &
+    \textbf{Pending} \\
+
+    A-008 & The memory estimator gives sufficiently accurate guidance. &
+    The estimator was implemented, but the planned measured calibration was not completed. &
+    \textbf{Pending} \\
+
+    A-009 & TurboQuant can run with a selected Granite model. &
+    Selected configurations passed controlled build, inference, quality and stability runs
+    on the test computer. &
+    \textbf{Confirmed} \\
+
+    A-010 & TurboQuant activation and KV-cache reduction can be shown. &
+    Activation evidence and matched tests showed lower explicit KV-cache allocation
+    in several configurations. &
+    \textbf{Confirmed} \\
+
+    A-012 & TurboVec can be integrated without unacceptable retrieval-quality loss. &
+    Compressed formats failed the matched retrieval-quality requirements, so TurboVec
+    remained a separate demonstrator. &
+    \textbf{Rejected} \\
+
+    A-016 & All included components permit the intended release and distribution. &
+    Source licences were checked, but the final package and dependency review remains open. &
+    \textbf{Pending} \\
+
+    A-017 & Intended non-specialist users can complete the application workflow. &
+    The planned task-based intended-user evaluation was not completed. &
+    \textbf{Pending} \\
+    \bottomrule
+\end{longtable}
+\endgroup
+
+\section{Dependency and Licence Inventory}
+
+Table~\ref{tab:licence-inventory} keeps every selected dependency group.
+\emph{Restricted} means that project use is allowed, but the final package still
+needs a file and notice review.
+
+\begingroup
+\small
+\setlength{\LTpre}{4pt}
+\setlength{\LTpost}{4pt}
+\renewcommand{\arraystretch}{0.96}
+\begin{longtable}{@{}P{0.29\dimexpr\linewidth-6\tabcolsep\relax}P{0.18\dimexpr\linewidth-6\tabcolsep\relax}P{0.18\dimexpr\linewidth-6\tabcolsep\relax}P{0.35\dimexpr\linewidth-6\tabcolsep\relax}@{}}
+    \caption{Dependency and licence inventory}
+    \label{tab:licence-inventory} \\
+    \toprule
+    \textbf{Dependency and identity} & \textbf{Use} &
+    \textbf{Licence / status} & \textbf{Main release condition} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{Dependency and identity} & \textbf{Use} &
+    \textbf{Licence / status} & \textbf{Main release condition} \\
+    \midrule
+    \endhead
+
+    IBM Granite 4.1, official 3B and 8B models &
+    Experiments & Apache-2.0 / Restricted & Keep exact artefact sources
+    and hashes. Do not bundle them without a package review. \\
+
+    Granite 4.0 H Micro GGUF, revision \texttt{51ce07a9} &
+    Model download & Apache-2.0 / Restricted &
+    The application checks five pinned files. They are downloaded, not bundled. \\
+
+    \texttt{llama.cpp}, tag \texttt{b9870}, commit \texttt{2d973636} &
+    GGUF baseline & MIT / Approved &
+    Preserve the MIT notice and review optional native dependencies. \\
+
+    TurboQuant forks, AtomicBot \texttt{b0e900a2} and animehacker
+    \texttt{5bc5ed3b} & Experiments and one exact application route &
+    MIT / Restricted & Preserve MIT and inherited notices; review every native file. \\
+
+    OpenVINO and OpenVINO GenAI, 2026.2.1 campaign versions &
+    Inference and optimisation & Apache-2.0 / Restricted &
+    Include the licence and notices; review the final DLL inventory. \\
+
+    LLamaSharp 0.27.0 and mapped \texttt{llama.cpp} commit \texttt{3f7c29d3} &
+    GGUF inspection & MIT / Restricted &
+    Preserve both MIT notices and review the included native runtime files. \\
+
+    Windows App SDK 2.2.0 and SDK Build Tools 10.0.28000.2270 &
+    Interface and build & Package terms / Restricted &
+    Keep Build Tools out of the application package and check final notices. \\
+
+    .NET SDK 10.0.301, target \texttt{net8.0-windows10.0.19041.0} &
+    Build and runtime & MIT and third-party terms / Restricted &
+    Record shipped runtime files and notices for a self-contained package. \\
+
+    TurboVec 1.0.0, commit \texttt{ccab9f32} &
+    Feasibility demonstrator & MIT / Restricted & Not adopted by the application;
+    preserve its notice if the demonstrator is shared. \\
+
+    PdfPig 0.1.15, commit \texttt{f131f642} &
+    Demonstrator PDF extraction & Apache-2.0 / Restricted &
+    Preserve the Apache licence and review notices before sharing. \\
+    \bottomrule
+\end{longtable}
+\endgroup

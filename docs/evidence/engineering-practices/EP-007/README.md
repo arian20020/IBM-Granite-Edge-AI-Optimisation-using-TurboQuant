@@ -7,7 +7,7 @@
 | Field | Value |
 |---|---|
 | Template version | `1.1.1` |
-| Evidence record version | `1.1` |
+| Evidence record version | `1.3` |
 | Record ID | `EP:EP-007` |
 | Record type | Engineering Practice |
 | Source baseline / version | Engineering Practice catalogue / RTM v1.3.1 |
@@ -16,13 +16,13 @@
 | Effective status | Verified |
 | Owner | Arian B |
 | Evidence date | 2026-07-14 |
-| Last reviewed | 2026-07-15 |
+| Last reviewed | 2026-09-14 |
 | Validation date | 2026-07-15 |
 | Validator | Arian B |
 | Validation independence | Self-review |
 | Approval scope | Developer working baseline |
 | Validation method | Review of consolidation, ownership/status controls, evidence links, formal reviews, cross-register consistency and RTM status |
-| Supersedes | Evidence record v1.0 |
+| Supersedes | Evidence record v1.2 |
 | Superseded by | None |
 
 ## 2. Statement being evidenced
@@ -38,7 +38,7 @@
 | Stable IDs and decision history are preserved | Pass | Consolidation Map; Git history | Merged history remains traceable. |
 | Owners, statuses, evidence needs and review timing exist | Pass | Four live registers | Records are operational rather than descriptive only. |
 | Planning approval is separated from technical/release proof | Pass | Assumption and Licence Registers | Pending/Restricted outcomes remain visible. |
-| Reviews and maintenance rules are recorded | Pass | Control Plan; Review Log | `RV-001`–`RV-008` preserve the process. |
+| Reviews and maintenance rules are recorded | Pass | Control Plan; Review Log | `RV-001`–`RV-011` preserve the process. |
 | Cross-register audit passes | Pass | `AUD-RACL-001` | No material contradiction prevents use. |
 | Requirement and work-package evidence are linked | Pass | G-M05 and PD-05 evidence records | Traceability is bidirectional. |
 | Controlled RTM status is synchronised | Pass | `ART-RTM-XLSX-001` | RTM v1.3.1 records EP-007 as Verified. |
@@ -55,12 +55,12 @@ EP-007 was implemented through controlled structure creation, population, risk c
 
 | ID | Evidence | Identifier | Status |
 |---|---|---|---|
-| EV-01 | [Risk Register](../../../risks/Risk-Register.md) and [Risk Consolidation Map](../../../risks/Risk-Consolidation-Map.md) | v0.6 / current | Available |
-| EV-02 | [Assumption Register](../../../risks/Assumption-Register.md) | v0.5 | Available |
+| EV-01 | [Risk Register](../../../risks/Risk-Register.md) and [Risk Consolidation Map](../../../risks/Risk-Consolidation-Map.md) | v0.7 / current | Available |
+| EV-02 | [Assumption Register](../../../risks/Assumption-Register.md) | v0.7 | Available |
 | EV-03 | [Constraint Register](../../../risks/Constraint-Register.md) | v0.3 | Available |
-| EV-04 | [Licence Register](../../../risks/Licence-Register.md) and [Licence Review Notes](../../../risks/Licence-Review-Notes.md) | v0.4 / v1.1 | Available |
+| EV-04 | [Licence Register](../../../risks/Licence-Register.md) and [Licence Review Notes](../../../risks/Licence-Review-Notes.md) | v0.5 / v1.2 | Available |
 | EV-05 | [RACL index](../../../risks/README.md), [Control Plan](../../../risks/Control-and-Validation-Plan.md) and [Review Log](../../../risks/Review-Log.md) | Current | Available |
-| EV-06 | [Cross-Register Validation Audit](../../../risks/Cross-Register-Validation-Audit.md) | `AUD-RACL-001` / `RV-008` | Available |
+| EV-06 | [Cross-Register Validation Audit](../../../risks/Cross-Register-Validation-Audit.md) | `AUD-RACL-001`; `RV-008`–`RV-011` | Available |
 | EV-07 | [Controlled RTM workbook artifact](../../../requirements/RTM-Workbook-Artifact-Record.md) | v1.3.1; SHA-256 `2414c6790c2815a75edfcab0c9f35462dd334fe14d8c16e9810e80261f098e96` | Available |
 
 ## 6. Validation record
@@ -84,7 +84,7 @@ EP-007 was implemented through controlled structure creation, population, risk c
 - Requirement: `G-M05`
 - Work package: `PD-05`
 - Engineering practice: `EP-007`
-- Audit/review: `AUD-RACL-001`; `RV-008`
+- Audit/review: `AUD-RACL-001`; `RV-008`–`RV-011`
 - Change control: `CR-018`; `CHG-018`; `CR-019`; `CHG-019`
 - Pull requests: `#22`–`#26`
 

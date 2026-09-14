@@ -1,17 +1,17 @@
 # Risk, Assumption, Constraint and Licence Control
 
 **Document ID:** IDX-RACL-001  
-**Version:** 0.9<br>
+**Version:** 1.1<br>
 **Status:** Operational and Verified for `G-M05`, `PD-05` and `EP-007`  
 **Owner:** Arian B  
 **Effective date:** 2026-07-14  
-**Last reviewed:** 2026-09-13<br>
+**Last reviewed:** 2026-09-14<br>
 **Next review:** Event-driven register reviews and final release-package review  
 **Related requirement:** `G-M05`  
 **Related work package:** `PD-05`  
 **Related engineering practice:** `EP-007`  
 **Related changes:** `CR-018` / `CHG-018`; `CR-019` / `CHG-019`  
-**Related reviews:** `RV-004`–`RV-009`
+**Related reviews:** `RV-004`–`RV-011`
 
 ## Purpose
 
@@ -35,7 +35,7 @@ This directory is the controlled home for project risks, assumptions, constraint
 | Record | File | Current state |
 |---|---|---|
 | Risks | [Risk Register](Risk-Register.md) | 254 identified items consolidated into 37 operational risks |
-| Assumptions | [Assumption Register](Assumption-Register.md) | `A-001`–`A-017`: 8 Confirmed, 1 Rejected for the tested scope, 8 Pending |
+| Assumptions | [Assumption Register](Assumption-Register.md) | `A-001`–`A-017`: 9 Confirmed, 1 Rejected for the tested scope, 7 Pending |
 | Constraints | [Constraint Register](Constraint-Register.md) | `C-001`–`C-015` approved Active |
 | Licences | [Licence Register](Licence-Register.md) | `L-001`–`L-018` reviewed; final package gate remains Pending |
 
@@ -64,7 +64,9 @@ Task evidence:
 - no material cross-register contradiction prevents use;
 - `G-M05`, `PD-05` and `EP-007` are `Implemented / Validated / Verified`.
 
-`RV-009` records the later report-cut-off review. It adds scoped assumption outcomes and final application or demonstrator identities without claiming that the final release package is approved.
+`RV-009` records the later report-cut-off review. `RV-010` corrects the repeatability outcome, current risk wording, evidence links and dependency identities. These reviews do not claim that the final release package is approved.
+
+`RV-011` records the independent OneDrive recovery test. All 226 final-evidence files and 2,482 raw-evidence files were restored with matching paths, sizes and SHA-256 hashes.
 
 Controlled workbook:
 
