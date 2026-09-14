@@ -58,11 +58,11 @@ In the isolated test run, automatic scrolling stopped about 110 pixels above
 the bottom, even after waiting five seconds. The issue is not fixed. Chat
 application code is unchanged by this deferral.
 
-Both tests keep their assertions and use the `DeferredChatAutoScroll` category.
+All three tests keep their assertions and use the `DeferredChatAutoScroll` category.
 The required CI run excludes this category; excluded tests are not passes.
 All other selected tests remain required. Run the deferred tests explicitly with
 `/TestCaseFilter:"TestCategory=DeferredChatAutoScroll"`. After fixing the issue,
-require both tests to pass and remove the category and its CI exclusion.
+require all three tests to pass and remove the category and its CI exclusion.
 
 ## Deferred inspection presentation checks
 
@@ -139,3 +139,16 @@ the unconditional negative quantizer check also passed in a separate run.
 The full result is `TestResults/HostedAdaptationsFinal/checkpoint-final-filter.trx`
 (SHA-256 `D3B0EA114F6BCC5C364D1D0FB3C262126818AAE6D0D00F3465850E9EA6B5F2BA`).
 These are local results, not proof of a successful hosted run.
+
+## Hosted verification — 14 September 2026
+
+[Build and test run 34804762103](https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/actions/runs/34804762103)
+passed for commit `73684f838a1dc6cf08cb2633f8c7b87379388564`. Both builds passed,
+and all 1,877 selected tests passed with no failures, skips or aborted tests.
+The excluded and deferred checks above are not part of this pass count.
+
+The downloaded result is
+`TestResults/Hosted34804762103/GraniteEdgeAI.UnitTests.trx`, with SHA-256
+`83ED044C7B268963AFAF3E3462BF5D2EEBBC48CB3E72597CAA523C5FEAE6C327`.
+The CI updates after `02abd95f` changed only tests, the workflow and this
+document. They did not change application or worker implementation files.
