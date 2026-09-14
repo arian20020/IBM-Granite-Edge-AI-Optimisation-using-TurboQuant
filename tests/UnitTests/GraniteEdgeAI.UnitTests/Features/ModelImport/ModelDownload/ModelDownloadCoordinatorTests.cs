@@ -279,6 +279,10 @@ public sealed class ModelDownloadCoordinatorTests
     [DataRow(true)]
     public async Task CancelAsync_BoundsAProviderWhoseCancellationCallbackNeverReturns(bool discardPartial)
     {
+        // This watchdog allows thread-pool scheduling on a loaded CI runner.
+        // The coordinator's cleanup boundary remains 50 ms, and the callback
+        // stays blocked until all pending-cleanup assertions have completed.
+        TimeSpan watchdog = TimeSpan.FromSeconds(10);
         using var release = new ManualResetEventSlim(false);
         var service = new BlockingCancellationDownloadService(release);
         var disposing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -293,26 +297,26 @@ public sealed class ModelDownloadCoordinatorTests
             if (state.Stage == ModelDownloadStage.Interrupted) reconciled.TrySetResult(state);
         };
         Task operation = coordinator.StartAsync(50, allowMetered: false, CancellationToken.None);
-        await service.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await service.Started.Task.WaitAsync(watchdog);
 
         try
         {
             Task cancellation = coordinator.CancelAsync(discardPartial, CancellationToken.None);
-            await service.CallbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            await service.CallbackStarted.Task.WaitAsync(watchdog);
             service.CompleteInterrupted();
-            await cancellation.WaitAsync(TimeSpan.FromSeconds(1));
+            await cancellation.WaitAsync(watchdog);
             Assert.AreEqual(ModelDownloadStage.Failed, coordinator.State.Stage);
             Assert.AreEqual("download-cancellation-cleanup-pending", coordinator.State.ErrorCode);
             Assert.AreEqual(0, service.DiscardCalls);
-            await operation.WaitAsync(TimeSpan.FromSeconds(1));
+            await operation.WaitAsync(watchdog);
             Assert.IsFalse(disposing.Task.IsCompleted);
             service.ReportProgress();
             Assert.AreEqual("download-cancellation-cleanup-pending", coordinator.State.ErrorCode);
         }
         finally { release.Set(); }
-        await service.CallbackFinished.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        await disposing.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        ModelDownloadCoordinatorState terminal = await reconciled.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await service.CallbackFinished.Task.WaitAsync(watchdog);
+        await disposing.Task.WaitAsync(watchdog);
+        ModelDownloadCoordinatorState terminal = await reconciled.Task.WaitAsync(watchdog);
         Assert.AreEqual(discardPartial ? "download-cancelled-discarded" : "download-cancelled", terminal.ErrorCode);
     }
 

@@ -66,9 +66,26 @@ public sealed class HardwareEvidenceCollectionCoordinatorTests
     {
         using ToolLeaseFixture tools = new();
         var progress = new MeasuredProgress { Throw = !grouped, ThrowGroup = grouped };
-        var capture = new HardwareEvidenceCaptureTestDouble { FailingProvider = "processor" };
+        var capture = new HardwareEvidenceCaptureTestDouble { FailingProvider = "processor", Hold = true };
         var coordinator = new HardwareEvidenceCollectionCoordinator(capture, TimeProvider.System, 4, 1);
-        var result = await coordinator.CollectAsync(tools.Lease, progress, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
+        using CancellationTokenSource cancellation = new();
+        Task<HardwareEvidenceCollectionResult> pending = coordinator.CollectAsync(
+            tools.Lease, progress, cancellation.Token);
+        HardwareEvidenceCollectionResult result;
+        try
+        {
+            // Completion callbacks must fail with work already in flight. An
+            // immediate external result can otherwise cancel every native task
+            // before the thread pool starts it on a busy hosted runner.
+            await capture.WaitForStartsAsync(native: 4, external: 1);
+            capture.Release();
+            result = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            if (!pending.IsCompleted) cancellation.Cancel();
+            capture.Release();
+        }
         Assert.IsFalse(result.IsSuccess);
         Assert.AreEqual(HardwareEvidenceCollectionFailureCode.ProgressCallbackFailure, result.FailureCode);
         Assert.IsTrue(capture.NativeStarted > 0);
