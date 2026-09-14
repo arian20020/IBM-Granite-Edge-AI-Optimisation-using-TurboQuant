@@ -2,6 +2,8 @@
 
 New to the project? Start with [Run the app](Run-the-App.md). It gives the exact launch command for the prepared computer and explains the remaining setup needed for another PC. Then follow the user guide.
 
+For a fresh checkout, read [Set up from source](Fresh-Computer-Setup.md). It maps the native inputs to the checked-in scripts and states which preparation steps are still missing.
+
 1. [Run the app](Run-the-App.md): launch the prepared installation and check its identity.
 2. [Download a model](Download-a-Model.md): built-in downloads, manual GGUF checks and the separate OpenVINO route.
 3. [Build and installation](Build-and-Installation.md): packages, prerequisites and the remaining release-input gap.

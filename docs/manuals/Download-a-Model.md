@@ -2,11 +2,16 @@
 
 Start with the installed Granite app. Downloading a model does not install the app or its runtimes.
 
+Choose **one** download method below. The built-in method is the simplest; manual download is an alternative, not an extra required step. A model is the large file containing the learned values used to produce replies. A checksum is a file fingerprint used to check that the bytes match the expected download.
+
 ## Easiest option: download inside Granite
 
 1. Open the app using [Run the app](Run-the-App.md).
 2. On the first page, find the recommended IBM Granite 4.0 H Micro model.
 3. Select **Balanced**. Check that the card shows **Q4_K_M**, about **1.94 GB**.
+
+   Use the slider in the recommended-download card. This is on the model-selection page, not the later optimisation page. If the page is taller than the window, scroll to find the card and download button.
+
 4. Choose **Download selected model**. Stay online until download and verification finish.
 5. Wait for model inspection to open. After a successful inspection, choose **Check hardware fit** if offered.
 6. Read the fit result. Continue through the available configuration and optimisation actions, then choose **Chat with this model** when offered.
@@ -33,7 +38,7 @@ Use this option if you want to keep the original download in a folder you choose
 1. Open the [pinned IBM model files](https://huggingface.co/ibm-granite/granite-4.0-h-micro-GGUF/tree/51ce07a9c9cfa971ca359d9625836bf8a4a1b61f).
 2. Select **granite-4.0-h-micro-Q4_K_M.gguf** and use the file's download control. Download only this file, not the whole repository. Read the model card and licence before use or redistribution.
 3. Wait until the browser finishes. Do not import a partial download or a small text pointer in place of the model.
-4. In PowerShell, enter your actual file path when prompted:
+4. Find the downloaded file in File Explorer. Right-click it and choose **Copy as path**. Open **Windows PowerShell** from Start, normally rather than as administrator. Run the block below. At its prompt, paste the file path and remove surrounding double quotes if present, then press Enter. The checksum check can take a while for a large file:
 
 ```powershell
 $modelFile = Read-Host 'Paste the full path to the downloaded GGUF file, without surrounding quotes'
@@ -48,6 +53,8 @@ if ($modelHash -ne 'c698c78e895740f0e707eb7f8e92894f83f6d5b3f2f2f0b446dfe9635fa0
 
 5. In Granite, choose **Choose model**, select the GGUF option, and select that file.
 6. Wait for the quick scan, then choose **Continue to model inspection**.
+
+If the check prints a red error, stop: do not continue importing that file as the verified download. If it prints the success message, the size and checksum matched. You only need to type commands for this manual-download check; the built-in method checks the file for you.
 
 The expected size and checksum come from the [application catalogue](../../shared/GraniteEdgeAI.ModelDownload.Authority/PinnedGraniteModelCatalog.cs). Matching them identifies the file; the app must still inspect it and check hardware fit.
 

@@ -2,6 +2,8 @@
 
 You do not need Visual Studio to use an already installed copy. Choose the instructions for the computer you are using.
 
+The **prepared project computer** means the Windows account where the developer has already installed and tested Granite. It does not mean any computer that has downloaded this repository. If you are using your own PC, read the separate-PC section below before trying commands.
+
 ## On the project demonstration computer
 
 These steps open the registered copy used by the recorded inspection tests. They avoid old shortcuts that may open a different build.
@@ -9,6 +11,8 @@ These steps open the registered copy used by the recorded inspection tests. They
 1. Finish any active work and close other Granite windows.
 2. Press **Windows + R**.
 3. Paste this exact command, then press **Enter**:
+
+   Copy only the line inside the box, not the box markers. This command belongs in the Windows Run box, not in the app's chat field.
 
 ```text
 explorer.exe shell:AppsFolder\488d3892-c214-40c5-9a6a-1154c1e69fff_gqahnnh6hk88w!App
@@ -23,6 +27,7 @@ The registration and executable hash below were checked during this documentatio
 | Item | Recorded value |
 | --- | --- |
 | Package name | `488d3892-c214-40c5-9a6a-1154c1e69fff` |
+| Package family name | `488d3892-c214-40c5-9a6a-1154c1e69fff_gqahnnh6hk88w` |
 | Package version / architecture | `1.0.0.0` / x64 |
 | Application ID | `App` |
 | Local installation | `%LOCALAPPDATA%\GraniteRestoredMain-20260914` |
@@ -38,7 +43,7 @@ This is not an installer checksum. The folder date and package version alone do 
 
 ### If it does not open
 
-Open PowerShell normally, not as administrator, and run:
+Click Windows Start, type **Windows PowerShell**, and open it normally. Do not choose **Run as administrator**. Copy both lines below into that window and press Enter:
 
 ```powershell
 Get-AppxPackage -Name '488d3892-c214-40c5-9a6a-1154c1e69fff' |

@@ -6,6 +6,8 @@ Start with [Run the app](Run-the-App.md), then [Download a model](Download-a-Mod
 
 ## Before you start
 
+For a first attempt, use the Balanced GGUF example in the download guide. You do not need to try every model or both runtimes. Finish one journey before starting another. Here, **maintainer** means the project developer who supplied the demonstration installation; see [support](../../SUPPORT.md) if you need help.
+
 - Use the tested Windows 11 x64 setup where possible. The recorded checks centred on an Intel computer with about 16 GB of RAM; that is a test setup, not a guaranteed minimum.
 - Allow space for the model, temporary work and any exported copy. Model files can be several gigabytes.
 - Close memory-heavy programs if RAM is tight. Free RAM changes while other programs run.
@@ -62,6 +64,8 @@ Wait for optimisation and validation to finish. Temporary output is not a finish
 When **Save model to this computer** is offered, select a destination with enough free space and wait for export to complete. Runtime-only changes do not necessarily produce a new standalone model file. Do not move temporary files out of the app's working folders.
 
 Use **Chat with this model** when available. Enter a short prompt first, then check the response. Use the displayed stop action to interrupt generation. Generated answers can be wrong; review them before relying on them.
+
+For example, type “Explain what a computer processor does in two short sentences” in the message box, then use the Send control. Wait for the reply to finish before starting another operation. A reply confirms that this chat attempt worked; it does not prove every configuration works.
 
 ## Offline use and local data
 
