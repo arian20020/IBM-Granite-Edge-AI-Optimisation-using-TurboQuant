@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="55f7802b-329e-4713-9d3d-af8aa3c52202" name="Inspection route verification" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-09-14T07:16:29.7243884Z" queuing="2026-09-14T07:16:29.7243884Z" start="2026-09-14T07:16:29.7243884Z" finish="2026-09-14T07:19:06.6151551Z" />
+  <TestSettings name="default" id="815d91f4-e320-460d-be7c-55fcc89a8221">
+    <Deployment runDeploymentRoot="[redacted]" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="6abe1d26-0f72-46e5-abc9-d421e005be20" testId="1ce3f0de-5aab-8777-b45e-b490065f9efe" testName="Gguf_import_inspection_and_hardware_reach_a_compatibility_decision" computerName="[redacted]" duration="00:00:42.6943802" startTime="2026-09-14T07:16:29.8130287+00:00" endTime="2026-09-14T07:17:12.5208452+00:00" testType="13CDC9D9-DDB5-4fa4-A97D-D965CCFC6D4B" outcome="Passed" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" relativeResultsDirectory="6abe1d26-0f72-46e5-abc9-d421e005be20" />
+    <UnitTestResult executionId="51a98619-7108-4912-91ce-8483ddca409f" testId="1080302c-ac86-8147-80c0-b55ba03d0a68" testName="OpenVino_import_inspection_and_hardware_offer_configuration" computerName="[redacted]" duration="00:01:14.8713741" startTime="2026-09-14T07:17:12.5242423+00:00" endTime="2026-09-14T07:18:27.3961871+00:00" testType="13CDC9D9-DDB5-4fa4-A97D-D965CCFC6D4B" outcome="Passed" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" relativeResultsDirectory="51a98619-7108-4912-91ce-8483ddca409f" />
+    <UnitTestResult executionId="7a9afa1b-3fe7-484b-b54c-ef5df61eadec" testId="1abef4c2-0a5d-801c-bf85-55b71cbfa3af" testName="Rejected_gguf_can_be_replaced_and_continue_through_inspection" computerName="[redacted]" duration="00:00:39.1903981" startTime="2026-09-14T07:18:27.3964837+00:00" endTime="2026-09-14T07:19:06.5890507+00:00" testType="13CDC9D9-DDB5-4fa4-A97D-D965CCFC6D4B" outcome="Passed" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" relativeResultsDirectory="7a9afa1b-3fe7-484b-b54c-ef5df61eadec" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Gguf_import_inspection_and_hardware_reach_a_compatibility_decision" storage="GraniteEdgeAI.EndToEndTests.dll" id="1ce3f0de-5aab-8777-b45e-b490065f9efe">
+      <TestCategory>
+        <TestCategoryItem TestCategory="NativeInspectionRoutes" />
+      </TestCategory>
+      <Execution id="6abe1d26-0f72-46e5-abc9-d421e005be20" />
+      <Properties>
+        <Property>
+          <Key>NativeInspectionRoutes</Key>
+          <Value>
+          </Value>
+        </Property>
+      </Properties>
+      <TestMethod codeBase="GraniteEdgeAI.EndToEndTests.dll" adapterTypeName="executor://MSTestExtension/4.3.2" className="GraniteEdgeAI.EndToEndTests.Journeys.InspectionRouteJourneys" name="Gguf_import_inspection_and_hardware_reach_a_compatibility_decision" />
+    </UnitTest>
+    <UnitTest name="OpenVino_import_inspection_and_hardware_offer_configuration" storage="GraniteEdgeAI.EndToEndTests.dll" id="1080302c-ac86-8147-80c0-b55ba03d0a68">
+      <TestCategory>
+        <TestCategoryItem TestCategory="NativeInspectionRoutes" />
+      </TestCategory>
+      <Execution id="51a98619-7108-4912-91ce-8483ddca409f" />
+      <Properties>
+        <Property>
+          <Key>NativeInspectionRoutes</Key>
+          <Value>
+          </Value>
+        </Property>
+      </Properties>
+      <TestMethod codeBase="GraniteEdgeAI.EndToEndTests.dll" adapterTypeName="executor://MSTestExtension/4.3.2" className="GraniteEdgeAI.EndToEndTests.Journeys.InspectionRouteJourneys" name="OpenVino_import_inspection_and_hardware_offer_configuration" />
+    </UnitTest>
+    <UnitTest name="Rejected_gguf_can_be_replaced_and_continue_through_inspection" storage="GraniteEdgeAI.EndToEndTests.dll" id="1abef4c2-0a5d-801c-bf85-55b71cbfa3af">
+      <TestCategory>
+        <TestCategoryItem TestCategory="NativeInspectionRoutes" />
+      </TestCategory>
+      <Execution id="7a9afa1b-3fe7-484b-b54c-ef5df61eadec" />
+      <Properties>
+        <Property>
+          <Key>NativeInspectionRoutes</Key>
+          <Value>
+          </Value>
+        </Property>
+      </Properties>
+      <TestMethod codeBase="GraniteEdgeAI.EndToEndTests.dll" adapterTypeName="executor://MSTestExtension/4.3.2" className="GraniteEdgeAI.EndToEndTests.Journeys.InspectionRouteJourneys" name="Rejected_gguf_can_be_replaced_and_continue_through_inspection" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="1ce3f0de-5aab-8777-b45e-b490065f9efe" executionId="6abe1d26-0f72-46e5-abc9-d421e005be20" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+    <TestEntry testId="1080302c-ac86-8147-80c0-b55ba03d0a68" executionId="51a98619-7108-4912-91ce-8483ddca409f" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+    <TestEntry testId="1abef4c2-0a5d-801c-bf85-55b71cbfa3af" executionId="7a9afa1b-3fe7-484b-b54c-ef5df61eadec" testListId="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8C84FA94-04C1-424b-9868-57A2D4851A1D" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

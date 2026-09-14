@@ -1,0 +1,4 @@
+# Keep these two small report evidence files visible to Git.
+!results/GraniteEdgeAI.UnitTests.redacted.trx
+!results/gguf-release-and-negative.redacted.trx
+!results/inspection-routes.redacted.trx

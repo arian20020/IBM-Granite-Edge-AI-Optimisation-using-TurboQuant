@@ -1,0 +1,40 @@
+% Replace the corresponding manual and release appendix bodies in the full report.
+% Copy each body below its matching existing chapter and label.
+% Do not paste the whole fragment: these are three separate appendix positions.
+
+% BODY: User Manual
+
+The user guide is stored in
+\path{docs/manuals/User-Manual.md}. It explains model download
+and import, inspection, hardware-fit results, configuration,
+optimisation, export and chat. It also covers offline use,
+local data and safe error reporting.
+
+\path{docs/manuals/Known-Limitations.md} explains support
+limits and common problems. Available choices depend on the
+model, verified runtime and current memory and disk checks.
+A hardware-fit result is an estimate, not a guarantee.
+
+% BODY: Developer, Build, and Reproduction Manual
+
+\path{docs/manuals/Developer-Manual.md} describes the code
+layout, test layers and rules to preserve when making changes.
+\path{docs/manuals/Build-and-Installation.md} separates
+compile-only checks from a runnable package. It lists the
+tool versions and explains the need for verified runtime
+inputs. A complete final installer recipe and clean-machine
+installation check are not established by these guides.
+
+The experiment reproduction entry point is
+\path{docs/testing/final-results/REPRODUCING.md}.
+Application results are indexed in
+\path{docs/testing/application-verification/README.md}.
+
+% BODY: Release and Demonstration Material
+
+\path{release-evidence/README.md} records the available
+application evidence and remaining handover checks.
+\path{release-evidence/demo/README.md} provides a demonstration
+scenario, not a completed video record. A final installer
+checksum, release tag and clean-install result must not be
+inferred from the existing test evidence.

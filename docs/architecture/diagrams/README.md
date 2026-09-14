@@ -27,4 +27,7 @@ None assigned
 ## Source
 
 Repository evidence structure
+# Report figures
+
+The [report PNG set](report/README.md) contains unchanged copies of the existing owner-approved diagrams. This is the practical entry point for the figures referenced by the report; it is separate from historical diagram placeholders below.
 

@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="7a04c7da-8182-4a12-94cb-41991afb3741" name="Redacted test run" runUser="[redacted]" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-09-14T04:38:00.9639827+01:00" queuing="2026-09-14T04:38:00.9639827+01:00" start="2026-09-14T04:37:53.9664660+01:00" finish="2026-09-14T04:38:00.9872700+01:00" />
+  <TestSettings name="default" id="12ce6c98-2748-41f7-ac09-c4ec53373bac">
+    <Deployment runDeploymentRoot="[redacted]" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="863c68b4-b4d3-4627-b7a5-128ac658d69e" testId="16bc18af-f8ff-86b4-a6cb-33bc2e78b946" testName="AbsentOrWrongAppLocalQuantizerNeverEnablesPersistentConversion" computerName="[redacted]" duration="00:00:00.0707583" startTime="2026-09-14T04:38:00.6798999+01:00" endTime="2026-09-14T04:38:00.7551039+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="863c68b4-b4d3-4627-b7a5-128ac658d69e" />
+    <UnitTestResult executionId="03f7ca62-0b4a-419a-850b-d77ed1a0adfe" testId="1b7b1514-c619-85b0-9b3a-537a21a0859f" testName="PackagedCurrentReleaseProjectsQ8AndBothVerifiedTurboFormats" computerName="[redacted]" duration="00:00:00.6459568" startTime="2026-09-14T04:37:59.8889896+01:00" endTime="2026-09-14T04:38:00.5846022+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="03f7ca62-0b4a-419a-850b-d77ed1a0adfe" />
+    <UnitTestResult executionId="17f82ae5-6c14-4a68-bc22-1a80d35ebde2" testId="1cd6b7a3-a37a-89ef-b1d5-47c0e1a4795e" testName="AbsentOrWrongAppLocalQuantizerPreservesRuntimeOnlyCompatibility" computerName="[redacted]" duration="00:00:00.0854030" startTime="2026-09-14T04:38:00.5920485+01:00" endTime="2026-09-14T04:38:00.6781897+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="17f82ae5-6c14-4a68-bc22-1a80d35ebde2" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="AbsentOrWrongAppLocalQuantizerNeverEnablesPersistentConversion" storage="[redacted]" id="16bc18af-f8ff-86b4-a6cb-33bc2e78b946">
+      <Execution id="863c68b4-b4d3-4627-b7a5-128ac658d69e" />
+      <TestMethod codeBase="[redacted]" adapterTypeName="executor://mstestadapter/v4" className="GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility.GgufCompatibilityInputProjectorTests" name="AbsentOrWrongAppLocalQuantizerNeverEnablesPersistentConversion" />
+    </UnitTest>
+    <UnitTest name="AbsentOrWrongAppLocalQuantizerPreservesRuntimeOnlyCompatibility" storage="[redacted]" id="1cd6b7a3-a37a-89ef-b1d5-47c0e1a4795e">
+      <TestCategory>
+        <TestCategoryItem TestCategory="RequiresVerifiedGgufRuntimeClosure" />
+      </TestCategory>
+      <Execution id="17f82ae5-6c14-4a68-bc22-1a80d35ebde2" />
+      <TestMethod codeBase="[redacted]" adapterTypeName="executor://mstestadapter/v4" className="GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility.GgufCompatibilityInputProjectorTests" name="AbsentOrWrongAppLocalQuantizerPreservesRuntimeOnlyCompatibility" />
+    </UnitTest>
+    <UnitTest name="PackagedCurrentReleaseProjectsQ8AndBothVerifiedTurboFormats" storage="[redacted]" id="1b7b1514-c619-85b0-9b3a-537a21a0859f">
+      <TestCategory>
+        <TestCategoryItem TestCategory="RequiresVerifiedGgufRuntimeClosure" />
+      </TestCategory>
+      <Execution id="03f7ca62-0b4a-419a-850b-d77ed1a0adfe" />
+      <TestMethod codeBase="[redacted]" adapterTypeName="executor://mstestadapter/v4" className="GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility.GgufCompatibilityInputProjectorTests" name="PackagedCurrentReleaseProjectsQ8AndBothVerifiedTurboFormats" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="16bc18af-f8ff-86b4-a6cb-33bc2e78b946" executionId="863c68b4-b4d3-4627-b7a5-128ac658d69e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1b7b1514-c619-85b0-9b3a-537a21a0859f" executionId="03f7ca62-0b4a-419a-850b-d77ed1a0adfe" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1cd6b7a3-a37a-89ef-b1d5-47c0e1a4795e" executionId="17f82ae5-6c14-4a68-bc22-1a80d35ebde2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+  </ResultSummary>
+</TestRun>

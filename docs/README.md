@@ -1,5 +1,7 @@
 # Project Documentation
 
+New to the app? Start with the [user manual](manuals/User-Manual.md), [installation guide](manuals/Build-and-Installation.md), or [developer guide](manuals/Developer-Manual.md). For a submission handover, use the [release record](../release-evidence/README.md).
+
 Controlled planning, requirements, traceability, change control, architecture, research, testing, UX, risk, manuals, journals and evidence live here.
 
 ## Main indexes
