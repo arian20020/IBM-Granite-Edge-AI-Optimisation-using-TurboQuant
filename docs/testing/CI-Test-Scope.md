@@ -89,6 +89,30 @@ Run them separately with
 exclusion only when these checks pass. A green required run does not establish
 that these accessibility and text-layout issues are resolved.
 
+## Deferred export-cleanup timing check
+
+On 14 September 2026, the project owner agreed to exclude
+`OptimizationDestinationCardTests.PageRejectsRebindUntilDetachedCleanupQuiesces`
+from the hosted run. Run #2225 (commit `ddea6c06`) built successfully and ran
+1,877 tests: 1,876 passed and this test failed with `TimeoutException`.
+The test contains several one-second waits. The log does not identify which
+wait expired, so a timing issue is suspected, not confirmed.
+
+The workflow excludes only this test by its full name. The test and all its
+assertions remain unchanged; other export and cancellation tests remain selected
+unless already covered by a separate documented exclusion. This is a deferral,
+not a fix or a passing result. Application code is unchanged.
+
+Run the retained test separately with the packaged runner and:
+
+```text
+/TestCaseFilter:"FullyQualifiedName=GraniteEdgeAI.UnitTests.Features.ModelOptimization.OptimizationDestinationCardTests.PageRejectsRebindUntilDetachedCleanupQuiesces"
+```
+
+Before restoring it to required CI, identify the expired wait and verify the test
+passes reliably without weakening its cleanup assertions. The historical failure
+remains recorded in [run #2225](https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/actions/runs/34825704958).
+
 ## Source-conversion recovery gap
 
 On 14 September 2026, the project owner requested removal of

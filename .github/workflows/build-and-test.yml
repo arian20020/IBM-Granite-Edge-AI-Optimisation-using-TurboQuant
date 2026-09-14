@@ -242,7 +242,7 @@ jobs:
           & $vstest `
             "D:\s\$env:TEST_RECIPE" `
             /Platform:x64 `
-            /TestCaseFilter:"TestCategory!=ManualRealModel&TestCategory!=RequiresLocalModelPackage&TestCategory!=RequiresVerifiedQuantizer&TestCategory!=RequiresVerifiedGgufRuntimeClosure&TestCategory!=OfficialNative&TestCategory!=DeferredChatAutoScroll&TestCategory!=DeferredInspectionPresentation" `
+            /TestCaseFilter:"TestCategory!=ManualRealModel&TestCategory!=RequiresLocalModelPackage&TestCategory!=RequiresVerifiedQuantizer&TestCategory!=RequiresVerifiedGgufRuntimeClosure&TestCategory!=OfficialNative&TestCategory!=DeferredChatAutoScroll&TestCategory!=DeferredInspectionPresentation&FullyQualifiedName!=GraniteEdgeAI.UnitTests.Features.ModelOptimization.OptimizationDestinationCardTests.PageRejectsRebindUntilDetachedCleanupQuiesces" `
             /Logger:"trx;LogFileName=GraniteEdgeAI.UnitTests.trx" `
             /ResultsDirectory:"D:\s\$env:TEST_RESULTS_DIRECTORY"
 
