@@ -15,7 +15,7 @@ explorer.exe shell:AppsFolder\488d3892-c214-40c5-9a6a-1154c1e69fff_gqahnnh6hk88w
 ```
 
 4. Wait for the Granite window to appear. If Windows cannot find it, stop and use the checks below. Do not choose a similarly named old build.
-5. On the model selection page, choose a known local GGUF file or a complete OpenVINO model folder. Alternatively, use **Download selected model** while online.
+5. Follow [Download a model](Download-a-Model.md) for a concrete first-run example using the Balanced GGUF download. The same guide explains manual import and the separate OpenVINO package requirement.
 6. Follow the [user manual](User-Manual.md) through inspection, hardware fit and chat. Available choices depend on the model and free memory.
 
 The registration and executable hash below were checked during this documentation update. This was a read-only check, not a new application journey test.

@@ -16,6 +16,10 @@ A clean-machine install/uninstall test is not recorded. This is a limitation, no
 
 ## Developer prerequisites
 
+The inspected development computer has Visual Studio Community 2026, version 18.9.2. Its selected components include `Microsoft.VisualStudio.Workload.Universal`, `Microsoft.VisualStudio.Component.WindowsAppSdkSupport.CSharp`, `Microsoft.VisualStudio.Component.VC.Tools.x86.x64` and Windows 11 SDK components 22621, 26100 and 28000. This is an observed setup, not a tested minimum installation.
+
+The installed app manifest requires `Microsoft.WindowsAppRuntime.2` version 2.2.0.0 or later. Its runtime configuration targets .NET 8; the test host also needs .NET 8 Windows Desktop. Check local managed runtimes with `dotnet --list-runtimes`. Package dependencies and developer tools are different: examiners using a complete installed package should not need Visual Studio.
+
 The current project targets .NET 8 for Windows. The repository selects .NET SDK **10.0.301** in [global.json](../../global.json), with latest-patch roll-forward. The SDK builds code; the .NET Windows Desktop runtime runs the relevant managed tools. These are different dependencies.
 
 Use Windows x64, Git, Visual Studio with MSBuild and the Windows/.NET desktop and C++ build components needed by WinUI/native workers, and the SDK selected by global.json. The project references Windows App SDK 2.2.0 and Windows SDK BuildTools 10.0.28000.2270. Read the project and lock files before changing versions.
@@ -85,7 +89,14 @@ Never update an accepted runtime hash merely to silence an error. Matching the p
 
 ## Verify a handover
 
-Record the commit, tool versions, package filename, SHA-256 and actual launch result. Hash an exact file in PowerShell with `Get-FileHash -LiteralPath <package-path> -Algorithm SHA256` (replace the placeholder with its real path).
+Record the commit, tool versions, package filename, SHA-256 and actual launch result. To hash a package in PowerShell:
+
+```powershell
+$packageFile = Read-Host 'Paste the full package file path, without surrounding quotes'
+Get-FileHash -LiteralPath $packageFile -Algorithm SHA256
+```
+
+Compare the result with the checksum supplied through the agreed handover. Computing a hash alone does not verify its origin.
 
 Test installation separately from compilation. Keep model weights outside Git and obtain them from the pinned catalogue or the documented model source. A fresh machine may need internet access for prerequisites and downloads even though later local inference can work offline.
 

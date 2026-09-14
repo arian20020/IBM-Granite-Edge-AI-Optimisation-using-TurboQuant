@@ -19,6 +19,7 @@ This opens the existing registered installation; it does **not** install the app
 | You want to… | Open this |
 | --- | --- |
 | Try the app | [Run the app](docs/manuals/Run-the-App.md) |
+| Obtain a model | [IBM Granite model downloads](docs/manuals/Download-a-Model.md) |
 | Learn the workflow | [User manual](docs/manuals/User-Manual.md) |
 | Understand a warning or missing choice | [Known limitations and troubleshooting](docs/manuals/Known-Limitations.md) |
 | Work on the source | [Developer guide](docs/manuals/Developer-Manual.md) |

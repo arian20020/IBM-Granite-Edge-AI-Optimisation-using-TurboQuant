@@ -2,7 +2,7 @@
 
 Granite is a Windows desktop research application for running selected IBM Granite models on your own computer. This guide follows the normal app, not its developer test galleries.
 
-If you only want to try the app, start with a verified package from the project owner. You do not need to build the source. See [installation](Build-and-Installation.md) first.
+Start with [Run the app](Run-the-App.md), then [Download a model](Download-a-Model.md). You do not need to build the source to use a prepared installation.
 
 ## Before you start
 

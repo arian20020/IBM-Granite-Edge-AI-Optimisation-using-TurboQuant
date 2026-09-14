@@ -33,6 +33,14 @@ Do not change application code to make these tests pass. Record an application f
 
 ## Current check
 
+To check discovery without opening the app, first build the project as described in the developer guide, then run from the repository root:
+
+```powershell
+dotnet tests/E2ETests/GraniteEdgeAI.EndToEndTests/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/GraniteEdgeAI.EndToEndTests.dll --list-tests --filter TestCategory=NativeInspectionRoutes
+```
+
+Expect exactly three tests. This discovery command and the test-only build were checked during the manual review: three found, zero build warnings and errors. Discovery does not run the journeys and is not a new pass result.
+
 The configured live run on 14 September 2026 (UTC) passed all three tests: 3 executed, 3 passed, 0 failed and 0 skipped. The test project built with zero warnings and errors. See [the saved results](../../../../docs/testing/application-verification/results/inspection-routes.redacted.trx).
 
 Earlier attempts were skipped for missing inputs or failed on test-helper control lookups. Those attempts are not counted as passes. The final run used the real installed app, recorded model hashes and corrected picker IDs. No application build or deployment was performed. All 61 recorded top-level application files kept the same hashes.
