@@ -490,6 +490,9 @@ public sealed class OpenVinoPromptSurfaceTests
         ModelInspectionPage page = new();
         RequirePrivateField("_motionSettings").SetValue(page, new ReducedMotionSettings());
         SelectOpenVinoPreview(page);
+        // The page's callback pacing and the preview's animation policy are
+        // separate. Make both deterministic for this stale-callback test.
+        Preview(page).SetMotionEnabled(false);
         MethodInfo inspecting = RequirePrivateMethod(
             "ApplyOpenVinoInspectingPresentation");
         MethodInfo applyProgress = RequirePrivateMethod(
@@ -536,19 +539,26 @@ public sealed class OpenVinoPromptSurfaceTests
         });
 
         ModelInspectionPreviewProjection preview = Preview(page);
+        MethodInfo refreshProgress = typeof(ModelInspectionPreviewProjection).GetMethod(
+            "UpdateEstimatedProgressValues", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        for (int i = 0; i < 20 &&
+            PreviewElement<TextBlock>(preview, "InspectionStage3Status").Text != "Checking\n50%"; i++)
+        {
+            refreshProgress.Invoke(preview, null);
+        }
         Assert.AreEqual(
             Visibility.Visible,
             PreviewElement<FrameworkElement>(
                 preview,
                 "InspectionProgressPanel").Visibility);
         Assert.AreEqual(
-            "Checking\n0%",
+            "Passed",
             PreviewElement<TextBlock>(preview, "InspectionStage1Status").Text);
         Assert.AreEqual(
-            "Waiting",
+            "Passed",
             PreviewElement<TextBlock>(preview, "InspectionStage2Status").Text);
         Assert.AreEqual(
-            "Waiting",
+            "Checking\n50%",
             PreviewElement<TextBlock>(preview, "InspectionStage3Status").Text);
         Assert.AreEqual("2 of 5 checks complete",
             preview.ContentPresentation.ProgressRows.ProgressSummary);

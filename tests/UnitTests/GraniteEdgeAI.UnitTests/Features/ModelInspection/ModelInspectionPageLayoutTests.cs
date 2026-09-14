@@ -1,5 +1,6 @@
 using GraniteEdgeAI.Features.ModelInspection;
 using GraniteEdgeAI.Features.ModelInspection.Views;
+using GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -51,10 +52,7 @@ public sealed class ModelInspectionPageLayoutTests
         {
             window.Activate();
             await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            double scale = page.XamlRoot.RasterizationScale;
-            window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
-                (int)Math.Round(760d * scale),
-                (int)Math.Round(420d * scale)));
+            await WinUiRenderHost.ResizeClientAsync(window, page, 760, 420);
 
             await WaitForLayoutAsync(page, () =>
                 disclosure.ActualHeight > 0d &&
@@ -276,10 +274,9 @@ public sealed class ModelInspectionPageLayoutTests
         page.LayoutUpdated += CompleteWhenReady;
         try
         {
-            double scale = page.XamlRoot.RasterizationScale;
-            window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(
-                (int)Math.Round(effectiveWidth * scale),
-                (int)Math.Round(effectiveHeight * scale)));
+            await WinUiRenderHost.ResizeClientAsync(window, page,
+                checked((int)Math.Round(effectiveWidth)),
+                checked((int)Math.Round(effectiveHeight)));
             CompleteWhenReady(null, EventArgs.Empty);
             await layoutReached.Task.WaitAsync(TimeSpan.FromSeconds(10));
             page.UpdateLayout();

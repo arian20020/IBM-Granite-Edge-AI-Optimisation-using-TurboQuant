@@ -118,7 +118,13 @@ public sealed class ModelInspectionWorkerCompositionTests
             .WaitAsync(TimeSpan.FromSeconds(30));
 
         result.Validate();
-        Assert.IsNull(result.Failure);
+        Assert.IsNull(result.Failure,
+            $"ExitCode={result.ExitCode} (0x{result.ExitCode.GetValueOrDefault():X8}); " +
+            $"ForcedTermination={result.ForcedTermination}; " +
+            $"StandardErrorTruncated={result.StandardErrorTruncated}; " +
+            $"StandardError={result.RetainedStandardError}; " +
+            $"SecondaryDiagnostics={string.Join(", ", result.SecondaryDiagnostics)}; " +
+            DescribeWorkerRuntimeContext(approvedRoot));
         Assert.IsNotNull(result.TerminalMessage);
         Assert.AreEqual(
             WorkerCompletionStatus.Completed,
@@ -187,7 +193,8 @@ public sealed class ModelInspectionWorkerCompositionTests
                 CancellationToken.None)
             .WaitAsync(TimeSpan.FromSeconds(30));
 
-        Assert.AreEqual(ModelInspectionExecutionStatus.Completed, result.Status);
+        Assert.AreEqual(ModelInspectionExecutionStatus.Completed, result.Status,
+            $"Failure={result.Failure}; {DescribeWorkerRuntimeContext(approvedRoot)}");
         Assert.IsNotNull(result.Result);
         Assert.AreEqual(ModelInspectionOutcome.Ready, result.Result.Outcome);
         Assert.IsTrue(result.Result.CanContinueToHardwareFit);
@@ -204,6 +211,37 @@ public sealed class ModelInspectionWorkerCompositionTests
         Assert.AreEqual(
             ModelInspectionStageStatus.Completed,
             progress[^1].StageStatus);
+    }
+
+    private static string DescribeWorkerRuntimeContext(string approvedRoot)
+    {
+        // The packaged host can inherit a different environment from the CI shell.
+        // Report only runtime discovery inputs, never the complete environment.
+        try
+        {
+            string standardRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet");
+            string sharedRoot = Path.Combine(standardRoot, "shared", "Microsoft.NETCore.App");
+            string versions = Directory.Exists(sharedRoot)
+                ? string.Join(", ", Directory.GetDirectories(sharedRoot)
+                    .Select(Path.GetFileName).OrderBy(name => name).Take(20))
+                : "<missing>";
+            string runtimeConfig = Path.Combine(approvedRoot, "ModelInspection", "Worker",
+                "GraniteEdgeAI.ModelInspection.Worker.runtimeconfig.json");
+            string configuration = File.Exists(runtimeConfig)
+                ? File.ReadAllText(runtimeConfig)
+                : "<missing>";
+            return $"OS={Environment.OSVersion}; Architecture={System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}; " +
+                $"HostRuntime={System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory()}; " +
+                $"DOTNET_ROOT={Environment.GetEnvironmentVariable("DOTNET_ROOT")}; " +
+                $"DOTNET_ROOT_X64={Environment.GetEnvironmentVariable("DOTNET_ROOT_X64")}; " +
+                $"StandardDotnetRoot={standardRoot}; InstalledCoreRuntimes={versions}; " +
+                $"WorkerRoot={approvedRoot}; RuntimeConfig={configuration[..Math.Min(configuration.Length, 4096)]}";
+        }
+        catch (Exception exception)
+        {
+            return $"Runtime context could not be read: {exception.GetType().Name}: {exception.Message}";
+        }
     }
 
     [TestMethod]

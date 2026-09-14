@@ -117,7 +117,7 @@ public sealed class HardwareInspectionContractTests
                 availableCapturedAtUtc: CapturedAtUtc));
 
         Assert.Throws<ArgumentException>(() =>
-            new AvailableMemorySnapshot(1, DateTimeOffset.Now));
+            new AvailableMemorySnapshot(1, CapturedAtUtc.ToOffset(TimeSpan.FromHours(1))));
     }
 
     [TestMethod]

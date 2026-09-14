@@ -2,6 +2,8 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using Windows.Foundation;
 using Windows.Graphics;
 using Windows.Storage.Streams;
@@ -102,7 +104,7 @@ public sealed class WinUiRenderHost : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
-    private static async Task ResizeClientAsync(
+    internal static async Task ResizeClientAsync(
         Window window,
         FrameworkElement root,
         int width,
@@ -123,17 +125,117 @@ public sealed class WinUiRenderHost : IAsyncDisposable
         try
         {
             double scale = root.XamlRoot.RasterizationScale;
-            window.AppWindow.ResizeClient(new SizeInt32(
+            var requestedClient = new SizeInt32(
                 (int)Math.Round(width * scale),
-                (int)Math.Round(height * scale)));
+                (int)Math.Round(height * scale));
+            using var sizeAllowance = new NativeTestWindowSizeAllowance(window, requestedClient);
+            window.AppWindow.ResizeClient(requestedClient);
             ObserveLayout(null, EventArgs.Empty);
-            await arranged.Task.WaitAsync(UiTimeout);
+            try
+            {
+                await arranged.Task.WaitAsync(UiTimeout);
+            }
+            catch (TimeoutException error)
+            {
+                throw new TimeoutException(
+                    $"Test window did not reach {width}x{height} effective client pixels. " +
+                    $"Layout={root.ActualWidth:0.##}x{root.ActualHeight:0.##}, " +
+                    $"native client={window.AppWindow.ClientSize.Width}x{window.AppWindow.ClientSize.Height}, " +
+                    $"rasterization scale={root.XamlRoot.RasterizationScale:0.##}.", error);
+            }
             root.UpdateLayout();
         }
         finally
         {
             root.LayoutUpdated -= ObserveLayout;
         }
+    }
+
+    // Hosted Windows desktops can be smaller than a tested responsive endpoint.
+    // Override only the native test window's monitor-derived maximum tracking
+    // size during resize. XamlRoot and AdaptiveTrigger still see the requested
+    // real client dimensions; no element widths or application states are faked.
+    private sealed class NativeTestWindowSizeAllowance : IDisposable
+    {
+        private const uint WmGetMinMaxInfo = 0x0024;
+        private static readonly ConcurrentDictionary<nuint, SizeInt32> RequestedSizes = new();
+        private static readonly SubclassProcedure Callback = ObserveNativeSizing;
+        private static int _nextId;
+        private readonly nint _windowHandle;
+        private readonly nuint _id;
+
+        internal NativeTestWindowSizeAllowance(Window window, SizeInt32 requestedClient)
+        {
+            _windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            _id = checked((nuint)Interlocked.Increment(ref _nextId));
+            SizeInt32 outer = window.AppWindow.Size;
+            SizeInt32 client = window.AppWindow.ClientSize;
+            RequestedSizes[_id] = new SizeInt32(
+                checked(requestedClient.Width + Math.Max(0, outer.Width - client.Width)),
+                checked(requestedClient.Height + Math.Max(0, outer.Height - client.Height)));
+            if (!SetWindowSubclass(_windowHandle, Callback, _id, 0))
+            {
+                RequestedSizes.TryRemove(_id, out _);
+                throw new InvalidOperationException("Could not install the native test window size allowance.");
+            }
+        }
+
+        public void Dispose()
+        {
+            bool removed = RemoveWindowSubclass(_windowHandle, Callback, _id);
+            RequestedSizes.TryRemove(_id, out _);
+            if (!removed)
+            {
+                throw new InvalidOperationException("Could not remove the native test window size allowance.");
+            }
+        }
+
+        private static nint ObserveNativeSizing(
+            nint window, uint message, nuint wParam, nint lParam, nuint id, nuint referenceData)
+        {
+            nint result = DefSubclassProc(window, message, wParam, lParam);
+            if (message == WmGetMinMaxInfo && RequestedSizes.TryGetValue(id, out SizeInt32 requested))
+            {
+                NativeMinMaxInfo limits = Marshal.PtrToStructure<NativeMinMaxInfo>(lParam);
+                limits.MaximumTrackSize.X = Math.Max(limits.MaximumTrackSize.X, requested.Width);
+                limits.MaximumTrackSize.Y = Math.Max(limits.MaximumTrackSize.Y, requested.Height);
+                Marshal.StructureToPtr(limits, lParam, false);
+            }
+            return result;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativePoint
+        {
+            internal int X;
+            internal int Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeMinMaxInfo
+        {
+            internal NativePoint Reserved;
+            internal NativePoint MaximumSize;
+            internal NativePoint MaximumPosition;
+            internal NativePoint MinimumTrackSize;
+            internal NativePoint MaximumTrackSize;
+        }
+
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+        private delegate nint SubclassProcedure(
+            nint window, uint message, nuint wParam, nint lParam, nuint id, nuint referenceData);
+
+        [DllImport("comctl32.dll", ExactSpelling = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetWindowSubclass(
+            nint window, SubclassProcedure callback, nuint id, nuint referenceData);
+
+        [DllImport("comctl32.dll", ExactSpelling = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool RemoveWindowSubclass(nint window, SubclassProcedure callback, nuint id);
+
+        [DllImport("comctl32.dll", ExactSpelling = true)]
+        private static extern nint DefSubclassProc(nint window, uint message, nuint wParam, nint lParam);
     }
 
     private static async Task WaitForDispatcherTurnAsync(

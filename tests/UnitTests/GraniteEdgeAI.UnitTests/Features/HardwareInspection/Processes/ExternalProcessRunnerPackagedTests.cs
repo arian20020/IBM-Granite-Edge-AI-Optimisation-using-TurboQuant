@@ -53,12 +53,39 @@ public sealed class ExternalProcessRunnerPackagedTests
     {
         using VerifiedPackagedToolFixture fixture = VerifiedPackagedToolFixture.CreateLlmFit("success");
 
+        Assert.IsTrue(fixture.Tool.TryAcquireExecutionCustody(out IDisposable? custody),
+            "Launch preflight failed: verified execution custody could not be acquired.");
+        custody!.Dispose();
+        Assert.IsTrue(WindowsKillOnCloseJob.TryCreate(out WindowsKillOnCloseJob job),
+            "Launch preflight failed: kill-on-close Job Object could not be created.");
+        job.Dispose();
+        TrustedToolOperationEnvironment environment;
+        try
+        {
+            environment = TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: false);
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException(
+                "Launch preflight failed: protected operation environment. " +
+                $"LocalApplicationData={Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)}; " +
+                $"SystemRoot={Environment.GetEnvironmentVariable("SystemRoot")}; " +
+                $"WINDIR={Environment.GetEnvironmentVariable("WINDIR")}; " +
+                $"OS={Environment.OSVersion}; BaseDirectory={AppContext.BaseDirectory}.", exception);
+        }
+        environment.Dispose();
+        Assert.IsTrue(environment.CleanupSucceeded,
+            "Launch preflight failed: protected operation environment cleanup was not verified.");
+
         ExternalProcessResult result = await new ExternalProcessRunner().RunAsync(
             fixture.Tool,
             Request("system"),
             CancellationToken.None);
 
-        Assert.AreEqual(ExternalProcessTerminationReason.Exited, result.TerminationReason);
+        Assert.AreEqual(ExternalProcessTerminationReason.Exited, result.TerminationReason,
+            "Execution custody, Job creation and protected environment preflights passed. " +
+            $"ExitCode={result.ExitCode}; StandardError={result.StandardError}; " +
+            $"PackageRoot={fixture.PackageRoot}; OS={Environment.OSVersion}.");
         Assert.AreEqual(0, result.ExitCode);
         StringAssert.Contains(result.StandardOutput, "\"total_ram_gb\":32");
         Assert.AreEqual(string.Empty, result.StandardError);

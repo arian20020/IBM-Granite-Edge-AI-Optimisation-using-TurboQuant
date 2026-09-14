@@ -65,11 +65,11 @@ public sealed class HardwareInspectionProgressCardTests
         var groups = new Dictionary<HardwareInspectionStage, (int Completed, int Total)>();
         card.Apply(factory.CreateActive(HardwareInspectionStage.CheckingLocalInferenceRuntimes, groups, owner));
         await using var host = await GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual.WinUiRenderHost.ShowAsync(card, 800, 600);
-        DrainUntil(card, clock, () => card.Rows[1].IsActive);
+        DrainUntil(card, clock, () => IsDisplayedActive(card.Rows[1]));
         StringAssert.Contains(card.Rows[1].DisplayStatus, "Checking");
         groups[HardwareInspectionStage.ReadingProcessorInformation] = (1, 1);
         card.Apply(factory.CreateActive(HardwareInspectionStage.CheckingLocalInferenceRuntimes, groups, owner));
-        DrainUntil(card, clock, () => card.Rows[2].IsActive);
+        DrainUntil(card, clock, () => IsDisplayedActive(card.Rows[2]));
         void AssertTerminal()
         {
             Assert.AreEqual("Complete", card.Rows[1].DisplayStatus);
@@ -140,7 +140,7 @@ public sealed class HardwareInspectionProgressCardTests
         foreach (var laterStage in new[] { HardwareInspectionStage.NormalisingHardwareInformation, HardwareInspectionStage.CreatingHardwareReport })
         {
             card.Apply(factory.CreateActive(laterStage, groups, owner).WithMeasuredChecks(7, 7));
-            DrainUntil(card, clock, () => card.Rows[(int)laterStage].IsActive);
+            DrainUntil(card, clock, () => IsDisplayedActive(card.Rows[(int)laterStage]));
             var row = card.Rows[(int)laterStage];
             Assert.AreEqual("Checking\n0%", row.DisplayStatus);
             StringAssert.Contains(row.AccessibleName, "Checking · Estimated 0%");
@@ -160,7 +160,7 @@ public sealed class HardwareInspectionProgressCardTests
         var bar = (ProgressBar)card.FindName("OverallProgressBar");
         card.Apply(factory.CreateActive(HardwareInspectionStage.NormalisingHardwareInformation, groups, owner).WithMeasuredChecks(7, 7));
         var values = new List<double>();
-        for (int i = 0; i < 2000 && !card.Rows[5].IsActive; i++)
+        for (int i = 0; i < 2000 && !IsDisplayedActive(card.Rows[5]); i++)
         {
             values.Add(bar.Value);
             clock.Advance();
@@ -218,7 +218,7 @@ public sealed class HardwareInspectionProgressCardTests
         HardwareInspectionProgressCard card = CreateClockedCard(out var clock);
         card.Apply(_factory.CreateActive(HardwareInspectionStage.StartingHardwareInspection));
         card.Apply(_factory.CreateActive(HardwareInspectionStage.NormalisingHardwareInformation));
-        DrainUntil(card, clock, () => card.Rows[5].IsActive);
+        DrainUntil(card, clock, () => IsDisplayedActive(card.Rows[5]));
 
         Assert.AreEqual("Normalising hardware information", Text(card, "TitleTextBlock").Text);
         Assert.AreEqual("5 of 7 stages complete", Text(card, "CountTextBlock").Text);
@@ -434,6 +434,14 @@ public sealed class HardwareInspectionProgressCardTests
             BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(card,
                 new SerializedProgressSequence(clock));
         return card;
+    }
+
+    private static bool IsDisplayedActive(HardwareInspectionProgressRowViewData row)
+    {
+        bool displayed = row.ActiveVisibility == Visibility.Visible;
+        Assert.AreEqual(displayed && new Windows.UI.ViewManagement.UISettings().AnimationsEnabled,
+            row.IsActive, "The visible active stage animates only when system motion is enabled.");
+        return displayed;
     }
 
     private static void DrainUntil(HardwareInspectionProgressCard card, ProgressClock clock, Func<bool> done)

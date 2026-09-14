@@ -73,10 +73,12 @@ public sealed class OptimizationVisualContractTests
     [TestCategory("EstimatedProgress")]
     public void LiveOptimisationPageLabelsStageAggregateAsEstimated()
     {
-        var page = new OptimizationPage();
+        var page = CreateClockedPage(out _);
         page.ApplyPresentation(OptimizationFixtureCatalog.All.Single(item => item.Id == "progress-optimise").Presentation);
-        Assert.AreEqual("0%", ((TextBlock)page.FindName("OptimizationOverallPercentage")).Text);
-        StringAssert.Contains(AutomationProperties.GetItemStatus((FrameworkElement)page.FindName("OptimizationStage1")), "Estimated 0%");
+        bool motion = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+        // Reduced motion reaches the completed stage's full frame immediately.
+        Assert.AreEqual(motion ? "0%" : "14%", ((TextBlock)page.FindName("OptimizationOverallPercentage")).Text);
+        StringAssert.Contains(AutomationProperties.GetItemStatus((FrameworkElement)page.FindName("OptimizationStage1")), motion ? "Estimated 0%" : "Estimated 100%");
         Assert.AreEqual("Waiting", ((TextBlock)page.FindName("OptimizationStage3Status")).Text);
         Assert.IsTrue(((ProgressBar)page.FindName("OptimizationOverallProgress")).Value < 7);
     }
@@ -438,11 +440,13 @@ public sealed class OptimizationVisualContractTests
             DrainToStage(page, clock, expectedActive);
 
             Assert.AreEqual(7, rings.Length, fixture.Id);
-            Assert.AreEqual(1, rings.Count(ring => ring.IsActive), fixture.Id);
+            bool animate = fixture.Presentation.CanCancel &&
+                new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+            Assert.AreEqual(animate ? 1 : 0, rings.Count(ring => ring.IsActive), fixture.Id);
             Assert.AreEqual(1, rings.Count(ring => ring.Visibility == Visibility.Visible), fixture.Id);
             for (int index = 0; index < rings.Length; index++)
             {
-                Assert.AreEqual(index == expectedActive, rings[index].IsActive, fixture.Id);
+                Assert.AreEqual(index == expectedActive && animate, rings[index].IsActive, fixture.Id);
                 Assert.AreEqual(
                     index == expectedActive ? Visibility.Visible : Visibility.Collapsed,
                     rings[index].Visibility,
@@ -647,7 +651,9 @@ public sealed class OptimizationVisualContractTests
         ProgressRing[] rings = ProgressRings(page);
         for (int index = 0; index < rings.Length; index++)
         {
-            Assert.AreEqual(index == activeIndex, rings[index].IsActive, ProgressRingNames[index]);
+            Assert.AreEqual(index == activeIndex &&
+                new Windows.UI.ViewManagement.UISettings().AnimationsEnabled,
+                rings[index].IsActive, ProgressRingNames[index]);
             Assert.AreEqual(
                 index == activeIndex ? Visibility.Visible : Visibility.Collapsed,
                 rings[index].Visibility,
