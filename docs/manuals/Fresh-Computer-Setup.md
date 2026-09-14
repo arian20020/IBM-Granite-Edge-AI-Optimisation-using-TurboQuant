@@ -64,7 +64,38 @@ if ($LASTEXITCODE -ne 0) { throw 'Official worker build failed. Stop here.' }
 
 These commands show the checked-in script interfaces. They have not been executed as a fresh-computer setup during this documentation review. The scripts enforce additional tool and input checks. Do not reuse the folders of a working installation as build destinations.
 
-**Remaining input gap:** the converter closure and verified TurboQuant runtime still need a reproducible preparation procedure or a distributable, verified input bundle. Their exact identities and notices must be retained. Without them, this guide cannot promise the full application will run. Do not bypass the gates to hide this gap.
+### Prepare the converter files
+
+Install PowerShell 7 (`pwsh`) as well as the Windows PowerShell used by the build. The converter script uses both. In PowerShell 7, from the repository root, run this block. It downloads the exact Python archive and wheels named by the checked-in records, then checks every size and hash. Use a new destination; existing files are not overwritten.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$converterInputs = 'C:/granite-inputs/converter'
+if (Test-Path -LiteralPath $converterInputs) { throw 'Choose a new converter input folder.' }
+$pythonRecord = Get-Content third-party/openvino-converter/python-runtime.lock.json -Raw | ConvertFrom-Json
+$wheelRecord = Get-Content third-party/openvino-converter/wheel-manifest.json -Raw | ConvertFrom-Json
+if ($wheelRecord.closureStatus -ne 'resolved' -or $wheelRecord.wheels.Count -eq 0) { throw 'Converter lock is incomplete.' }
+$converterFiles = @($pythonRecord) + @($wheelRecord.wheels)
+foreach ($entry in $converterFiles) {
+    if ([IO.Path]::GetFileName([string]$entry.filename) -cne [string]$entry.filename) { throw 'Invalid input filename.' }
+    if ([string]$entry.sourceUrl -notmatch '^https://') { throw 'Expected an HTTPS source.' }
+}
+New-Item -ItemType Directory -Path $converterInputs | Out-Null
+foreach ($entry in $converterFiles) {
+    $downloadPath = Join-Path $converterInputs $entry.filename
+    Invoke-WebRequest -Uri $entry.sourceUrl -OutFile $downloadPath
+    if ((Get-Item -LiteralPath $downloadPath).Length -ne [long]$entry.length) { throw "Size mismatch: $($entry.filename)" }
+    if ((Get-FileHash -LiteralPath $downloadPath -Algorithm SHA256).Hash -ine $entry.sha256) { throw "Hash mismatch: $($entry.filename)" }
+}
+powershell.exe -NoProfile -File scripts/openvino/Test-OpenVinoDependencyLocks.ps1 -ClosureDirectory $converterInputs -Scope Converter
+if ($LASTEXITCODE -ne 0) { throw 'Converter input verification failed.' }
+powershell.exe -NoProfile -File scripts/openvino/Build-OpenVinoConverterWorker.ps1 -ClosureDirectory $converterInputs -BuildDirectory C:/granite-build/converter-build -StageDirectory C:/granite-build/converter-stage
+if ($LASTEXITCODE -ne 0) { throw 'Converter build failed.' }
+```
+
+Keep the downloaded files if a check fails so the cause can be examined; do not use a failed or partial set. Build and stage folders must be new and separate from the inputs. These commands were checked against the script parameters and lock structure, but the complete download/build has not been executed during this review. Upstream availability remains to be tested.
+
+**Remaining input gap:** the verified TurboQuant runtime still needs a reproducible preparation procedure or a distributable, verified input bundle. `Build-OpenVinoTurboQuantRuntime.ps1` requires seven DLLs with exact hashes and checks their versions before copying them; despite its name, it does not compile those DLLs from source. A fresh upstream build cannot be assumed to match those bytes. Without this input, this guide cannot promise the full application will run. Do not bypass the gates to hide this gap.
 
 ## 5. Restore and build
 
