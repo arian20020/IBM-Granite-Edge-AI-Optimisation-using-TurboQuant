@@ -2,6 +2,8 @@
 
 This guide is for a new Windows development computer. It does not use the existing demonstration installation. Read the release-input section before spending time on a build: not all native inputs have a complete public preparation recipe yet.
 
+**Only want to run Granite?** Use the [packaged-app setup in the README](../../README.md#setup-and-first-use). It includes installation, launch and model downloads without cloning or building. The instructions below are for source development; their input and verification gaps do not mean that no packaged app is available.
+
 ## 1. Check the computer
 
 Use Windows 11 x64 on suitable Intel hardware. Other laptops are not automatically supported. The recorded test computer had about 16 GB of RAM; this is not a guaranteed minimum. Allow extra disk space for downloads, native builds, models and temporary output.
@@ -105,7 +107,7 @@ For a runnable build, supply the stage directories and matching manifest hashes 
 
 ## 6. Install and open the completed package
 
-This step applies only once the complete package, its expected hash and its dependency/signing instructions are available. Check the hash against the supplied record. Follow that package's installation instructions; do not disable Windows security or trust an unexplained certificate. Do not copy a loose EXE or use the demonstration computer's registration command as an installer.
+For your own source build, this step applies only once its complete package, expected hash and dependency/signing instructions are available. Check the hash against that build's record. The README checksum identifies the supplied ZIP, not a newly built package. Follow your package's installation instructions; do not disable Windows security or trust an unexplained certificate. Do not copy a loose EXE or use the demonstration computer's registration command as an installer.
 
 Open Granite from Start. A visible opening page alone does not prove both runtime routes work. Check GGUF model inspection, OpenVINO model inspection and hardware inspection before calling the installation ready.
 

@@ -1,6 +1,6 @@
 # Run the app
 
-You do not need Visual Studio to use an already installed copy. Choose the instructions for the computer you are using.
+To install and run the packaged app, follow the [README setup steps](../../README.md#setup-and-first-use). They cover the ZIP download, verification, installation, launch and both model downloads. Git and Visual Studio are not needed. The instructions below also document the existing demonstration installation.
 
 The **prepared project computer** means the Windows account where the developer has already installed and tested Granite. It does not mean any computer that has downloaded this repository. If you are using your own PC, read the separate-PC section below before trying commands.
 
@@ -50,7 +50,7 @@ Get-AppxPackage -Name '488d3892-c214-40c5-9a6a-1154c1e69fff' |
     Select-Object Name, Version, PackageFamilyName, InstallLocation, Status
 ```
 
-No output means that package is not registered for your Windows account. Ask the maintainer to prepare the tested installation; do not register a random build folder.
+No output means that package is not registered for your Windows account. Use the [README installation steps](../../README.md#setup-and-first-use); do not register a random build folder.
 
 If a package is listed, compare its family name and location with the table above. To check the recorded local executable without changing it:
 
@@ -65,14 +65,9 @@ A different hash or location needs investigation. Do not overwrite files to forc
 
 The command above is for an existing registration. It does not install the app and is not a portable download link.
 
-Before an examiner can install it elsewhere, the maintainer must supply:
+Follow the [README setup steps](../../README.md#setup-and-first-use), which include the package link and checksum. Step 4 installs the app or recognises an existing registration, Step 5 opens it, and Step 6 downloads the GGUF and OpenVINO models. Use the README commands in order rather than repeating the demonstration-computer checks above: a packaged installation normally has a different installation location.
 
-- The complete tested package and a clear download or handover location.
-- Its filename, SHA-256, publisher and required dependencies.
-- Installation and launch instructions tested on a separate Windows account or computer, with the scope of that test stated.
-- A supported model source and enough guidance to try one journey.
-
-These release items are not yet recorded as complete. Use the [package handover checklist](../../release-evidence/Package-Handover.md) before arranging independent installation. For now, the prepared demonstration computer is the documented route for trying the app.
+This is a self-signed test package. Installation on a separate laptop and both model journeys have not yet been verified. The [package handover checklist](../../release-evidence/Package-Handover.md) records broader release checks; supplying the ZIP does not establish that they all passed.
 
 Do not copy only the EXE, use the compile-only CI output as a release, or disable Windows security to get an unknown package running. A source checkout is not an installed application. Developers should use the separate [build guide](Build-and-Installation.md).
 

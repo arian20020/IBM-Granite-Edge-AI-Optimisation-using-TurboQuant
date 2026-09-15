@@ -6,7 +6,7 @@ The project also studies memory, speed and quality across selected llama.cpp and
 
 ## Start here
 
-**New computer?** Read [Set up from source](docs/manuals/Fresh-Computer-Setup.md) first. It explains tools, cloning, runtime inputs, building and the remaining installation gap. **Already installed?** Use the demonstration launch instructions below. Downloading a model does not install the application.
+**To run the app:** follow [Packaged app installation and model setup](#setup-and-first-use) below. No Git, Visual Studio or source build is needed. **To develop the app:** use [Set up from source](docs/manuals/Fresh-Computer-Setup.md); its runtime-input requirements still apply.
 
 ## Main features
 
@@ -21,46 +21,232 @@ The app is not a general model converter. Supported choices depend on the exact 
 
 ## Setup and first use
 
-### Starting on another computer
+Follow these steps to install **Granite-Edge-AI-Setup.zip** and download the models.
+You do not need Git, Visual Studio or the source repository to run the app.
 
-Cloning this repository downloads the source code, not a complete installed app.
-The current supported target is Windows 11 x64 on selected Intel hardware; the
-project does not establish support for every laptop.
+Use a Windows 11 x64 laptop with at least 20 GB of free storage. More space
+may be needed for optimisation. Installation requires administrator approval.
+This is a self-signed test build; installation on a separate laptop and both
+model journeys have not yet been verified. Do not install over an existing
+Granite installation or bypass your organisation's security policies.
 
-1. Install Git and the Windows development tools listed in the [build guide](docs/manuals/Build-and-Installation.md).
-2. Open PowerShell and run the following commands. Choose another short folder if `C:/src/granite` already exists.
+Run each numbered step separately. If you see an error, stop and send the
+complete error message to me. Do not continue to the next step.
 
-   ```powershell
-   git clone https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant.git C:/src/granite
-   Set-Location C:/src/granite
-   git rev-parse HEAD
-   ```
+### 1. Download the application ZIP
 
-3. Follow the build guide to restore dependencies and compile. Its hosted-CI command is a compile-only check, not a runnable release package.
-4. **Before packaging or launching**, obtain the exact native runtime stages and their matching manifest hashes. The [package handover](release-evidence/Package-Handover.md) lists the missing release details. These files are not all supplied by cloning the repository. Do not disable verification to get past missing inputs.
-5. Once a complete package is supplied, follow its installation instructions and test both GGUF and OpenVINO inspection before treating the setup as ready. Then use the [model download guide](docs/manuals/Download-a-Model.md) and [user manual](docs/manuals/User-Manual.md).
+Download [**Granite-Edge-AI-Setup.zip**](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQA3url8UXf3S5dWadOp1J_mAcnF6HngK5vyJivCi0lQr40?e=rcF7gj)
+and save it in your normal **Downloads** folder (`C:\Users\<your username>\Downloads`).
+Keep its exact filename. The next command extracts it into
+**C:\Downloads\Granite-Edge-AI-Setup**, so no manual moving or extraction is needed.
 
-**Current limit:** a complete clone-to-launch procedure has not yet been verified
-on a fresh computer. Steps 4–5 describe the remaining handover and verification,
-not completed installation instructions. The project must supply and test those
-details before this can be presented as a self-service installation guide.
+The ZIP is about 599 MB and does not include the model downloads.
 
-The [full setup guide](docs/manuals/Fresh-Computer-Setup.md#4-prepare-the-runtime-inputs) links each runtime's source records and preparation scripts. It also identifies the converter and TurboQuant inputs whose preparation is still incomplete. Do not skip that section and assume a standard build includes them.
+### 2. Check and extract it
 
-### Open the existing demonstration installation
+Open **Windows PowerShell** from Start normally, not as administrator.
+Copy and paste this entire block, then press Enter:
 
-On the prepared project computer, press **Windows + R**, paste the command below and press **Enter**. Close other Granite windows first so you do not mistake an old build for this copy.
+```powershell
+$ErrorActionPreference = 'Stop'
+$graniteZip = Join-Path $env:USERPROFILE 'Downloads\Granite-Edge-AI-Setup.zip'
+$graniteFolder = 'C:\Downloads\Granite-Edge-AI-Setup'
 
-```text
-explorer.exe shell:AppsFolder\488d3892-c214-40c5-9a6a-1154c1e69fff_gqahnnh6hk88w!App
+if (-not (Test-Path -LiteralPath $graniteZip)) {
+    throw 'The ZIP was not found. Check its filename and Downloads location.'
+}
+if ((Get-FileHash -LiteralPath $graniteZip -Algorithm SHA256).Hash -ne
+    'B8119FE614377D1141F70AC89C7E94D184933C796F91A83197E08AC00E8579E3') {
+    throw 'The ZIP checksum does not match. Stop and contact Arian.'
+}
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+if (Test-Path -LiteralPath $graniteFolder) {
+    $existingFolder = Get-Item -LiteralPath $graniteFolder
+    if (-not $existingFolder.PSIsContainer -or
+        ($existingFolder.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'The destination is not a regular folder. Nothing was changed.'
+    }
+    $existingItems = @(Get-ChildItem -LiteralPath $graniteFolder -Force -Recurse)
+    if ($existingItems | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }) {
+        throw 'The existing folder contains linked files or folders. Nothing was changed.'
+    }
+    $archive = [IO.Compression.ZipFile]::OpenRead($graniteZip)
+    try {
+        $files = @($archive.Entries | Where-Object { $_.Name -ne '' })
+        if (@($existingItems | Where-Object { -not $_.PSIsContainer }).Count -ne $files.Count) {
+            throw 'The existing folder has missing or extra files. Nothing was changed; contact me.'
+        }
+        foreach ($entry in $files) {
+            $localFile = Join-Path $graniteFolder $entry.FullName
+            if (-not (Test-Path -LiteralPath $localFile -PathType Leaf)) {
+                throw "Missing file: $($entry.FullName). Nothing was changed."
+            }
+            $stream = $entry.Open()
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try {
+                $expected = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '')
+            } finally {
+                $stream.Dispose()
+                $sha.Dispose()
+            }
+            if ((Get-FileHash -LiteralPath $localFile -Algorithm SHA256).Hash -ne $expected) {
+                throw "File differs: $($entry.FullName). Nothing was changed; contact me."
+            }
+        }
+    } finally {
+        $archive.Dispose()
+    }
+    'Already extracted and verified - continue to the next step.'
+} else {
+    New-Item -ItemType Directory -Path 'C:\Downloads' -Force | Out-Null
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($graniteZip, $graniteFolder)
+    'ZIP verified and extracted successfully - continue to the next step.'
+}
 ```
 
-This opens the existing registered installation; it does **not** install the app on another computer. The [run guide for users and examiners](docs/manuals/Run-the-App.md) explains identity checks, what to do if launch fails, and the package needed for a separate PC. An independently tested installer is not yet supplied by this repository.
+Wait for either success message. An existing folder is reused only if all its
+files match the verified ZIP; no existing files are overwritten.
+Do not run commands from inside the ZIP.
+If Windows denies permission to create or write to `C:\Downloads`, stop and
+ask for help; administrator approval may be needed. If your browser saves
+downloads elsewhere, change only `$graniteZip` to the downloaded ZIP's full path.
+
+### 3. Check the application files
+
+In the same ordinary PowerShell window, paste:
+
+```powershell
+Set-Location ('C:\Downloads\Granite-Edge-AI-Setup')
+Unblock-File -LiteralPath .\Setup-Granite.ps1
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Setup-Granite.ps1 -Step Check
+```
+
+Expected message: **Bundle hashes and Microsoft dependency signatures passed.
+Nothing installed.** This checks files without installing them.
+
+The script is unblocked only after the ZIP check. RemoteSigned applies to
+the child PowerShell process, not permanently to Windows. If a managed-device
+policy prevents execution, stop and ask your IT team; do not bypass it.
+
+### 4. Install Granite or check the existing installation
+
+Close the ordinary PowerShell window. Find **Windows PowerShell** in Start,
+right-click it and select **Run as administrator**. Approve the Windows prompt.
+Use your own Windows account; if Windows requires another person's account,
+stop and ask for help.
+
+Paste:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+Set-Location 'C:\Downloads\Granite-Edge-AI-Setup'
+$installed = Get-AppxPackage -Name '488d3892-c214-40c5-9a6a-1154c1e69fff'
+
+if ($installed) {
+    if ($installed.Status -ne 'Ok' -or
+        [string]::IsNullOrWhiteSpace($installed.InstallLocation)) {
+        throw 'The existing registration needs attention. Nothing was changed.'
+    }
+    'Granite is already installed - continue to Step 5.'
+} else {
+    powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Setup-Granite.ps1 -Step Install
+    if ($LASTEXITCODE -ne 0) { throw 'Installation did not finish successfully. Stop here.' }
+}
+```
+
+If Windows reports that Granite is already installed with an OK package status
+and an installation location, installation is skipped without changing the app,
+certificates or dependencies. This quick check does not scan installed files
+or test model inference. The ZIP and bundle checks above remain unchanged.
+
+For a new installation, type **INSTALL** when asked and press Enter. This approves:
+
+- Installing Microsoft .NET 8 x64 if it is missing.
+- Trusting the supplied test certificate in Windows Trusted People.
+- Installing Granite and its Microsoft Windows App Runtime dependency.
+
+This is a test certificate, not a public production certificate. The supplied
+certificate should have this thumbprint:
+
+`94AF865FEBB2530DD2042016ADCA237D0887936D`
+
+If the thumbprint differs, stop and contact me. Otherwise, continue with installation.
+
+It expires on 14 December 2026. No root certificate is added and no private
+signing key is supplied. The script refuses to replace an existing Granite
+installation. If a restart is requested, restart Windows and repeat this step.
+Otherwise wait for the **Installed** or **Granite is already installed**
+message, then close administrator PowerShell.
+
+### 5. Open Granite
+
+Open ordinary **Windows PowerShell** again and paste:
+
+```powershell
+Set-Location ('C:\Downloads\Granite-Edge-AI-Setup')
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Setup-Granite.ps1 -Step Launch
+```
+
+The model-selection page should appear. No model is needed just to open it.
+If the window does not appear, report that before proceeding.
+
+### 6. Download the two models
+
+Keep the laptop online. In ordinary PowerShell, paste:
+
+```powershell
+Set-Location ('C:\Downloads\Granite-Edge-AI-Setup')
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Setup-Granite.ps1 -Step Models
+```
+
+This downloads about **7.36 GB**, verifies both complete files and extracts
+OpenVINO. It can take a while. Progress is shown during downloads.
+
+Models are saved in **C:\Downloads\Granite-Models**. If Windows denies write
+access to that folder, stop and contact me. To open it, paste:
+
+```powershell
+Invoke-Item 'C:\Downloads\Granite-Models'
+```
+
+If a download fails, its incomplete .partial file is retained. Do not rename
+it to a finished model. Contact me before retrying. The script does not
+overwrite an existing extraction folder. Sharing links may expire or change.
+
+### 7. Select a model in Granite
+
+Try one model at a time:
+
+**GGUF:** choose **Choose model**, select the GGUF option, and open:
+
+`C:\Downloads\Granite-Models\granite-4.1-3b-Q4_K_M.gguf`
+
+**OpenVINO:** choose the OpenVINO option and select this complete folder:
+
+`C:\Downloads\Granite-Models\OpenVINO-Extracted\Granite-4.1-3B-OpenVINO-Raw`
+
+Do not select its ZIP, XML or BIN file individually. Keep all files together.
+Follow inspection, hardware fit and the available configuration steps. When
+chat becomes available, try: **Explain what a computer processor does in two sentences.**
+
+Available configurations depend on the laptop's free memory and storage.
+Opening the app does not prove that either model will run. Report any error
+with its full message; do not replace runtime files or bypass verification.
+
+### If you need help
+
+If anything goes wrong, send me the error message and let me know which step
+you reached. Your Windows version, processor and RAM would also help me
+check the problem.
+
+### Building from source instead
+
+Cloning this repository supplies source code, not the packaged application above. Follow the [source setup guide](docs/manuals/Fresh-Computer-Setup.md) and [build guide](docs/manuals/Build-and-Installation.md) for development tools and exact runtime inputs. Hosted-CI build commands are compile-only checks, not runnable installer recipes. A complete clone-to-launch procedure on a fresh computer remains unverified; do not bypass runtime integrity checks or rebuild over a working installation.
 
 | You want to… | Open this |
 | --- | --- |
-| Try the app | [Run the app](docs/manuals/Run-the-App.md) |
-| Set up a new computer | [Source setup and runtime inputs](docs/manuals/Fresh-Computer-Setup.md) |
+| Try the app | [Install and open the packaged app](#setup-and-first-use) |
+| Set up a new computer | [Packaged app and model setup](#setup-and-first-use) |
 | Obtain a model | [IBM Granite model downloads](docs/manuals/Download-a-Model.md) |
 | Learn the workflow | [User manual](docs/manuals/User-Manual.md) |
 | Understand a warning or missing choice | [Known limitations and troubleshooting](docs/manuals/Known-Limitations.md) |

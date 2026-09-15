@@ -4,13 +4,9 @@ There are two different tasks here: **using a verified app package** and **build
 
 ## If you only want to use the app
 
-If you are using the prepared project computer, start with [Run the app](Run-the-App.md) for its exact registered launch command. The steps below concern obtaining a package, not launching that existing copy.
+Use the [README setup steps](../../README.md#setup-and-first-use) with [Granite-Edge-AI-Setup.zip](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQA3url8UXf3S5dWadOp1J_mAcnF6HngK5vyJivCi0lQr40?e=rcF7gj). The README contains the checksum and commands for extraction, installation, launch and model downloads. You do not need Git, Visual Studio or a source build for this route.
 
-1. Obtain the complete tested package and its checksum from the project owner. The repository's [release record](../../release-evidence/README.md) does not yet establish a public installer download.
-2. Check the package identity and checksum before installing it. Do not use a loose executable copied from a different build.
-3. Follow the instructions supplied with that package. For a signed MSIX, use Windows App Installer. Trust a development certificate only after checking its origin; do not disable Windows security to get past an unexplained warning.
-4. Launch the registered app from Start and follow the [user manual](User-Manual.md).
-5. Check GGUF and OpenVINO separately if you need both routes. Reaching the first page does not prove the runtime packages work.
+The package uses a self-signed test certificate. Follow its approval instructions and do not bypass organisational security policies. Check GGUF and OpenVINO separately: reaching the first page does not prove that either model can complete inspection and chat. Use the [user manual](User-Manual.md) for the workflow.
 
 A clean-machine install/uninstall test is not recorded. This is a limitation, not a reason to label an untested installer as verified.
 
