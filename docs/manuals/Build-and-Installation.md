@@ -4,7 +4,7 @@ There are two different tasks here: **using a verified app package** and **build
 
 ## If you only want to use the app
 
-Use the [README setup steps](../../README.md#setup-and-first-use) with [Granite-Edge-AI-Setup.zip](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQA3url8UXf3S5dWadOp1J_mAcnF6HngK5vyJivCi0lQr40?e=rcF7gj). The README contains the checksum and commands for extraction, installation, launch and model downloads. You do not need Git, Visual Studio or a source build for this route.
+Use the [README setup steps](../../README.md#setup-and-first-use) with [Granite-Edge-AI-Setup.zip](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQA3url8UXf3S5dWadOp1J_mAcnF6HngK5vyJivCi0lQr40?e=Sxcl88). The README contains the checksum and commands for extraction, installation, launch and model downloads. You do not need Git, Visual Studio or a source build for this route.
 
 The package uses a self-signed test certificate. Follow its approval instructions and do not bypass organisational security policies. Check GGUF and OpenVINO separately: reaching the first page does not prove that either model can complete inspection and chat. Use the [user manual](User-Manual.md) for the workflow.
 

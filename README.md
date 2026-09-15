@@ -35,8 +35,17 @@ complete error message to me. Do not continue to the next step.
 
 ### 1. Download the application ZIP
 
-Download [**Granite-Edge-AI-Setup.zip**](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQA3url8UXf3S5dWadOp1J_mAcnF6HngK5vyJivCi0lQr40?e=rcF7gj)
-and save it in your normal **Downloads** folder (`C:\Users\<your username>\Downloads`).
+Open ordinary **Windows PowerShell** and paste this command to open the
+OneDrive download page in your browser. When the page opens, click **Download**
+to save the application ZIP:
+
+```powershell
+Start-Process 'https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQA3url8UXf3S5dWadOp1J_mAcnF6HngK5vyJivCi0lQr40?e=Sxcl88'
+```
+
+Click **Download** and save the file as **Granite-Edge-AI-Setup.zip**
+in your normal **Downloads** folder (`C:\Users\<your username>\Downloads`).
+Wait until the download finishes before continuing to Step 2.
 Keep its exact filename. The next command extracts it into
 **C:\Downloads\Granite-Edge-AI-Setup**, so no manual moving or extraction is needed.
 
