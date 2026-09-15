@@ -6,7 +6,7 @@ Choose **one** download method below. The built-in method is the simplest; manua
 
 ## Download the demonstration models through OneDrive
 
-Follow Step 6 of the [README setup guide](../../README.md#setup-and-first-use). Its first PowerShell block opens the destination folder and the OneDrive model folder in your browser. Click **Download** for each file individually, not the whole folder. Save both in `C:\Downloads\Granite-Models`, then run the second block to check their sizes and SHA-256 hashes and extract OpenVINO. Neither block downloads files automatically. Step 7 explains how to import them. Do not repeat a GGUF download that already passed verification.
+Follow Step 6 of the [README setup guide](../../README.md#setup-and-first-use). Its first PowerShell block creates the destination folder silently and opens the OneDrive model folder in your browser. Click **Download** for each file individually, not the whole folder. Save both in `C:\Downloads\Granite-Models`, then run the second block to check their sizes and SHA-256 hashes and extract OpenVINO. Neither block downloads files automatically. Step 7 explains how to import them. Do not repeat a GGUF download that already passed verification.
 
 - GGUF: `C:\Downloads\Granite-Models\granite-4.1-3b-Q4_K_M.gguf`
 - OpenVINO folder: `C:\Downloads\Granite-Models\OpenVINO-Extracted\Granite-4.1-3B-OpenVINO-Raw`
