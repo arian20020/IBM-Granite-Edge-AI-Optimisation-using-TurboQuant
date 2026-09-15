@@ -25,7 +25,7 @@ Follow these steps to install **Granite-Edge-AI-Setup.zip** and download the mod
 You do not need Git, Visual Studio or the source repository to run the app.
 
 Use a Windows 11 x64 laptop with at least 20 GB of free storage. More space
-may be needed for optimisation. Installation requires administrator approval.
+may be needed for optimisation.
 This is a self-signed test build; installation on a separate laptop and both
 model journeys have not yet been verified. Do not install over an existing
 Granite installation or bypass your organisation's security policies.
@@ -192,26 +192,84 @@ If the window does not appear, report that before proceeding.
 
 ### 6. Download the two models
 
-Keep the laptop online. In ordinary PowerShell, paste:
+Download the models through your browser, not through the setup script.
+
+First, open ordinary **Windows PowerShell** and paste this to create and open
+the destination folder:
 
 ```powershell
-Set-Location ('C:\Downloads\Granite-Edge-AI-Setup')
-powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\Setup-Granite.ps1 -Step Models
-```
-
-This downloads about **7.36 GB**, verifies both complete files and extracts
-OpenVINO. It can take a while. Progress is shown during downloads.
-
-Models are saved in **C:\Downloads\Granite-Models**. If Windows denies write
-access to that folder, stop and contact me. To open it, paste:
-
-```powershell
+$ErrorActionPreference = 'Stop'
+New-Item -ItemType Directory -Path 'C:\Downloads\Granite-Models' -Force | Out-Null
 Invoke-Item 'C:\Downloads\Granite-Models'
 ```
 
-If a download fails, its incomplete .partial file is retained. Do not rename
-it to a finished model. Contact me before retrying. The script does not
-overwrite an existing extraction folder. Sharing links may expire or change.
+Open the [OneDrive model folder](https://liveuclac-my.sharepoint.com/:f:/g/personal/ucab280_ucl_ac_uk/IgDJtuZvOAVISJoSvMclk0xEAbjwPBGSTtz3a87kS2cPxjo?e=Vm9uMC)
+and download these two files individually, not the whole folder:
+
+- `granite-4.1-3b-Q4_K_M.gguf`
+- `Granite-4.1-3B-OpenVINO-Raw.zip`
+
+Save both in **C:\Downloads\Granite-Models**. If your browser saves them in
+your normal Downloads folder, move the completed files into this folder.
+Keep their exact filenames, without suffixes such as `(1)`.
+If the GGUF file is already there and was verified earlier, do not download it again.
+
+The downloads total about **7.36 GB**. OpenVINO extraction needs about another
+**6.82 GB** of free space. Wait until both browser downloads finish.
+Do not rename or use an incomplete `.partial` file left by an earlier attempt;
+the command below ignores those files.
+
+In ordinary PowerShell, paste this entire block. It checks the downloaded
+files and extracts OpenVINO; it does not download anything:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$graniteModels = 'C:\Downloads\Granite-Models'
+$graniteGguf = Join-Path $graniteModels 'granite-4.1-3b-Q4_K_M.gguf'
+$graniteOpenVinoZip = Join-Path $graniteModels 'Granite-4.1-3B-OpenVINO-Raw.zip'
+$graniteExtracted = Join-Path $graniteModels 'OpenVINO-Extracted'
+
+$graniteChecks = @(
+    @{
+        Path = $graniteGguf
+        Bytes = 2099501664
+        Hash = '662B0626CD58F443BAEA23559B469DF6576A81D349649C59413B36A9FB32EB29'
+    },
+    @{
+        Path = $graniteOpenVinoZip
+        Bytes = 5257095946
+        Hash = '28DD8AF79F2A2A1CB2EA91E5BE18DAD02CEF5681AF3266160533842C743043C6'
+    }
+)
+
+foreach ($graniteCheck in $graniteChecks) {
+    if (-not (Test-Path -LiteralPath $graniteCheck.Path -PathType Leaf)) {
+        throw "File not found: $($graniteCheck.Path). Check its name and location."
+    }
+    if ((Get-Item -LiteralPath $graniteCheck.Path).Length -ne $graniteCheck.Bytes) {
+        throw "File size does not match: $($graniteCheck.Path). Do not use it."
+    }
+    Write-Host "Verifying $($graniteCheck.Path). This may take a few minutes."
+    if ((Get-FileHash -LiteralPath $graniteCheck.Path -Algorithm SHA256).Hash -ne $graniteCheck.Hash) {
+        throw "Checksum does not match: $($graniteCheck.Path). Stop and contact me."
+    }
+    Write-Host "Verified: $($graniteCheck.Path)"
+}
+
+if (Test-Path -LiteralPath $graniteExtracted) {
+    throw 'OpenVINO-Extracted already exists. Nothing was overwritten. If it was successfully extracted earlier, use that folder in Step 7; otherwise contact me.'
+}
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+Write-Host 'Extracting OpenVINO. Please wait.'
+[IO.Compression.ZipFile]::ExtractToDirectory($graniteOpenVinoZip, $graniteExtracted)
+'Both downloads verified and OpenVINO extracted - continue to Step 7.'
+```
+
+Wait for the success message before continuing. Verification reads the full
+files, so it is not instant. If extraction fails, do not use the incomplete
+folder or overwrite it; contact me with the error. If Windows denies write
+access or the OneDrive link is unavailable, stop and contact me.
 
 ### 7. Select a model in Granite
 

@@ -65,7 +65,7 @@ A different hash or location needs investigation. Do not overwrite files to forc
 
 The command above is for an existing registration. It does not install the app and is not a portable download link.
 
-Follow the [README setup steps](../../README.md#setup-and-first-use), which include the package link and checksum. Step 4 installs the app or recognises an existing registration, Step 5 opens it, and Step 6 downloads the GGUF and OpenVINO models. Use the README commands in order rather than repeating the demonstration-computer checks above: a packaged installation normally has a different installation location.
+Follow the [README setup steps](../../README.md#setup-and-first-use), which include the package link and checksum. Step 4 installs the app or recognises an existing registration, Step 5 opens it, and Step 6 explains browser downloads for GGUF and OpenVINO followed by local verification and extraction. Use the README commands in order rather than repeating the demonstration-computer checks above: a packaged installation normally has a different installation location.
 
 This is a self-signed test package. Installation on a separate laptop and both model journeys have not yet been verified. The [package handover checklist](../../release-evidence/Package-Handover.md) records broader release checks; supplying the ZIP does not establish that they all passed.
 

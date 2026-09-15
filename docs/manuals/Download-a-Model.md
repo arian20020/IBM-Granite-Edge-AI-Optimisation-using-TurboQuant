@@ -4,9 +4,9 @@ Start with the installed Granite app. Downloading a model does not install the a
 
 Choose **one** download method below. The built-in method is the simplest; manual download is an alternative, not an extra required step. A model is the large file containing the learned values used to produce replies. A checksum is a file fingerprint used to check that the bytes match the expected download.
 
-## Models supplied through the setup script
+## Download the demonstration models through OneDrive
 
-If you are following the [README setup guide](../../README.md#setup-and-first-use), Step 6 downloads and verifies both models below, then extracts the OpenVINO ZIP. Step 7 explains how to import them. No additional model download is needed for those examples.
+Follow Step 6 of the [README setup guide](../../README.md#setup-and-first-use) to download both files individually from the linked OneDrive folder through your browser. Save them in `C:\Downloads\Granite-Models`, then run the provided PowerShell block to check their sizes and SHA-256 hashes and extract OpenVINO. That block does not download anything. Step 7 explains how to import them. Do not repeat a GGUF download that already passed verification.
 
 - GGUF: `C:\Downloads\Granite-Models\granite-4.1-3b-Q4_K_M.gguf`
 - OpenVINO folder: `C:\Downloads\Granite-Models\OpenVINO-Extracted\Granite-4.1-3B-OpenVINO-Raw`
@@ -71,7 +71,7 @@ The expected size and checksum come from the [application catalogue](../../share
 
 The built-in download catalogue supplies GGUF files, not OpenVINO packages. A GGUF file cannot be turned into an OpenVINO package by renaming it.
 
-For the Raw 3B package, use Step 6 of the [README setup guide](../../README.md#setup-and-first-use). Its setup script downloads the supplied ZIP, checks its size and SHA-256, and extracts the complete folder shown above. Do not substitute an arbitrary model and assume it reproduces the recorded result.
+For the Raw 3B package, use Step 6 of the [README setup guide](../../README.md#setup-and-first-use). Download the ZIP through OneDrive in your browser, then use the verification-and-extraction command to prepare the complete folder shown above. Do not substitute an arbitrary model and assume it reproduces the recorded result.
 
 Keep the model weights, configuration and tokenizer files together. Choose **Choose model**, select the OpenVINO option, then select the package folder rather than an individual XML file. Let the quick scan and inspection decide whether it is complete and supported.
 
