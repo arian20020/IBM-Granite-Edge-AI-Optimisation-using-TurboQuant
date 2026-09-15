@@ -204,12 +204,15 @@ If the window does not appear, report that before proceeding.
 Download the models through your browser, not through the setup script.
 
 First, open ordinary **Windows PowerShell** and paste this to create and open
-the destination folder:
+the destination folder and open the OneDrive model folder in your browser.
+When the page opens, download each model file individually using **Download**;
+do not download the whole folder:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Path 'C:\Downloads\Granite-Models' -Force | Out-Null
 Invoke-Item 'C:\Downloads\Granite-Models'
+Start-Process 'https://liveuclac-my.sharepoint.com/:f:/g/personal/ucab280_ucl_ac_uk/IgDJtuZvOAVISJoSvMclk0xEAbjwPBGSTtz3a87kS2cPxjo?e=Vm9uMC'
 ```
 
 Open the [OneDrive model folder](https://liveuclac-my.sharepoint.com/:f:/g/personal/ucab280_ucl_ac_uk/IgDJtuZvOAVISJoSvMclk0xEAbjwPBGSTtz3a87kS2cPxjo?e=Vm9uMC)

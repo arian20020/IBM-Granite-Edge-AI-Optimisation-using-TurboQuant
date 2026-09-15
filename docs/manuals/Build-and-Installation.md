@@ -6,6 +6,8 @@ There are two different tasks here: **using a verified app package** and **build
 
 Use the [README setup steps](../../README.md#setup-and-first-use) with [Granite-Edge-AI-Setup.zip](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQA3url8UXf3S5dWadOp1J_mAcnF6HngK5vyJivCi0lQr40?e=Sxcl88). The README contains the checksum and commands for extraction, installation, launch and model downloads. You do not need Git, Visual Studio or a source build for this route.
 
+Step 1 opens the app ZIP's OneDrive page, and Step 6 opens the model folder in your browser. Click **Download** on those pages; the PowerShell commands do not download the files automatically. Follow the README's file checks before installation or model extraction.
+
 The package uses a self-signed test certificate. Follow its approval instructions and do not bypass organisational security policies. Check GGUF and OpenVINO separately: reaching the first page does not prove that either model can complete inspection and chat. Use the [user manual](User-Manual.md) for the workflow.
 
 A clean-machine install/uninstall test is not recorded. This is a limitation, not a reason to label an untested installer as verified.
