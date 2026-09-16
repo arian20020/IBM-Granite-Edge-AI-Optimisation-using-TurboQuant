@@ -6,6 +6,31 @@ namespace GraniteEdgeAI.GgufRuntime.WorkerProcess.Tests;
 [TestClass]
 public sealed class GgufChatVisualContractTests
 {
+    [TestMethod]
+    [DataRow("GgufChatPrimaryButtonStyle")]
+    [DataRow("GgufChatSecondaryButtonStyle")]
+    public void ButtonStateTargetsResolveInsideTheirOwnTemplate(string styleKey)
+    {
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XDocument theme = XDocument.Load(Path.Combine(FindRepositoryRoot(),
+            "IBM Granite with TurboQuant (Intel)", "Features", "GgufRuntime",
+            "Presentation", "GgufChatTheme.xaml"));
+        XElement template = AssertRootResource(theme, x, styleKey)
+            .Descendants(presentation + "ControlTemplate").Single();
+        var names = template.Descendants().Attributes(x + "Name")
+            .Select(attribute => attribute.Value).ToHashSet(StringComparer.Ordinal);
+        string[] targets = template.Descendants(presentation + "VisualState")
+            .Descendants(presentation + "Setter").Attributes("Target")
+            .Select(attribute => attribute.Value.Split('.')[0]).ToArray();
+        Assert.IsTrue(targets.Length > 0, "The template must exercise visual-state setters.");
+        foreach (string target in targets)
+        {
+            Assert.IsTrue(names.Contains(target),
+                $"{styleKey}: visual-state target '{target}' has no named template element.");
+        }
+    }
+
     private static readonly string[] SoftModernThemeResourceKeys =
     [
         "GgufChatPrimaryGradientBrush",
@@ -300,16 +325,16 @@ public sealed class GgufChatVisualContractTests
         XElement light = GetThemeDictionary(theme, presentation, x, "Light");
         var expected = new Dictionary<string, string>
         {
-            ["GgufChatAssistantBubbleBrush"] = "#EAF2FF",
-            ["GgufChatAssistantBubbleTextBrush"] = "#102E6B",
-            ["GgufChatUserBubbleBrush"] = "#2563EB",
-            ["GgufChatUserBubbleTextBrush"] = "#FFFFFF",
+            ["GgufChatAssistantBubbleBrush"] = "Transparent",
+            ["GgufChatAssistantBubbleTextBrush"] = "#111827",
+            ["GgufChatUserBubbleBrush"] = "#EEF2F7",
+            ["GgufChatUserBubbleTextBrush"] = "#111827",
             ["GgufChatNavigationRestBrush"] = "#00FFFFFF",
             ["GgufChatNavigationHoverBrush"] = "#EEF4FF",
             ["GgufChatNavigationPressedBrush"] = "#E2ECFA",
-            ["GgufChatNavigationSelectedBrush"] = "#2563EB",
-            ["GgufChatNavigationSelectedHoverBrush"] = "#1D4ED8",
-            ["GgufChatNavigationSelectedPressedBrush"] = "#1E40AF",
+            ["GgufChatNavigationSelectedBrush"] = "#D9E1EC",
+            ["GgufChatNavigationSelectedHoverBrush"] = "#D1DBE8",
+            ["GgufChatNavigationSelectedPressedBrush"] = "#C5D1E0",
             ["GgufChatComposerBrush"] = "#FFFFFFFF",
             ["GgufChatComposerFocusedBorderBrush"] = "#2563EB",
             ["GgufChatFlyoutBrush"] = "#FFFFFFFF",
@@ -325,7 +350,10 @@ public sealed class GgufChatVisualContractTests
         }
 
         Assert.IsTrue(
-            ContrastRatio(expected["GgufChatAssistantBubbleBrush"], expected["GgufChatAssistantBubbleTextBrush"]) >= 4.5);
+            ContrastRatio(
+                AssertThemeResource(light, x, "GgufChatCanvasBrush", "Light").Attribute("Color")!.Value,
+                expected["GgufChatAssistantBubbleTextBrush"]) >= 4.5,
+            "Transparent assistant messages must remain readable on the conversation surface.");
         Assert.IsTrue(
             ContrastRatio(expected["GgufChatUserBubbleBrush"], expected["GgufChatUserBubbleTextBrush"]) >= 4.5);
         Assert.IsTrue(
@@ -350,7 +378,7 @@ public sealed class GgufChatVisualContractTests
             selectedPointerOver,
             presentation,
             "ContentPresenter.Foreground",
-            "GgufChatPrimaryHoverForegroundBrush");
+            "GgufChatNavigationSelectedForegroundBrush");
         XElement selectedPressed = selectedNavigation.Descendants(presentation + "VisualState")
             .Single(state => state.Attribute(x + "Name")?.Value == "Pressed");
         AssertStateSetterUsesThemeResource(
@@ -362,11 +390,13 @@ public sealed class GgufChatVisualContractTests
             selectedPressed,
             presentation,
             "ContentPresenter.Foreground",
-            "GgufChatPrimaryPressedForegroundBrush");
+            "GgufChatNavigationSelectedForegroundBrush");
+        string selectedForeground = AssertThemeResource(light, x,
+            "GgufChatNavigationSelectedForegroundBrush", "Light").Attribute("Color")!.Value;
         Assert.IsTrue(
-            ContrastRatio(expected["GgufChatNavigationSelectedHoverBrush"], "#FFFFFF") >= 4.5);
+            ContrastRatio(expected["GgufChatNavigationSelectedHoverBrush"], selectedForeground) >= 4.5);
         Assert.IsTrue(
-            ContrastRatio(expected["GgufChatNavigationSelectedPressedBrush"], "#FFFFFF") >= 4.5);
+            ContrastRatio(expected["GgufChatNavigationSelectedPressedBrush"], selectedForeground) >= 4.5);
         Assert.IsNotNull(navigation.Descendants(presentation + "VisualState")
             .SingleOrDefault(state => state.Attribute(x + "Name")?.Value == "Unfocused"));
         Assert.AreEqual(
@@ -471,7 +501,11 @@ public sealed class GgufChatVisualContractTests
         StringAssert.Contains(page, "scrollViewer.ChangeView(");
         StringAssert.Contains(page, "ScrollableHeight > 0");
         StringAssert.Contains(page, "transcriptFollowOriginOffset");
-        Assert.IsFalse(page.Contains("UpdateLayout()", StringComparison.Ordinal));
+        // History focus recovery may force layout; streaming must not do so.
+        string transcriptRendering = page.Split("internal void SynchronizeTranscript(", StringSplitOptions.None)[1]
+            .Split("private void ResetTranscript(", StringSplitOptions.None)[0];
+        Assert.IsFalse(transcriptRendering.Contains("UpdateLayout()", StringComparison.Ordinal));
+        Assert.IsFalse(page.Contains("TranscriptList.UpdateLayout()", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -548,16 +582,8 @@ public sealed class GgufChatVisualContractTests
             "IBM Granite with TurboQuant (Intel)",
             visualElements.Attribute("Description")?.Value);
 
-        string generatorPath = Path.Combine(
-            root,
-            "scripts",
-            "branding",
-            "Generate-WindowsAppBranding.ps1");
-        Assert.IsTrue(File.Exists(generatorPath), "The Windows branding generator is required.");
-        string generator = File.ReadAllText(generatorPath);
-        StringAssert.Contains(generator, "docs\\Logo\\granite-edge-ai-icon.svg");
-        StringAssert.Contains(generator, "Windows.Media.Geometry]::Parse");
-        StringAssert.Contains(generator, "windows-icon-manifest.json");
+        // The repository ships generated branding, not the original generation tool.
+        // Verify the retained source, manifest and actual packaged assets below.
 
         string evidencePath = Path.Combine(
             appRoot,
@@ -575,10 +601,6 @@ public sealed class GgufChatVisualContractTests
         const string approvedSourceSha256 =
             "b392df072100e16675c21987070b7e1063f5e891c1a4bedb920e90e679691ba2";
         Assert.AreEqual(approvedSourceSha256, FileHash(sourcePath));
-        StringAssert.Contains(generator, approvedSourceSha256);
-        StringAssert.Contains(generator, "GetAttribute('transform') -ne 'translate(0 0)'");
-        StringAssert.Contains(generator, "GetAttribute('x1') -ne '48'");
-        StringAssert.Contains(generator, "GetAttribute('gradientUnits') -ne 'userSpaceOnUse'");
         System.Text.Json.JsonElement source = document.GetProperty("source");
         Assert.AreEqual(sourceRelative, source.GetProperty("path").GetString());
         Assert.AreEqual(FileHash(sourcePath), source.GetProperty("sha256").GetString());
@@ -845,37 +867,53 @@ public sealed class GgufChatVisualContractTests
         XElement brandImage = page.Descendants(presentation + "Image")
             .Single(element => element.Attribute(x + "Name")?.Value == "BrandLockup");
         Assert.AreEqual(
-            "ms-appx:///Assets/Branding/granite-edge-ai-lockup-outlined.svg",
+            "{ThemeResource GgufChatBrandLockupSource}",
             brandImage.Attribute("Source")?.Value);
+        XDocument brandingTheme = XDocument.Load(Path.Combine(root,
+            "IBM Granite with TurboQuant (Intel)", "Features", "GgufRuntime",
+            "Presentation", "GgufChatTheme.xaml"));
+        foreach (string themeName in new[] { "Light", "Dark", "HighContrast" })
+        {
+            string asset = themeName == "Light"
+                ? "granite-edge-ai-lockup-outlined.svg"
+                : "granite-edge-ai-lockup-outlined-dark.svg";
+            XElement dictionary = GetThemeDictionary(brandingTheme, presentation, x, themeName);
+            Assert.AreEqual("ms-appx:///Assets/Branding/" + asset,
+                AssertThemeResource(dictionary, x, "GgufChatBrandLockupSource", themeName)
+                    .Attribute("UriSource")?.Value);
+            Assert.IsTrue(File.Exists(Path.Combine(root,
+                "IBM Granite with TurboQuant (Intel)", "Assets", "Branding", asset)));
+        }
         Assert.AreEqual("Left", brandImage.Attribute("HorizontalAlignment")?.Value);
         Assert.AreEqual("Uniform", brandImage.Attribute("Stretch")?.Value);
-        AssertDimensionIsWithinRange(brandImage, "Width", 220, 232);
-        AssertDimensionIsWithinRange(brandImage, "Height", 56, 64);
+        Assert.IsNull(brandImage.Attribute("Width"), "The logo must be able to shrink with the rail.");
+        AssertDimensionIsWithinRange(brandImage, "MaxWidth", 184, 184);
+        AssertDimensionIsWithinRange(brandImage, "Height", 55, 55);
 
         XElement conversationPanel = page.Descendants(presentation + "Border")
             .Single(element => element.Attribute(x + "Name")?.Value == "ConversationPanel");
         Assert.AreEqual(
-            "{ThemeResource GgufChatSurfaceBrush}",
+            "Transparent",
             conversationPanel.Attribute("Background")?.Value);
-        Assert.AreEqual(
-            "{ThemeResource GgufChatPanelBorderBrush}",
-            conversationPanel.Attribute("BorderBrush")?.Value);
-        Assert.AreEqual("1", conversationPanel.Attribute("BorderThickness")?.Value);
-        Assert.AreEqual("14", conversationPanel.Attribute("CornerRadius")?.Value);
-        Assert.AreEqual("24", conversationPanel.Attribute("Padding")?.Value);
-        Assert.AreEqual(
-            "{StaticResource GgufChatSubtlePanelShadow}",
-            conversationPanel.Attribute("Shadow")?.Value);
-        Assert.AreEqual("0,0,2", conversationPanel.Attribute("Translation")?.Value);
+        Assert.IsNull(conversationPanel.Attribute("BorderBrush"));
+        Assert.AreEqual("0", conversationPanel.Attribute("BorderThickness")?.Value);
+        Assert.IsNull(conversationPanel.Attribute("CornerRadius"));
+        Assert.AreEqual("0", conversationPanel.Attribute("Padding")?.Value);
+        Assert.IsNull(conversationPanel.Attribute("Shadow"));
+        Assert.IsNull(conversationPanel.Attribute("Translation"));
 
         XElement historyColumn = page.Descendants(presentation + "ColumnDefinition")
             .Single(element => element.Attribute(x + "Name")?.Value == "HistoryColumn");
-        Assert.AreEqual("256", historyColumn.Attribute("Width")?.Value);
+        Assert.AreEqual("0", historyColumn.Attribute("Width")?.Value);
         XElement wideState = page.Descendants(presentation + "VisualState")
             .Single(element => element.Attribute(x + "Name")?.Value == "WideState");
-        XElement wideHistoryWidth = wideState.Descendants(presentation + "Setter")
-            .Single(element => element.Attribute("Target")?.Value == "HistoryColumn.Width");
-        Assert.AreEqual("256", wideHistoryWidth.Attribute("Value")?.Value);
+        Assert.IsFalse(wideState.Descendants(presentation + "Setter")
+            .Any(element => element.Attribute("Target")?.Value == "HistoryColumn.Width"),
+            "The collapsible history rail owns its width, not the wide-window state.");
+        string railPageCode = File.ReadAllText(Path.Combine(root,
+            "IBM Granite with TurboQuant (Intel)", "Features", "GgufRuntime", "ChatPage.xaml.cs"));
+        StringAssert.Contains(railPageCode, "HistoryColumn.Width = new GridLength(compactNavigationIsOpen");
+        StringAssert.Contains(railPageCode, "Math.Clamp(ActualWidth * .4d, 160d, 256d) : 0d)");
 
         XDocument historyItem = XDocument.Load(Path.Combine(
             root,
@@ -888,22 +926,18 @@ public sealed class GgufChatVisualContractTests
             .Any(element => element.Attribute(x + "Name")?.Value == "SelectionIndicator"));
         XElement historyButton = historyItem.Descendants(presentation + "Button").Single();
         Assert.AreEqual("Left", historyButton.Attribute("HorizontalContentAlignment")?.Value);
-        Assert.AreEqual("4,8", historyButton.Attribute("Padding")?.Value);
-        XElement? historyContentCandidate = historyButton.Element(presentation + "Grid");
-        Assert.IsNotNull(historyContentCandidate, "History rows require the shared icon/text grid.");
+        Assert.AreEqual("12,8", historyButton.Attribute("Padding")?.Value);
+        XElement? historyContentCandidate = historyButton.Element(presentation + "StackPanel");
+        Assert.IsNotNull(historyContentCandidate, "History rows stack the date and conversation title.");
         XElement historyContent = historyContentCandidate;
         Assert.AreEqual("HistoryContentGrid", historyContent.Attribute(x + "Name")?.Value);
-        Assert.AreEqual("12", historyContent.Attribute("ColumnSpacing")?.Value);
-        XElement[] historyColumns = historyContent
-            .Element(presentation + "Grid.ColumnDefinitions")!
-            .Elements(presentation + "ColumnDefinition")
-            .ToArray();
-        Assert.AreEqual(2, historyColumns.Length);
-        Assert.AreEqual("20", historyColumns[0].Attribute("Width")?.Value);
-        Assert.AreEqual("*", historyColumns[1].Attribute("Width")?.Value);
-        Assert.AreEqual(
-            "1",
-            historyContent.Element(presentation + "TextBlock")?.Attribute("Grid.Column")?.Value);
+        Assert.AreEqual("3", historyContent.Attribute("Spacing")?.Value);
+        XElement[] historyText = historyContent.Elements(presentation + "TextBlock").ToArray();
+        Assert.AreEqual(2, historyText.Length);
+        Assert.AreEqual("{x:Bind DateLabel, Mode=OneWay}", historyText[0].Attribute("Text")?.Value);
+        Assert.AreEqual("Wrap", historyText[0].Attribute("TextWrapping")?.Value);
+        Assert.AreEqual("{x:Bind Title, Mode=OneWay}", historyText[1].Attribute("Text")?.Value);
+        Assert.AreEqual("CharacterEllipsis", historyText[1].Attribute("TextTrimming")?.Value);
 
         XElement prompt = composer.Descendants(presentation + "TextBox")
             .Single(element => element.Attribute(x + "Name")?.Value == "PromptTextBox");
@@ -924,30 +958,30 @@ public sealed class GgufChatVisualContractTests
             .Single(element => element.Attribute(x + "Name")?.Value == "AttachmentPresentation");
         XElement focusVisual = composer.Descendants(presentation + "Border")
             .Single(element => element.Attribute(x + "Name")?.Value == "ComposerFocusVisual");
-        Assert.AreEqual("6,1", composerSurface.Attribute("Padding")?.Value);
+        Assert.AreEqual("14,10", composerSurface.Attribute("Padding")?.Value);
         Assert.AreEqual("20", composerSurface.Attribute("CornerRadius")?.Value);
         Assert.AreEqual("0", composerContent.Attribute("RowSpacing")?.Value);
         Assert.AreEqual("0,0,0,8", attachmentPresentation.Attribute("Margin")?.Value);
         Assert.AreEqual("22", focusVisual.Attribute("CornerRadius")?.Value);
         Assert.AreEqual("40", promptRow.Attribute("MinHeight")?.Value);
-        Assert.AreEqual("40", attachmentButton.Attribute("Width")?.Value);
-        Assert.AreEqual("40", attachmentButton.Attribute("Height")?.Value);
+        Assert.AreEqual("44", attachmentButton.Attribute("Width")?.Value);
+        Assert.AreEqual("44", attachmentButton.Attribute("Height")?.Value);
         Assert.AreEqual("Attach files", attachmentButton.Attribute("AutomationProperties.Name")?.Value);
         Assert.AreEqual("Attach files", attachmentButton.Attribute("ToolTipService.ToolTip")?.Value);
         Assert.AreEqual(
-            "\uE723",
+            "\uE710",
             attachmentButton.Element(presentation + "FontIcon")?.Attribute("Glyph")?.Value);
         Assert.AreEqual(
-            "\uE724",
+            "\uE72A",
             sendButton.Element(presentation + "FontIcon")?.Attribute("Glyph")?.Value);
-        Assert.AreEqual("32", prompt.Attribute("MinHeight")?.Value);
-        Assert.AreEqual("10,0", prompt.Attribute("Padding")?.Value);
+        Assert.AreEqual("48", prompt.Attribute("MinHeight")?.Value);
+        Assert.AreEqual("0,4", prompt.Attribute("Padding")?.Value);
         Assert.AreEqual(
             "PromptTextBox_PreviewKeyDown",
             prompt.Attribute("PreviewKeyDown")?.Value);
         Assert.IsNull(prompt.Attribute("KeyDown"));
-        Assert.AreEqual("40", sendButton.Attribute("Height")?.Value);
-        Assert.AreEqual("40", stopButton.Attribute("Height")?.Value);
+        Assert.AreEqual("44", sendButton.Attribute("Height")?.Value);
+        Assert.AreEqual("44", stopButton.Attribute("Height")?.Value);
         Assert.AreEqual(
             "Center",
             prompt.Attribute("VerticalContentAlignment")?.Value);
@@ -962,7 +996,7 @@ public sealed class GgufChatVisualContractTests
             "Features",
             "GgufRuntime",
             "ChatPage.xaml.cs"));
-        StringAssert.Contains(pageCode, "Margin = new Thickness(0, 14, 0, 6)");
+        StringAssert.Contains(pageCode, "DateLabel = currentHistoryGroup");
 
         string composerCode = File.ReadAllText(Path.Combine(
             root,
@@ -974,7 +1008,7 @@ public sealed class GgufChatVisualContractTests
         StringAssert.Contains(composerCode, "private void UpdateSubmissionState()");
         StringAssert.Contains(
             composerCode,
-            "SendButton.IsEnabled = !IsGenerating &&");
+            "conversationReady && !IsGenerating && !isSwitchingModel && !isPreparingSession && PromptTextBox.Text.Trim().Length > 0;");
         StringAssert.Contains(
             composerCode,
             "PromptTextBox.Text.Trim().Length > 0;");
