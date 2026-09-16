@@ -6,7 +6,7 @@ Choose **one** download method below. The built-in method is the simplest; manua
 
 ## Download the demonstration models through OneDrive
 
-Follow Step 6 of the [starter guide](Granite-Start-Here.md). Its first command opens the OneDrive model folder in your browser. Click **Download** for each file individually, not the whole folder. Save both in your normal Downloads folder or `C:\Downloads`; earlier downloads in `C:\Downloads\Granite-Models` are also accepted. Keep the exact model filenames. Neither command downloads files automatically.
+Follow Step 6 of the [starter guide](Granite-Start-Here.md). Its first two commands open the individual GGUF and OpenVINO download pages in your browser. Click **Download** on each page. Save both in your normal Downloads folder or `C:\Downloads`; earlier downloads in `C:\Downloads\Granite-Models` are also accepted. Keep the exact model filenames. Neither command downloads files automatically.
 
 **Do not skip the preparation command after downloading OpenVINO.** It verifies both downloads, extracts OpenVINO without an extra folder level and removes Windows download marks from verified files. These marks caused the reported `package_unsafe_path` failure; other unsafe-path failures must still be investigated. Existing model folders must match before they can be reused.
 

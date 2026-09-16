@@ -67,7 +67,7 @@ The command above is for an existing registration. It does not install the app a
 
 Follow the [README setup steps](../../README.md#setup-and-first-use), which include the package link and checksum. Step 4 installs the app, updates an older signed package after approval or recognises a current signed installation, Step 5 opens it, and Step 6 explains browser downloads for GGUF and OpenVINO followed by local verification and extraction. Use the README commands in order rather than repeating the demonstration-computer checks above: a packaged installation normally has a different installation location.
 
-The first command in Step 6 opens the OneDrive model folder in your browser. Click **Download** for each model file, wait for both downloads to finish, then run the mandatory preparation block to verify, extract and remove download marks from the verified files. It does not perform the downloads for you.
+The first two commands in Step 6 open the individual GGUF and OpenVINO download pages in your browser. Click **Download** for each model file, wait for both downloads to finish, then run the mandatory preparation block to verify, extract and remove download marks from the verified files. The commands do not perform the downloads for you.
 
 This is a self-signed test package. Installation on a separate laptop and both model journeys have not yet been verified. The [package handover checklist](../../release-evidence/Package-Handover.md) records broader release checks; supplying the ZIP does not establish that they all passed.
 

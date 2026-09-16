@@ -175,10 +175,18 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: Launch failed. Check the error above; co
 
 ### 6. Download and prepare the models — do not skip preparation
 
-The command opens the model folder in your browser. **Click Download for each file separately**, not for the whole folder:
+Run each command below to open that model's individual download page. **Click Download on each page** and wait for both files to finish downloading. These commands open your browser; they do not download automatically.
+
+**GGUF — `granite-4.1-3b-Q4_K_M.gguf`:**
 
 ```powershell
-Start-Process 'https://liveuclac-my.sharepoint.com/:f:/g/personal/ucab280_ucl_ac_uk/IgDJtuZvOAVISJoSvMclk0xEAbjwPBGSTtz3a87kS2cPxjo?e=Vm9uMC'
+Start-Process 'https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQC0ragzwssPRoyStBSqIVv3AXJsY_GpjQ5lFjM0HWZF9u8?e=Lfanrf'
+```
+
+**OpenVINO — `Granite-4.1-3B-OpenVINO-Raw.zip`:**
+
+```powershell
+Start-Process 'https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQBTmsCaY2ZkRJexAvCVJcB0Af_foYWoiaQXUF46MchpAog?e=vSJLt9'
 ```
 
 Download:
