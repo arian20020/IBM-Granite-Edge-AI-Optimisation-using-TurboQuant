@@ -57,7 +57,7 @@ public sealed class OpenVinoPromptAdapterTests
         (OpenVinoRouteSession session, _) = await StartSessionAsync(channel);
 
         await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(() =>
-            session.GenerateAsync("hello", 129, CancellationToken.None));
+            session.GenerateAsync("hello", 513, CancellationToken.None));
         await Assert.ThrowsExactlyAsync<ArgumentException>(() =>
             session.GenerateAsync(
                 new string('\u0800', OpenVinoRouteCapability.MaximumPromptUtf8Bytes / 2),
@@ -68,8 +68,96 @@ public sealed class OpenVinoPromptAdapterTests
         OpenVinoConfigurationCandidate candidate =
             OpenVinoRouteCapability.Candidates.Single();
         Assert.AreEqual(4_096, candidate.MaximumContextTokens);
-        Assert.AreEqual(128, candidate.DefaultRequestedNewTokens);
-        Assert.AreEqual(128, candidate.MaximumRequestedNewTokens);
+        Assert.AreEqual(512, candidate.DefaultRequestedNewTokens);
+        Assert.AreEqual(512, candidate.MaximumRequestedNewTokens);
+    }
+
+    [TestMethod]
+    [DataRow("released-default")]
+    [DataRow("u8")]
+    [DataRow("u4")]
+    [DataRow("tbq3")]
+    [DataRow("tbq4")]
+    public async Task SessionAndPromptRequestsStayWithinPackagedWorkerLimit(string cachePrecision)
+    {
+        FakeChannel channel = SuccessfulChannel();
+        FakeChannelFactory factory = new(channel);
+        OpenVinoRouteStateMachine machine = new();
+        Guid operationId = machine.Snapshot.Identity.OperationId;
+        Assert.IsTrue(machine.TryBeginInspection(operationId));
+        Assert.IsTrue(machine.TryCompleteInspection(operationId, OpenVinoRouteInspectionOutcome.Ready));
+        Assert.IsTrue(machine.TryAwaitConfiguration(operationId));
+        await using OpenVinoRouteSession session = await OpenVinoRouteSession.StartAsync(
+            factory, machine, Descriptor(), static _ => { }, CancellationToken.None,
+            runtimeOptions: new OpenVinoRuntimeOptions(cachePrecision));
+
+        Assert.IsNotNull(factory.StartCommand);
+        Assert.AreEqual(512, factory.StartCommand.Limits.MaximumNewTokens);
+        Assert.AreEqual(4096, factory.StartCommand.Limits.MaximumContextTokens);
+        Assert.AreEqual(cachePrecision, factory.StartCommand.Runtime.KvCachePrecision);
+        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(() =>
+            session.GenerateAsync("hello", 513, CancellationToken.None));
+        Assert.AreEqual(0, channel.PromptCount);
+        PromptTurnResult result = await session.GenerateAsync("hello", 512, CancellationToken.None);
+        Assert.AreEqual(PromptTurnStatus.Completed, result.Status);
+        Assert.AreEqual(1, channel.PromptCount);
+    }
+
+    [TestMethod]
+    [DataRow("released-default", false)]
+    [DataRow("released-default", true)]
+    [DataRow("u8", false)]
+    [DataRow("u8", true)]
+    [DataRow("u4", false)]
+    [DataRow("u4", true)]
+    [DataRow("tbq3", false)]
+    [DataRow("tbq3", true)]
+    [DataRow("tbq4", false)]
+    [DataRow("tbq4", true)]
+    public async Task NewConversationOmitsEmptyHistoryFromWorkerRequest(string cachePrecision, bool explicitEmptyHistory)
+    {
+        FakeChannelFactory factory = new(SuccessfulChannel());
+        OpenVinoRouteStateMachine machine = new();
+        Guid operationId = machine.Snapshot.Identity.OperationId;
+        Assert.IsTrue(machine.TryBeginInspection(operationId));
+        Assert.IsTrue(machine.TryCompleteInspection(operationId, OpenVinoRouteInspectionOutcome.Ready));
+        Assert.IsTrue(machine.TryAwaitConfiguration(operationId));
+        await using OpenVinoRouteSession session = await OpenVinoRouteSession.StartAsync(
+            factory, machine, Descriptor(), static _ => { }, CancellationToken.None,
+            runtimeOptions: new OpenVinoRuntimeOptions(cachePrecision),
+            initialHistory: explicitEmptyHistory ? Array.Empty<OpenVinoInitialTurn>() : null);
+
+        Assert.IsNotNull(factory.StartCommand);
+        using System.Text.Json.JsonDocument payload = System.Text.Json.JsonDocument.Parse(
+            OpenVinoProtocolJson.Serialize(factory.StartCommand));
+        Assert.IsFalse(payload.RootElement.TryGetProperty("initialHistory", out _),
+            "A new conversation must retain the released worker's no-history request shape.");
+        Assert.AreEqual(cachePrecision,
+            payload.RootElement.GetProperty("runtime").GetProperty("kvCachePrecision").GetString());
+    }
+
+    [TestMethod]
+    public async Task ExistingConversationKeepsAllHistoryInWorkerRequest()
+    {
+        FakeChannelFactory factory = new(SuccessfulChannel());
+        OpenVinoRouteStateMachine machine = new();
+        Guid operationId = machine.Snapshot.Identity.OperationId;
+        Assert.IsTrue(machine.TryBeginInspection(operationId));
+        Assert.IsTrue(machine.TryCompleteInspection(operationId, OpenVinoRouteInspectionOutcome.Ready));
+        Assert.IsTrue(machine.TryAwaitConfiguration(operationId));
+        await using OpenVinoRouteSession session = await OpenVinoRouteSession.StartAsync(
+            factory, machine, Descriptor(), static _ => { }, CancellationToken.None,
+            initialHistory: [new("user", "Remember violet."), new("assistant", "Violet remembered.")]);
+
+        Assert.IsNotNull(factory.StartCommand);
+        using System.Text.Json.JsonDocument payload = System.Text.Json.JsonDocument.Parse(
+            OpenVinoProtocolJson.Serialize(factory.StartCommand));
+        System.Text.Json.JsonElement history = payload.RootElement.GetProperty("initialHistory");
+        Assert.AreEqual(2, history.GetArrayLength());
+        Assert.AreEqual("user", history[0].GetProperty("role").GetString());
+        Assert.AreEqual("Remember violet.", history[0].GetProperty("content").GetString());
+        Assert.AreEqual("assistant", history[1].GetProperty("role").GetString());
+        Assert.AreEqual("Violet remembered.", history[1].GetProperty("content").GetString());
     }
 
     [TestMethod]
@@ -1203,11 +1291,14 @@ public sealed class OpenVinoPromptAdapterTests
     private sealed class FakeChannelFactory(FakeChannel channel) :
         IOpenVinoPromptChannelFactory
     {
+        internal StartSessionCommand? StartCommand { get; private set; }
+
         public Task<IOpenVinoPromptChannel> StartAsync(
             StartSessionCommand command,
             CancellationToken cancellationToken)
         {
             command.Validate();
+            StartCommand = command;
             channel.SessionId = command.SessionId;
             return Task.FromResult<IOpenVinoPromptChannel>(channel);
         }
