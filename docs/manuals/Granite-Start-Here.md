@@ -173,7 +173,7 @@ Download:
 
 Save them in your normal Downloads folder or `C:\Downloads`. Keep these exact names without `(1)` suffixes. The command also accepts earlier downloads in `C:\Downloads\Granite-Models`. Wait for both downloads to finish. Together they are about 7.36 GB; extraction needs about another 6.82 GB. Do not use `.partial` files or extract the ZIP manually.
 
-**If you downloaded the whole OneDrive model folder:** extracting that outer ZIP into Downloads is not enough if it leaves the models inside another folder.
+**Only if you used the old whole-folder download link:** the two links above download the model files individually, so skip this optional note and continue to the preparation command below. If you already downloaded the whole OneDrive model folder as an outer ZIP, follow these steps to find the two files; extracting that outer ZIP into Downloads alone may leave them inside another folder.
 
 1. Extract the outer OneDrive ZIP, then open the resulting folder.
 2. Find `granite-4.1-3b-Q4_K_M.gguf` and `Granite-4.1-3B-OpenVINO-Raw.zip`.
