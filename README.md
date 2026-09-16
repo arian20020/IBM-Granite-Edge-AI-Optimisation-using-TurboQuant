@@ -194,27 +194,15 @@ Download:
 - `granite-4.1-3b-Q4_K_M.gguf`
 - `Granite-4.1-3B-OpenVINO-Raw.zip`
 
-Save them in your normal Downloads folder or `C:\Downloads`. Keep these exact names without `(1)` suffixes. The command also accepts earlier downloads in `C:\Downloads\Granite-Models`. Wait for both downloads to finish. Together they are about 7.36 GB; extraction needs about another 6.82 GB. Do not use `.partial` files or extract the ZIP manually.
+Save both files in your normal Downloads folder or `C:\Downloads`. Keep the exact model filenames without `(1)` suffixes and wait for downloads to finish. The command below also searches up to three folder levels inside those locations, including extracted OneDrive folders. It verifies the files before copying them directly into `C:\Downloads`; original downloads are kept. Do not use incomplete `.partial` files.
 
-**Only if you used the old whole-folder download link:** the two links above download the model files individually, so skip this optional note and continue to the preparation command below. If you already downloaded the whole OneDrive model folder as an outer ZIP, follow these steps to find the two files; extracting that outer ZIP into Downloads alone may leave them inside another folder.
+**Only if you used the old whole-folder link:** first extract the outer OneDrive collection ZIP into Downloads. Leave the OpenVINO model ZIP inside it zipped. The preparation command can find the two model downloads in the extracted folders; it cannot search inside an unopened outer ZIP. You can also place the two files directly into Downloads yourself.
 
-1. Extract the outer OneDrive ZIP, then open the resulting folder.
-2. Find `granite-4.1-3b-Q4_K_M.gguf` and `Granite-4.1-3B-OpenVINO-Raw.zip`.
-3. Move those **two files directly into `C:\Downloads`**, not a folder inside it. Alternatively, copy both files directly out of the outer ZIP into your normal Downloads folder (`C:\Users\<your username>\Downloads`). Wait for copying to finish.
-4. **Keep the OpenVINO model ZIP zipped**, then run the preparation command below. The command extracts it to `C:\Downloads\Granite-4.1-3B-OpenVINO-Raw` and removes Windows download marks after verification.
+The downloads total about 7.36 GB and OpenVINO extraction needs about another 6.82 GB. Copying files from another folder can need another 7.36 GB on C:. If the output contains only a second `Granite-4.1-3B-OpenVINO-Raw` folder, the command preserves that outer folder under a unique backup name, then extracts a fresh copy from the verified ZIP. This needs additional free space; nothing is deleted. Other conflicting output folders are rejected rather than overwritten.
 
-For example, the files should be at:
+**If you already extracted OpenVINO manually:** keep its original model ZIP available too. The command needs the verified ZIP to check or prepare the model. Moving an extracted folder alone does not remove Windows download marks.
 
-```text
-C:\Downloads\granite-4.1-3b-Q4_K_M.gguf
-C:\Downloads\Granite-4.1-3B-OpenVINO-Raw.zip
-```
-
-They must not remain at a path such as `C:\Downloads\IBM Granite Models\...`. The preparation command does not search nested folders or read models from inside the outer ZIP. Do not overwrite existing files blindly; if copies already exist, use the preparation command to check them first. Keeping the outer ZIP and its extraction requires additional disk space.
-
-If you already extracted the OpenVINO model manually, you still need its original ZIP in Downloads and must run preparation. Merely moving the extracted model folder does not remove Windows download marks. An existing output folder must match the verified ZIP; do not bypass a mismatch error.
-
-**IMPORTANT: Run the following command after downloading the OpenVINO ZIP and before importing it. Otherwise Windows download marks can cause `package_unsafe_path`.** It verifies both complete downloads, extracts OpenVINO directly to **C:\Downloads\Granite-4.1-3B-OpenVINO-Raw**, and removes the download marks from verified files. It does not open File Explorer or download the models through PowerShell.
+**IMPORTANT: Run the following command after downloading the OpenVINO ZIP and before importing it. Otherwise Windows download marks can cause `package_unsafe_path`.** It finds and verifies both complete downloads, copies them to `C:\Downloads` if needed, extracts OpenVINO directly to **C:\Downloads\Granite-4.1-3B-OpenVINO-Raw**, and removes the download marks from verified files. It does not open File Explorer or download the models through PowerShell.
 
 ```powershell
 & {
@@ -227,6 +215,88 @@ if ((Get-FileHash -LiteralPath $graniteModelsScript -Algorithm SHA256).Hash -ne 
     throw 'STOP: This is an old or different model-preparation script. Download the correct ZIP in STEP 1 and repeat Step 2.'
 }
 Unblock-File -LiteralPath $graniteModelsScript
+
+# Find complete model downloads, including files inside extracted folders.
+$graniteDestination = 'C:\Downloads'
+$graniteBrowserDownloads = Join-Path $env:USERPROFILE 'Downloads'
+function Assert-GraniteRegularPath([string]$Path) {
+    $current = [IO.Path]::GetFullPath($Path)
+    while ($current) {
+        if (Test-Path -LiteralPath $current) {
+            if ((Get-Item -LiteralPath $current -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw "STOP: Linked paths are not supported: $current"
+            }
+        }
+        $current = [IO.Path]::GetDirectoryName($current)
+    }
+}
+function Get-GraniteDownloads([string]$Root) {
+    Assert-GraniteRegularPath $Root
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) { return }
+    $queue = [Collections.Generic.Queue[object]]::new()
+    $queue.Enqueue(@{ Path = $Root; Depth = 0 })
+    $count = 0
+    while ($queue.Count -gt 0) {
+        $folder = $queue.Dequeue()
+        foreach ($item in Get-ChildItem -LiteralPath $folder.Path -Force) {
+            $count++
+            if ($count -gt 20000) { throw 'STOP: Too many items to search. Place the two model downloads directly in Downloads and retry.' }
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
+            if ($item.PSIsContainer) {
+                if ($folder.Depth -lt 3) { $queue.Enqueue(@{ Path = $item.FullName; Depth = $folder.Depth + 1 }) }
+            } elseif ($item.Name -in @('granite-4.1-3b-Q4_K_M.gguf', 'Granite-4.1-3B-OpenVINO-Raw.zip')) {
+                $item
+            }
+        }
+    }
+}
+$graniteFiles = @(foreach ($root in @($graniteDestination, $graniteBrowserDownloads) | Select-Object -Unique) { Get-GraniteDownloads $root })
+$graniteVerified = @()
+foreach ($expected in @(
+    @{ Name = 'granite-4.1-3b-Q4_K_M.gguf'; Bytes = 2099501664; Hash = '662B0626CD58F443BAEA23559B469DF6576A81D349649C59413B36A9FB32EB29' },
+    @{ Name = 'Granite-4.1-3B-OpenVINO-Raw.zip'; Bytes = 5257095946; Hash = '28DD8AF79F2A2A1CB2EA91E5BE18DAD02CEF5681AF3266160533842C743043C6' }
+)) {
+    $target = Join-Path $graniteDestination $expected.Name
+    Assert-GraniteRegularPath $target
+    if (Test-Path -LiteralPath $target) {
+        $targetItem = Get-Item -LiteralPath $target
+        if ($targetItem.PSIsContainer -or $targetItem.Length -ne $expected.Bytes -or
+            (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $expected.Hash) {
+            throw "STOP: An existing destination differs: $target. Nothing will overwrite it. Move that conflicting item aside yourself before retrying."
+        }
+        $source = $target
+    } else {
+        $source = $null
+        foreach ($candidate in $graniteFiles | Where-Object { $_.Name -eq $expected.Name -and $_.Length -eq $expected.Bytes }) {
+            Assert-GraniteRegularPath $candidate.FullName
+            Write-Host "Verifying $($candidate.FullName). Please wait."
+            if ((Get-FileHash -LiteralPath $candidate.FullName -Algorithm SHA256).Hash -eq $expected.Hash) { $source = $candidate.FullName; break }
+        }
+        if (-not $source) { throw "STOP: No verified $($expected.Name) found. Download it using STEP 6, or extract only the outer OneDrive collection ZIP. Keep the OpenVINO model ZIP. Search covers Downloads and up to three folder levels below it." }
+    }
+    $graniteVerified += @{ Source = $source; Target = $target; Hash = $expected.Hash }
+}
+New-Item -ItemType Directory -Path $graniteDestination -Force | Out-Null
+foreach ($file in $graniteVerified) {
+    if ($file.Source -ne $file.Target) {
+        Write-Host "Copying verified download to $($file.Target). The original is kept."
+        [IO.File]::Copy($file.Source, $file.Target, $false)
+        if ((Get-FileHash -LiteralPath $file.Target -Algorithm SHA256).Hash -ne $file.Hash) { throw 'STOP: Copied file verification failed. Do not continue.' }
+    }
+}
+
+# Preserve the common double-folder extraction, then extract from the verified ZIP.
+$graniteModelFolder = Join-Path $graniteDestination 'Granite-4.1-3B-OpenVINO-Raw'
+Assert-GraniteRegularPath $graniteModelFolder
+if (Test-Path -LiteralPath $graniteModelFolder -PathType Container) {
+    $children = @(Get-ChildItem -LiteralPath $graniteModelFolder -Force)
+    if ($children.Count -eq 1 -and $children[0].PSIsContainer -and $children[0].Name -eq 'Granite-4.1-3B-OpenVINO-Raw') {
+        Assert-GraniteRegularPath $children[0].FullName
+        $backupName = 'Granite-4.1-3B-OpenVINO-Raw-backup-' + [guid]::NewGuid().ToString('N')
+        Rename-Item -LiteralPath $graniteModelFolder -NewName $backupName
+        Write-Host "Nested folder preserved at $(Join-Path $graniteDestination $backupName). Preparing a fresh verified extraction."
+    }
+}
 powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File $graniteModelsScript -ModelsDirectory 'C:\Downloads'
 if ($LASTEXITCODE -ne 0) { throw 'STOP: Model preparation failed. Follow the error above and do not import an incomplete folder. Missing model downloads require STEP 6; missing setup files require STEP 1.' }
 }
