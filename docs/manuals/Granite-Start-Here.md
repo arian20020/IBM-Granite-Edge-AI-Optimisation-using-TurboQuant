@@ -1,27 +1,4 @@
-# Granite: local models on Windows
-
-Granite is a WinUI 3 research application for running selected IBM Granite models on a Windows 11 Intel computer. It brings model import, inspection, hardware-fit estimates, configuration, optimisation, export and chat into one guided workflow.
-
-The project also studies memory, speed and quality across selected llama.cpp and OpenVINO routes. **Those experiments are separate from application testing.** TurboVec was evaluated as a separate demonstration and is not integrated into the app.
-
-## Start here
-
-**To run the app:** follow [Packaged app installation and model setup](#setup-and-first-use) below. No Git, Visual Studio or source build is needed. **To develop the app:** use [Set up from source](docs/manuals/Fresh-Computer-Setup.md); its runtime-input requirements still apply.
-
-## Main features
-
-- Download one of the offered IBM Granite GGUF files, or import a local GGUF file or complete OpenVINO model folder.
-- Check the model before checking the computer, with separate progress and recovery screens.
-- Estimate memory fit using currently available RAM and a safety reserve.
-- Review supported weight/cache configurations, including selected TurboQuant options where admitted by the runtime evidence and resource checks.
-- Run optimisation, validate the output and export a model when the selected operation produces a saved model.
-- Chat locally once the required model and runtime files are available.
-
-The app is not a general model converter. Supported choices depend on the exact files and runtime; a model being selectable does not mean every configuration will work.
-
-## Setup and first use
-
-The same instructions are available as the [standalone starter guide](docs/manuals/Granite-Start-Here.md).
+# Granite Edge AI: installation and model setup
 
 Use **Granite-Edge-AI-Setup.zip** with this guide. No Git, Visual Studio or source build is needed. Use Windows 11 x64 and allow at least 20 GB of free space; optimisation may need more.
 
@@ -29,7 +6,7 @@ Run each numbered step separately. Copy each complete PowerShell code block usin
 
 This is a self-signed test build. Its clean installation and upgrade still need testing on another laptop. Do not bypass your organisation's security policies.
 
-### 1. Download the application ZIP
+## 1. Download the application ZIP
 
 The command below opens the download page. **Click Download in your browser**, and wait for the file to finish downloading before Step 2.
 
@@ -43,7 +20,7 @@ Save **Granite-Edge-AI-Setup.zip** in your normal Downloads folder (`C:\Users\<y
 
 Step 2 extracts it automatically to **C:\Downloads\Granite-Edge-AI-Setup-1.0.3**. You do not need to extract or move it manually. Models are downloaded separately in Step 6.
 
-### 2. Verify and extract the ZIP
+## 2. Verify and extract the ZIP
 
 Paste this entire block into ordinary Windows PowerShell:
 
@@ -114,7 +91,7 @@ try {
 
 Wait for the success message. This version uses its own setup folder, so an older `C:\Downloads\Granite-Edge-AI-Setup` folder can remain untouched. An existing matching extraction is reused; nothing is overwritten. If the versioned folder differs, rename only that setup folder and rerun this step. If Windows denies access to `C:\Downloads`, ask for help with that permission; downloading again will not fix a permission error.
 
-### 3. Check the application files
+## 3. Check the application files
 
 In ordinary Windows PowerShell, paste:
 
@@ -133,7 +110,7 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: The check failed. For missing or mismatc
 
 Expected: **Bundle hashes and Microsoft dependency signatures passed. Nothing installed.** This reads the bundle files and may take a short while. It does not install anything. RemoteSigned applies only to the child PowerShell process; do not bypass a managed-device policy.
 
-### 4. Install or update Granite
+## 4. Install or update Granite
 
 Close the ordinary PowerShell window. Open **Windows PowerShell as administrator** using your own account. This is needed for certificate trust and dependencies. No certificate is added until you approve installation.
 
@@ -155,7 +132,7 @@ When asked, type **INSTALL** to approve trusting the supplied test certificate i
 
 If a restart is requested, restart Windows and repeat this step. Otherwise wait for success, then close administrator PowerShell.
 
-### 5. Open Granite
+## 5. Open Granite
 
 Open ordinary Windows PowerShell and paste:
 
@@ -173,7 +150,7 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: Launch failed. Check the error above; co
 
 **This is the step that opens the app.** No model is needed just to open it. Launch checks the installed version without repeatedly hashing installed files.
 
-### 6. Download and prepare the models — do not skip preparation
+## 6. Download and prepare the models — do not skip preparation
 
 The command opens the model folder in your browser. **Click Download for each file separately**, not for the whole folder:
 
@@ -210,7 +187,7 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: Model preparation failed. Follow the err
 
 Wait for **GGUF ready** and **Select this OpenVINO folder in Granite**. Large-file verification takes time. An existing model folder is reused only if its files match the verified ZIP; different or incomplete folders are not overwritten. Keep the model folder in place after importing it.
 
-### 7. Select a model
+## 7. Select a model
 
 In Granite, use **Choose model** and try one route at a time:
 
@@ -223,86 +200,6 @@ Follow inspection, hardware fit and configuration. Available choices depend on t
 
 If storage is low, free up space before optimisation. If Granite asks you to import again, use **Import model again** and repeat the checks. Do not replace runtime files or bypass verification.
 
-### If something still goes wrong
+## If something still goes wrong
 
 Send the full error message and step number, together with the laptop's Windows version, processor and RAM. There is no need to contact me if the steps complete successfully.
-
-### Building from source instead
-
-Cloning this repository supplies source code, not the packaged application above. Follow the [source setup guide](docs/manuals/Fresh-Computer-Setup.md) and [build guide](docs/manuals/Build-and-Installation.md) for development tools and exact runtime inputs. Hosted-CI build commands are compile-only checks, not runnable installer recipes. A complete clone-to-launch procedure on a fresh computer remains unverified; do not bypass runtime integrity checks or rebuild over a working installation.
-
-| You want to… | Open this |
-| --- | --- |
-| Try the app | [Install and open the packaged app](#setup-and-first-use) |
-| Set up a new computer | [Packaged app and model setup](#setup-and-first-use) |
-| Obtain a model | [IBM Granite model downloads](docs/manuals/Download-a-Model.md) |
-| Learn the workflow | [User manual](docs/manuals/User-Manual.md) |
-| Understand a warning or missing choice | [Known limitations and troubleshooting](docs/manuals/Known-Limitations.md) |
-| Work on the source | [Developer guide](docs/manuals/Developer-Manual.md) |
-| See what actually passed | [Application test evidence](docs/testing/application-verification/README.md) |
-| Read the experimental findings | [Final experiment results](docs/testing/final-results/README.md) |
-| Check the release handover | [Release record](release-evidence/README.md) |
-
-## What to expect
-
-Choose a local GGUF file or complete OpenVINO folder, or use the recommended download route. The app inspects the model, checks the computer and presents available configurations before execution.
-
-A hardware-fit result is an estimate, not a guarantee. Choices depend on the model, the exact verified runtime and current memory/disk checks. Weight quantisation and KV-cache optimisation are different settings; a lower-memory choice is not automatically faster or better.
-
-The recorded checks used selected models on an Intel Windows computer with about 16 GB of RAM. They do not establish a universal minimum specification. Obtain the complete verified package before trying the app: a compile-only CI build does not include every native dependency.
-
-### Your first model-to-chat run
-
-1. Open the installed app. Select any offered download preference, or choose a local model. The built-in catalogue supplies IBM Granite 4.0 H Micro GGUF models; it does not download OpenVINO packages.
-2. Wait for model inspection. Read warnings and use the recovery action shown if it cannot continue.
-3. Run hardware inspection and read the fit result. Close memory-heavy programs if needed, then use the available recovery path for a new check.
-4. Review the setup and optimise if offered. Wait for output validation before saving or using the result.
-5. Open chat and try a harmless prompt, such as “What is the difference between a CPU and RAM?” Check the reply before relying on it.
-
-For an offline demonstration, obtain all files first, disconnect, then start a new prompt. Do not expect model downloads to work offline. Before resetting or uninstalling, close the app and follow the [backup guidance](docs/manuals/User-Manual.md#keep-a-backup-before-repair-or-removal).
-
-### Common setup problems
-
-| Problem | What to do |
-| --- | --- |
-| Missing worker or integrity error | Check that the runtime stage and its hash belong to the same build. Do not replace individual DLLs or bypass checks. |
-| App compiles but inspection fails | A compile-only output may lack required runtime inputs. Review the setup guide before treating it as a release. |
-| Model does not fit | Available memory changes. Read the estimate and use the offered recovery or lower-memory choice. |
-| Fewer slider choices than expected | Check the selected model, runtime identity, memory and disk limits. Missing choices are not automatically a display bug. |
-| Need to report a problem | Include the commit/package, route and diagnostic code. Remove private paths and prompts; follow [support](SUPPORT.md). |
-
-## Build, test and reproduce results
-
-Use the [build guide](docs/manuals/Build-and-Installation.md) for commands and the [developer guide](docs/manuals/Developer-Manual.md) for the code structure. Do not rebuild over your only working installation.
-
-The [test index](tests/README.md) explains the test projects and runners. Real-model tests require their documented inputs. Check the result files for executed, failed and skipped counts: a skipped test is not a pass. [CI scope](docs/testing/CI-Test-Scope.md) records exclusions and deferred issues.
-
-For research results, start with the [experiment reproduction guide](docs/testing/final-results/REPRODUCING.md). Keep those results separate from application tests. A successful standalone runtime experiment does not prove that the application completed the same operation.
-
-## Current evidence and limits
-
-Three automated inspection journeys passed with no failures or skips: GGUF through compatibility, OpenVINO through enabled configuration, and invalid-GGUF recovery. The developer also reported a separate offline inspection, optimisation, export and chat journey.
-
-These checks do not cover every model, slider choice or error case. Clean-machine installation and a formal user study were not confirmed, and some recovery and accessibility issues remain. See the linked evidence and limitations rather than treating a green CI result as full release acceptance.
-
-## Repository layout
-
-- `IBM Granite with TurboQuant (Intel)`: application source.
-- `shared`, `infrastructure`, `runtime`, `workers`: rules, contracts and runtime integration.
-- `tests`: application tests and fixtures.
-- `experiments`: experiment inputs, scripts and results.
-- `docs`: guides, design, evidence and project records.
-- `report`: report-location information.
-- `release-evidence`: release handover and its open checks.
-
-For the project background, use the [scope baseline](docs/planning/Project-Definition-v1.md), [requirements](docs/requirements/Requirements-Traceability-Matrix.md), [traceability index](docs/traceability/README.md) and [documentation index](docs/README.md).
-
-## Responsible use
-
-For help, see [support](SUPPORT.md). Contributors should read [CONTRIBUTING.md](CONTRIBUTING.md). Security concerns have a separate [reporting guide](SECURITY.md). The [licence status](docs/manuals/Licence-Status.md) explains the outstanding owner decision.
-
-This is a research prototype, not a clinical system or a replacement for professional judgement. Do not use real patient or pupil data. Review generated answers before relying on them.
-
-Large models and third-party build outputs are not stored in Git. Preserve upstream licence notices when distributing runtime files. Do not assume a root project licence or redistribution permission that has not been supplied.
-
-Measured results, estimates and published claims are kept separate. The recorded evidence—not the existence of a folder or test name—determines what is verified.

@@ -1,6 +1,6 @@
 # Manuals
 
-New to the project? Start with [Run the app](Run-the-App.md). It gives the exact launch command for the prepared computer and explains the remaining setup needed for another PC. Then follow the user guide.
+New to the project? Start with [Granite installation and model setup](Granite-Start-Here.md). It covers the packaged app, launch and model preparation without building the source. Then follow the user guide. [Run the app](Run-the-App.md) also retains the historical demonstration-computer details.
 
 For a fresh checkout, read [Set up from source](Fresh-Computer-Setup.md). It maps the native inputs to the checked-in scripts and states which preparation steps are still missing.
 

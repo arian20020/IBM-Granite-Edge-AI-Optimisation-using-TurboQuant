@@ -4,6 +4,8 @@ Granite is a Windows desktop research application for running selected IBM Grani
 
 Start with [Run the app](Run-the-App.md), then [Download a model](Download-a-Model.md). You do not need to build the source to use a prepared installation.
 
+For installation on your own computer, use the [starter guide](Granite-Start-Here.md). Follow its complete command blocks rather than combining commands from an older guide. Before importing the OneDrive OpenVINO model, complete Step 6 to verify, extract and remove Windows download marks. Select `C:\Downloads\Granite-4.1-3B-OpenVINO-Raw`, not the ZIP or a surrounding folder.
+
 ## Before you start
 
 For a first attempt, use the Balanced GGUF example in the download guide. You do not need to try every model or both runtimes. Finish one journey before starting another. Here, **maintainer** means the project developer who supplied the demonstration installation; see [support](../../SUPPORT.md) if you need help.
@@ -56,6 +58,8 @@ Choices depend on the model, verified runtime evidence, RAM and disk checks. You
 The recommended-download slider chooses a file to download. The later configuration slider chooses an available setup for the selected model. They are not interchangeable.
 
 Choose **Start optimisation** only after reviewing the setup. If the selection is no longer available, return to compatibility and check again through the offered navigation. Do not keep forcing an unavailable choice.
+
+If the OpenVINO recovery screen offers **Import model again**, free up storage if needed, keep the original model folder and use that button to restart import and the resource checks. Freeing space alone does not refresh an earlier configuration.
 
 ## 5. Optimise, save and chat
 

@@ -31,6 +31,10 @@ The actions below are recovery suggestions, not proof of a cause. In particular,
 
 | What you see | What it means / what to do |
 | --- | --- |
+| Setup ZIP checksum mismatch | Use the current [starter guide](Granite-Start-Here.md) and complete Step 1. Step 2 accepts numbered browser filenames but only the expected checksum. Do not change the checksum to match an unknown ZIP. |
+| Old extraction has missing or extra files | The current guide uses `C:\Downloads\Granite-Edge-AI-Setup-1.0.3`, leaving older setup folders alone. If that versioned folder differs, rename only that setup folder before repeating Step 2. Preserve models. |
+| OpenVINO package_unsafe_path after browser download | Complete Step 6 of the starter guide. It removes Windows download marks only after verifying the model files and prepares the correct folder. If the error persists, report it; do not bypass unsafe-path checks. |
+| OpenVINO asks to import the model again | Free up storage if needed, then use **Import model again** and repeat inspection. Keep the original model folder. |
 | Continue is disabled after local selection | Wait for the quick scan. Read any input failure and choose a complete supported source. |
 | Model inspection could not start / runtime_load_failed | A required runtime could not be used. Record the code and check that the installed package is the expected complete package. Do not replace DLLs or bypass verification. |
 | Invalid evidence / runtime_protocol_failed | The runtime result was rejected. Record the message and package identity; use the offered recovery. A different model is not guaranteed to fix a package problem. |
