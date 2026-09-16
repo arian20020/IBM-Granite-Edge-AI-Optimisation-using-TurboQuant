@@ -1307,7 +1307,7 @@ public sealed record CompatibilityScreenModel
             || WeightQuantisationMap.FromGgufFileType(
                 input.Facts.FileType,
                 input.Facts.QuantisationVersion) != WeightQuantisation.Q4_K_M
-                && !IsPinnedQ3CurrentSource(input))
+                && !IsPinnedDownloadCurrentSource(input))
         {
             return false;
         }
@@ -1356,15 +1356,31 @@ public sealed record CompatibilityScreenModel
         return true;
     }
 
-    private static bool IsPinnedQ3CurrentSource(
+    private static bool IsPinnedDownloadCurrentSource(
         CompatibilityOptimizationProjectionInput input) =>
         // The unchanged pinned download can retain its independent memory
         // verdict without becoming an evidence-qualified optimisation candidate.
-        string.Equals(input.Binding.ModelSha256,
-            "bb684177d546a2c6d3aec9cc591fc8fa75d9c16a27e798cbb2400fe52d9b7e29",
-            StringComparison.Ordinal)
-        && input.Binding.ModelLengthBytes == 1_555_472_032UL
-        && input.Facts.FileType == 12
+        // Match the exact catalogue bytes and encoding, never just a file name.
+        (input.Facts.FileType switch
+        {
+            10 => input.Binding.ModelLengthBytes == 1_226_247_840UL
+                && string.Equals(input.Binding.ModelSha256,
+                    "e60b313fc0ce2a0a2c3903f4399ac61fe1048c38f219bcbd9f7a708e168b8ead",
+                    StringComparison.Ordinal),
+            12 => input.Binding.ModelLengthBytes == 1_555_472_032UL
+                && string.Equals(input.Binding.ModelSha256,
+                    "bb684177d546a2c6d3aec9cc591fc8fa75d9c16a27e798cbb2400fe52d9b7e29",
+                    StringComparison.Ordinal),
+            17 => input.Binding.ModelLengthBytes == 2_273_455_776UL
+                && string.Equals(input.Binding.ModelSha256,
+                    "69857575412143ea74d66e4d54ad70ec420d42452eadfff4a7cc043fe445ed4c",
+                    StringComparison.Ordinal),
+            7 => input.Binding.ModelLengthBytes == 3_397_676_704UL
+                && string.Equals(input.Binding.ModelSha256,
+                    "a009111abf2865b7aad1e66326a6c772cddc29bccd22898f470292068b27bb59",
+                    StringComparison.Ordinal),
+            _ => false
+        })
         && input.Facts.QuantisationVersion == 2
         && input.Facts.LayerCount == 40
         && input.Facts.EmbeddingSize == 2048

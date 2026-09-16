@@ -442,13 +442,11 @@ internal sealed class GgufOptimizationProductionAuthority
             {
                 return null;
             }
-            string configurationSha =
-                _currentPayload.ComputeRuntimeConfigurationSha256();
-            var current = new CurrentCompatibleConfiguration(
-                OptimizationRoute.Gguf,
-                _currentPayload,
-                configurationSha,
-                $"compat-{configurationSha[..24]}");
+            CurrentCompatibleConfiguration current =
+                CurrentModelLaunchHandoff.CreateGgufConfiguration(
+                    _prepared.ModelInspectionHandoffId,
+                    _prepared.ProductHardwareRunId,
+                    _currentPayload);
             CurrentModelLaunchHandoff handoff = CurrentModelLaunchHandoff.Create(
                 OptimizationRoute.Gguf,
                 _prepared.ModelInspectionRunId,

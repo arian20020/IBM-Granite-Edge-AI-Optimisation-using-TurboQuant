@@ -1,6 +1,9 @@
 using System;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Presentation;
 
 namespace GraniteEdgeAI.Features.ModelHardwareCompatibility.Contracts;
@@ -38,6 +41,27 @@ internal sealed record CurrentModelLaunchHandoff
     public string HardwareSnapshotSha256 { get; }
     public string RuntimeConfigurationSha256 { get; }
     public string CompatibilityDecisionId { get; }
+
+    internal static CurrentCompatibleConfiguration CreateGgufConfiguration(
+        Guid inspectionHandoffId,
+        Guid hardwareRunId,
+        OptimizationExecutionPayload payload)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        if (!IsUuidV4(inspectionHandoffId) || !IsUuidV4(hardwareRunId)
+            || inspectionHandoffId == hardwareRunId)
+        {
+            throw new ArgumentException("The current configuration requires distinct inspection and hardware runs.");
+        }
+        string digest = payload.ComputeRuntimeConfigurationSha256();
+        // Runtime settings can be identical across models and re-inspections.
+        // Keep each validated journey separate in the launch registry.
+        string decisionDigest = Convert.ToHexString(SHA256.HashData(
+            Encoding.UTF8.GetBytes($"{inspectionHandoffId:N}:{hardwareRunId:N}:{digest}")))
+            .ToLowerInvariant();
+        return new CurrentCompatibleConfiguration(
+            OptimizationRoute.Gguf, payload, digest, $"compat-{decisionDigest}");
+    }
 
     internal static CurrentModelLaunchHandoff Create(
         OptimizationRoute route,

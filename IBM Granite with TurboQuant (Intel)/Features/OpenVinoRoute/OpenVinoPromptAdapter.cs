@@ -128,7 +128,7 @@ public sealed class OpenVinoPromptAdapter : IAsyncDisposable
             new OpenVinoGenerationLimits(
                 OpenVinoRouteCapability.MaximumContextTokens,
                 OpenVinoRouteCapability.MaximumRequestedNewTokens),
-            runtimeOptions) { InitialHistory = initialHistory };
+            runtimeOptions) { InitialHistory = initialHistory is { Count: > 0 } ? initialHistory : null };
         IOpenVinoPromptChannel channel;
         try
         {

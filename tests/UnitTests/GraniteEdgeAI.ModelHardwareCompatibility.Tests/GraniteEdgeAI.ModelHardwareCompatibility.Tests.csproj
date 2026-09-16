@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Compile Include="..\..\..\IBM Granite with TurboQuant (Intel)\Features\ModelHardwareCompatibility\Contracts\CurrentModelLaunchHandoff.cs" Link="Production\CurrentModelLaunchHandoff.cs" />
+  </ItemGroup>
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>

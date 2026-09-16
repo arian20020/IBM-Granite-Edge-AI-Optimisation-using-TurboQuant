@@ -123,7 +123,9 @@ public sealed class OfficialCpuFixtureTests
 
     [TestMethod]
     [TestCategory("StableRouteAcceptance")]
-    public async Task RealCpuU8KvCacheRequestIsAppliedAndReportedBeforeGeneration()
+    [DataRow("u8")]
+    [DataRow("u4")]
+    public async Task RealCpuKvCacheRequestIsAppliedAndReportedBeforeGeneration(string cachePrecision)
     {
         string stage = RequireStage("OPENVINO_OFFICIAL_WORKER_STAGE_A");
         string package = LocateCanonicalPackage();
@@ -138,11 +140,11 @@ public sealed class OfficialCpuFixtureTests
                     ModelLength,
                     new OpenVinoDeviceRequest("CPU"),
                     new OpenVinoGenerationLimits(64, 2),
-                    OpenVinoRuntimeOptions.U8),
+                    cachePrecision == "u4" ? OpenVinoRuntimeOptions.U4 : OpenVinoRuntimeOptions.U8),
                 CancellationToken.None).ConfigureAwait(false);
 
-        Assert.AreEqual("u8", conversation.StartupEvidence.RequestedKvCachePrecision);
-        Assert.AreEqual("u8", conversation.StartupEvidence.ActualKvCachePrecision);
+        Assert.AreEqual(cachePrecision, conversation.StartupEvidence.RequestedKvCachePrecision);
+        Assert.AreEqual(cachePrecision, conversation.StartupEvidence.ActualKvCachePrecision);
         List<TokenEvent> tokens = [];
         TurnCompletedEvent completed = Assert.IsInstanceOfType<TurnCompletedEvent>(
             await conversation.PromptAsync(

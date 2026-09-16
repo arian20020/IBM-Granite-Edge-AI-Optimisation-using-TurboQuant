@@ -617,6 +617,87 @@ public sealed class CompatibilityScreenProjectionTests
             "Preserving a current-model memory verdict must not admit optimisation candidates.");
     }
 
+    [TestMethod]
+    [DataRow(10)]
+    [DataRow(17)]
+    [DataRow(7)]
+    public void PinnedDownloadMemoryVerdictRequiresExactIdentityAndShape(int fileType)
+    {
+        (string sha, ulong length) = fileType switch
+        {
+            10 => ("e60b313fc0ce2a0a2c3903f4399ac61fe1048c38f219bcbd9f7a708e168b8ead", 1_226_247_840UL),
+            17 => ("69857575412143ea74d66e4d54ad70ec420d42452eadfff4a7cc043fe445ed4c", 2_273_455_776UL),
+            7 => ("a009111abf2865b7aad1e66326a6c772cddc29bccd22898f470292068b27bb59", 3_397_676_704UL),
+            _ => throw new ArgumentOutOfRangeException(nameof(fileType))
+        };
+        foreach (string variation in new[]
+        {
+            "exact", "other-sha", "other-length", "other-file-type",
+            "other-version", "other-layers", "other-embedding", "other-heads",
+            "other-kv-heads", "other-context", "missing-kv-heads"
+        })
+        {
+            foreach (CompatibilityFitState fit in new[]
+            {
+                CompatibilityFitState.Safe, CompatibilityFitState.Narrow,
+                CompatibilityFitState.DoesNotFit
+            })
+            {
+                var (snapshot, workload, _, _) = GenerateCurrentGgufProfile();
+                ulong actualLength = variation == "other-length" ? length + 1 : length;
+                var binding = OptimizationJourneyBinding.Create("mi", "handoff",
+                    variation == "other-sha" ? new string('a', 64) : sha,
+                    actualLength, "hw", Digest);
+                var facts = InspectedModelFacts.Create(ByteCount.FromBytes(actualLength),
+                    variation == "other-layers" ? 41 : 40,
+                    variation == "other-embedding" ? 4096 : 2048,
+                    variation == "other-heads" ? 16 : 32,
+                    variation == "missing-kv-heads" ? null : variation == "other-kv-heads" ? 4 : 8,
+                    variation == "other-context" ? 131_072 : 1_048_576,
+                    variation == "other-file-type" ? 18 : fileType,
+                    variation == "other-version" ? 1 : 2);
+                var generated = CrossRouteCandidateGenerator.Generate(snapshot, facts, workload, binding,
+                    ByteCount.FromBytes(32 * Gibibyte), ByteCount.FromBytes(500 * Gibibyte),
+                    EstimatorPolicy.ProvisionalV1(), new HashSet<string>(), HardwareAuthority(),
+                    PublishedGgufOptimizationEvidence.CreateCatalog(), inspectedParameterCount: null);
+                Assert.HasCount(0, generated.Candidates);
+                Assert.AreEqual(OptimizationExclusionReason.EvidenceBelowAdmissionLevel,
+                    generated.Exclusions.Single().Reason);
+                var configuration = GgufRouteConfiguration.Create(GgufWeightFormat.Imported,
+                    GgufKvCacheFormat.F16, CompatibilityBackend.Cpu, DeviceRouteId.Cpu, GpuOffloadLevel.None);
+                var baseline = EvaluatedForConfiguration(CandidatePreparation.None, fit, true,
+                    configuration, contextTokens: 32768);
+                var input = CompatibilityOptimizationProjectionInput.Create(generated, snapshot, facts,
+                    workload, binding, ByteCount.FromBytes(32 * Gibibyte), ByteCount.FromBytes(500 * Gibibyte),
+                    EstimatorPolicy.ProvisionalV1(), new HashSet<string>(), HardwareAuthority(),
+                    IdentityFor(baseline, binding));
+                var screen = CompatibilityScreenModel.From(CompletedWith(baseline), input);
+                CompatibilityScreenState expected = fit == CompatibilityFitState.DoesNotFit
+                    ? CompatibilityScreenState.NoEstimatedSafeConfiguration
+                    : variation == "exact"
+                        ? CompatibilityScreenState.EstimatedCompatible
+                        : CompatibilityScreenState.NotEstablished;
+                Assert.AreEqual(expected, screen.State, $"type={fileType}, {variation}, {fit}");
+                if (expected == CompatibilityScreenState.EstimatedCompatible)
+                {
+                    Assert.IsTrue(screen.UseCurrentModelAvailable);
+                    Assert.IsNotNull(screen.CurrentSetup);
+                    Assert.AreEqual(GgufKvCacheFormat.F16, screen.CurrentSetup.GgufKvCache,
+                        "The unchanged-model chat handoff must retain the assessed cache format.");
+                    Assert.IsFalse(screen.CurrentSetup.RequiresConversion);
+                    Assert.IsFalse(screen.CurrentSetup.IsExperimental);
+                }
+                else
+                {
+                    Assert.IsFalse(screen.UseCurrentModelAvailable);
+                }
+                Assert.IsNull(screen.Optimization);
+                Assert.HasCount(0, generated.Candidates,
+                    "A current-model memory verdict must not admit unverified optimisation candidates.");
+            }
+        }
+    }
+
     private static (OptimizationCapabilitySnapshot Snapshot,
         OptimizationWorkload Workload,
         OptimizationJourneyBinding Binding,

@@ -58,6 +58,7 @@ namespace GraniteEdgeAI.Features.ModelImport
         private int _isRetired;
         private ModelImportPresentationMode _presentationMode;
         private bool _presentationEntryActionStarted;
+        private int _browseInProgress;
 
         // Identifies the scan whose result is currently allowed to update the page.
         private CancellationTokenSource? _scanCancellationTokenSource;
@@ -181,6 +182,24 @@ namespace GraniteEdgeAI.Features.ModelImport
         internal event EventHandler<SourceModelConversionRequestedEventArgs>? SourceModelConversionRequested;
 
         internal async Task BrowseFilesAsync()
+        {
+            // Automatic entry and a user click can overlap. WinUI permits
+            // only one ContentDialog, so keep one picker flow until it ends.
+            if (Interlocked.CompareExchange(ref _browseInProgress, 1, 0) != 0)
+            {
+                return;
+            }
+            try
+            {
+                await BrowseFilesCoreAsync();
+            }
+            finally
+            {
+                Volatile.Write(ref _browseInProgress, 0);
+            }
+        }
+
+        private async Task BrowseFilesCoreAsync()
         {
             if (Volatile.Read(ref _isRetired) != 0)
             {

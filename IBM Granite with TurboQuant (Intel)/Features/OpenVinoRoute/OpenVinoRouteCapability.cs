@@ -21,8 +21,8 @@ public static class OpenVinoRouteCapability
     public const string Device = "CPU";
     public const string Maturity = "Official MVP";
     public const int MaximumContextTokens = 4_096;
-    public const int DefaultRequestedNewTokens = 4096;
-    public const int MaximumRequestedNewTokens = 4096;
+    public const int DefaultRequestedNewTokens = 512;
+    public const int MaximumRequestedNewTokens = 512;
     public const int MaximumPromptUtf8Bytes = 64 * 1024;
 
     public static IReadOnlyList<OpenVinoConfigurationCandidate> Candidates
