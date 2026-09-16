@@ -188,7 +188,23 @@ Download:
 
 Save them in your normal Downloads folder or `C:\Downloads`. Keep these exact names without `(1)` suffixes. The command also accepts earlier downloads in `C:\Downloads\Granite-Models`. Wait for both downloads to finish. Together they are about 7.36 GB; extraction needs about another 6.82 GB. Do not use `.partial` files or extract the ZIP manually.
 
-**If you downloaded the whole model folder instead:** OneDrive may wrap both models in another ZIP. Use File Explorer's **Extract All** on that outer ZIP and set the destination to `C:\Downloads`. If extraction puts the files inside another folder, move `granite-4.1-3b-Q4_K_M.gguf` and `Granite-4.1-3B-OpenVINO-Raw.zip` out of it and directly into `C:\Downloads`. Alternatively, open the outer ZIP in File Explorer and copy those two files directly into your normal Downloads folder (`C:\Users\<your username>\Downloads`). Wait for copying to finish. Keep the OpenVINO ZIP zipped at this point. Do not overwrite existing files blindly; if copies already exist, use the preparation command to check them first. The command does not search inside a folder-download ZIP or its nested folders. Continue with the preparation command below; do not import the outer folder. Keeping the outer ZIP and its extraction requires additional disk space.
+**If you downloaded the whole OneDrive model folder:** extracting that outer ZIP into Downloads is not enough if it leaves the models inside another folder.
+
+1. Extract the outer OneDrive ZIP, then open the resulting folder.
+2. Find `granite-4.1-3b-Q4_K_M.gguf` and `Granite-4.1-3B-OpenVINO-Raw.zip`.
+3. Move those **two files directly into `C:\Downloads`**, not a folder inside it. Alternatively, copy both files directly out of the outer ZIP into your normal Downloads folder (`C:\Users\<your username>\Downloads`). Wait for copying to finish.
+4. **Keep the OpenVINO model ZIP zipped**, then run the preparation command below. The command extracts it to `C:\Downloads\Granite-4.1-3B-OpenVINO-Raw` and removes Windows download marks after verification.
+
+For example, the files should be at:
+
+```text
+C:\Downloads\granite-4.1-3b-Q4_K_M.gguf
+C:\Downloads\Granite-4.1-3B-OpenVINO-Raw.zip
+```
+
+They must not remain at a path such as `C:\Downloads\IBM Granite Models\...`. The preparation command does not search nested folders or read models from inside the outer ZIP. Do not overwrite existing files blindly; if copies already exist, use the preparation command to check them first. Keeping the outer ZIP and its extraction requires additional disk space.
+
+If you already extracted the OpenVINO model manually, you still need its original ZIP in Downloads and must run preparation. Merely moving the extracted model folder does not remove Windows download marks. An existing output folder must match the verified ZIP; do not bypass a mismatch error.
 
 **IMPORTANT: Run the following command after downloading the OpenVINO ZIP and before importing it. Otherwise Windows download marks can cause `package_unsafe_path`.** It verifies both complete downloads, extracts OpenVINO directly to **C:\Downloads\Granite-4.1-3B-OpenVINO-Raw**, and removes the download marks from verified files. It does not open File Explorer or download the models through PowerShell.
 
