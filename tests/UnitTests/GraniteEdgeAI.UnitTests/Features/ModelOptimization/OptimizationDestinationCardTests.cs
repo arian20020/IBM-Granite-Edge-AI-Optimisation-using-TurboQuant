@@ -23,6 +23,168 @@ namespace GraniteEdgeAI.UnitTests.Features.ModelOptimization;
 [TestClass]
 public sealed class OptimizationDestinationCardTests
 {
+    public TestContext TestContext { get; set; } = null!;
+
+    private string? TestParameter(string name) =>
+        TestContext.Properties.TryGetValue(name, out object? value) ? value?.ToString() : null;
+
+    [UITestMethod]
+    public async Task OpenVinoReimportRendersAcrossThemesAndNativeButtonRaisesImportIntent()
+    {
+        var settings = new Windows.UI.ViewManagement.UISettings();
+        if (double.TryParse(TestParameter("ExpectedTextScaleFactor"),
+            System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture,
+            out double expectedScale))
+        {
+            Assert.AreEqual(expectedScale, settings.TextScaleFactor, 0.01,
+                "The real Windows text-scale setting must match this accessibility run.");
+        }
+        if (bool.TryParse(TestParameter("ExpectedAnimationsEnabled"), out bool expectedAnimations))
+        {
+            Assert.AreEqual(expectedAnimations, settings.AnimationsEnabled,
+                "The real Windows animation setting must match this accessibility run.");
+        }
+        if (bool.TryParse(TestParameter("ExpectedHighContrast"), out bool expectedContrast))
+        {
+            Assert.AreEqual(expectedContrast, new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast);
+        }
+        string captureSuffix = $"scale-{settings.TextScaleFactor:0.##}-motion-{settings.AnimationsEnabled}-contrast-{new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast}";
+        var entry = OptimizationSelectionHandoffTests.RequiredJourneyEntry(OptimizationRoute.OpenVino);
+        var page = new GraniteEdgeAI.Features.ModelOptimization.OptimizationPage(entry);
+        try
+        {
+        var plan = entry.OptimizationHandoff.Plan;
+        page.ApplyPresentation(OptimizationPresentationFactory.ReplanRequired(
+            plan.Preference, OptimizationConfigurationProjection.From(plan), plan.Route));
+        foreach (ElementTheme theme in new[] { ElementTheme.Light, ElementTheme.Dark })
+        {
+            page.RequestedTheme = theme;
+            foreach (int width in new[] { 640, 1200 })
+            {
+                await using var host = await WinUiRenderHost.ShowAsync(page, width, 800);
+                RenderedFrame frame = await host.CaptureAsync();
+                TestContext.AddResultFile(await frame.SavePngAsync($"openvino-reimport-{theme}-{width}-{captureSuffix}.png"));
+                Button action = (Button)page.FindName("BtnOptimizationPrimary");
+                Assert.IsTrue(action.ActualWidth > 0 && action.ActualHeight > 0);
+                Assert.AreEqual("Import model again", AutomationProperties.GetName(action));
+                Assert.IsTrue(action.Focus(FocusState.Keyboard));
+                if (bool.TryParse(TestParameter("CheckButtonTextClipping"), out bool checkClipping)
+                    && checkClipping)
+                {
+                    TextBlock text = DescendantText(action).Single(item => item.Text == "Import model again");
+                    Assert.IsFalse(text.IsTextTrimmed, "The recovery label must not be trimmed.");
+                    Assert.IsTrue(action.ActualHeight - action.Padding.Top - action.Padding.Bottom + 1 >= text.ActualHeight,
+                        $"Button inner height {action.ActualHeight - action.Padding.Top - action.Padding.Bottom} clips its {text.ActualHeight} high label.");
+                    Assert.IsTrue(action.ActualWidth - action.Padding.Left - action.Padding.Right + 1 >= text.ActualWidth,
+                        $"Button inner width {action.ActualWidth - action.Padding.Left - action.Padding.Right} clips its {text.ActualWidth} wide label.");
+                    Windows.Foundation.Point position = action.TransformToVisual(page)
+                        .TransformPoint(new Windows.Foundation.Point());
+                    Assert.IsTrue(position.X >= 0 && position.X + action.ActualWidth <= page.ActualWidth + 1,
+                        "The recovery button must remain within the compact viewport.");
+                    var unconstrained = new TextBlock
+                    {
+                        Text = text.Text, FontSize = text.FontSize, FontFamily = text.FontFamily,
+                        FontWeight = text.FontWeight, FontStyle = text.FontStyle,
+                        IsTextScaleFactorEnabled = text.IsTextScaleFactorEnabled
+                    };
+                    unconstrained.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+                    Assert.IsTrue(text.ActualHeight + 1 >= unconstrained.DesiredSize.Height,
+                        $"Recovery text needs {unconstrained.DesiredSize.Height} high but has {text.ActualHeight}.");
+                    Assert.IsTrue(text.ActualWidth + 1 >= unconstrained.DesiredSize.Width,
+                        $"Recovery text needs {unconstrained.DesiredSize.Width} wide but has {text.ActualWidth}.");
+                }
+            }
+        }
+        var requested = new TaskCompletionSource<OptimizationCommand>();
+        page.IntentRequested += (_, args) => requested.TrySetResult(args.Command);
+        await using (var host = await WinUiRenderHost.ShowAsync(page, 1200, 800))
+        {
+            page.ApplyPresentation(OptimizationPresentationFactory.ReplanRequired(
+                plan.Preference, OptimizationConfigurationProjection.From(plan), plan.Route));
+            if (int.TryParse(TestParameter("ReimportReviewPauseSeconds"), out int pause))
+            {
+                await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(pause, 0, 120)));
+            }
+            Button action = (Button)page.FindName("BtnOptimizationPrimary");
+            ((IInvokeProvider)new ButtonAutomationPeer(action).GetPattern(PatternInterface.Invoke)).Invoke();
+            Assert.AreEqual(OptimizationCommand.ImportAnotherModel,
+                await requested.Task.WaitAsync(TimeSpan.FromSeconds(3)));
+            Assert.IsTrue(page.CanCompleteImportNavigation);
+        }
+        }
+        finally
+        {
+        await page.RetireForNavigationAsync();
+        }
+    }
+
+    private static System.Collections.Generic.IEnumerable<TextBlock> DescendantText(DependencyObject root)
+    {
+        for (int index = 0; index < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            DependencyObject child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, index);
+            if (child is TextBlock text) yield return text;
+            foreach (TextBlock nested in DescendantText(child)) yield return nested;
+        }
+    }
+
+    [UITestMethod]
+    public async Task OpenVinoReplanHasOneAccessibleImportActionAndRejectsDuplicateOrRetiredIntents()
+    {
+        var page = new GraniteEdgeAI.Features.ModelOptimization.OptimizationPage();
+        OptimizationPresentationState seed = OptimizationFixtureCatalog.All.Single(
+            item => item.Id == "replan-required").Presentation;
+        page.ApplyPresentation(OptimizationPresentationFactory.ReplanRequired(
+            seed.Preference!, seed.Configuration, OptimizationRoute.OpenVino));
+        Button primary = (Button)page.FindName("BtnOptimizationPrimary");
+        Assert.AreEqual("Import model again", primary.Content);
+        Assert.AreEqual("Import model again",
+            Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(primary));
+        Assert.AreEqual(Visibility.Visible, primary.Visibility);
+        Assert.IsTrue(primary.IsEnabled);
+        Assert.AreEqual(Visibility.Collapsed,
+            ((Button)page.FindName("BtnOptimizationTerminalBack")).Visibility);
+        Assert.AreEqual(Visibility.Collapsed,
+            ((Button)page.FindName("BtnOptimizationAlternative")).Visibility);
+        var begin = typeof(GraniteEdgeAI.Features.ModelOptimization.OptimizationPage)
+            .GetMethod("TryBeginImportNavigation", System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.NonPublic)!;
+        Assert.AreEqual(true, begin.Invoke(page, null));
+        Assert.AreEqual(false, begin.Invoke(page, null));
+        Assert.IsTrue(page.CanCompleteImportNavigation);
+        Assert.IsFalse(primary.IsEnabled);
+        page.CancelImportNavigation();
+        Assert.IsTrue(primary.IsEnabled);
+        await page.RetireForNavigationAsync();
+        Assert.AreEqual(false, begin.Invoke(page, null));
+        Assert.IsFalse(page.CanCompleteImportNavigation);
+    }
+
+    [UITestMethod]
+    public void GgufReplanAndOtherFailuresDoNotAllowImportNavigation()
+    {
+        var page = new GraniteEdgeAI.Features.ModelOptimization.OptimizationPage();
+        var seed = OptimizationFixtureCatalog.All.Single(item => item.Id == "replan-required").Presentation;
+        page.ApplyPresentation(OptimizationPresentationFactory.ReplanRequired(seed.Preference!, seed.Configuration, OptimizationRoute.OpenVino));
+        var primary = (Button)page.FindName("BtnOptimizationPrimary");
+        Assert.IsTrue(double.IsNaN(primary.Height));
+        Assert.IsTrue(double.IsPositiveInfinity(primary.MaxWidth));
+        foreach (string id in new[] { "replan-required", "failed", "cancelled", "confirmation" })
+        {
+            page.ApplyPresentation(OptimizationFixtureCatalog.All.Single(item => item.Id == id).Presentation);
+            Assert.IsFalse(page.CanImportAnotherModel, id);
+            Assert.IsFalse(page.CanCompleteImportNavigation, id);
+            if (id != "confirmation")
+            {
+                Assert.AreEqual(44d, primary.Height, id);
+                Assert.AreEqual(240d, primary.MaxWidth, id);
+            }
+        }
+        page.ApplyPresentation(OptimizationFixtureCatalog.All.Single(
+            item => item.Id == "replan-required").Presentation);
+        Assert.AreEqual("Review again", ((Button)page.FindName("BtnOptimizationTerminalBack")).Content);
+    }
+
     [UITestMethod]
     [TestCategory("EstimatedProgress")]
     public void OpaqueExportDisclosesEstimateWithoutClaimingPublication()

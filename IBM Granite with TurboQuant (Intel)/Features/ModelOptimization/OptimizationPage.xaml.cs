@@ -709,8 +709,8 @@ public sealed partial class OptimizationPage : Page
     {
         IReadOnlyList<OptimizationActionPresentation> actions = presentation.Actions;
         OptimizationActionPresentation? back = actions.FirstOrDefault(
-            action => action.Command is OptimizationCommand.BackToCompatibility
-                or OptimizationCommand.ImportAnotherModel);
+            action => action.Command == OptimizationCommand.BackToCompatibility
+                || action.Command == OptimizationCommand.ImportAnotherModel && !action.IsPrimary);
         OptimizationActionPresentation? primary = actions.FirstOrDefault(
             action => action.IsPrimary
                 && action.Command != OptimizationCommand.BackToCompatibility);
@@ -722,6 +722,11 @@ public sealed partial class OptimizationPage : Page
         ApplyAction(BtnOptimizationTerminalBack, back);
         ApplyAction(BtnOptimizationAlternative, alternative);
         ApplyAction(BtnOptimizationPrimary, primary);
+        bool isReimportRecovery = presentation.Kind == OptimizationPageStateKind.ReplanRequired
+            && actions.Count == 1
+            && primary?.Command == OptimizationCommand.ImportAnotherModel;
+        BtnOptimizationPrimary.Height = isReimportRecovery ? double.NaN : 44;
+        BtnOptimizationPrimary.MaxWidth = isReimportRecovery ? double.PositiveInfinity : 240;
         OptimizationTerminalForwardActions.Visibility =
             alternative is null && primary is null ? Visibility.Collapsed : Visibility.Visible;
     }
@@ -1128,15 +1133,21 @@ public sealed partial class OptimizationPage : Page
     internal bool IsImportNavigationPending =>
         Volatile.Read(ref _importNavigationPending) != 0;
 
+    private bool IsImportNavigationPresentation =>
+        _presentation is
+            { Kind: OptimizationPageStateKind.SucceededPersistent
+                or OptimizationPageStateKind.SucceededRuntimeProfile }
+        || _presentation is { Kind: OptimizationPageStateKind.ReplanRequired } recovery
+            && recovery.Actions.Count == 1
+            && recovery.Actions[0].Command == OptimizationCommand.ImportAnotherModel;
+
     internal bool CanImportAnotherModel
     {
         get
         {
             if (Volatile.Read(ref _isRetired) != 0
                 || IsImportNavigationPending
-                || _presentation is not
-                    { Kind: OptimizationPageStateKind.SucceededPersistent
-                        or OptimizationPageStateKind.SucceededRuntimeProfile })
+                || !IsImportNavigationPresentation)
             {
                 return false;
             }
@@ -1151,9 +1162,7 @@ public sealed partial class OptimizationPage : Page
     internal bool CanCompleteImportNavigation =>
         IsImportNavigationPending
         && Volatile.Read(ref _isRetired) == 0
-        && _presentation is
-            { Kind: OptimizationPageStateKind.SucceededPersistent
-                or OptimizationPageStateKind.SucceededRuntimeProfile }
+        && IsImportNavigationPresentation
         && _exportController?.IsCleanupPending != true
         && _exportController?.State.Kind is not OptimizationExportStateKind.Running
             and not OptimizationExportStateKind.Cancelling;
@@ -1180,6 +1189,10 @@ public sealed partial class OptimizationPage : Page
         if (BtnOptimizationTerminalBack.Tag is OptimizationCommand.ImportAnotherModel)
         {
             BtnOptimizationTerminalBack.IsEnabled = CanImportAnotherModel;
+        }
+        if (BtnOptimizationPrimary.Tag is OptimizationCommand.ImportAnotherModel)
+        {
+            BtnOptimizationPrimary.IsEnabled = CanImportAnotherModel;
         }
     }
 

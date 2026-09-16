@@ -1,4 +1,5 @@
 using Microsoft.UI.Text;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -23,6 +24,8 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
         private bool _isRestoringInspectionStatus;
         private bool _hasAppliedStage;
         private readonly UISettings _uiSettings = new();
+        private readonly DispatcherQueue _uiDispatcherQueue;
+        private volatile bool _isUnloaded;
         private Storyboard? _chooseToInspectConnectorStoryboard;
         private Storyboard? _inspectToFitConnectorStoryboard;
         private Storyboard? _fitToConfigureConnectorStoryboard;
@@ -97,6 +100,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
         /// </summary>
         public OnboardingStageIndicator()
         {
+            _uiDispatcherQueue = DispatcherQueue;
             InitializeComponent();
             ActualThemeChanged += (_, _) => ApplyStage(CurrentStage);
             _uiSettings.AnimationsEnabledChanged +=
@@ -677,9 +681,28 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
             UISettings sender,
             UISettingsAnimationsEnabledChangedEventArgs args)
         {
-            if (!sender.AnimationsEnabled)
+            if (_isUnloaded)
             {
-                StopConnectorAnimationsAndSnap();
+                return;
+            }
+
+            void ApplyAnimationSetting()
+            {
+                if (!_isUnloaded && !sender.AnimationsEnabled)
+                {
+                    StopConnectorAnimationsAndSnap();
+                }
+            }
+
+            if (_uiDispatcherQueue.HasThreadAccess)
+            {
+                ApplyAnimationSetting();
+            }
+            else
+            {
+                // UISettings can notify from a worker thread. Rejected work
+                // during teardown must not fall back to touching XAML here.
+                _ = _uiDispatcherQueue.TryEnqueue(ApplyAnimationSetting);
             }
         }
 
@@ -687,6 +710,7 @@ namespace GraniteEdgeAI.Features.Onboarding.Controls
             object sender,
             RoutedEventArgs args)
         {
+            _isUnloaded = true;
             _uiSettings.AnimationsEnabledChanged -=
                 UiSettings_AnimationsEnabledChanged;
             Unloaded -= OnboardingStageIndicator_Unloaded;

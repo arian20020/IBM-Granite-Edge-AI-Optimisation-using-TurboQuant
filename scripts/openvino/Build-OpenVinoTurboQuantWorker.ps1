@@ -120,6 +120,12 @@ try {
     if ($LASTEXITCODE -ne 0 -or [string]$verifyOutput -cne 'turboquant_worker_manifest_valid') {
         Stop-Build
     }
+    $chatVerification = & $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+        -File (Join-Path $PSScriptRoot 'Test-OpenVinoTurboQuantChatProtocol.ps1') `
+        -StageDirectory $stageRoot
+    if ($LASTEXITCODE -ne 0 -or [string]$chatVerification -cne 'turboquant_chat_protocol_valid') {
+        Stop-Build
+    }
     $oldPath = $env:PATH
     try {
         $env:PATH = (Join-Path $nativeBuild 'Release') + ';' + $stageRoot + ';' + $oldPath

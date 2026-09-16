@@ -100,16 +100,23 @@ internal static class OptimizationPresentationFactory
 
     internal static OptimizationPresentationState ReplanRequired(
         OptimizationPreferenceSelection preference,
-        OptimizationConfigurationPresentation configuration) =>
+        OptimizationConfigurationPresentation configuration,
+        OptimizationRoute route = OptimizationRoute.Gguf) =>
         Terminal(
             OptimizationPageStateKind.ReplanRequired,
-            "Configuration needs another review",
-            "The model, computer, or available optimisation capability changed before work began.",
+            route == OptimizationRoute.OpenVino
+                ? "Import the model again"
+                : "Configuration needs another review",
+            route == OptimizationRoute.OpenVino
+                ? "This setup could not be revalidated. If storage is low, free up disk space, then import the model again and repeat the checks. Keep the model folder in the same location."
+                : "The model, computer, or available optimisation capability changed before work began.",
             OptimizationPresentationTone.Warning,
             preference,
             configuration,
             OptimizationSupportCode.CapabilityDrift,
-            [new(OptimizationCommand.BackToCompatibility, "Review again", true)]);
+            route == OptimizationRoute.OpenVino
+                ? [new(OptimizationCommand.ImportAnotherModel, "Import model again", true)]
+                : [new(OptimizationCommand.BackToCompatibility, "Review again", true)]);
 
     internal static OptimizationPresentationState Failed(
         OptimizationPreferenceSelection preference,

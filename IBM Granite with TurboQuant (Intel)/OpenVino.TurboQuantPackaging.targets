@@ -34,6 +34,10 @@
     <Exec
       Command="&quot;$(_OpenVinoTurboQuantPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoTurboQuantDigestVerifier)&quot; -Path &quot;$(_OpenVinoTurboQuantWorkerManifest)&quot; -ExpectedSha256 &quot;$(OpenVinoTurboQuantWorkerManifestSha256)&quot; -SuccessMessage turboquant_manifest_digest_valid -FailureMessage turboquant_manifest_digest_mismatch" />
 
+    <!-- A valid historical manifest is not proof of current chat-protocol support. -->
+    <Exec
+      Command="&quot;$(_OpenVinoTurboQuantPowerShell)&quot; -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(_OpenVinoTurboQuantRepositoryRoot)\scripts\openvino\Test-OpenVinoTurboQuantChatProtocol.ps1&quot; -StageDirectory &quot;$(_OpenVinoTurboQuantWorkerStage)&quot;" />
+
     <ItemGroup>
       <_OpenVinoTurboQuantWorkerFile Include="$(_OpenVinoTurboQuantWorkerStage)\**\*" />
       <Content Include="@(_OpenVinoTurboQuantWorkerFile)">

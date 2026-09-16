@@ -1510,7 +1510,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 OptimizationJourneyKind.ReplanRequired =>
                     OptimizationPresentationFactory.ReplanRequired(
                         preference,
-                        configuration),
+                        configuration,
+                        plan.Route),
                 OptimizationJourneyKind.Failed =>
                     OptimizationPresentationFactory.Failed(
                         preference,
@@ -1768,7 +1769,9 @@ namespace GraniteEdgeAI.Features.Onboarding
                     || !ReferenceEquals(_attachedOptimizationPage, sourcePage)
                     || !ReferenceEquals(StageFrame.Content, sourcePage)
                     || CurrentStage != OnboardingStage.ConfigureModel
-                    || coordinator.State.Result is not { IsSuccessful: true }
+                    || (coordinator.State.Result is not { IsSuccessful: true }
+                        && !(coordinator.State.Kind == OptimizationJourneyKind.ReplanRequired
+                            && coordinator.State.Entry.OptimizationHandoff.Plan.Route == OptimizationRoute.OpenVino))
                     || !sourcePage.CanCompleteImportNavigation)
                 {
                     sourcePage.CancelImportNavigation();

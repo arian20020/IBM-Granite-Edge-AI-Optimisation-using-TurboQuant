@@ -17,6 +17,28 @@ public sealed class TurboQuantWorkerTests
     private static readonly Guid TurnId = Guid.Parse("7b64c420-0d6d-4d13-8d2f-a5c09a1b05a2");
 
     [TestMethod]
+    public void PackagedApplicationBindsItsTurboQuantWorkerManifest()
+    {
+        string? layout = Environment.GetEnvironmentVariable("GRANITE_APP_LAYOUT");
+        if (string.IsNullOrWhiteSpace(layout))
+        {
+            Assert.Inconclusive("GRANITE_APP_LAYOUT must identify the application copy being tested.");
+        }
+        var assembly = System.Reflection.Assembly.LoadFile(Path.GetFullPath(
+            Path.Combine(layout, "IBM Granite with TurboQuant (Intel).dll")));
+        string? expected = assembly.GetCustomAttributesData()
+            .Where(attribute => attribute.AttributeType.FullName ==
+                "System.Reflection.AssemblyMetadataAttribute")
+            .Where(attribute => (string?)attribute.ConstructorArguments[0].Value ==
+                "OpenVinoTurboQuantWorkerManifestSha256")
+            .Select(attribute => (string?)attribute.ConstructorArguments[1].Value)
+            .SingleOrDefault();
+        Assert.IsFalse(string.IsNullOrWhiteSpace(expected), "The application has no TurboQuant worker identity.");
+        Assert.AreEqual(expected, Sha256(Path.Combine(layout, "OpenVino", "TurboQuant", "Worker",
+            "worker-manifest.json")), "The application was built for a different TurboQuant worker. Rebuild with the matching manifest digest; do not bypass verification.");
+    }
+
+    [TestMethod]
     public void TurboQuantHandshakeBindsExactSourceAndRuntimeClosure()
     {
         OpenVinoBuildEvidence evidence = BuildEvidence();
@@ -397,6 +419,50 @@ public sealed class TurboQuantWorkerTests
         2816,
         TurboQuantEvidenceOrigin.OpenVinoProfilingApi,
         true);
+
+    [TestMethod]
+    [DataRow("tbq3")]
+    [DataRow("tbq4")]
+    [Timeout(240_000)]
+    public async Task SealedWorkerReopensHistoryAndContinuesAfterTransientTitle(string codec)
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENVINO_TURBOQUANT_PACKAGE_ROOT")))
+        {
+            Assert.Inconclusive("This replay test requires an admitted real model through OPENVINO_TURBOQUANT_PACKAGE_ROOT; the 64-token synthetic fixture is not suitable.");
+        }
+        string stage = Environment.GetEnvironmentVariable("OPENVINO_TURBOQUANT_WORKER_STAGE")
+            ?? throw new InvalidOperationException("OPENVINO_TURBOQUANT_WORKER_STAGE is required.");
+        var (package, packageDigest, modelDigest, modelLength) = SelectedPackage(FindRepositoryRoot());
+        OpenVinoRuntimeOptions runtime = codec == "tbq3"
+            ? OpenVinoRuntimeOptions.Tbq3 : OpenVinoRuntimeOptions.Tbq4;
+        // Repeat preparation: switching away and back must not poison the next session.
+        for (int reopen = 0; reopen < 2; reopen++)
+        {
+            await using OpenVinoConversation conversation = await CreateClient(stage).StartSessionAsync(
+                new StartSessionCommand(Guid.NewGuid(), Guid.NewGuid(), package, packageDigest,
+                    modelDigest, modelLength, new OpenVinoDeviceRequest("CPU"),
+                    new OpenVinoGenerationLimits(4096, 32), runtime)
+                {
+                    InitialHistory = [new OpenVinoInitialTurn("user", "Hello"),
+                        new OpenVinoInitialTurn("assistant", "Hello. How can I help?")]
+                }, CancellationToken.None).ConfigureAwait(false);
+            foreach (bool title in new[] { true, false })
+            {
+                List<TokenEvent> tokens = [];
+                var result = await conversation.PromptAsync(
+                    new PromptCommand(conversation.SessionId, Guid.NewGuid(),
+                        title ? "Give this conversation a short title." : "Say hello again.", 8)
+                    { IsTransientTitle = title }, new InlineProgress<TokenEvent>(tokens.Add),
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.IsInstanceOfType<TurnCompletedEvent>(result);
+                Assert.IsGreaterThan(0, tokens.Count);
+                Assert.IsNotNull(conversation.LatestTurboQuantActivation);
+                Assert.AreEqual(codec == "tbq3" ? TurboQuantCodec.Tbq3 : TurboQuantCodec.Tbq4,
+                    conversation.LatestTurboQuantActivation.ActualKeyCodec);
+            }
+            await conversation.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+    }
 
     private static OpenVinoWorkerClient CreateClient(string stage)
     {

@@ -15,6 +15,101 @@ namespace GraniteEdgeAI.UnitTests;
 [TestClass]
 public sealed class OnboardingStageIndicatorTests
 {
+    public TestContext TestContext { get; set; } = null!;
+
+    private void AssertAnimationSetting(Windows.UI.ViewManagement.UISettings settings)
+    {
+        TestContext.WriteLine($"Actual AnimationsEnabled: {settings.AnimationsEnabled}");
+        if (TestContext.Properties.TryGetValue("ExpectedAnimationsEnabled", out object? expected)
+            && bool.TryParse(expected?.ToString(), out bool enabled))
+        {
+            Assert.AreEqual(enabled, settings.AnimationsEnabled);
+        }
+    }
+
+    [UITestMethod]
+    public async Task AnimationSettingCallbackFromWorkerUsesUiThreadAndCurrentStage()
+    {
+        var indicator = new OnboardingStageIndicator();
+        var settings = new Windows.UI.ViewManagement.UISettings();
+        AssertAnimationSetting(settings);
+        try
+        {
+            InvokeAnimationCallbackFromWorker(indicator, settings);
+            if (!settings.AnimationsEnabled)
+            {
+                indicator.CurrentStage = OnboardingStage.ConfigureModel;
+            }
+            // Deliberately distinguish a snap from the normal stage update.
+            var connector = (ScaleTransform)indicator.FindName("ChooseToInspectConnectorScale");
+            connector.ScaleX = 0.37;
+            await DrainIndicatorQueueAsync(indicator);
+            Assert.AreEqual(settings.AnimationsEnabled ? 0.37 : 1d, connector.ScaleX, 0.001);
+            Assert.AreEqual(settings.AnimationsEnabled
+                ? OnboardingStage.ImportModel : OnboardingStage.ConfigureModel, indicator.CurrentStage);
+        }
+        finally { UnloadIndicator(indicator); }
+    }
+
+    [UITestMethod]
+    public void AnimationSettingCallbackOnUiThreadKeepsDisabledOnlyBehavior()
+    {
+        var indicator = new OnboardingStageIndicator();
+        var settings = new Windows.UI.ViewManagement.UISettings();
+        AssertAnimationSetting(settings);
+        try
+        {
+            var connector = (ScaleTransform)indicator.FindName("ChooseToInspectConnectorScale");
+            connector.ScaleX = 0.37;
+            typeof(OnboardingStageIndicator).GetMethod("UiSettings_AnimationsEnabledChanged",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(indicator, [settings, null]);
+            Assert.AreEqual(settings.AnimationsEnabled ? 0.37 : 0d, connector.ScaleX, 0.001);
+        }
+        finally { UnloadIndicator(indicator); }
+    }
+
+    [UITestMethod]
+    public async Task AnimationSettingCallbackQueuedBeforeUnloadCannotTouchRetiredIndicator()
+    {
+        var indicator = new OnboardingStageIndicator();
+        var settings = new Windows.UI.ViewManagement.UISettings();
+        AssertAnimationSetting(settings);
+        InvokeAnimationCallbackFromWorker(indicator, settings);
+        UnloadIndicator(indicator);
+        var connector = (ScaleTransform)indicator.FindName("ChooseToInspectConnectorScale");
+        connector.ScaleX = 0.37;
+        await DrainIndicatorQueueAsync(indicator);
+        Assert.AreEqual(0.37, connector.ScaleX, 0.001);
+        InvokeAnimationCallbackFromWorker(indicator, settings);
+        await DrainIndicatorQueueAsync(indicator);
+        Assert.AreEqual(0.37, connector.ScaleX, 0.001);
+    }
+
+    private static void InvokeAnimationCallbackFromWorker(OnboardingStageIndicator indicator,
+        Windows.UI.ViewManagement.UISettings settings)
+    {
+        // Keep the UI thread here until the worker returns, so queued work cannot
+        // execute until the test changes stage or unloads the indicator.
+        Task.Run(() => typeof(OnboardingStageIndicator).GetMethod(
+            "UiSettings_AnimationsEnabledChanged",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(indicator, [settings, null])).GetAwaiter().GetResult();
+    }
+
+    private static void UnloadIndicator(OnboardingStageIndicator indicator) =>
+        typeof(OnboardingStageIndicator).GetMethod("OnboardingStageIndicator_Unloaded",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(indicator, [indicator, new RoutedEventArgs()]);
+
+    private static async Task DrainIndicatorQueueAsync(OnboardingStageIndicator indicator)
+    {
+        var drained = new TaskCompletionSource<bool>();
+        Assert.IsTrue(indicator.DispatcherQueue.TryEnqueue(
+            Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => drained.SetResult(true)));
+        await drained.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
     private const string ActiveBrushKey = "OnboardingIndicatorActiveBrush";
     private const string ActiveSurfaceBrushKey =
         "OnboardingIndicatorActiveSurfaceBrush";

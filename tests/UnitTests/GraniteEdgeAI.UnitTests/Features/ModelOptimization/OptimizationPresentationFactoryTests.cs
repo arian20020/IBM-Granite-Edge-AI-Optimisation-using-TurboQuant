@@ -11,6 +11,32 @@ namespace GraniteEdgeAI.UnitTests.Features.ModelOptimization;
 public sealed class OptimizationPresentationFactoryTests
 {
     [TestMethod]
+    public void OnlyOpenVinoReplanOffersOneReimportAction()
+    {
+        OptimizationPresentationState seed = OptimizationFixtureCatalog.All.Single(
+            item => item.Id == "replan-required").Presentation;
+        OptimizationPresentationState openVino = OptimizationPresentationFactory.ReplanRequired(
+            seed.Preference!, seed.Configuration, OptimizationRoute.OpenVino);
+        OptimizationPresentationState gguf = OptimizationPresentationFactory.ReplanRequired(
+            seed.Preference!, seed.Configuration, OptimizationRoute.Gguf);
+
+        Assert.AreEqual("Import the model again", openVino.Title);
+        Assert.AreEqual(
+            "This setup could not be revalidated. If storage is low, free up disk space, then import the model again and repeat the checks. Keep the model folder in the same location.",
+            openVino.Summary);
+        Assert.AreEqual(1, openVino.Actions.Count);
+        Assert.AreEqual(new OptimizationActionPresentation(
+            OptimizationCommand.ImportAnotherModel, "Import model again", true), openVino.Actions[0]);
+        Assert.AreEqual("Configuration needs another review", gguf.Title);
+        Assert.AreEqual(seed.Summary, gguf.Summary);
+        CollectionAssert.AreEqual(seed.Actions.ToArray(), gguf.Actions.ToArray());
+        Assert.AreEqual(OptimizationCommand.BackToCompatibility, gguf.Actions.Single().Command);
+        Assert.AreEqual(gguf.Kind, openVino.Kind);
+        Assert.AreEqual(gguf.SupportCode, openVino.SupportCode);
+        Assert.AreSame(seed.Configuration, openVino.Configuration);
+    }
+
+    [TestMethod]
     public void FixtureCatalogContainsEveryRequiredState()
     {
         string[] expected =

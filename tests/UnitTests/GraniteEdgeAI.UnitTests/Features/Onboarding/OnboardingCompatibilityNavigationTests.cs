@@ -12,6 +12,10 @@ using GraniteEdgeAI.Features.ModelInspection.Contracts;
 using GraniteEdgeAI.Features.ModelInspection.Handoff;
 using GraniteEdgeAI.Features.ModelInspection.SourceCustody;
 using GraniteEdgeAI.Features.Onboarding;
+using GraniteEdgeAI.Features.ModelOptimization;
+using GraniteEdgeAI.Features.ModelOptimization.Journey;
+using GraniteEdgeAI.Features.ModelOptimization.Presentation;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.Features.OpenVinoRoute;
 using GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 using GraniteEdgeAI.HardwareInspection.Foundation.Windows;
@@ -39,6 +43,74 @@ using InspectionOutcome = GraniteEdgeAI.Features.ModelInspection.Contracts.Model
 [DoNotParallelize]
 public sealed class OnboardingCompatibilityNavigationTests
 {
+    [UITestMethod]
+    public async Task OpenVinoReplanImportRetiresJourneyAndGgufCannotUseThatRecovery()
+    {
+        foreach (OptimizationRoute route in new[] { OptimizationRoute.OpenVino, OptimizationRoute.Gguf })
+        {
+            var entry = OptimizationSelectionHandoffTests.RequiredJourneyEntry(route);
+            await using var coordinator = new OptimizationJourneyCoordinator(entry,
+                new OptimizationExecutorRouter([]), new RecoveryRevalidator(), new UnusedRecoveryContextFactory());
+            await coordinator.ConfirmAsync();
+            Assert.AreEqual(OptimizationJourneyKind.ReplanRequired, coordinator.State.Kind);
+            var shell = new OnboardingShellPage();
+            try
+            {
+            var page = new OptimizationPage(entry);
+            var plan = entry.OptimizationHandoff.Plan;
+            // Even a spoofed OpenVINO presentation must not bypass the shell's GGUF route guard.
+            page.ApplyPresentation(OptimizationPresentationFactory.ReplanRequired(plan.Preference,
+                OptimizationConfigurationProjection.From(plan), OptimizationRoute.OpenVino));
+            var frame = (Frame)shell.FindName("StageFrame");
+            frame.Content = page;
+            SetPrivateField(shell, "_attachedOptimizationPage", page);
+            SetPrivateField(shell, "_optimizationCoordinator", coordinator);
+            SetPrivateField(shell, "_currentStage", OnboardingStage.ConfigureModel);
+            frame.BackStack.Add(new PageStackEntry(typeof(ModelImportPage), null, null));
+            Assert.AreEqual(true, typeof(OptimizationPage).GetMethod("TryBeginImportNavigation",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(page, null));
+            await (Task)typeof(OnboardingShellPage).GetMethod("HandleOptimizationIntentAsync",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(shell, [coordinator, OptimizationCommand.ImportAnotherModel])!;
+            if (route == OptimizationRoute.OpenVino)
+            {
+                var imported = Assert.IsInstanceOfType<ModelImportPage>(frame.Content);
+                Assert.AreEqual(ModelImportPresentationMode.AllSources, GetPrivateField(imported, "_presentationMode"));
+                Assert.AreEqual(OnboardingStage.ImportModel, shell.CurrentStage);
+                Assert.IsTrue(coordinator.IsRetired);
+                Assert.IsNull(GetPrivateField(shell, "_optimizationCoordinator"));
+                Assert.IsNull(GetPrivateField(shell, "_attachedOptimizationPage"));
+                Assert.AreEqual(0, frame.BackStack.Count);
+                Assert.AreEqual(0, frame.ForwardStack.Count);
+            }
+            else
+            {
+                Assert.AreSame(page, frame.Content);
+                Assert.AreEqual(OnboardingStage.ConfigureModel, shell.CurrentStage);
+                Assert.IsFalse(coordinator.IsRetired);
+                Assert.IsFalse(page.IsImportNavigationPending);
+            }
+            }
+            finally
+            {
+                await shell.ShutdownAsync();
+            }
+        }
+    }
+
+    private sealed class RecoveryRevalidator : IOptimizationRevalidator
+    {
+        public Task<OptimizationRevalidationResult> RevalidateAsync(OptimizationExecutionPlan plan,
+            CancellationToken cancellationToken) => Task.FromResult(
+                new OptimizationRevalidationResult(false, OptimizationSupportCode.CapabilityDrift));
+    }
+
+    private sealed class UnusedRecoveryContextFactory : IOptimizationAttemptContextFactory
+    {
+        public Task<OptimizationAttemptContext> CreateAsync(long generation, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("A replan recovery must not start staging.");
+    }
+
     private static readonly Guid ModelRunId =
         Guid.Parse("22222222-2222-4222-8222-222222222222");
     private static readonly Guid OpenVinoHandoffId =
