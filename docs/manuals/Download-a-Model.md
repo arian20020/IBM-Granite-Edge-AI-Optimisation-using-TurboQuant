@@ -15,7 +15,7 @@ Follow Step 6 of the [starter guide](Granite-Start-Here.md). Its first command o
 
 Step 7 explains how to import them. Do not download a model again if you already have the matching complete file.
 
-If you downloaded the whole OneDrive model folder as a ZIP, follow the outer-ZIP instructions in Step 6 first: extract the outer collection, copy the GGUF and still-zipped OpenVINO model into your normal Downloads folder, then run preparation. The script does not search nested collection folders. Do not import the collection folder itself.
+If you downloaded the whole OneDrive model folder as a ZIP, follow the outer-ZIP instructions in Step 6 first: extract it to `C:\Downloads`, then move the GGUF and still-zipped OpenVINO model out of any nested folder directly into `C:\Downloads`. Alternatively, copy those two files from the outer ZIP directly into your normal Downloads folder. Wait for copying to finish, then run preparation. The script does not search nested collection folders. Do not import the collection folder itself.
 
 These Granite 4.1 models are separate from the Granite 4.0 H Micro catalogue inside the app. The downloads total about 7.36 GB; extraction and optimisation need additional space. Successful file verification does not guarantee memory fit or inference on another laptop. See the README for download failure handling and the current installation-test limitation.
 
