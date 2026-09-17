@@ -4,9 +4,9 @@ Start with the installed Granite app. Downloading a model does not install the a
 
 Choose **one** download method below. The built-in method is the simplest; manual download is an alternative, not an extra required step. A model is the large file containing the learned values used to produce replies. A checksum is a file fingerprint used to check that the bytes match the expected download.
 
-## Download the demonstration models through OneDrive
+## Download the demonstration models
 
-Follow Step 6 of the [starter guide](Granite-Start-Here.md). Its first two commands open the individual GGUF and OpenVINO download pages in your browser. Click **Download** on each page. Save both in your normal Downloads folder or `C:\Downloads`; earlier downloads in `C:\Downloads\Granite-Models` are also accepted. Keep the exact model filenames. Neither command downloads files automatically.
+Follow Step 6 of the [starter guide](Granite-Start-Here.md). Use the official IBM GGUF download first, with OneDrive as its fallback. For OpenVINO, use the tested OneDrive ZIP: an official download of that exact prepared package has not been verified. Click **Download** on each model page. Save both in your normal Downloads folder or `C:\Downloads`; the preparation command also searches up to three folder levels below these locations. Keep the exact model filenames. The browser-opening commands do not download files automatically.
 
 **Do not skip the preparation command after downloading OpenVINO.** It verifies both downloads, extracts OpenVINO without an extra folder level and removes Windows download marks from verified files. These marks caused the reported `package_unsafe_path` failure; other unsafe-path failures must still be investigated. Existing model folders must match before they can be reused.
 

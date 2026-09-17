@@ -41,7 +41,7 @@ Start-Process 'https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac
 
 Save **Granite-Edge-AI-Setup.zip** in your normal Downloads folder (`C:\Users\<your username>\Downloads`). Names such as **Granite-Edge-AI-Setup (1).zip** or **Granite-Edge-AI-Setup (2).zip** are also accepted. Step 2 finds a copy with the correct checksum; you do not need to rename or delete earlier downloads. If your browser saves elsewhere, move the completed ZIP into your normal Downloads folder first.
 
-Step 2 extracts it automatically to **C:\Downloads\Granite-Edge-AI-Setup-1.0.3**. You do not need to extract or move it manually. Models are downloaded separately in Step 6.
+Step 2 extracts it automatically to **C:\Downloads\Granite-Edge-AI-Setup-1.0.4**. You do not need to extract or move it manually. Models are downloaded separately in Step 6.
 
 ### 2. Verify and extract the ZIP
 
@@ -51,8 +51,8 @@ Paste this entire block into ordinary Windows PowerShell:
 & {
 $ErrorActionPreference = 'Stop'
 $graniteDownloads = Join-Path $env:USERPROFILE 'Downloads'
-$graniteFolder = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.3'
-$graniteExpectedZipHash = '8054E6219BF5BB568C93A354801234FD1F0C2D23BA0D93AF2EAE69D35EC8A697'
+$graniteFolder = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4'
+$graniteExpectedZipHash = '6788E6E293EB1D7129733F4C7246AABA26F8BC5F068751C35806418C17391126'
 $graniteStepOne = 'STOP: Return to STEP 1, download the correct Granite-Edge-AI-Setup.zip completely, then repeat Step 2. Do not bypass verification.'
 try {
     $graniteCandidates = @(Get-ChildItem -LiteralPath $graniteDownloads -Filter 'Granite-Edge-AI-Setup*.zip' -File |
@@ -86,7 +86,7 @@ try {
         try {
             $graniteEntries = @($graniteArchive.Entries | Where-Object { $_.Name -ne '' })
             if (@($graniteItems | Where-Object { -not $_.PSIsContainer }).Count -ne $graniteEntries.Count) {
-                throw 'The existing extraction differs. Rename only the old Granite-Edge-AI-Setup-1.0.3 folder, then repeat Step 2. Do not delete your models.'
+                throw 'The existing extraction differs. Rename only the old Granite-Edge-AI-Setup-1.0.4 folder, then repeat Step 2. Do not delete your models.'
             }
             foreach ($graniteEntry in $graniteEntries) {
                 $graniteFile = Join-Path $graniteFolder $graniteEntry.FullName
@@ -96,7 +96,7 @@ try {
                 try { $graniteExpected = [BitConverter]::ToString($graniteSha.ComputeHash($graniteStream)).Replace('-', '') }
                 finally { $graniteStream.Dispose(); $graniteSha.Dispose() }
                 if ((Get-FileHash -LiteralPath $graniteFile -Algorithm SHA256).Hash -ne $graniteExpected) {
-                    throw 'The existing extraction is old or different. Rename only the old Granite-Edge-AI-Setup-1.0.3 folder, then repeat Step 2. Nothing was overwritten.'
+                    throw 'The existing extraction is old or different. Rename only the old Granite-Edge-AI-Setup-1.0.4 folder, then repeat Step 2. Nothing was overwritten.'
                 }
             }
         } finally { $graniteArchive.Dispose() }
@@ -121,7 +121,7 @@ In ordinary Windows PowerShell, paste:
 ```powershell
 & {
 $ErrorActionPreference = 'Stop'
-$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.3\Setup-Granite.ps1'
+$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4\Setup-Granite.ps1'
 if (-not (Test-Path -LiteralPath $graniteSetup -PathType Leaf)) {
     throw 'STOP: Complete STEP 1 with the correct ZIP, then Step 2. Setup-Granite.ps1 is missing.'
 }
@@ -140,7 +140,7 @@ Close the ordinary PowerShell window. Open **Windows PowerShell as administrator
 ```powershell
 & {
 $ErrorActionPreference = 'Stop'
-$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.3\Setup-Granite.ps1'
+$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4\Setup-Granite.ps1'
 if (-not (Test-Path -LiteralPath $graniteSetup -PathType Leaf)) {
     throw 'STOP: Complete STEP 1 with the correct ZIP, then Step 2. The setup script is missing.'
 }
@@ -149,7 +149,7 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: Installation did not finish. For missing
 }
 ```
 
-If the current signed version (1.0.3.0) or a newer one is installed, the script says so and skips installation without scanning every installed file. An older signed version can be updated after approval; a development registration is not replaced.
+If the current signed version (1.0.4.0) or a newer one is installed, the script says so and skips installation without scanning every installed file. An older signed version can be updated after approval; a development registration is not replaced.
 
 When asked, type **INSTALL** to approve trusting the supplied test certificate in **Trusted People**, installing missing .NET 8 x64 and Windows App Runtime dependencies, and installing or updating Granite. No root certificate or private signing key is supplied. The script checks the expected certificate automatically; you do not need to contact me to confirm its thumbprint. The certificate expires on 14 December 2026.
 
@@ -162,7 +162,7 @@ Open ordinary Windows PowerShell and paste:
 ```powershell
 & {
 $ErrorActionPreference = 'Stop'
-$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.3\Setup-Granite.ps1'
+$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4\Setup-Granite.ps1'
 if (-not (Test-Path -LiteralPath $graniteSetup -PathType Leaf)) {
     throw 'STOP: Return to STEP 1, download the correct ZIP and complete Step 2.'
 }
@@ -175,19 +175,31 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: Launch failed. Check the error above; co
 
 ### 6. Download and prepare the models — do not skip preparation
 
-Run each command below to open that model's individual download page. **Click Download on each page** and wait for both files to finish downloading. These commands open your browser; they do not download automatically.
+Use the official IBM download for GGUF below. For OpenVINO, use the tested model ZIP: an official download of this exact prepared ZIP has not been verified. **Click Download on each model page** and wait for both files to finish. These commands open your browser; they do not download automatically.
 
-**GGUF — `granite-4.1-3b-Q4_K_M.gguf`:**
+**GGUF — official IBM `granite-4.1-3b-Q4_K_M.gguf`:**
+
+```powershell
+Start-Process 'https://huggingface.co/ibm-granite/granite-4.1-3b-GGUF/blob/ab4701481089b58a082ef63cc1cee738887293ff/granite-4.1-3b-Q4_K_M.gguf'
+```
+
+This pinned IBM file matches the size and SHA-256 checked by the preparation command.
+
+**OpenVINO — tested `Granite-4.1-3B-OpenVINO-Raw.zip`:**
+
+```powershell
+Start-Process 'https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQBTmsCaY2ZkRJexAvCVJcB0Af_foYWoiaQXUF46MchpAog?e=vSJLt9'
+```
+
+[IBM's original Granite 4.1 3B model](https://huggingface.co/ibm-granite/granite-4.1-3b) is the upstream source, not a ready-to-import OpenVINO package. Use the ZIP above for these steps; do not substitute the original model files or a different converted model.
+
+**GGUF fallback — only if the official download is unavailable:**
 
 ```powershell
 Start-Process 'https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQC0ragzwssPRoyStBSqIVv3AXJsY_GpjQ5lFjM0HWZF9u8?e=Lfanrf'
 ```
 
-**OpenVINO — `Granite-4.1-3B-OpenVINO-Raw.zip`:**
-
-```powershell
-Start-Process 'https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQBTmsCaY2ZkRJexAvCVJcB0Af_foYWoiaQXUF46MchpAog?e=vSJLt9'
-```
+Download the GGUF from only one source; both links are for the same verified file.
 
 Download:
 
@@ -198,7 +210,7 @@ Save both files in your normal Downloads folder or `C:\Downloads`. Keep the exac
 
 **Only if you used the old whole-folder link:** first extract the outer OneDrive collection ZIP into Downloads. Leave the OpenVINO model ZIP inside it zipped. The preparation command can find the two model downloads in the extracted folders; it cannot search inside an unopened outer ZIP. You can also place the two files directly into Downloads yourself.
 
-The downloads total about 7.36 GB and OpenVINO extraction needs about another 6.82 GB. Copying files from another folder can need another 7.36 GB on C:. If the output contains only a second `Granite-4.1-3B-OpenVINO-Raw` folder, the command preserves that outer folder under a unique backup name, then extracts a fresh copy from the verified ZIP. This needs additional free space; nothing is deleted. Other conflicting output folders are rejected rather than overwritten.
+The downloads total about 7.36 GB and OpenVINO extraction needs about another 6.82 GB. Copying files from another folder can need another 7.36 GB on C:. The command checks free space before copying or repairing output. If the prepared folder has missing or truncated model files, or contains only a second folder of the same model name, it preserves the previous folder under a unique backup name and extracts a fresh copy from the verified ZIP. Nothing is deleted. Unexpected extra items and checksum mismatches are rejected rather than overwritten. Other programs can still consume space while extraction runs; stop on any error.
 
 **If you already extracted OpenVINO manually:** keep its original model ZIP available too. The command needs the verified ZIP to check or prepare the model. Moving an extracted folder alone does not remove Windows download marks.
 
@@ -207,7 +219,7 @@ The downloads total about 7.36 GB and OpenVINO extraction needs about another 6.
 ```powershell
 & {
 $ErrorActionPreference = 'Stop'
-$graniteModelsScript = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.3\Prepare-GraniteModels.ps1'
+$graniteModelsScript = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4\Prepare-GraniteModels.ps1'
 if (-not (Test-Path -LiteralPath $graniteModelsScript -PathType Leaf)) {
     throw 'STOP: You need the correct application ZIP first. Return to STEP 1 and complete Step 2, then repeat this model-preparation command.'
 }
@@ -276,6 +288,52 @@ foreach ($expected in @(
     }
     $graniteVerified += @{ Source = $source; Target = $target; Hash = $expected.Hash }
 }
+# Check the expected extraction and free space before copying or renaming anything.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$graniteZipSource = ($graniteVerified | Where-Object { $_.Target.EndsWith('.zip') }).Source
+$graniteArchive = [IO.Compression.ZipFile]::OpenRead($graniteZipSource)
+try {
+    $graniteMembers = @($graniteArchive.Entries | Where-Object { $_.Name -ne '' })
+    $graniteNames = @{}
+    [long]$graniteExtractBytes = 0
+    foreach ($member in $graniteMembers) {
+        $prefix = 'Granite-4.1-3B-OpenVINO-Raw/'
+        if (-not $member.FullName.StartsWith($prefix, [StringComparison]::Ordinal)) { throw 'STOP: Unexpected ZIP layout.' }
+        $name = $member.FullName.Substring($prefix.Length)
+        if ($name -notmatch '^[A-Za-z0-9_.-]+$' -or $name -in '.', '..' -or $graniteNames.ContainsKey($name)) { throw 'STOP: Unexpected ZIP member.' }
+        $graniteNames[$name] = $member.Length
+        $graniteExtractBytes += $member.Length
+    }
+} finally { $graniteArchive.Dispose() }
+$graniteModelFolder = Join-Path $graniteDestination 'Granite-4.1-3B-OpenVINO-Raw'
+Assert-GraniteRegularPath $graniteModelFolder
+$graniteRepair = $false
+$graniteNeedsExtraction = -not (Test-Path -LiteralPath $graniteModelFolder)
+if (-not $graniteNeedsExtraction) {
+    if (-not (Test-Path -LiteralPath $graniteModelFolder -PathType Container)) { throw 'STOP: Model destination is not a folder.' }
+    $children = @(Get-ChildItem -LiteralPath $graniteModelFolder -Force)
+    if ($children.Count -eq 1 -and $children[0].PSIsContainer -and $children[0].Name -eq 'Granite-4.1-3B-OpenVINO-Raw') {
+        Assert-GraniteRegularPath $children[0].FullName
+        $graniteRepair = $true
+    } else {
+        foreach ($child in $children) {
+            Assert-GraniteRegularPath $child.FullName
+            if ($child.PSIsContainer -or -not $graniteNames.ContainsKey($child.Name)) { throw 'STOP: The model folder contains unexpected items. Nothing was changed; do not delete your files.' }
+            if ($child.Length -ne $graniteNames[$child.Name]) { $graniteRepair = $true }
+        }
+        if ($children.Count -ne $graniteNames.Count) { $graniteRepair = $true }
+    }
+    $graniteNeedsExtraction = $graniteRepair
+}
+[long]$graniteRequired = 1GB
+foreach ($file in $graniteVerified) {
+    if ($file.Source -ne $file.Target) { $graniteRequired += (Get-Item -LiteralPath $file.Source).Length }
+}
+if ($graniteNeedsExtraction) { $graniteRequired += $graniteExtractBytes }
+$graniteDrive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($graniteDestination))
+if ($graniteDrive.AvailableFreeSpace -lt $graniteRequired) {
+    throw ('STOP: Not enough free storage. Need about {0:N1} GiB free on {1}; available: {2:N1} GiB. Free space and rerun Step 6. Existing files were not changed.' -f ($graniteRequired / 1GB), $graniteDrive.Name, ($graniteDrive.AvailableFreeSpace / 1GB))
+}
 New-Item -ItemType Directory -Path $graniteDestination -Force | Out-Null
 foreach ($file in $graniteVerified) {
     if ($file.Source -ne $file.Target) {
@@ -285,24 +343,44 @@ foreach ($file in $graniteVerified) {
     }
 }
 
-# Preserve the common double-folder extraction, then extract from the verified ZIP.
-$graniteModelFolder = Join-Path $graniteDestination 'Granite-4.1-3B-OpenVINO-Raw'
-Assert-GraniteRegularPath $graniteModelFolder
-if (Test-Path -LiteralPath $graniteModelFolder -PathType Container) {
-    $children = @(Get-ChildItem -LiteralPath $graniteModelFolder -Force)
-    if ($children.Count -eq 1 -and $children[0].PSIsContainer -and $children[0].Name -eq 'Granite-4.1-3B-OpenVINO-Raw') {
-        Assert-GraniteRegularPath $children[0].FullName
-        $backupName = 'Granite-4.1-3B-OpenVINO-Raw-backup-' + [guid]::NewGuid().ToString('N')
-        Rename-Item -LiteralPath $graniteModelFolder -NewName $backupName
-        Write-Host "Nested folder preserved at $(Join-Path $graniteDestination $backupName). Preparing a fresh verified extraction."
-    }
+# Preserve recognised incomplete or double-folder output; never overwrite it.
+if ($graniteRepair) {
+    Assert-GraniteRegularPath $graniteModelFolder
+    $backupName = 'Granite-4.1-3B-OpenVINO-Raw-backup-' + [guid]::NewGuid().ToString('N')
+    Rename-Item -LiteralPath $graniteModelFolder -NewName $backupName
+    Write-Host "Previous folder preserved at $(Join-Path $graniteDestination $backupName). Preparing a fresh extraction."
 }
 powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File $graniteModelsScript -ModelsDirectory 'C:\Downloads'
 if ($LASTEXITCODE -ne 0) { throw 'STOP: Model preparation failed. Follow the error above and do not import an incomplete folder. Missing model downloads require STEP 6; missing setup files require STEP 1.' }
+
+# Check every extracted file against the verified ZIP before final success.
+$graniteArchive = [IO.Compression.ZipFile]::OpenRead((Join-Path $graniteDestination 'Granite-4.1-3B-OpenVINO-Raw.zip'))
+try {
+    $entries = @($graniteArchive.Entries | Where-Object { $_.Name -ne '' })
+    $outputFiles = @(Get-ChildItem -LiteralPath $graniteModelFolder -Force)
+    if ($outputFiles.Count -ne $entries.Count) { throw 'STOP: Extraction is incomplete. Do not import the model.' }
+    foreach ($entry in $entries) {
+        $path = Join-Path $graniteModelFolder $entry.Name
+        Assert-GraniteRegularPath $path
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -ne $entry.Length) { throw "STOP: Missing or incomplete file: $path" }
+        $stream = $entry.Open()
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { $expectedHash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') }
+        finally { $stream.Dispose(); $sha.Dispose() }
+        if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $expectedHash) { throw "STOP: Extracted file checksum mismatch: $path" }
+    }
+} finally { $graniteArchive.Dispose() }
+$outputFiles | ForEach-Object { Unblock-File -LiteralPath $_.FullName }
+Unblock-File -LiteralPath $graniteModelFolder
+$graniteMarks = @(@(Get-Item -LiteralPath $graniteModelFolder) + $outputFiles | ForEach-Object {
+    Get-Item -LiteralPath $_.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue
+})
+if ($graniteMarks.Count -gt 0) { throw 'STOP: Windows download marks remain. Do not import; send the full Step 6 output for help.' }
+Write-Host "STEP 6 COMPLETE: OpenVINO files verified. Import $graniteModelFolder"
 }
 ```
 
-Wait for **GGUF ready** and **Select this OpenVINO folder in Granite**. Large-file verification takes time. An existing model folder is reused only if its files match the verified ZIP; different or incomplete folders are not overwritten. Keep the model folder in place after importing it.
+Wait for the final **STEP 6 COMPLETE: OpenVINO files verified** message. Earlier messages from the packaged script are not the end of this step. Large-file verification takes time. The final check compares every extracted file with the verified ZIP, removes Windows download marks from those verified files and the model folder, then checks that none remain. This addresses the download-mark cause of `package_unsafe_path`, not every possible unsafe-path error. Close and reopen Granite, then import the exact prepared folder again; do not re-extract the ZIP afterwards. Keep the model folder in place after importing it.
 
 ### 7. Select a model
 

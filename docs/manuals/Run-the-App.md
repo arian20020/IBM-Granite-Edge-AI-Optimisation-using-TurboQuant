@@ -22,7 +22,7 @@ explorer.exe shell:AppsFolder\488d3892-c214-40c5-9a6a-1154c1e69fff_gqahnnh6hk88w
 5. Follow [Download a model](Download-a-Model.md) for a concrete first-run example using the Balanced GGUF download. The same guide explains manual import and the separate OpenVINO package requirement.
 6. Follow the [user manual](User-Manual.md) through inspection, hardware fit and chat. Available choices depend on the model and free memory.
 
-The registration and executable hash below are historical records from the earlier manual review, not the current 1.0.3.0 installer. Use the starter guide for that package.
+The registration and executable hash below are historical records from the earlier manual review, not the current 1.0.4.0 installer. Use the starter guide for that package.
 
 | Item | Recorded value |
 | --- | --- |
@@ -67,7 +67,7 @@ The command above is for an existing registration. It does not install the app a
 
 Follow the [README setup steps](../../README.md#setup-and-first-use), which include the package link and checksum. Step 4 installs the app, updates an older signed package after approval or recognises a current signed installation, Step 5 opens it, and Step 6 explains browser downloads for GGUF and OpenVINO followed by local verification and extraction. Use the README commands in order rather than repeating the demonstration-computer checks above: a packaged installation normally has a different installation location.
 
-The first two commands in Step 6 open the individual GGUF and OpenVINO download pages in your browser. Click **Download** for each model file, wait for both downloads to finish, then run the mandatory preparation block to verify, extract and remove download marks from the verified files. The commands do not perform the downloads for you.
+Step 6 opens the official IBM GGUF download and the tested OneDrive OpenVINO ZIP in your browser; a separate GGUF fallback is available if needed. Click **Download** for each model file, wait for both downloads to finish, then run the mandatory preparation block to verify, extract and remove download marks from the verified files. The commands do not perform the downloads for you.
 
 This is a self-signed test package. Installation on a separate laptop and both model journeys have not yet been verified. The [package handover checklist](../../release-evidence/Package-Handover.md) records broader release checks; supplying the ZIP does not establish that they all passed.
 

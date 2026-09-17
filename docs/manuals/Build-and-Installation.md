@@ -8,7 +8,7 @@ Use the [README setup steps](../../README.md#setup-and-first-use) with [Granite-
 
 Step 1 opens the app ZIP's OneDrive page, and Step 6 opens the individual GGUF and OpenVINO download pages in your browser. Click **Download** on those pages; the PowerShell commands do not download the files automatically. Follow the README's file checks before installation or model extraction.
 
-The same commands are in the [standalone starter guide](Granite-Start-Here.md). They target signed version 1.0.3.0, accept numbered browser copies of the ZIP only when the checksum matches, and extract setup files to `C:\Downloads\Granite-Edge-AI-Setup-1.0.3`. Older setup folders are left alone. Run each complete block and stop on errors. Installation can update an older signed package after approval; it does not replace a development registration.
+The same commands are in the [standalone starter guide](Granite-Start-Here.md). They target signed version 1.0.4.0, accept numbered browser copies of the ZIP only when the checksum matches, and extract setup files to `C:\Downloads\Granite-Edge-AI-Setup-1.0.4`. Older setup folders are left alone. Run each complete block and stop on errors. Installation can update an older signed package after approval; it does not replace a development registration.
 
 Step 6 is mandatory before importing the downloaded OpenVINO package: it verifies the files, extracts directly to `C:\Downloads\Granite-4.1-3B-OpenVINO-Raw` and removes download marks from verified files. It does not weaken application integrity checks.
 
