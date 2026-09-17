@@ -193,6 +193,32 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: Launch failed. Check the error above; co
 
 If it says **“Granite is not installed for this account”**, installation has not completed for your current Windows account: return to Step 4, not the download step. If Smart App Control blocks a file or no window appears, stop and report the notification or error. Re-downloading the same verified ZIP does not resolve a security-policy block.
 
+**Optional diagnostic for a confirmed Smart App Control notification — not a normal installation step**
+
+If no window appears but there is no Smart App Control notification or matching block event, do not assume security is the cause. Report the failure first.
+
+On your own, unmanaged laptop only, if Steps 2–3 passed and you trust this package, you may choose to test with Smart App Control off. This reduces protection for the whole computer, not just Granite. On a school/work or managed computer, ask IT instead.
+
+**Before changing it:** read the warning Windows shows. [Microsoft explains](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions) that recent updates allow re-enabling without reinstalling Windows, but older systems may require a reset/reinstall. Do not proceed if Windows warns that you cannot turn it back on. Do not describe this as temporary unless your Windows version supports restoring it.
+
+The following command only opens Windows security settings and prints the instructions; it does not switch anything off:
+
+```powershell
+Write-Warning 'Optional diagnostic only: turning Smart App Control off reduces protection for the whole PC.'
+Write-Host 'Only proceed on your own unmanaged PC, with the verified package and a confirmed Smart App Control block.'
+Write-Host 'Open Windows Security > App & browser control > Smart App Control settings.'
+Write-Host 'Read the Windows warning. Stop if re-enabling would require resetting Windows.'
+Write-Host 'If you choose Off manually, retry the Step 5 Launch command once.'
+Write-Host 'After the test, close Granite, restore Smart App Control to On and confirm Windows shows On.'
+Write-Host 'This is a diagnostic, not a fix. Granite may be blocked again when protection is restored.'
+Start-Process 'ms-settings:windowsdefender'
+```
+
+Choose **Open Windows Security**, then **App & browser control > Smart App Control settings**. If you accept the risks and the conditions above apply, choose **Off**, then rerun the existing **Step 5 Launch** command once. Do not disable Defender antivirus, SmartScreen or other protections. Avoid downloads or unrelated software while testing. Afterwards close Granite, turn Smart App Control back **On**, and check its displayed state. If you cannot restore it, stop and seek support rather than using registry changes.
+
+If Granite opens only while Smart App Control is off, that supports a security-policy cause; it does not establish that the files are safe or repair their trust/signing. Report that result. Do not keep protection off as the routine setup solution.
+
+
 ### 6. Download and prepare the models — do not skip preparation
 
 Use the official IBM download for GGUF below. For OpenVINO, use the tested model ZIP: an official download of this exact prepared ZIP has not been verified. **Click Download on each model page** and wait for both files to finish. These commands open your browser; they do not download automatically.
