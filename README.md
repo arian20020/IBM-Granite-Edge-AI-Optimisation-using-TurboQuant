@@ -27,7 +27,11 @@ Use **Granite-Edge-AI-Setup.zip** with this guide. No Git, Visual Studio or sour
 
 Run each numbered step separately. Copy each complete PowerShell code block using its copy button; do not copy Markdown link formatting, headings or the ``` markers. **If a step fails, stop: do not paste the next command. If setup files are missing or do not match, return to Step 1, download the correct ZIP and repeat Step 2. Do not skip the checks or continue with an older extracted folder.** Other errors, such as low storage or denied permission, need the action shown in the error message.
 
-This is a self-signed test build. Its clean installation and upgrade still need testing on another laptop. Do not bypass your organisation's security policies.
+**What happens when:** Steps 1–2 download and extract the setup files. Step 3 only checks them. Step 4 installs Granite. Step 5 opens it. Step 6 downloads and prepares the models.
+
+**Copy only the commands inside each code box**, one complete box at a time. Do not paste the surrounding explanation or step headings into PowerShell.
+
+This is a self-signed test build. Installation and launch do not guarantee every model journey will work on another laptop. Smart App Control has blocked this version on one tested laptop even though it opened on others. Do not bypass Windows or organisational security policies.
 
 ### 1. Download the application ZIP
 
@@ -131,11 +135,19 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: The check failed. For missing or mismatc
 }
 ```
 
-Expected: **Bundle hashes and Microsoft dependency signatures passed. Nothing installed.** This reads the bundle files and may take a short while. It does not install anything. RemoteSigned applies only to the child PowerShell process; do not bypass a managed-device policy.
+Expected: **Bundle hashes and Microsoft dependency signatures passed. Nothing installed.** This is a success message, not an error: Step 3 only checks the files. Continue to Step 4 to install the app. RemoteSigned applies only to the child PowerShell process; do not bypass a managed-device policy.
 
 ### 4. Install or update Granite
 
-Close the ordinary PowerShell window. Open **Windows PowerShell as administrator** using your own account. This is needed for certificate trust and dependencies. No certificate is added until you approve installation.
+**4A — Open a new administrator window.** In your current PowerShell window, run:
+
+```powershell
+Start-Process powershell.exe -Verb RunAs
+```
+
+Approve the Windows prompt. **This command only opens another PowerShell window; it does not download or install anything.** If Windows requires someone else's account credentials, stop and ask for help: Granite must be installed for the account that will use it.
+
+**4B — Install in the NEW window.** Its title should begin with **Administrator**. Paste the following block into that new window, not the original one. Administrator access is needed for certificate trust and dependencies; installation still requires your approval.
 
 ```powershell
 & {
@@ -144,8 +156,12 @@ $graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4\Setup-Granite.ps1'
 if (-not (Test-Path -LiteralPath $graniteSetup -PathType Leaf)) {
     throw 'STOP: Complete STEP 1 with the correct ZIP, then Step 2. The setup script is missing.'
 }
+$granitePrincipal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $granitePrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    throw 'STOP: This is not the administrator window. Run Step 4A, then paste Step 4B into the NEW Administrator window. Do not download or extract again.'
+}
 powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File $graniteSetup -Step Install
-if ($LASTEXITCODE -ne 0) { throw 'STOP: Installation did not finish. For missing or mismatched setup files, repeat STEP 1 and Step 2. Otherwise follow the specific error above.' }
+if ($LASTEXITCODE -ne 0) { throw 'STOP: Installation did not finish. Do not run Step 5. Follow the specific error above; only missing or mismatched setup files require Steps 1–2 again.' }
 }
 ```
 
@@ -153,7 +169,9 @@ If the current signed version (1.0.4.0) or a newer one is installed, the script 
 
 When asked, type **INSTALL** to approve trusting the supplied test certificate in **Trusted People**, installing missing .NET 8 x64 and Windows App Runtime dependencies, and installing or updating Granite. No root certificate or private signing key is supplied. The script checks the expected certificate automatically; you do not need to contact me to confirm its thumbprint. The certificate expires on 14 December 2026.
 
-If a restart is requested, restart Windows and repeat this step. Otherwise wait for success, then close administrator PowerShell.
+**Wait for “Installed” or a message saying this version or a newer one is already installed. Only then continue to Step 5.** If a restart is requested, restart Windows and repeat Step 4. Close the administrator window after installation succeeds.
+
+If you see **“Run Windows PowerShell as administrator”**, repeat Step 4A and use the new window. Your verified download is not the problem. The packaged script's generic “return to Step 1” warning applies only to missing or mismatched setup files, not this permissions error.
 
 ### 5. Open Granite
 
@@ -171,7 +189,9 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: Launch failed. Check the error above; co
 }
 ```
 
-**This is the step that opens the app.** No model is needed just to open it. Launch checks the installed version without repeatedly hashing installed files.
+**This step requests the app to open. Wait until the Granite window actually appears.** A command returning without an error does not prove that Windows allowed the app to start. No model is needed just to open it. Launch checks the installed version without repeatedly hashing installed files.
+
+If it says **“Granite is not installed for this account”**, installation has not completed for your current Windows account: return to Step 4, not the download step. If Smart App Control blocks a file or no window appears, stop and report the notification or error. Re-downloading the same verified ZIP does not resolve a security-policy block.
 
 ### 6. Download and prepare the models — do not skip preparation
 

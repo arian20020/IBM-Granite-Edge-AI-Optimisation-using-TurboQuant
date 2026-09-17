@@ -6,7 +6,7 @@ This record separates checks of the instructions from tests of the application.
 
 The [starter guide](Granite-Start-Here.md) targets signed package version 1.0.4.0. The ZIP SHA-256 is `6788E6E293EB1D7129733F4C7246AABA26F8BC5F068751C35806418C17391126`.
 
-- All nine starter-guide PowerShell blocks passed syntax parsing; this does not establish successful execution on another laptop.
+- All ten starter-guide PowerShell blocks passed syntax parsing; this does not establish successful execution on another laptop.
 - ZIP extraction and matching-folder reuse passed locally. Numbered browser filenames were tested with a simulated file listing, and a wrong checksum stopped the step.
 - The extracted package passed the setup script's bundle-hash and Microsoft dependency-signature checks. Nothing was installed by these checks.
 - The signed 1.0.4.0 package passed signature and block-map verification for 24,024 payload files. Application/runtime bytes match the locally tested preview except for the staged installation manifest. No installed application was changed during final packaging.

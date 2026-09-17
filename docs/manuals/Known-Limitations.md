@@ -31,6 +31,10 @@ The actions below are recovery suggestions, not proof of a cause. In particular,
 
 | What you see | What it means / what to do |
 | --- | --- |
+| Step 3 says Nothing installed | This is expected: it only checks files. Continue to Step 4 to install Granite. |
+| Run PowerShell as administrator | Use Step 4A to open a new administrator window, then run Step 4B there. Do not repeat the download. |
+| Granite is not installed for this account | Complete Step 4 using the same Windows account that will run Granite. Do not continue to Launch before installation succeeds. |
+| Smart App Control blocks a DLL or the app does not open | Version 1.0.4 was blocked on one tested laptop despite matching package bytes. Stop and report the blocked filename; successful ZIP checks do not establish Windows trust. Do not disable protection or swap DLLs. |
 | Setup ZIP checksum mismatch | Use the current [starter guide](Granite-Start-Here.md) and complete Step 1. Step 2 accepts numbered browser filenames but only the expected checksum. Do not change the checksum to match an unknown ZIP. |
 | Old extraction has missing or extra files | The current guide uses `C:\Downloads\Granite-Edge-AI-Setup-1.0.4`, leaving older setup folders alone. If that versioned folder differs, rename only that setup folder before repeating Step 2. Preserve models. |
 | OpenVINO package_unsafe_path after browser download | Complete Step 6 of the starter guide. It removes Windows download marks only after verifying the model files and prepares the correct folder. If the error persists, report it; do not bypass unsafe-path checks. |

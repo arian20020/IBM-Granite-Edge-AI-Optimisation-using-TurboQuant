@@ -12,6 +12,8 @@ The same commands are in the [standalone starter guide](Granite-Start-Here.md). 
 
 Step 6 is mandatory before importing the downloaded OpenVINO package: it verifies the files, extracts directly to `C:\Downloads\Granite-4.1-3B-OpenVINO-Raw` and removes download marks from verified files. It does not weaken application integrity checks.
 
+Step 3 is a file check only: **Nothing installed** is expected. Step 4A opens administrator PowerShell; Step 4B must run in that new window. Wait for installation success before Step 5. An administrator-permission error does not require another download. If Smart App Control blocks launch, stop: package checks do not prove acceptance by that security policy.
+
 The package uses a self-signed test certificate. Follow its approval instructions and do not bypass organisational security policies. Check GGUF and OpenVINO separately: reaching the first page does not prove that either model can complete inspection and chat. Use the [user manual](User-Manual.md) for the workflow.
 
 A clean-machine install/uninstall test is not recorded. This is a limitation, not a reason to label an untested installer as verified.
