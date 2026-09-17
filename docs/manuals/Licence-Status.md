@@ -2,6 +2,8 @@
 
 This page separates the project's own work, third-party software and model files. They do not all have one licence.
 
+For installation commands, use [Run the app](Run-the-App.md) and [Granite-Start-Here.md](Granite-Start-Here.md). The current setup downloads Granite 4.1 3B Q4_K_M GGUF and a separately prepared raw OpenVINO ZIP; the Granite 4.0 H Micro catalogue listed below is an optional in-app alternative. Review the [IBM Granite 4.1 GGUF model page](https://huggingface.co/ibm-granite/granite-4.1-3b-GGUF) and [upstream 4.1 3B model page](https://huggingface.co/ibm-granite/granite-4.1-3b) for their terms and notices. The OneDrive OpenVINO ZIP is not presented as an official IBM-prepared download. Download links, checksums and a self-signed installer do not themselves grant redistribution rights.
+
 ## The project's own code and documentation
 
 No root project licence is supplied in this checkout. A licence for the original work still needs the rights holder's decision. This page does not make that decision or grant extra permission.

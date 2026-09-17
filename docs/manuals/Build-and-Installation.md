@@ -4,6 +4,8 @@ There are two different tasks here: **using a verified app package** and **build
 
 ## If you only want to use the app
 
+**Beginner/examiner route:** follow [Run the app](Run-the-App.md), with the complete command blocks in [Granite-Start-Here.md](Granite-Start-Here.md). The developer commands below are not additional installation steps. Keep the ZIP and model downloads separate: Step 2 prepares the app setup directory; Step 6 prepares the model files.
+
 Use the [README setup steps](../../README.md#setup-and-first-use) with [Granite-Edge-AI-Setup.zip](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQA3url8UXf3S5dWadOp1J_mAcnF6HngK5vyJivCi0lQr40?e=Sxcl88). The README contains the checksum and commands for extraction, installation, launch and model downloads. You do not need Git, Visual Studio or a source build for this route.
 
 Step 1 opens the app ZIP's OneDrive page, and Step 6 opens the individual GGUF and OpenVINO download pages in your browser. Click **Download** on those pages; the PowerShell commands do not download the files automatically. Follow the README's file checks before installation or model extraction.
@@ -72,7 +74,7 @@ The table below is a dependency checklist, not a substitute for the final packag
 | Hardware llama.cpp probe | [Probe packaging](../../IBM%20Granite%20with%20TurboQuant%20%28Intel%29/HardwareInspection.LlamaCppProbePackaging.targets) builds and verifies the probe and locates the Visual C++ runtime. |
 | Model inspection worker | [Inspection packaging](../../IBM%20Granite%20with%20TurboQuant%20%28Intel%29/ModelInspection.WorkerPackaging.targets) publishes and verifies the worker. |
 
-Before calling a package ready, the maintainer must record all of these inputs, the exact Visual Studio components, signing requirements and an installation test in the [handover record](../../release-evidence/Package-Handover.md). No complete, tested installer command is available in this guide yet.
+Before calling a newly built package ready, the maintainer must record all of these inputs, the exact Visual Studio components, signing requirements and an installation test in the [handover record](../../release-evidence/Package-Handover.md). This developer section does not provide a complete source-to-installer recipe. Installation commands for the already supplied 1.0.4.0 ZIP are available in the starter guide.
 
 A normal x64 build needs the verified native stages and their expected manifest hashes. A stage is a prepared directory containing a worker, its dependencies and a manifest of expected files.
 

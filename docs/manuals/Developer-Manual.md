@@ -1,5 +1,7 @@
 # Developer guide
 
+To run the supplied application rather than develop it, use [Run the app](Run-the-App.md) and [Granite-Start-Here.md](Granite-Start-Here.md). Their commands target the 1.0.4.0 ZIP; a later documentation or test commit does not mean the ZIP was rebuilt. Do not apply the published ZIP checksum to your own build.
+
 Start with [build and installation](Build-and-Installation.md). This page explains where the code lives and how to check a change without confusing experiments, unit tests and the installed app.
 
 ## Project map
@@ -42,6 +44,10 @@ dotnet build tests/E2ETests/GraniteEdgeAI.EndToEndTests/GraniteEdgeAI.EndToEndTe
 Supply the inputs in [InspectionRouteJourneys.md](../../tests/E2ETests/GraniteEdgeAI.EndToEndTests/Journeys/InspectionRouteJourneys.md) before running native tests. Close the app first. They use the installed candidate and real model files; missing inputs are not a pass. Use a .NET host with the required Windows Desktop runtime.
 
 Read the TRX results, not just a green runner banner. Confirm the expected tests were discovered and executed and that none were unexpectedly skipped. Record the filter and input identity with each result.
+
+The [CI run for ca0eeba7](https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/actions/runs/35231533452) passed 1,959 tests. Four saved-GGUF-cache positive cases require the pinned admitted runtime and use `RequiresVerifiedGgufRuntimeClosure`, which the ordinary CI filter excludes. They were run separately in the local pinned-runtime harness; this is not a claim that CI tests those runtime bytes.
+
+Build test hosts and their worker manifests from matching inputs. An incremental test-only build can mix an existing application DLL with a newer worker manifest in `obj`; that is an integrity failure, not a reason to disable verification or change expected hashes. Also give navigation fixtures real isolated source directories where production code reads saved-profile metadata.
 
 ## Experiments and application evidence
 

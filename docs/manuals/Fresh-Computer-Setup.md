@@ -1,12 +1,14 @@
 # Set up Granite from source
 
+**This is the developer route, not the examiner's installation guide.** For the supplied 1.0.4.0 ZIP, use [Run the app](Run-the-App.md) and the complete [starter guide](Granite-Start-Here.md). Those steps install without Git or Visual Studio: download/verify, check, install in administrator PowerShell, launch in ordinary PowerShell, then prepare models. The numbered source-build steps below are a different sequence.
+
 This guide is for a new Windows development computer. It does not use the existing demonstration installation. Read the release-input section before spending time on a build: not all native inputs have a complete public preparation recipe yet.
 
 **Only want to run Granite?** Use the [packaged-app setup in the README](../../README.md#setup-and-first-use). It includes installation, launch and model downloads without cloning or building. The instructions below are for source development; their input and verification gaps do not mean that no packaged app is available.
 
 ## 1. Check the computer
 
-Use Windows 11 x64 on suitable Intel hardware. Other laptops are not automatically supported. The recorded test computer had about 16 GB of RAM; this is not a guaranteed minimum. Allow extra disk space for downloads, native builds, models and temporary output.
+Use Windows 11 x64. The recorded development computer used Intel hardware and about 16 GB of RAM; this is not a guaranteed minimum or proof that every other laptop works. Model inspection, runtime support and current resource checks determine what is offered. Allow extra disk space for downloads, native builds, models and temporary output.
 
 Keep internet access on for tools, dependencies and model downloads. Offline chat needs those files first.
 

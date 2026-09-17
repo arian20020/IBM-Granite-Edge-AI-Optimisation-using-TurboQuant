@@ -8,7 +8,9 @@ For installation on your own computer, use the [starter guide](Granite-Start-Her
 
 ## Before you start
 
-For a first attempt, use the Balanced GGUF example in the download guide. You do not need to try every model or both runtimes. Finish one journey before starting another. Here, **maintainer** means the project developer who supplied the demonstration installation; see [support](../../SUPPORT.md) if you need help.
+For a first attempt with the setup guide, use `C:\Downloads\granite-4.1-3b-Q4_K_M.gguf` after Step 6 completes. The built-in Balanced Granite 4.0 H Micro download is a separate optional example. You do not need to try every model or both runtimes. Finish one journey before starting another. Here, **maintainer** means the project developer who supplied the installation; see [support](../../SUPPORT.md) if you need help.
+
+Use [Run the app](Run-the-App.md) for the examiner's launch instructions. Installation is Step 4 of the starter guide; Step 3 only checks files. Run Step 4B in the administrator window opened by Step 4A, then Step 5 in ordinary PowerShell. Do not mix the historical demonstration commands with the current setup.
 
 - Use the tested Windows 11 x64 setup where possible. The recorded checks centred on an Intel computer with about 16 GB of RAM; that is a test setup, not a guaranteed minimum.
 - Allow space for the model, temporary work and any exported copy. Model files can be several gigabytes.
@@ -75,7 +77,7 @@ For example, type “Explain what a computer processor does in two short sentenc
 
 Download the required model and obtain the complete runtime package before going offline. The developer reported completing inspection, optimisation, export and chat with Wi-Fi disconnected. This was a manual check of one journey, not a full network audit or proof for every route.
 
-Downloaded models use the packaged app's local-data folder under `GraniteEdgeAI/Models`. The GGUF chat-history store uses `%LOCALAPPDATA%/GraniteEdgeAI/ChatHistory`; optimisation work uses `%LOCALAPPDATA%/GraniteEdgeAI/Optimization`. These are implementation locations, not folders to edit during a running operation.
+Models downloaded inside the app use its local-data folder under `GraniteEdgeAI/Models`. The starter guide's separately downloaded models are prepared in `C:\Downloads`; they are not moved into the in-app download catalogue by these instructions. The GGUF chat-history store uses `%LOCALAPPDATA%/GraniteEdgeAI/ChatHistory`; optimisation work uses `%LOCALAPPDATA%/GraniteEdgeAI/Optimization`. These are implementation locations, not folders to edit during a running operation.
 
 Export important models to a location you control. Before reinstalling or resetting the app, back up data you need. Uninstall behaviour has not been verified for every storage location, so do not assume it either keeps or removes everything.
 
@@ -92,6 +94,8 @@ Export important models to a location you control. Before reinstalling or resett
 To use an exported model again, choose it through the normal import screen and let inspection run again. A runtime-only setting is not a portable model export. Automatic chat-history restoration and uninstall retention have not been verified; keep the backup and do not overwrite a live store to try to restore it.
 
 ### Chat controls
+
+Weight and KV-cache formats are different. For example, INT4 weights can be paired with a TQ3 cache. The model selector and Settings display the available format details. A cache marked **selected** is a configuration selection, not independent proof of runtime activation; an unknown value must not be read as confirmed TurboQuant use.
 
 The chat page provides new-chat, history and model-import controls. Open the navigation pane if it is collapsed. Settings includes appearance choices such as system, light and dark theme. Controls can vary with the active route; a disabled control is not an instruction to edit stored files.
 

@@ -27,6 +27,8 @@ See [test scope](../testing/CI-Test-Scope.md) for exact cases and [recorded resu
 
 ## Troubleshooting
 
+Start with the current [examiner run guide](Run-the-App.md) and complete command blocks in [Granite-Start-Here.md](Granite-Start-Here.md). Do not use the historical 1.0.0.0 executable checksum to check the 1.0.4.0 installer. Save browser downloads in normal Downloads; the guide prepares the app and models under `C:\Downloads`.
+
 The actions below are recovery suggestions, not proof of a cause. In particular, reopening after stalled download navigation is an unverified workaround. Missing slider choices can result from resource checks or a fault; do not assume every missing choice is correct.
 
 | What you see | What it means / what to do |
@@ -38,6 +40,8 @@ The actions below are recovery suggestions, not proof of a cause. In particular,
 | Setup ZIP checksum mismatch | Use the current [starter guide](Granite-Start-Here.md) and complete Step 1. Step 2 accepts numbered browser filenames but only the expected checksum. Do not change the checksum to match an unknown ZIP. |
 | Old extraction has missing or extra files | The current guide uses `C:\Downloads\Granite-Edge-AI-Setup-1.0.4`, leaving older setup folders alone. If that versioned folder differs, rename only that setup folder before repeating Step 2. Preserve models. |
 | OpenVINO package_unsafe_path after browser download | Complete Step 6 of the starter guide. It removes Windows download marks only after verifying the model files and prepares the correct folder. If the error persists, report it; do not bypass unsafe-path checks. |
+| OpenVINO folder is incomplete or contains another Raw folder | Keep the original verified model ZIP and run the entire Step 6 preparation block. Recognised incomplete/nested output is backed up before fresh extraction. Wait for the final completion message, not an earlier partial success. |
+| Model download not found | Use the exact model filenames without `(1)`. Step 6 searches normal Downloads and `C:\Downloads`, including up to three nested folder levels. Extract an outer OneDrive collection ZIP first, but keep the inner OpenVINO ZIP zipped. |
 | OpenVINO asks to import the model again | Free up storage if needed, then use **Import model again** and repeat inspection. Keep the original model folder. |
 | Continue is disabled after local selection | Wait for the quick scan. Read any input failure and choose a complete supported source. |
 | Model inspection could not start / runtime_load_failed | A required runtime could not be used. Record the code and check that the installed package is the expected complete package. Do not replace DLLs or bypass verification. |

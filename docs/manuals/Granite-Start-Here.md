@@ -1,5 +1,16 @@
 # Granite Edge AI: installation and model setup
 
+## How to follow this guide
+
+This is the complete beginner setup sequence. [Run the app](Run-the-App.md) provides an overview; the developer manuals are not required for installing this ZIP.
+
+- Press Start, type **Windows PowerShell**, and open it normally unless a step explicitly asks for administrator access.
+- Copy everything inside one PowerShell code box, paste it into PowerShell, and press Enter. Do not paste commands into Granite's chat box or copy surrounding headings.
+- If an incomplete paste leaves PowerShell showing `>>`, press **Ctrl+C**, then paste the complete block again.
+- Keep the laptop plugged in and online during downloads and installation. Wait for each step to finish; large-file checks can take time.
+- Normal Downloads is `C:\Users\<your username>\Downloads`; prepared files go into `C:\Downloads`. The commands handle these different locations.
+- On a university/work laptop, ask IT if permissions or a security policy block setup. Do not use someone else's account to install it.
+
 Use **Granite-Edge-AI-Setup.zip** with this guide. No Git, Visual Studio or source build is needed. Use Windows 11 x64 and allow at least 20 GB of free space; optimisation may need more.
 
 Run each numbered step separately. Copy each complete PowerShell code block using its copy button; do not copy Markdown link formatting, headings or the ``` markers. **If a step fails, stop: do not paste the next command. If setup files are missing or do not match, return to Step 1, download the correct ZIP and repeat Step 2. Do not skip the checks or continue with an older extracted folder.** Other errors, such as low storage or denied permission, need the action shown in the error message.

@@ -2,7 +2,7 @@
 
 Start with the installed Granite app. Downloading a model does not install the app or its runtimes.
 
-Choose **one** download method below. The built-in method is the simplest; manual download is an alternative, not an extra required step. A model is the large file containing the learned values used to produce replies. A checksum is a file fingerprint used to check that the bytes match the expected download.
+For the two setup-guide models, follow **Step 6 of [Granite-Start-Here.md](Granite-Start-Here.md)**. It supplies the browser commands and complete preparation block. The Granite 4.0 H Micro methods later on this page are optional alternatives, not extra required steps. A model is the large file containing the learned values used to produce replies. A checksum is a file fingerprint used to check that the bytes match the expected download.
 
 ## Download the demonstration models
 
@@ -15,11 +15,15 @@ Follow Step 6 of the [starter guide](Granite-Start-Here.md). Use the official IB
 
 Step 7 explains how to import them. Do not download a model again if you already have the matching complete file.
 
+Wait for **STEP 6 COMPLETE: OpenVINO files verified**, then close and reopen Granite before import. Do not re-extract the ZIP afterwards, since that can recreate Windows download marks. Keep the original ZIP available for verification and repair.
+
+Use the exact model filenames without `(1)` suffixes. Numbered-filename support in Step 2 applies to the application ZIP only. If a model download has a suffix, rename that file only after checking that you are not overwriting another file.
+
 The current links download each model file directly. Only use the optional whole-folder instructions in Step 6 if you downloaded an outer ZIP through the old folder link. In that case, move `granite-4.1-3b-Q4_K_M.gguf` and `Granite-4.1-3B-OpenVINO-Raw.zip` out of any nested folder directly into `C:\Downloads` or your normal Downloads folder. Keep the OpenVINO model zipped, then run preparation. Direct downloads also require preparation: it verifies and extracts the model and removes Windows download marks from verified files.
 
 These Granite 4.1 models are separate from the Granite 4.0 H Micro catalogue inside the app. The downloads total about 7.36 GB; extraction and optimisation need additional space. Successful file verification does not guarantee memory fit or inference on another laptop. See the README for download failure handling and the current installation-test limitation.
 
-## Easiest option: download inside Granite
+## Optional alternative: download Granite 4.0 H Micro inside Granite
 
 1. Open the app using [Run the app](Run-the-App.md).
 2. On the first page, find the recommended IBM Granite 4.0 H Micro model.
@@ -46,7 +50,7 @@ The app checks the downloaded size and SHA-256 against its pinned catalogue. You
 
 These are five alternative downloads, not five files you must obtain. Sizes are download sizes, not peak RAM or total disk requirements. Later optimisation choices are separate from this download slider.
 
-## Manual GGUF download
+## Optional alternative: manual Granite 4.0 H Micro GGUF download
 
 Use this option if you want to keep the original download in a folder you choose.
 
