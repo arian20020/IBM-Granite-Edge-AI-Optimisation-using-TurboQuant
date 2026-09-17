@@ -116,6 +116,8 @@ public sealed class OnboardingCompatibilityNavigationTests
     private static readonly Guid OpenVinoHandoffId =
         Guid.Parse("33333333-3333-4333-8333-333333333333");
     private ResourceDictionary? _journeyResources;
+    private readonly string _modelFixtureRoot = Path.Combine(
+        Path.GetTempPath(), "granite-navigation-" + Guid.NewGuid().ToString("N"));
 
     [TestMethod]
     public void SuccessfulImportIntentInstallsAllSourcesBeforeRetiringTheOldJourney()
@@ -208,6 +210,10 @@ public sealed class OnboardingCompatibilityNavigationTests
     [TestCleanup]
     public void RemoveJourneyResources()
     {
+        if (Directory.Exists(_modelFixtureRoot))
+        {
+            Directory.Delete(_modelFixtureRoot, recursive: true);
+        }
         if (_journeyResources is not null)
         {
             Application.Current.Resources.MergedDictionaries.Remove(_journeyResources);
@@ -842,8 +848,16 @@ public sealed class OnboardingCompatibilityNavigationTests
             "No fresh dedicated-memory provider exists, so the source must stay unknown.");
     }
 
-    private static ModelInspectionPage CreateSourcePage()
+    private ModelInspectionPage CreateSourcePage()
     {
+        // Inspection is supplied by the test boundary, but saved-profile lookup
+        // needs a real source directory. Do not depend on a nonexistent C: path.
+        Directory.CreateDirectory(_modelFixtureRoot);
+        string modelPath = Path.Combine(_modelFixtureRoot, "granite.gguf");
+        ModelInspectionRequest template = PresentationTestData.CreateRequest();
+        File.WriteAllBytes(modelPath, new byte[4096]);
+        var request = new ModelInspectionRequest(modelPath, template.FileName,
+            template.ExpectedFileIdentity, template.QuickScan);
         var page = new ModelInspectionPage();
         System.Reflection.MethodInfo? activate = typeof(ModelInspectionPage)
             .GetMethod(
@@ -851,7 +865,7 @@ public sealed class OnboardingCompatibilityNavigationTests
                 System.Reflection.BindingFlags.Instance |
                 System.Reflection.BindingFlags.NonPublic);
         Assert.IsNotNull(activate);
-        activate.Invoke(page, [PresentationTestData.CreateRequest()]);
+        activate.Invoke(page, [request]);
         return page;
     }
 

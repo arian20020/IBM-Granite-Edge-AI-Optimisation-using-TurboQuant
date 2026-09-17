@@ -23,6 +23,9 @@ namespace GraniteEdgeAI.UnitTests.Features.ModelHardwareCompatibility;
 public sealed class GgufSavedCacheHandoffTests
 {
     [TestMethod]
+    // These exact saved tuples require the pinned, admitted runtime manifest.
+    // A freshly rebuilt CI worker is not that evidence closure.
+    [TestCategory("RequiresVerifiedGgufRuntimeClosure")]
     [DataRow("f16", GgufCacheType.F16)]
     [DataRow("q8_0", GgufCacheType.Q8Zero)]
     [DataRow("turbo3", GgufCacheType.Turbo3)]

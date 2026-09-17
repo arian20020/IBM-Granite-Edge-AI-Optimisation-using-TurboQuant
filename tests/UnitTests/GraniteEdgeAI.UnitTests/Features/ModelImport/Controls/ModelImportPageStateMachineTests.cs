@@ -51,7 +51,7 @@ public sealed class ModelImportPageStateMachineTests
 
     [UITestMethod]
     [TestCategory("WinUI")]
-    public async Task StartingSecondScan_CancelsFirstAndKeepsSecondResult()
+    public async Task OverlappingBrowse_IsIgnoredAndNextBrowseWorksAfterCompletion()
     {
         const string firstPath = @"C:\Models\first-model.gguf";
         const string secondPath = @"C:\Models\second-model.gguf";
@@ -95,6 +95,9 @@ public sealed class ModelImportPageStateMachineTests
 
         await page.BrowseFilesAsync();
 
+        Assert.AreEqual(1, pickerIndex, "An overlapping browse must not open another picker.");
+        Assert.IsFalse(firstScanToken.IsCancellationRequested);
+
         firstScanCompletion.SetResult(
             ModelQuickScanResult.CreateFailure(
                 failureCode: "late-first-result",
@@ -102,10 +105,12 @@ public sealed class ModelImportPageStateMachineTests
                 technicalMessage: "Late result used only by the test."));
         await firstBrowse;
 
+        await page.BrowseFilesAsync();
+        Assert.AreEqual(2, pickerIndex, "The browse gate must reopen when the first flow completes.");
+
         var continueButton = (Button)page.FindName(
             "BtnContinueToInspection");
 
-        Assert.IsTrue(firstScanToken.IsCancellationRequested);
         Assert.AreEqual(secondPath, page.SelectedModelPath);
         Assert.AreSame(secondScanResult, page.ValidatedScanResult);
         Assert.IsTrue(page.HasValidatedModel);
