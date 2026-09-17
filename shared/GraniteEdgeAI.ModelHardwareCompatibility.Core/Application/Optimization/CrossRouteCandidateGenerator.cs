@@ -658,15 +658,18 @@ internal static class CrossRouteCandidateGenerator
                     inspectedParameterCount);
             if (measuredEvidence is null)
             {
-                // A verified original FP16 run does not need conversion-quality
-                // rankings. Only distinguish genuine absence: any FP16 record
-                // (including a mismatched or failed one) retains the refusal.
+                // Running an inspected file unchanged does not need conversion-quality
+                // rankings. Any source-precision record, including a mismatched or
+                // failed one, still retains the refusal. Never admit an optimisation.
                 bool originalQualityAbsent = admitted.Weights == OpenVinoWeightFormat.Original
-                    && admitted.KvCache == OpenVinoKvCacheFormat.RouteDefault
-                    && inspectedParameterCount is > 0
-                    && VerifiedOpenVinoOptimizationEvidence.MatchesObservedClosure(execution)
+                    && (admitted.KvCache is OpenVinoKvCacheFormat.RouteDefault
+                        or OpenVinoKvCacheFormat.U4 or OpenVinoKvCacheFormat.U8
+                            ? VerifiedOpenVinoOptimizationEvidence.MatchesCurrentModelClosure(execution)
+                            : admitted.KvCache is OpenVinoKvCacheFormat.TurboQuantTbq3 or OpenVinoKvCacheFormat.TurboQuantTbq4
+                                && VerifiedOpenVinoOptimizationEvidence.MatchesTurboClosure(execution))
                     && qualityEvidence is not null
-                    && !qualityEvidence.ContainsWeightEvidence(OptimizationRoute.OpenVino, "fp16");
+                    && !qualityEvidence.ContainsWeightEvidence(OptimizationRoute.OpenVino,
+                        OpenVinoSourceWeightKey(execution.SourceWeightPrecision));
                 exclusions.Add(new OptimizationExclusion(
                     admitted.EvidenceId,
                     descriptor,
@@ -729,6 +732,15 @@ internal static class CrossRouteCandidateGenerator
         _ => throw new ArgumentOutOfRangeException(nameof(target))
     };
 
+    private static string OpenVinoSourceWeightKey(OpenVinoWeightPrecision precision) => precision switch
+    {
+        OpenVinoWeightPrecision.Fp16 => "fp16",
+        OpenVinoWeightPrecision.EightBit => "int8",
+        OpenVinoWeightPrecision.FourBit => "int4",
+        OpenVinoWeightPrecision.MxFp4 => "mxfp4",
+        _ => string.Empty
+    };
+
     private static OptimizationEvidenceRecord? ResolveOpenVinoQualityEvidence(
         OptimizationEvidenceCatalog? catalog,
         OptimizationJourneyBinding binding,
@@ -737,6 +749,13 @@ internal static class CrossRouteCandidateGenerator
         ContextTokenCount context,
         ulong? inspectedParameterCount)
     {
+        // Original is a current-file estimate for compressed imports, not an
+        // additional conversion candidate backed by the FP16-source experiments.
+        if (admitted.Weights == OpenVinoWeightFormat.Original
+            && execution.SourceWeightPrecision != OpenVinoWeightPrecision.Fp16)
+        {
+            return null;
+        }
         bool turbo = admitted.KvCache is OpenVinoKvCacheFormat.TurboQuantTbq3
             or OpenVinoKvCacheFormat.TurboQuantTbq4;
         // Turbo rows require the independently verified exact TurboQuant build;
@@ -755,7 +774,8 @@ internal static class CrossRouteCandidateGenerator
             OpenVinoWeightFormat.Int4 => "int4",
             OpenVinoWeightFormat.MxFp4 => "mxfp4",
             OpenVinoWeightFormat.Int8 => "int8",
-            OpenVinoWeightFormat.Fp16 or OpenVinoWeightFormat.Original => "fp16",
+            OpenVinoWeightFormat.Fp16 => "fp16",
+            OpenVinoWeightFormat.Original => OpenVinoSourceWeightKey(execution.SourceWeightPrecision),
             _ => string.Empty
         };
         string cache = admitted.KvCache switch

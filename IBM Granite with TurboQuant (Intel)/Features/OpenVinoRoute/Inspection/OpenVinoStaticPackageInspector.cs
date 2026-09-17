@@ -266,7 +266,8 @@ public sealed class OpenVinoStaticPackageInspector
                 embeddingSize,
                 attentionHeadCount,
                 keyValueHeadCount,
-                weightPrecision));
+                weightPrecision,
+                optionalTokenizerFacts.SavedRuntimeConfiguration));
         }
         catch (Exception exception) when (exception is JsonException or DecoderFallbackException or XmlException or FormatException or OverflowException or InvalidDataException)
         {
@@ -425,7 +426,14 @@ public sealed class OpenVinoStaticPackageInspector
                 OpenVinoProvenance.ValidateJson(root, snapshot);
                 break;
             case OpenVinoOptimizationProvenance.FileName:
-                OpenVinoOptimizationProvenance.ValidateJson(root, snapshot);
+                // Carry only configuration validated against these captured bytes;
+                // never reopen a mutable provenance file at chat activation.
+                OpenVinoOptimizationProvenance optimization =
+                    OpenVinoOptimizationProvenance.ValidateJson(root, snapshot);
+                if (optimization.RuntimeConfiguration is null &&
+                    optimization.RequestedKvCachePrecision != OpenVinoKvCachePrecision.ReleasedDefault)
+                    throw new InvalidDataException("Saved cache configuration lacks complete technical evidence.");
+                facts.SavedRuntimeConfiguration = optimization.RuntimeConfiguration;
                 break;
             default:
                 throw new InvalidDataException("Optional JSON resource has no version-one schema.");
@@ -1445,6 +1453,7 @@ public sealed class OpenVinoStaticPackageInspector
 
     private sealed class OptionalTokenizerFacts
     {
+        public OpenVinoRuntimeTechnicalConfiguration? SavedRuntimeConfiguration { get; set; }
         public Dictionary<string, long>? Vocabulary { get; set; }
 
         public Dictionary<string, long>? AddedTokens { get; set; }

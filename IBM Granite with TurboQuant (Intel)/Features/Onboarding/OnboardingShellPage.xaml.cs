@@ -962,10 +962,19 @@ namespace GraniteEdgeAI.Features.Onboarding
             var evaluator = A1BackendProductionAuthorities.Shared.CreateCompatibility(
                 _compatibilityFreshResourcesSource,
                 TimeProvider.System);
+            GgufOptimizationProductionAuthority? production = null;
+            bool savedProfileRejected = false;
+            bool hasGgufProduction = hasGguf && GgufOptimizationProductionAuthority.TryCreate(
+                preparedGguf!,
+                _modelSourceCustodyRegistry,
+                out production,
+                out savedProfileRejected);
+            if (savedProfileRejected)
+            {
+                return false;
+            }
             CompatibilityPage compatibilityPage;
-            if (hasGguf && GgufOptimizationProductionAuthority.TryCreate(
-                    preparedGguf!,
-                    out GgufOptimizationProductionAuthority? production))
+            if (hasGgufProduction)
             {
                 _activeGgufAuthority = production;
                 _activeOpenVinoAuthority = null;
@@ -2015,16 +2024,10 @@ namespace GraniteEdgeAI.Features.Onboarding
                     string displayName = CreateChatModelDisplayName(
                         _modelInspectionPageForHardwareReturn?.Request?.FileName,
                         "Optimised GGUF model");
-                    string formatLabel = ggufTarget.RuntimeOptions.PersistentTargetWeightFormat.ToString() switch
-                    {
-                        "Q3KM" => "Q3_K_M · GGUF",
-                        "Q4KM" => "Q4_K_M · GGUF",
-                        "Q5KM" => "Q5_K_M · GGUF",
-                        "Q6K" => "Q6_K · GGUF",
-                        "Q2K" => "Q2_K · GGUF",
-                        "Unspecified" or "Imported" => "GGUF",
-                        var format => $"{format} · GGUF"
-                    };
+                    string formatLabel = ChatModelFormatLabel.Gguf(
+                        ggufTarget.RuntimeOptions.PersistentTargetWeightFormat.ToString(),
+                        ggufTarget.RuntimeOptions.KeyCacheType.ToString(),
+                        ggufTarget.RuntimeOptions.ValueCacheType.ToString());
                     var request = new GgufChatLaunchRequest(
                         authority.RuntimePackageRoot,
                         authority.TrustedRuntimeManifest.Span,
@@ -2089,15 +2092,11 @@ namespace GraniteEdgeAI.Features.Onboarding
             ChatDemoController? created = null;
             IDisposable? custody = null;
             string id = $"openvino-optimized-{target.Target.ConfigurationSha256[..24]}";
-            string label = _optimizationCoordinator?.State.Entry.OptimizationHandoff.Plan.ExecutionPayload.OpenVino?.TargetWeightPrecision switch
-            {
-                GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoWeightPrecision.Fp16 => "FP16 · OpenVINO",
-                GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoWeightPrecision.EightBit => "INT8 · OpenVINO",
-                GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoWeightPrecision.FourBit => "INT4 · OpenVINO",
-                GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoWeightPrecision.MxFp4 => "MXFP4 · OpenVINO",
-                _ => "OpenVINO"
-            };
-            string displayName = System.IO.Path.GetFileName(target.Target.PackageDirectory);
+            string label = ChatModelFormatLabel.OpenVino(
+                _optimizationCoordinator?.State.Entry.OptimizationHandoff.Plan.ExecutionPayload.OpenVino?.TargetWeightPrecision.ToString(),
+                target.Target.RuntimeOptions.KvCachePrecision);
+            string displayName = ChatModelDisplayName.OpenVino(
+                target.Target.PackageDirectory, owner.OpenVinoRequest?.DisplayName);
             try
             {
                 ChatPage page = _attachedChatPage ?? new ChatPage();
@@ -2652,19 +2651,20 @@ namespace GraniteEdgeAI.Features.Onboarding
             sourceLease!.Dispose();
 
             ModelInspectionPage? sourcePage = _modelInspectionPageForHardwareReturn;
-            string displayName = CreateChatModelDisplayName(
-                route == ChatModelRoute.Gguf
-                    ? sourcePage?.Request?.FileName
-                    : sourcePage?.OpenVinoRequest?.DisplayName,
-                route == ChatModelRoute.Gguf
-                    ? "Imported GGUF model"
-                    : "Imported OpenVINO model");
+            string displayName = route == ChatModelRoute.Gguf
+                ? CreateChatModelDisplayName(sourcePage?.Request?.FileName, "Imported GGUF model")
+                : ChatModelDisplayName.OpenVino(sourcePage?.OpenVinoRequest?.DisplayName);
             string? weightLabel = route == ChatModelRoute.Gguf
                 ? sourcePage?.Request?.QuickScan?.Quantisation
                 : sourcePage?.VerifiedOpenVinoWeightLabel;
-            string routeLabel = route == ChatModelRoute.Gguf ? "GGUF" : "OpenVINO";
-            string formatLabel = string.IsNullOrWhiteSpace(weightLabel)
-                ? routeLabel : $"{weightLabel} · {routeLabel}";
+            if (!CurrentModelChatLaunchRegistry.TryGetExecutionPayload(handoff, out var executionPayload))
+                return false;
+            string formatLabel = route == ChatModelRoute.Gguf
+                ? ChatModelFormatLabel.Gguf(weightLabel,
+                    executionPayload!.Gguf?.KeyCacheType.ToString(),
+                    executionPayload.Gguf?.ValueCacheType.ToString())
+                : ChatModelFormatLabel.OpenVino(weightLabel,
+                    executionPayload!.OpenVino?.KvCachePrecision.ToString());
             var descriptor = ChatModelDescriptor.Create(
                 computedModelId,
                 displayName,
@@ -2755,6 +2755,8 @@ namespace GraniteEdgeAI.Features.Onboarding
                 string formatLabel,
                 CancellationToken cancellationToken)
         {
+            if (!CurrentModelChatLaunchRegistry.TryGetOpenVinoRuntimeOptions(handoff, out var runtimeOptions))
+                return ChatModelActivationDisposition.RuntimeUnavailable;
             var sourceKey = new ModelSourceCustodyKey(handoff.ModelInspectionHandoffId,
                 handoff.ModelSha256, handoff.ModelLengthBytes, handoff.Route);
             if (!_modelSourceCustodyRegistry.TryAcquire(sourceKey, out ModelSourceLease? sourceLease))
@@ -2766,7 +2768,7 @@ namespace GraniteEdgeAI.Features.Onboarding
                 {
                     var owner = _modelInspectionPageForHardwareReturn ?? new ModelInspectionPage();
                     var session = owner.CreateSharedOpenVinoChatSession(sourceLease!.SourcePath,
-                        GraniteEdgeAI.OpenVino.Contracts.OpenVinoRuntimeOptions.ReleasedDefault);
+                        runtimeOptions!);
                     ChatPage page = _attachedChatPage ?? new ChatPage();
                     if (_chatController is { } shared)
                         await shared.SwitchModelAsync(session, displayName, "OpenVINO · CPU", cancellationToken, handoff.ModelSha256, "local");

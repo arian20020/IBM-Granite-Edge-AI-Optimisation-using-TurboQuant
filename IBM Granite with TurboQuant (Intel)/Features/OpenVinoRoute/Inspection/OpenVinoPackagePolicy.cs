@@ -1,4 +1,5 @@
 using GraniteEdgeAI.OpenVino.Contracts;
+using GraniteEdgeAI.Features.OpenVinoRoute.Optimization;
 
 namespace GraniteEdgeAI.Features.OpenVinoRoute.Inspection;
 
@@ -100,7 +101,8 @@ public sealed record OpenVinoStaticPackageEvidence(
     int? EmbeddingSize = null,
     int? AttentionHeadCount = null,
     int? KeyValueHeadCount = null,
-    string? WeightPrecision = null);
+    string? WeightPrecision = null,
+    OpenVinoRuntimeTechnicalConfiguration? SavedRuntimeConfiguration = null);
 
 public sealed record OpenVinoStaticPackageInspectionResult(
     OpenVinoStaticInspectionStatus Status,

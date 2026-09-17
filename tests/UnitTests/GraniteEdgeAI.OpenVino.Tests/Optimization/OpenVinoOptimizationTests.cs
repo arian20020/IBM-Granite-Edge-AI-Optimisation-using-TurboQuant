@@ -299,7 +299,11 @@ public sealed class OpenVinoOptimizationTests
     public async Task PublishedProvenanceBindsEveryPlanIdentityAndReturnsPersistentC1Result()
     {
         using PackageFixture package = PackageFixture.Create();
-        RecordingOptimizationPipeline pipeline = new();
+        RecordingOptimizationPipeline pipeline = new()
+        {
+            CopyCompletePackage = true,
+            SparseOutputLength = new FileInfo(Path.Combine(package.Source, "openvino_model.bin")).Length
+        };
         OpenVinoOptimizationService service = new(pipeline, _ => true);
         OptimizationExecutionPlan plan = CreatePlan(package.Source);
 
@@ -365,6 +369,11 @@ public sealed class OpenVinoOptimizationTests
             provenance.OpenVinoExecutionPayloadSha256);
         Assert.IsFalse(File.Exists(Path.Combine(
             package.Destination, OpenVinoRuntimeOptimizationProfile.FileName)));
+
+        OpenVinoStaticPackageInspectionResult reimport = new OpenVinoStaticPackageInspector().Inspect(package.Destination);
+        Assert.IsNotNull(reimport.Evidence, $"Reimport failed: {reimport.SupportCode}");
+        Assert.AreEqual(provenance.RuntimeConfiguration, reimport.Evidence.SavedRuntimeConfiguration,
+            "Reinspection must carry the cache selection bound to the validated package, not discard it.");
 
         string provenancePath = Path.Combine(
             package.Destination, OpenVinoOptimizationProvenance.FileName);
@@ -1835,6 +1844,23 @@ public sealed class OpenVinoOptimizationTests
         Assert.AreEqual(OpenVinoStaticInspectionStatus.Rejected, unpinnedResult.Status);
         Assert.AreEqual(OpenVinoSupportCode.PackageInconsistentResource,
             unpinnedResult.SupportCode);
+    }
+
+    [TestMethod]
+    public void LegacyNonDefaultCacheWithoutTechnicalConfigurationCannotSilentlyBecomeDefault()
+    {
+        using PackageFixture package = PackageFixture.Create();
+        WriteValidOptimizationProvenance(package.Source);
+        OpenVinoOptimizationProvenance legacy = OpenVinoOptimizationProvenance.Read(package.Source);
+        (legacy with
+        {
+            ConfigurationId = "openvino.standard.cpu.int8.u8.v1",
+            TargetWeightPrecision = OpenVinoWeightPrecision.EightBit,
+            RequestedKvCachePrecision = OpenVinoKvCachePrecision.U8,
+            ActualKvCachePrecision = OpenVinoKvCachePrecision.U8
+        }).Write(package.Source);
+        Assert.AreEqual(OpenVinoSupportCode.PackageInconsistentResource,
+            new OpenVinoStaticPackageInspector().Inspect(package.Source).SupportCode);
     }
 
     private static void WriteValidOptimizationProvenance(string root)

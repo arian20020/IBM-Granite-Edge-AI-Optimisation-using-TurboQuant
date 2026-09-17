@@ -23,6 +23,45 @@ namespace GraniteEdgeAI.ModelHardwareCompatibility.Tests.Application.Candidates;
 public sealed class CrossRouteCandidateGeneratorTests
 {
     [TestMethod]
+    [DataRow(OpenVinoWeightPrecision.FourBit, false, false)]
+    [DataRow(OpenVinoWeightPrecision.EightBit, false, false)]
+    [DataRow(OpenVinoWeightPrecision.MxFp4, false, false)]
+    [DataRow(OpenVinoWeightPrecision.FourBit, true, false)]
+    [DataRow(OpenVinoWeightPrecision.EightBit, true, false)]
+    [DataRow(OpenVinoWeightPrecision.FourBit, false, true)]
+    public void InspectedUnchangedQuantisedPackageWithoutQualityRowsDoesNotBecomeAnOptimisationCandidate(
+        OpenVinoWeightPrecision precision, bool conflictingEvidence, bool unknownRuntime)
+    {
+        var admission = CrossRouteTestData.OpenVino("current", OpenVinoWeightFormat.Original,
+            cache: OpenVinoKvCacheFormat.RouteDefault);
+        var execution = OpenVinoExecutionAuthority.Create("current", "current", precision,
+            OpenVinoBuildIdentity.Create(VerifiedOpenVinoOptimizationEvidence.RuntimeBuild,
+                VerifiedOpenVinoOptimizationEvidence.GenAiBuild,
+                VerifiedOpenVinoOptimizationEvidence.TokenizersBuild,
+                unknownRuntime ? Digest : VerifiedOpenVinoOptimizationEvidence.CurrentOfficialWorkerManifestSha256),
+            new Dictionary<string, string>
+            {
+                ["openvino"] = "2026.3.0", ["openvino-genai"] = "2026.3.0.0",
+                ["nncf"] = "3.3.0", ["optimum"] = "2.3.0",
+                ["optimum-intel"] = "2.1.0", ["transformers"] = "5.5.4"
+            }, true);
+        var snapshot = OptimizationCapabilitySnapshot.ForOpenVino("current", Digest,
+            OpenVinoCapabilityPayload.Create(execution.BuildIdentity.RuntimeBuild, [admission], [execution]));
+        var generated = CrossRouteCandidateGenerator.Generate(snapshot, CrossRouteTestData.Facts(),
+            CrossRouteTestData.Workload(), CrossRouteTestData.Binding(),
+            ByteCount.FromBytes(32 * Gibibyte), ByteCount.FromBytes(500 * Gibibyte),
+            EstimatorPolicy.ProvisionalV1(), new HashSet<string>(), HardwareAuthority(),
+            conflictingEvidence ? new OptimizationEvidenceCatalog(PublishedOpenVinoOptimizationEvidence.Records()
+                .Select(record => record with { OutputHealthPassed = false }))
+                : new OptimizationEvidenceCatalog([]), inspectedParameterCount: null);
+        Assert.AreEqual(0, generated.Candidates.Count);
+        Assert.AreEqual(conflictingEvidence || unknownRuntime
+                ? OptimizationExclusionReason.EvidenceBelowAdmissionLevel
+                : OptimizationExclusionReason.CurrentModelQualityEvidenceUnavailable,
+            generated.Exclusions.Single().Reason);
+    }
+
+    [TestMethod]
     [DataRow(OpenVinoWeightPrecision.FourBit, OpenVinoWeightFormat.Int4, false)]
     [DataRow(OpenVinoWeightPrecision.EightBit, OpenVinoWeightFormat.Int8, false)]
     [DataRow(OpenVinoWeightPrecision.Fp16, OpenVinoWeightFormat.Fp16, false)]

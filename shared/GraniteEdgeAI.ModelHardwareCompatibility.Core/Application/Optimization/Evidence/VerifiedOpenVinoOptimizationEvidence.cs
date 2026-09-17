@@ -318,16 +318,27 @@ public static class VerifiedOpenVinoOptimizationEvidence
     internal static bool MatchesObservedClosure(OpenVinoExecutionAuthority execution)
         => MatchesObservedClosure(execution, WorkerManifestSha256);
 
+    // Current-file estimates do not claim conversion quality. They still require
+    // an exact pinned official runtime closure and an inspected source precision.
+    internal static bool MatchesCurrentModelClosure(OpenVinoExecutionAuthority execution) =>
+        execution.SourceWeightPrecision is OpenVinoWeightPrecision.Fp16
+            or OpenVinoWeightPrecision.EightBit or OpenVinoWeightPrecision.FourBit
+            or OpenVinoWeightPrecision.MxFp4
+        && (MatchesObservedClosure(execution, WorkerManifestSha256, false)
+            || MatchesObservedClosure(execution, CurrentOfficialWorkerManifestSha256, false)
+            || MatchesObservedClosure(execution, PackagedOfficialWorkerManifestSha256, false));
+
     private static bool MatchesRawOfficialClosure(OpenVinoExecutionAuthority execution) =>
         MatchesObservedClosure(execution)
         || MatchesObservedClosure(execution, CurrentOfficialWorkerManifestSha256)
         || MatchesObservedClosure(execution, PackagedOfficialWorkerManifestSha256);
 
     private static bool MatchesObservedClosure(
-        OpenVinoExecutionAuthority execution, string expectedWorkerManifestSha256)
+        OpenVinoExecutionAuthority execution, string expectedWorkerManifestSha256,
+        bool requireFp16Source = true)
     {
         OpenVinoBuildIdentity build = execution.BuildIdentity;
-        return execution.SourceWeightPrecision == OpenVinoWeightPrecision.Fp16
+        return (!requireFp16Source || execution.SourceWeightPrecision == OpenVinoWeightPrecision.Fp16)
             && execution.TurboQuantBuild is null
             && execution.CompiledCacheIsDisposable
             && string.Equals(build.RuntimeBuild, RuntimeBuild, StringComparison.Ordinal)

@@ -7,6 +7,7 @@ using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.ModeSelection;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Ports;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution;
+using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Evidence;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Planning;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Domain;
 using GraniteEdgeAI.ModelHardwareCompatibility.Core.Routes.Gguf;
@@ -234,7 +235,7 @@ public static class CompatibilityEngine
             new ProductionModelFactsSource(input),
             new ProductionHardwareFactsSource(input),
             new ProductionMemoryProbe(input),
-            SupportMatrix.ProvisionalV1(),
+            CurrentGgufSupportMatrix(input, baselineTokens),
             EstimatorPolicy.ProvisionalV1(),
             SafetyPolicy.ProportionalV2(),
             new HashSet<string>(),
@@ -242,6 +243,40 @@ public static class CompatibilityEngine
             input.CurrentModel.GgufConfiguration!,
             ContextTokenCount.FromTokens(baselineTokens),
             timeProvider);
+    }
+
+    private static SupportMatrix CurrentGgufSupportMatrix(CompatibilityProductionInput input, int context)
+    {
+        SupportMatrix ordinary = SupportMatrix.ProvisionalV1();
+        if (input.CurrentModel.GgufConfiguration is not { } configuration
+            || configuration.KvCache is not (GgufKvCacheFormat.TurboQuant3Bit or GgufKvCacheFormat.TurboQuant4Bit)
+            || input.CurrentModel.Gguf is not { } model
+            || input.Optimization is not { } optimization
+            || optimization.Snapshot.Gguf?.RuntimeAuthority is not { } runtime
+            || runtime.RuntimeBuildId != PublishedGgufOptimizationEvidence.RuntimeBuildId
+            || runtime.RuntimeSourceCommit != PublishedGgufOptimizationEvidence.RuntimeSourceCommit
+            || !VerifiedGgufOptimizationEvidence.MatchesInspectedSource(optimization.Binding.ModelSha256,
+                model.FileLengthBytes, model.LayerCount, model.EmbeddingSize, model.AttentionHeadCount,
+                model.KeyValueHeadCount, model.DeclaredContextLimit, model.FileType, model.QuantisationVersion))
+            return ordinary;
+        GgufAdmittedConfiguration[] exact = [.. optimization.Snapshot.Gguf.Admitted.Where(admission =>
+            admission.Level == SupportLevel.DeclaredSupported && !admission.RequiresEvidence
+            && admission.Weights == configuration.Weights && admission.KvCache == configuration.KvCache
+            && admission.Backend == configuration.Backend && admission.Device == configuration.Device
+            && admission.Offload == configuration.Offload && context >= admission.MinimumContextTokens
+            && context <= admission.MaximumContextTokens
+            && VerifiedGgufOptimizationEvidence.IsReleasedTurbo4Threads8Configuration(admission.EvidenceId,
+                configuration, admission.MinimumContextTokens, admission.MaximumContextTokens)
+            && runtime.Profiles.TryGetValue(admission.EvidenceId, out var profile)
+            && VerifiedGgufOptimizationEvidence.MatchesExecutionProfile(profile))];
+        if (exact.Length != 1) return ordinary;
+        // Only the requested current tuple is added. The generated frontier still
+        // requires its exact quality record, fresh resources and execution authority.
+        return SupportMatrix.FromEntries(ordinary.MatrixVersion, ordinary.Provenance,
+            [.. ordinary.Entries, CompatibilitySupportEntry.Create(exact[0].EvidenceId,
+                RuntimeRouteId.LlamaCpp, configuration.Backend, configuration.Device, configuration.Offload,
+                configuration.Weights, configuration.KvCache, context, context,
+                SupportLevel.DeclaredSupported, requiresEvidence: false)]);
     }
 
     private static CompatibilityRunResult EvaluateOpenVinoBaseline(

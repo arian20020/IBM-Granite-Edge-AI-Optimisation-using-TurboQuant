@@ -71,6 +71,38 @@ internal sealed class CurrentModelChatLaunchRegistry
         }
     }
 
+    internal bool TryGetExecutionPayload(CurrentModelLaunchHandoff handoff,
+        out GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OptimizationExecutionPayload? payload)
+    {
+        ArgumentNullException.ThrowIfNull(handoff);
+        lock (_gate)
+        {
+            payload = null;
+            if (_disposed || !_contexts.TryGetValue(handoff.CompatibilityDecisionId, out var context)
+                || context.Handoff != handoff) return false;
+            payload = context.ExactExecutionPayload;
+            return true;
+        }
+    }
+
+    internal bool TryGetOpenVinoRuntimeOptions(CurrentModelLaunchHandoff handoff,
+        out GraniteEdgeAI.OpenVino.Contracts.OpenVinoRuntimeOptions? options)
+    {
+        options = null;
+        if (!TryGetExecutionPayload(handoff, out var payload) || payload?.OpenVino is not { } openVino)
+            return false;
+        options = openVino.KvCachePrecision switch
+        {
+            GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoKvCachePrecision.ReleasedDefault => GraniteEdgeAI.OpenVino.Contracts.OpenVinoRuntimeOptions.ReleasedDefault,
+            GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoKvCachePrecision.U4 => GraniteEdgeAI.OpenVino.Contracts.OpenVinoRuntimeOptions.U4,
+            GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoKvCachePrecision.U8 => GraniteEdgeAI.OpenVino.Contracts.OpenVinoRuntimeOptions.U8,
+            GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoKvCachePrecision.Tbq3 => GraniteEdgeAI.OpenVino.Contracts.OpenVinoRuntimeOptions.Tbq3,
+            GraniteEdgeAI.ModelHardwareCompatibility.Core.Application.Optimization.Execution.OpenVinoKvCachePrecision.Tbq4 => GraniteEdgeAI.OpenVino.Contracts.OpenVinoRuntimeOptions.Tbq4,
+            _ => null
+        };
+        return options is not null;
+    }
+
     public async Task<CurrentModelChatLaunchResult> LaunchAsync(
         CurrentModelLaunchHandoff handoff,
         CancellationToken cancellationToken)

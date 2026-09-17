@@ -222,6 +222,7 @@ internal sealed class PreparedGgufCompatibilityInput
     private readonly string _hardwareSnapshotSha256;
     private readonly GgufCompatibilityModelInput _model;
     private readonly CompatibilityHardwareInput _hardware;
+    private readonly GgufRouteConfiguration? _restoredConfiguration;
 
     internal PreparedGgufCompatibilityInput(
         Guid modelInspectionRunId,
@@ -230,7 +231,8 @@ internal sealed class PreparedGgufCompatibilityInput
         Guid productHardwareRunId,
         string hardwareSnapshotSha256,
         GgufCompatibilityModelInput model,
-        CompatibilityHardwareInput hardware)
+        CompatibilityHardwareInput hardware,
+        GgufRouteConfiguration? restoredConfiguration = null)
     {
         _modelInspectionRunId = modelInspectionRunId;
         _modelInspectionHandoffId = modelInspectionHandoffId;
@@ -239,6 +241,7 @@ internal sealed class PreparedGgufCompatibilityInput
         _hardwareSnapshotSha256 = hardwareSnapshotSha256;
         _model = model;
         _hardware = hardware;
+        _restoredConfiguration = restoredConfiguration;
     }
 
     internal Guid ModelInspectionRunId => _modelInspectionRunId;
@@ -251,12 +254,16 @@ internal sealed class PreparedGgufCompatibilityInput
     internal CompatibilityCurrentModelInput CurrentModel =>
         CompatibilityCurrentModelInput.ForGguf(
             _model,
-            GgufRouteConfiguration.Create(
+            _restoredConfiguration ?? GgufRouteConfiguration.Create(
                 GgufWeightFormat.Imported,
                 GgufKvCacheFormat.F16,
                 CompatibilityBackend.Cpu,
                 DeviceRouteId.Cpu,
                 GpuOffloadLevel.None));
+
+    internal PreparedGgufCompatibilityInput WithCurrentConfiguration(GgufRouteConfiguration configuration) =>
+        new(_modelInspectionRunId, _modelInspectionHandoffId, _modelSha256, _productHardwareRunId,
+            _hardwareSnapshotSha256, _model, _hardware, configuration);
 
     internal string HardwareSnapshotSha256 => _hardwareSnapshotSha256;
 

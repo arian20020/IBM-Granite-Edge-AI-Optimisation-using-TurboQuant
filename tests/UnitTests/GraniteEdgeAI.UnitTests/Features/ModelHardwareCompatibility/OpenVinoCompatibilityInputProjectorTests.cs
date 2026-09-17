@@ -485,7 +485,7 @@ public sealed class OpenVinoCompatibilityInputProjectorTests
             out PreparedOpenVinoCompatibilityInput? prepared));
 
         Assert.IsNotNull(prepared);
-        Assert.AreEqual(OpenVinoWeightFormat.Int4, prepared.Configuration.Weights);
+        Assert.AreEqual(OpenVinoWeightFormat.Original, prepared.Configuration.Weights);
         Assert.AreEqual(
             OpenVinoWeightPrecision.FourBit,
             prepared.CurrentModel.OpenVinoSourcePrecision);
@@ -599,7 +599,7 @@ public sealed class OpenVinoCompatibilityInputProjectorTests
         Assert.IsTrue(OpenVinoCompatibilityInputProjector.TryPrepare(
             model, evidence, HardwareRunId, hardware,
             out PreparedOpenVinoCompatibilityInput? prepared));
-        Assert.AreEqual(OpenVinoWeightFormat.MxFp4, prepared!.Configuration.Weights);
+        Assert.AreEqual(OpenVinoWeightFormat.Original, prepared!.Configuration.Weights);
         Assert.AreEqual(OpenVinoWeightPrecision.MxFp4,
             prepared.CurrentModel.OpenVinoSourcePrecision);
         Assert.IsTrue(OpenVinoOptimizationProductionAuthority.TryCreate(

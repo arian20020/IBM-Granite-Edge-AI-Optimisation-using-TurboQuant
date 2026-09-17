@@ -75,10 +75,18 @@ internal sealed class GgufOptimizationProductionAuthority
 
     internal static bool TryCreate(
         PreparedGgufCompatibilityInput prepared,
-        out GgufOptimizationProductionAuthority? authority)
+        out GgufOptimizationProductionAuthority? authority) =>
+        TryCreate(prepared, null, out authority, out _);
+
+    internal static bool TryCreate(
+        PreparedGgufCompatibilityInput prepared,
+        ModelSourceCustodyRegistry? sourceCustody,
+        out GgufOptimizationProductionAuthority? authority,
+        out bool savedProfileRejected)
     {
         ArgumentNullException.ThrowIfNull(prepared);
         authority = null;
+        savedProfileRejected = false;
         try
         {
             byte[] manifestBytes = ReadRuntimeManifest();
@@ -93,6 +101,25 @@ internal sealed class GgufOptimizationProductionAuthority
             {
                 return false;
             }
+
+            GgufSavedRuntimeProfile? saved = null;
+            if (sourceCustody is not null)
+            {
+                var key = new ModelSourceCustodyKey(prepared.ModelInspectionHandoffId,
+                    prepared.ModelSha256, checked((long)prepared.Model.FileLengthBytes), OptimizationRoute.Gguf);
+                if (!sourceCustody.TryAcquire(key, out ModelSourceLease? lease)) return false;
+                using (lease!)
+                {
+                    GgufSavedProfileDisposition disposition = GgufSavedRuntimeProfileReader.Read(lease!.SourcePath,
+                        prepared.ModelSha256, prepared.Model.FileLengthBytes, manifest.RuntimeBuildId,
+                        manifest.RuntimeSourceCommit, out saved);
+                    savedProfileRejected = disposition == GgufSavedProfileDisposition.Rejected;
+                    if (savedProfileRejected) return false;
+                }
+            }
+            // Until the entire declared tuple is matched below, failure must not
+            // fall back to a different cache through the legacy compatibility path.
+            savedProfileRejected = saved is not null;
 
             CompatibilityHardwareInput hardware = WithPackagedCpuRuntime(
                 prepared.Hardware);
@@ -136,6 +163,16 @@ internal sealed class GgufOptimizationProductionAuthority
             }
             int maximumContext = Math.Min(declaredContext, 32768);
             int evaluatedContext = Math.Min(4096, declaredContext);
+            GgufRouteConfiguration currentConfiguration = current.GgufConfiguration!;
+            if (saved is not null)
+            {
+                if (saved.Context != evaluatedContext || saved.Backend != "cpu" || saved.Device != PackagedCpuDeviceId
+                    || saved.GpuLayers != 0 || saved.KeyCache != saved.ValueCache
+                    || saved.KeyCache is not ("f16" or "q8_0" or "turbo2" or "turbo3" or "turbo4")) return false;
+                currentConfiguration = GgufRouteConfiguration.Create(GgufWeightFormat.Imported,
+                    PublishedCache(saved.KeyCache), CompatibilityBackend.Cpu, DeviceRouteId.Cpu, GpuOffloadLevel.None);
+                prepared = prepared.WithCurrentConfiguration(currentConfiguration);
+            }
             bool exactVerifiedSource =
                 VerifiedGgufOptimizationEvidence.MatchesInspectedSource(
                     prepared.ModelSha256,
@@ -311,21 +348,31 @@ internal sealed class GgufOptimizationProductionAuthority
             [
                 .. admissions.Where(admission =>
                     admission.Weights == GgufWeightFormat.Imported
-                    && admission.KvCache == GgufKvCacheFormat.F16
+                    && admission.KvCache == currentConfiguration.KvCache
                     && admission.Backend == CompatibilityBackend.Cpu
                     && admission.Device == DeviceRouteId.Cpu
                     && admission.Offload == GpuOffloadLevel.None
                     && admission.MinimumContextTokens <= evaluatedContext
                     && admission.MaximumContextTokens >= evaluatedContext
-                    && runtimeAuthority.Profiles.ContainsKey(admission.EvidenceId))
+                    && runtimeAuthority.Profiles.ContainsKey(admission.EvidenceId)
+                    && (saved is null || (admission.Level == SupportLevel.DeclaredSupported
+                        && !admission.RequiresEvidence)))
             ];
             if (currentAdmissions.Length != 1)
             {
                 return false;
             }
+            if (saved is not null)
+            {
+                GgufExecutionProfileAuthority profile = runtimeAuthority.Profiles[currentAdmissions[0].EvidenceId];
+                if (profile.FlashAttention != saved.FlashAttention || profile.ThreadCount != saved.ThreadCount
+                    || profile.BatchSize != saved.BatchSize || profile.MaximumGeneratedTokens != saved.MaximumGeneratedTokens)
+                    return false;
+            }
             OptimizationExecutionPayload currentPayload = composer.ComposeCurrent(
                 evaluatedContext,
-                currentAdmissions[0].EvidenceId);
+                currentAdmissions[0].EvidenceId,
+                currentConfiguration);
             OptimizationEvidenceCatalog qualityEvidence = new(
             [
                 .. PublishedGgufOptimizationEvidence.Records(),
@@ -347,6 +394,7 @@ internal sealed class GgufOptimizationProductionAuthority
                 TrustedRuntimeManifest = manifestBytes,
                 QuantizerPackageRoot = verifiedQuantizer?.Root,
             };
+            savedProfileRejected = false;
             return true;
         }
         catch (Exception exception) when (exception is
@@ -483,7 +531,7 @@ internal sealed class GgufOptimizationProductionAuthority
             && setup.Route == RuntimeRouteId.LlamaCpp
             && setup.Backend == CompatibilityBackend.Cpu
             && setup.Device == DeviceRouteId.Cpu
-            && setup.GgufKvCache == GgufKvCacheFormat.F16
+            && setup.GgufKvCache == _prepared.CurrentModel.GgufConfiguration!.KvCache
             && setup.OpenVinoKvCache is null
             && setup.Weights == _sourceWeights
             && setup.ContextTokens == payload.ContextSize
@@ -492,8 +540,8 @@ internal sealed class GgufOptimizationProductionAuthority
             && !setup.RequiresConversion
             && payload.Backend == GgufRuntimeBackend.Cpu
             && string.Equals(payload.DeviceId, PackagedCpuDeviceId, StringComparison.Ordinal)
-            && payload.KeyCacheType == GgufCacheType.F16
-            && payload.ValueCacheType == GgufCacheType.F16
+            && payload.KeyCacheType == GgufExecutionPayloadComposer.RuntimeCache(setup.GgufKvCache!.Value)
+            && payload.ValueCacheType == payload.KeyCacheType
             && payload.GpuLayerCount == 0
             && payload.PersistentTargetWeightFormat == GgufWeightFormat.Imported
             && !payload.RequiresPersistentConversion;
@@ -879,16 +927,12 @@ internal sealed class GgufOptimizationProductionAuthority
 
         internal OptimizationExecutionPayload ComposeCurrent(
             int contextTokens,
-            string evidenceId)
+            string evidenceId,
+            GgufRouteConfiguration configuration)
         {
             GgufExecutionProfileAuthority profile = runtime.Profiles[evidenceId];
             return Compose(
-                GgufRouteConfiguration.Create(
-                    GgufWeightFormat.Imported,
-                    GgufKvCacheFormat.F16,
-                    CompatibilityBackend.Cpu,
-                    DeviceRouteId.Cpu,
-                    GpuOffloadLevel.None),
+                configuration,
                 contextTokens,
                 profile,
                 GgufWeightFormat.Imported,
@@ -946,7 +990,7 @@ internal sealed class GgufOptimizationProductionAuthority
                 nameof(device), device, "The admitted device is not executable."),
         };
 
-        private static GgufCacheType RuntimeCache(GgufKvCacheFormat cache) => cache switch
+        internal static GgufCacheType RuntimeCache(GgufKvCacheFormat cache) => cache switch
         {
             GgufKvCacheFormat.F16 => GgufCacheType.F16,
             GgufKvCacheFormat.Q8_0 => GgufCacheType.Q8Zero,

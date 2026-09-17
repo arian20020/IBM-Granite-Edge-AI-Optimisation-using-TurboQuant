@@ -90,12 +90,31 @@ internal static class OpenVinoCompatibilityInputProjector
             }
             OpenVinoRouteConfiguration configuration =
                 OpenVinoRouteConfiguration.Create(
-                    weightFormat,
-                    OpenVinoKvCacheFormat.RouteDefault,
+                    // The imported package is already in its inspected precision.
+                    // Original estimates those bytes without compressing them again.
+                    OpenVinoWeightFormat.Original,
+                    evidence.SavedRuntimeConfiguration?.KvCachePrecision switch
+                    {
+                        null or Features.OpenVinoRoute.Optimization.OpenVinoKvCachePrecision.ReleasedDefault => OpenVinoKvCacheFormat.RouteDefault,
+                        Features.OpenVinoRoute.Optimization.OpenVinoKvCachePrecision.U4 => OpenVinoKvCacheFormat.U4,
+                        Features.OpenVinoRoute.Optimization.OpenVinoKvCachePrecision.U8 => OpenVinoKvCacheFormat.U8,
+                        Features.OpenVinoRoute.Optimization.OpenVinoKvCachePrecision.Tbq3 => OpenVinoKvCacheFormat.TurboQuantTbq3,
+                        Features.OpenVinoRoute.Optimization.OpenVinoKvCachePrecision.Tbq4 => OpenVinoKvCacheFormat.TurboQuantTbq4,
+                        _ => throw new ArgumentException("Unsupported saved cache selection.")
+                    },
                     DeviceRouteId.Cpu,
                     OpenVinoPerformanceHint.Latency,
                     OpenVinoCompiledCachePolicy.Disabled,
                     streams: 1);
+            if (evidence.SavedRuntimeConfiguration is { } saved
+                && (saved.Device != "CPU"
+                    || saved.PerformanceHint != Features.OpenVinoRoute.Optimization.OpenVinoCapabilityPerformanceHint.Latency
+                    || saved.Streams != 1 || saved.CompiledCacheEnabled
+                    || saved.ContextTokens != 4096
+                    || saved.ContextTokens != Math.Min(4096, evidence.ContextLength)))
+            {
+                return false;
+            }
             prepared = new PreparedOpenVinoCompatibilityInput(
                 modelHandoff.ModelInspectionRunId,
                 modelHandoff.ModelInspectionHandoffId,

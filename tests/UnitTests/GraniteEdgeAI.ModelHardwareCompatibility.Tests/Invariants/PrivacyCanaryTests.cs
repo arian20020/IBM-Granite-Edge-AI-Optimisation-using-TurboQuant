@@ -18,6 +18,29 @@ public sealed class PrivacyCanaryTests
 {
     private static readonly HashSet<string> AllowedStringMembers =
     [
+        // Reviewed reimport helper: only fixed precision tokens from an enum.
+        "CrossRouteCandidateGenerator.OpenVinoSourceWeightKey",
+        // Reviewed generated closures: canonical model digest and fixed evidence
+        // IDs; no package paths or user-supplied descriptions are captured.
+        "<>c__DisplayClass33_0.modelSha256",
+        "<>c__DisplayClass33_1.evidenceId",
+        "<>c__DisplayClass33_2.evidenceId",
+        "<>c__DisplayClass33_3.evidenceId",
+        "<>c__DisplayClass33_4.evidenceId",
+        // The captured identities and lambda result are CandidateIdentity SHA-256 values.
+        "<>c__DisplayClass53_0.recommendedIdentities",
+        "<>c.<BuildOptimizationView>b__53_2",
+        // This renumbered lambda selects a bounded optimizer-version key.
+        "<>c.<OpenVinoEvidencePackageIdentity>b__8_1",
+        // Independently reviewed pinned runtime/package manifest constants:
+        // each is a literal 64-character SHA-256 digest, never a filesystem path.
+        "VerifiedGgufOptimizationEvidence.CurrentApplicationRuntimeManifestSha256",
+        "VerifiedGgufOptimizationEvidence.CurrentRuntimeManifestSha256",
+        "VerifiedGgufOptimizationEvidence.PackagedCurrentRuntimeManifestSha256",
+        "VerifiedOpenVinoOptimizationEvidence.CurrentOfficialWorkerManifestSha256",
+        "VerifiedOpenVinoOptimizationEvidence.CurrentRetainedPackageManifestSha256",
+        "VerifiedOpenVinoOptimizationEvidence.PackagedOfficialWorkerManifestSha256",
+        "VerifiedOpenVinoOptimizationEvidence.PackagedTurboWorkerManifestSha256",
         "SafetyPolicy.PolicyVersion",
         "EstimatorPolicy.PolicyVersion",
         "SupportMatrix.MatrixVersion",

@@ -361,7 +361,7 @@ public sealed record OpenVinoOptimizationProvenance(
         return precision;
     }
 
-    internal static void ValidateJson(JsonElement root, OpenVinoPackageSnapshot snapshot)
+    internal static OpenVinoOptimizationProvenance ValidateJson(JsonElement root, OpenVinoPackageSnapshot snapshot)
     {
         string[] legacyFields =
         [
@@ -517,6 +517,7 @@ public sealed record OpenVinoOptimizationProvenance(
         {
             throw new InvalidDataException("Optimization provenance manifest is invalid.");
         }
+        return parsed;
     }
 
     internal static IReadOnlyList<OpenVinoOutputArtifact> CaptureOutput(

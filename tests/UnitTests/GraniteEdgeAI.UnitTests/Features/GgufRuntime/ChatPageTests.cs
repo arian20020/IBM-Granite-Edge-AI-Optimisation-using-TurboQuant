@@ -2,6 +2,8 @@ using GraniteEdgeAI.Features.GgufRuntime;
 using GraniteEdgeAI.Features.GgufRuntime.Clipboard;
 using GraniteEdgeAI.Features.GgufRuntime.Controls;
 using GraniteEdgeAI.Features.GgufRuntime.History;
+using GraniteEdgeAI.Features.GgufRuntime.Presentation;
+using GraniteEdgeAI.Features.ChatModels;
 using GraniteEdgeAI.UnitTests.Features.ModelInspection.Visual;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -16,6 +18,55 @@ namespace GraniteEdgeAI.UnitTests.Features.GgufRuntime;
 [TestClass]
 public sealed class ChatPageTests
 {
+    [UITestMethod]
+    public void ActiveLibraryFormatIsSharedBySettingsAndSelectorWithoutDuplication()
+    {
+        var page = new ChatPage();
+        page.SetModelHeader("Granite", "llama.cpp · CPU");
+        var active = new ChatModelSnapshot("model-1", "Granite", ChatModelRoute.Gguf,
+            "TQ3 cache (selected) · Q4_K_M weights · GGUF", "llama.cpp · CPU",
+            ChatModelReadiness.Ready, true);
+        page.ApplyModelLibrary([active]);
+        page.ApplyModelLibrary([active]);
+
+        const string expected = "Granite · llama.cpp · CPU · TQ3 cache (selected) · Q4_K_M weights · GGUF";
+        Assert.AreEqual(expected, ((TextBlock)page.FindName("FullModelNameText")).Text);
+        Assert.AreEqual(expected, AutomationProperties.GetName((TextBlock)page.FindName("ModelNameText")));
+        var composer = (ChatComposer)page.FindName("Composer");
+        Assert.AreEqual(active.FormatLabel, ((TextBlock)composer.FindName("ChatCurrentModelLabel")).Text);
+    }
+
+    [UITestMethod]
+    public void NewHeaderClearsPreviousFormatAndOpenVinoLabelUpdatesSettings()
+    {
+        var page = new ChatPage();
+        page.SetModelHeader("First", "llama.cpp · CPU");
+        page.SetActiveModelLabel("TQ3 cache (selected) · Q4_K_M weights · GGUF");
+        page.SetModelHeader("Second", "OpenVINO · CPU");
+        Assert.AreEqual("Second · OpenVINO · CPU", ((TextBlock)page.FindName("FullModelNameText")).Text);
+        page.SetActiveModelLabel("U4 cache (selected) · INT4 weights · OpenVINO");
+        page.SetActiveModelLabel("U4 cache (selected) · INT4 weights · OpenVINO");
+        Assert.AreEqual("Second · OpenVINO · CPU · U4 cache (selected) · INT4 weights · OpenVINO",
+            ((TextBlock)page.FindName("FullModelNameText")).Text);
+    }
+
+    [UITestMethod]
+    public void FailedSwitchRetainsPreviousFormatInSettingsAndSelector()
+    {
+        var page = new ChatPage();
+        page.SetModelHeader("Granite", "OpenVINO · CPU");
+        const string format = "TQ4 cache (selected) · INT4 weights · OpenVINO";
+        page.SetActiveModelLabel(format);
+        page.ApplyModelSwitchPresentation(ChatModelSwitchPresentation.Starting, "other");
+        page.ApplyModelLibrary([]);
+        page.ApplyModelSwitchPresentation(ChatModelSwitchPresentation.FromResult(
+            new ChatModelSwitchResult("other", ChatModelSwitchDisposition.RuntimeUnavailable)), "other");
+        Assert.AreEqual($"Granite · OpenVINO · CPU · {format}",
+            ((TextBlock)page.FindName("FullModelNameText")).Text);
+        var composer = (ChatComposer)page.FindName("Composer");
+        Assert.AreEqual(format, ((TextBlock)composer.FindName("ChatCurrentModelLabel")).Text);
+    }
+
     [UITestMethod]
     [TestCategory("ChatTextInteractions")]
     public void EmptyMessageStatusDoesNotReserveSpaceAboveCopy()

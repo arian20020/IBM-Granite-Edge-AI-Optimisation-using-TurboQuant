@@ -156,6 +156,23 @@ internal sealed class OpenVinoOptimizationProductionAuthority
                         prepared.SourceWeightPrecision,
                         versionMap))
             ];
+            string currentEvidenceId = CurrentEvidenceId(prepared.Configuration.Weights);
+            if (prepared.Configuration.KvCache != OpenVinoKvCacheFormat.RouteDefault)
+            {
+                bool needsTurbo = prepared.Configuration.KvCache is
+                    OpenVinoKvCacheFormat.TurboQuantTbq3 or OpenVinoKvCacheFormat.TurboQuantTbq4;
+                OpenVinoBuildEvidence? currentBuild = needsTurbo ? turboQuantBuilds : builds;
+                if (currentBuild is null) return false;
+                currentEvidenceId = "OV-CURRENT-RESTORED-01";
+                var currentAdmission = OpenVinoAdmittedConfiguration.Create(currentEvidenceId,
+                    DeviceRouteId.Cpu, OpenVinoWeightFormat.Original, prepared.Configuration.KvCache,
+                    OpenVinoPerformanceHint.Latency, ContractCache.Disabled, 1, 4096, 4096,
+                    needsTurbo ? SupportLevel.Experimental : SupportLevel.DeclaredSupported,
+                    requiresEvidence: needsTurbo);
+                projectedAdmissions = [.. projectedAdmissions, currentAdmission];
+                execution = [.. execution, .. CreateExecutionAuthorities([currentAdmission], currentBuild,
+                    prepared.SourceWeightPrecision, versionMap)];
+            }
             OpenVinoCapabilityPayload projected = OpenVinoCapabilityPayload.Create(
                 builds.RuntimeBuild, projectedAdmissions, execution);
             OptimizationEvidenceCatalog qualityEvidence =
@@ -184,9 +201,8 @@ internal sealed class OpenVinoOptimizationProductionAuthority
                 prepared.Model.PackageLengthBytes,
                 prepared.ProductHardwareRunId.ToString("N"),
                 prepared.HardwareSnapshotSha256);
-            string currentEvidenceId = CurrentEvidenceId(prepared.Configuration.Weights);
             var composer = new OpenVinoComposer(execution, currentEvidenceId,
-                prepared.SourceWeightPrecision);
+                prepared.SourceWeightPrecision, prepared.Configuration.KvCache);
             authority = new OpenVinoOptimizationProductionAuthority(
                 prepared, evidence, snapshot, workload, binding, composer,
                 composer.ComposeCurrent(), optimizationAvailable,
@@ -284,11 +300,16 @@ internal sealed class OpenVinoOptimizationProductionAuthority
         }
         string configurationSha =
             _currentPayload.ComputeRuntimeConfigurationSha256();
+        // Identical runtime settings can belong to different inspections. Keep
+        // each validated source/hardware journey distinct in the launch registry.
+        string decisionSha = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"{_prepared.ModelInspectionHandoffId:N}:{_prepared.ProductHardwareRunId:N}:{configurationSha}")))
+            .ToLowerInvariant();
         var current = new CurrentCompatibleConfiguration(
             OptimizationRoute.OpenVino,
             _currentPayload,
             configurationSha,
-            $"compat-{configurationSha[..24]}");
+            $"compat-{decisionSha}");
         CurrentModelLaunchHandoff handoff = CurrentModelLaunchHandoff.Create(
             OptimizationRoute.OpenVino,
             _prepared.ModelInspectionRunId,
@@ -388,9 +409,9 @@ internal sealed class OpenVinoOptimizationProductionAuthority
         RouteWeight target) => source switch
         {
             ContractWeight.Fp16 => true,
-            ContractWeight.EightBit => target is RouteWeight.EightBit or RouteWeight.FourBit,
-            ContractWeight.FourBit => target == RouteWeight.FourBit,
-            ContractWeight.MxFp4 => target == RouteWeight.MxFp4,
+            ContractWeight.EightBit => target is RouteWeight.Original or RouteWeight.EightBit or RouteWeight.FourBit,
+            ContractWeight.FourBit => target is RouteWeight.Original or RouteWeight.FourBit,
+            ContractWeight.MxFp4 => target is RouteWeight.Original or RouteWeight.MxFp4,
             _ => false,
         };
 
@@ -423,6 +444,14 @@ internal sealed class OpenVinoOptimizationProductionAuthority
         {
             (OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.RouteDefault) =>
                 "openvino.standard.cpu.original.default.v1",
+            (OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U4) =>
+                "openvino.standard.cpu.original.u4.v1",
+            (OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.U8) =>
+                "openvino.standard.cpu.original.u8.v1",
+            (OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.TurboQuantTbq3) =>
+                "openvino.turboquant.cpu.original.tbq3.v1",
+            (OpenVinoWeightFormat.Original, OpenVinoKvCacheFormat.TurboQuantTbq4) =>
+                "openvino.turboquant.cpu.original.tbq4.v1",
             (OpenVinoWeightFormat.Fp16, OpenVinoKvCacheFormat.RouteDefault) =>
                 "openvino.standard.cpu.fp16.default.v1",
             (OpenVinoWeightFormat.Int8, OpenVinoKvCacheFormat.RouteDefault) =>
@@ -496,7 +525,8 @@ internal sealed class OpenVinoOptimizationProductionAuthority
     private sealed class OpenVinoComposer(
         IEnumerable<OpenVinoExecutionAuthority> authorities,
         string currentEvidenceId,
-        ContractWeight currentWeightPrecision)
+        ContractWeight currentWeightPrecision,
+        OpenVinoKvCacheFormat currentCache)
         : IOptimizationExecutionPayloadComposer
     {
         private readonly IReadOnlyDictionary<string, OpenVinoExecutionAuthority>
@@ -542,7 +572,16 @@ internal sealed class OpenVinoOptimizationProductionAuthority
             OpenVinoExecutionAuthority exact =
                 _authorities[currentEvidenceId];
             return CreatePayload(exact, currentWeightPrecision,
-                ContractKv.ReleasedDefault, compiledCache: false);
+                currentCache switch
+                {
+                    OpenVinoKvCacheFormat.RouteDefault => ContractKv.ReleasedDefault,
+                    OpenVinoKvCacheFormat.U4 => ContractKv.U4,
+                    OpenVinoKvCacheFormat.U8 => ContractKv.U8,
+                    OpenVinoKvCacheFormat.TurboQuantTbq3 => ContractKv.Tbq3,
+                    OpenVinoKvCacheFormat.TurboQuantTbq4 => ContractKv.Tbq4,
+                    _ => throw new ArgumentOutOfRangeException(nameof(currentCache))
+                }, compiledCache: false,
+                experimental: currentCache is OpenVinoKvCacheFormat.TurboQuantTbq3 or OpenVinoKvCacheFormat.TurboQuantTbq4);
         }
 
         private static OptimizationExecutionPayload CreatePayload(

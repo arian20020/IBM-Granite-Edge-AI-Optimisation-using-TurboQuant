@@ -44,6 +44,7 @@ public sealed partial class ChatPage : Page
     private bool historyEditing;
     private bool sessionPreparing;
     private bool historyCommandsEnabled = true;
+    private string modelHeaderText = "No model selected";
     private long pendingHistoryStatusRevision;
     private string? pendingHistoryStatus;
     private readonly Dictionary<ChatHistoryItem, Guid> historyIds = [];
@@ -94,13 +95,25 @@ public sealed partial class ChatPage : Page
         ModelNameText.Text = conciseRuntime ?? (runtimeDescription.StartsWith("Cpu - ", StringComparison.Ordinal)
             ? "llama.cpp · CPU" : runtimeDescription.StartsWith("Vulkan - ", StringComparison.Ordinal)
                 ? "llama.cpp · Vulkan" : runtimeDescription);
-        FullModelNameText.Text = $"{displayName} · {runtimeDescription}";
-        AutomationProperties.SetName(ModelNameText, FullModelNameText.Text);
-        ToolTipService.SetToolTip(ModelNameText, $"{displayName} · {runtimeDescription}");
+        modelHeaderText = $"{displayName} · {runtimeDescription}";
+        UpdateModelDetails(null);
     }
 
-    internal void ApplyModelLibrary(IReadOnlyList<ChatModelSnapshot> snapshots) =>
-        Composer.ApplyModelLibrary(ChatModelSelectorPresentation.Create(snapshots));
+    internal void ApplyModelLibrary(IReadOnlyList<ChatModelSnapshot> snapshots)
+    {
+        ChatModelSelectorPresentation presentation = ChatModelSelectorPresentation.Create(snapshots);
+        Composer.ApplyModelLibrary(presentation);
+        if (presentation.ActiveModelId is not null)
+            UpdateModelDetails(presentation.CurrentLabel);
+    }
+
+    private void UpdateModelDetails(string? formatLabel)
+    {
+        FullModelNameText.Text = string.IsNullOrWhiteSpace(formatLabel)
+            ? modelHeaderText : $"{modelHeaderText} · {formatLabel}";
+        AutomationProperties.SetName(ModelNameText, FullModelNameText.Text);
+        ToolTipService.SetToolTip(ModelNameText, FullModelNameText.Text);
+    }
 
     internal void ApplyModelSwitchPresentation(
         ChatModelSwitchPresentation presentation,
@@ -129,7 +142,11 @@ public sealed partial class ChatPage : Page
         Composer.ConfigureExternalRoute(modelLabel);
     }
 
-    internal void SetActiveModelLabel(string label) => Composer.SetActiveModelLabel(label);
+    internal void SetActiveModelLabel(string label)
+    {
+        Composer.SetActiveModelLabel(label);
+        UpdateModelDetails(label);
+    }
 
     internal void ApplyOpenVinoChatState(GraniteEdgeAI.Features.Prompting.PromptSurfaceState state)
     {
