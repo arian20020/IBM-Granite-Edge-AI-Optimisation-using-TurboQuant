@@ -6,7 +6,8 @@ The project also studies memory, speed and quality across selected llama.cpp and
 
 ## Demonstration and report
 
-- [Watch the application demonstration (MP4)](Application%20Demonstration.mp4)
+- [Watch the application demonstration (SharePoint)](https://liveuclac-my.sharepoint.com/:v:/g/personal/ucab280_ucl_ac_uk/IQCYcBz0px0RTIhDx_pQuhWcARA23Skbx3Afw71i769hZ1Y?e=DzOiWz&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D)
+- [Download the demonstration (MP4, 777 MB)](https://media.githubusercontent.com/media/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/main/Application%20Demonstration.mp4)
 - [Read the project report (PDF)](Project%20Report.pdf)
 
 ## Start here
