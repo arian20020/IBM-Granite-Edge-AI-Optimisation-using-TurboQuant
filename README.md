@@ -4,6 +4,11 @@ Granite is a WinUI 3 research application for running selected IBM Granite model
 
 The project also studies memory, speed and quality across selected llama.cpp and OpenVINO routes. **Those experiments are separate from application testing.** TurboVec was evaluated as a separate demonstration and is not integrated into the app.
 
+## Demonstration and report
+
+- [Watch the application demonstration (MP4)](Application%20Demonstration.mp4)
+- [Read the project report (PDF)](Project%20Report.pdf)
+
 ## Start here
 
 **To run the app:** follow [Packaged app installation and model setup](#setup-and-first-use) below. No Git, Visual Studio or source build is needed. **To develop the app:** use [Set up from source](docs/manuals/Fresh-Computer-Setup.md); its runtime-input requirements still apply.

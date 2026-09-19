@@ -58,3 +58,4 @@ experiments/patches/**/*.patch -text whitespace=-blank-at-eol,-blank-at-eof
 "IBM Granite with TurboQuant (Intel)/Assets/Fonts/OFL.txt" -text
 tests/TestFixtures/OpenVINO/GenAI/TinySyntheticV1/** -text -eol whitespace=cr-at-eol
 tests/TestFixtures/OpenVINO/Converter/TinyGraniteV1/** -text -eol whitespace=cr-at-eol
+Application[[:space:]]Demonstration.mp4 filter=lfs diff=lfs merge=lfs -text
