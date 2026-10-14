@@ -136,7 +136,7 @@ jobs:
       # artifact contains text/JSON/log evidence only, never source or binaries.
       - name: Upload exact Route B repair evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: workbook-05-route-b-repair-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/workbook-05-route-b-repair
