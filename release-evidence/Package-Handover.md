@@ -4,8 +4,8 @@ This is an open release record, not an installer receipt. The existing installed
 
 | Required detail | Current position |
 | --- | --- |
-| Download location and package filename | Not established in the repository. Obtain these from the owner before giving installation instructions. |
-| Installer SHA-256 and package identity | Not recorded. The executable hash in the release index is not a replacement. |
+| Download location and package filename | `build-version-1.0.4.0/Granite-Edge-AI-Setup.zip` (Git LFS); package SHA-256 `6788E6E293EB1D7129733F4C7246AABA26F8BC5F068751C35806418C17391126` (585,596,470 bytes). The hash matches the value enforced by the installation guide. |
+| Package identity and source provenance | The setup ZIP is the 1.0.4.0 test package. Its full source-to-package build provenance has not been independently established. |
 | Source commit and complete build recipe | Candidate revision is recorded, but its link to the installed binary was not independently proved. |
 | Tool versions and runtime inputs | Partial instructions exist in the build guide. Exact external stages, their hashes and signing requirements still need one verified record. Never publish signing keys. |
 | Clean install, Start launch and both inspection routes | Not recorded as a clean-machine test. Use a separate suitable environment, not the only working installation. |

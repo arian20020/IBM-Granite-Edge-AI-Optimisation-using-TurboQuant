@@ -14,6 +14,8 @@ The project also studies memory, speed and quality across selected llama.cpp and
 
 **To run the app:** follow [Packaged app installation and model setup](#setup-and-first-use) below. No Git, Visual Studio or source build is needed. **To develop the app:** use [Set up from source](docs/manuals/Fresh-Computer-Setup.md); its runtime-input requirements still apply.
 
+The versioned school download instructions are in [build 1.0.4.0](build-version-1.0.4.0/README.md).
+
 ## Main features
 
 - Download one of the offered IBM Granite GGUF files, or import a local GGUF file or complete OpenVINO model folder.
@@ -46,7 +48,7 @@ The command below opens the download page. **Click Download in your browser**, a
 Open ordinary **Windows PowerShell** and paste:
 
 ```powershell
-Start-Process 'https://liveuclac-my.sharepoint.com/:u:/g/personal/ucab280_ucl_ac_uk/IQA3url8UXf3S5dWadOp1J_mAcnF6HngK5vyJivCi0lQr40?e=Sxcl88'
+Start-Process 'https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/blob/main/build-version-1.0.4.0/Granite-Edge-AI-Setup.zip?raw=1'
 ```
 
 Save **Granite-Edge-AI-Setup.zip** in your normal Downloads folder (`C:\Users\<your username>\Downloads`). Names such as **Granite-Edge-AI-Setup (1).zip** or **Granite-Edge-AI-Setup (2).zip** are also accepted. Step 2 finds a copy with the correct checksum; you do not need to rename or delete earlier downloads. If your browser saves elsewhere, move the completed ZIP into your normal Downloads folder first.
