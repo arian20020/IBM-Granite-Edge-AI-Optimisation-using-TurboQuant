@@ -158,7 +158,7 @@ jobs:
               -GitHubToken $env:WB05_GITHUB_TOKEN
 
       - name: Download exact prior timeout artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: ${{ inputs.resume_artifact_name }}
           path: ${{ runner.temp }}\route-a-runtime-resume-prerequisite
@@ -259,7 +259,7 @@ jobs:
           python-version: '3.12.10'
 
       - name: Download exact same-attempt resumed artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: workbook-05-build-route-a-runtime-resume-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}\build-bundle

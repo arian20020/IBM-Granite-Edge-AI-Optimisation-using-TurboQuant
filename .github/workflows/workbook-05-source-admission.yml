@@ -219,7 +219,7 @@ jobs:
       # Download only the artifact produced by this run ID and attempt. No search
       # for an earlier or similarly named artifact is permitted.
       - name: Download the exact source-admission artifact
-        uses: actions/download-artifact@974686ed5098c7f9c9289ec946b9058e496a2561
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
         with:
           name: workbook-05-source-admission-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/workbook-05-source-admission
