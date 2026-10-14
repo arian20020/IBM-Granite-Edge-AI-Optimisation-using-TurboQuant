@@ -211,7 +211,7 @@ jobs:
               -GitHubToken $env:WB05_GITHUB_TOKEN
 
       - name: Download exact prior failed C1 artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: workbook-05-phase3-assets-32410714130-1
           path: ${{ runner.temp }}\workbook-05-c1-prior-attempt
@@ -345,7 +345,7 @@ jobs:
               -PythonPath 'python'
 
       - name: Download exact same-attempt resume artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: workbook-05-phase3-c1-resume-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}\workbook-05-phase3-c1-resume
