@@ -1,6 +1,6 @@
 # Release handover
 
-This page connects the tested application, guides and remaining release checks. The current test package is linked from its [versioned download folder](../build-version-1.0.4.0/README.md).
+This page connects the tested application, guides and remaining release checks. The current test package is linked from its [versioned download folder](../build-version-1.0.5.0/README.md).
 
 ## Recorded verification
 
@@ -23,7 +23,7 @@ Use the [package handover record](Package-Handover.md) for package identity and 
 | Guides | Available in [manuals](../docs/manuals/README.md). |
 | Test evidence | Indexed in E1–E6; confirm these files are committed in the final submission checkout. |
 | Known issues | [CI scope](../docs/testing/CI-Test-Scope.md) and [user limitations](../docs/manuals/Known-Limitations.md). |
-| Test package | [Build 1.0.4.0](../build-version-1.0.4.0/README.md), with SHA-256 recorded in the package handover. Clean-install testing and source-to-package provenance remain unverified. |
+| Test package | [Build 1.0.5.0 preview](../build-version-1.0.5.0/README.md), with SHA-256 recorded in the package handover. It is a repackaged test build; clean-install testing and a complete source rebuild remain unverified. |
 | Clean install/uninstall | Not confirmed. Compilation does not prove installation. |
 | Final release tag | Not assigned by this documentation update. Select after reviewing the final changes. |
 | Demo | [Scenario](demo/README.md) provided; a versioned video is not recorded here. |

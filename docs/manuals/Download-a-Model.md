@@ -11,7 +11,7 @@ Follow Step 6 of the [starter guide](Granite-Start-Here.md). Use the official IB
 **Do not skip the preparation command after downloading OpenVINO.** It verifies both downloads, extracts OpenVINO without an extra folder level and removes Windows download marks from verified files. These marks caused the reported `package_unsafe_path` failure; other unsafe-path failures must still be investigated. Existing model folders must match before they can be reused.
 
 - GGUF: use the exact **GGUF ready** path printed by the preparation command.
-- OpenVINO folder: `C:\Downloads\Granite-4.1-3B-OpenVINO-Raw`
+- OpenVINO folder: `C:\Users\<your username>\Downloads\Granite-4.1-3B-OpenVINO-Raw`
 
 Step 7 explains how to import them. Do not download a model again if you already have the matching complete file.
 

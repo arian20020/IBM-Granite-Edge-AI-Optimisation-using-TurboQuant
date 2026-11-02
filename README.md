@@ -14,7 +14,7 @@ The project also studies memory, speed and quality across selected llama.cpp and
 
 **To run the app:** follow [Packaged app installation and model setup](#setup-and-first-use) below. No Git, Visual Studio or source build is needed. **To develop the app:** use [Set up from source](docs/manuals/Fresh-Computer-Setup.md); its runtime-input requirements still apply.
 
-The versioned school download instructions are in [build 1.0.4.0](build-version-1.0.4.0/README.md).
+The versioned school download instructions are in [build 1.0.5.0](build-version-1.0.5.0/README.md).
 
 ## Main features
 
@@ -29,13 +29,15 @@ The app is not a general model converter. Supported choices depend on the exact 
 
 ## Setup and first use
 
+**Test build:** Version 1.0.5.0 is Granite Local Preview, assembled from the 1.0.4.0 package with the tested model-inspection fix. It installs alongside the earlier app using a different self-signed certificate. GGUF and OpenVINO were tested on one laptop; a fresh-computer installation and full source rebuild have not been verified. Complete the separate `llmfit` step below for hardware inspection.
+
 The same instructions are available as the [standalone starter guide](docs/manuals/Granite-Start-Here.md).
 
 Use **Granite-Edge-AI-Setup.zip** with this guide. No Git, Visual Studio or source build is needed. Use Windows 11 x64 and allow at least 20 GB of free space; optimisation may need more.
 
 Run each numbered step separately. Copy each complete PowerShell code block using its copy button; do not copy Markdown link formatting, headings or the ``` markers. **If a step fails, stop: do not paste the next command. If setup files are missing or do not match, return to Step 1, download the correct ZIP and repeat Step 2. Do not skip the checks or continue with an older extracted folder.** Other errors, such as low storage or denied permission, need the action shown in the error message.
 
-**What happens when:** Steps 1–2 download and extract the setup files. Step 3 only checks them. Step 4 installs Granite. Step 5 opens it. Step 6 downloads and prepares the models.
+**What happens when:** Steps 1–2 download and extract the setup files. Step 3 only checks them. Step 4 installs Granite. Step 5 opens it. Step 6 downloads and prepares the models. Step 6A installs the pinned hardware inspection tool.
 
 **Copy only the commands inside each code box**, one complete box at a time. Do not paste the surrounding explanation or step headings into PowerShell.
 
@@ -48,12 +50,12 @@ The command below opens the download page. **Click Download in your browser**, a
 Open ordinary **Windows PowerShell** and paste:
 
 ```powershell
-Start-Process 'https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/blob/main/build-version-1.0.4.0/Granite-Edge-AI-Setup.zip?raw=1'
+Start-Process 'https://github.com/arian20020/IBM-Granite-Edge-AI-Optimisation-using-TurboQuant/blob/main/build-version-1.0.5.0/Granite-Edge-AI-Setup.zip?raw=1'
 ```
 
 Save **Granite-Edge-AI-Setup.zip** in your normal Downloads folder (`C:\Users\<your username>\Downloads`). Names such as **Granite-Edge-AI-Setup (1).zip** or **Granite-Edge-AI-Setup (2).zip** are also accepted. Step 2 finds a copy with the correct checksum; you do not need to rename or delete earlier downloads. If your browser saves elsewhere, move the completed ZIP into your normal Downloads folder first.
 
-Step 2 extracts it automatically to **C:\Downloads\Granite-Edge-AI-Setup-1.0.4**. You do not need to extract or move it manually. Models are downloaded separately in Step 6.
+Step 2 extracts it automatically to **C:\Downloads\Granite-Edge-AI-Setup-1.0.5**. You do not need to extract or move it manually. Models are downloaded separately in Step 6.
 
 ### 2. Verify and extract the ZIP
 
@@ -63,8 +65,8 @@ Paste this entire block into ordinary Windows PowerShell:
 & {
 $ErrorActionPreference = 'Stop'
 $graniteDownloads = Join-Path $env:USERPROFILE 'Downloads'
-$graniteFolder = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4'
-$graniteExpectedZipHash = '6788E6E293EB1D7129733F4C7246AABA26F8BC5F068751C35806418C17391126'
+$graniteFolder = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.5'
+$graniteExpectedZipHash = '87AD9CE4E829F8DD4CF3709D6851B693DCA38B635AB9F5D768619FFB64A44AAC'
 $graniteStepOne = 'STOP: Return to STEP 1, download the correct Granite-Edge-AI-Setup.zip completely, then repeat Step 2. Do not bypass verification.'
 try {
     $graniteCandidates = @(Get-ChildItem -LiteralPath $graniteDownloads -Filter 'Granite-Edge-AI-Setup*.zip' -File |
@@ -98,7 +100,7 @@ try {
         try {
             $graniteEntries = @($graniteArchive.Entries | Where-Object { $_.Name -ne '' })
             if (@($graniteItems | Where-Object { -not $_.PSIsContainer }).Count -ne $graniteEntries.Count) {
-                throw 'The existing extraction differs. Rename only the old Granite-Edge-AI-Setup-1.0.4 folder, then repeat Step 2. Do not delete your models.'
+                throw 'The existing extraction differs. Rename only the old Granite-Edge-AI-Setup-1.0.5 folder, then repeat Step 2. Do not delete your models.'
             }
             foreach ($graniteEntry in $graniteEntries) {
                 $graniteFile = Join-Path $graniteFolder $graniteEntry.FullName
@@ -108,7 +110,7 @@ try {
                 try { $graniteExpected = [BitConverter]::ToString($graniteSha.ComputeHash($graniteStream)).Replace('-', '') }
                 finally { $graniteStream.Dispose(); $graniteSha.Dispose() }
                 if ((Get-FileHash -LiteralPath $graniteFile -Algorithm SHA256).Hash -ne $graniteExpected) {
-                    throw 'The existing extraction is old or different. Rename only the old Granite-Edge-AI-Setup-1.0.4 folder, then repeat Step 2. Nothing was overwritten.'
+                    throw 'The existing extraction is old or different. Rename only the old Granite-Edge-AI-Setup-1.0.5 folder, then repeat Step 2. Nothing was overwritten.'
                 }
             }
         } finally { $graniteArchive.Dispose() }
@@ -133,7 +135,7 @@ In ordinary Windows PowerShell, paste:
 ```powershell
 & {
 $ErrorActionPreference = 'Stop'
-$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4\Setup-Granite.ps1'
+$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.5\Setup-Granite.ps1'
 if (-not (Test-Path -LiteralPath $graniteSetup -PathType Leaf)) {
     throw 'STOP: Complete STEP 1 with the correct ZIP, then Step 2. Setup-Granite.ps1 is missing.'
 }
@@ -160,7 +162,7 @@ Approve the Windows prompt. **This command only opens another PowerShell window;
 ```powershell
 & {
 $ErrorActionPreference = 'Stop'
-$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4\Setup-Granite.ps1'
+$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.5\Setup-Granite.ps1'
 if (-not (Test-Path -LiteralPath $graniteSetup -PathType Leaf)) {
     throw 'STOP: Complete STEP 1 with the correct ZIP, then Step 2. The setup script is missing.'
 }
@@ -173,9 +175,9 @@ if ($LASTEXITCODE -ne 0) { throw 'STOP: Installation did not finish. Do not run 
 }
 ```
 
-If the current signed version (1.0.4.0) or a newer one is installed, the script says so and skips installation without scanning every installed file. An older signed version can be updated after approval; a development registration is not replaced.
+If the preview version 1.0.5.0 or a newer preview with the same publisher is installed, the script skips installation without scanning every installed file. The earlier 1.0.4.0 app has a different publisher and remains installed alongside this preview.
 
-When asked, type **INSTALL** to approve trusting the supplied test certificate in **Trusted People**, installing missing .NET 8 x64 and Windows App Runtime dependencies, and installing or updating Granite. No root certificate or private signing key is supplied. The script checks the expected certificate automatically; you do not need to contact me to confirm its thumbprint. The certificate expires on 14 December 2026.
+When asked, type **INSTALL** to approve trusting the supplied test certificate in **Trusted People**, installing missing .NET 8 x64 and Windows App Runtime dependencies, and installing or updating Granite. No private signing key is supplied. The script checks the expected certificate automatically. The preview certificate expires on 2 November 2027.
 
 **Wait for “Installed” or a message saying this version or a newer one is already installed. Only then continue to Step 5.** If a restart is requested, restart Windows and repeat Step 4. Close the administrator window after installation succeeds.
 
@@ -188,7 +190,7 @@ Open ordinary Windows PowerShell and paste:
 ```powershell
 & {
 $ErrorActionPreference = 'Stop'
-$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4\Setup-Granite.ps1'
+$graniteSetup = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.5\Setup-Granite.ps1'
 if (-not (Test-Path -LiteralPath $graniteSetup -PathType Leaf)) {
     throw 'STOP: Return to STEP 1, download the correct ZIP and complete Step 2.'
 }
@@ -260,7 +262,7 @@ Download:
 - `granite-4.1-3b-Q4_K_M.gguf`
 - `Granite-4.1-3B-OpenVINO-Raw.zip`
 
-Save both files in your normal Downloads folder or `C:\Downloads`. Keep the exact model filenames without `(1)` suffixes and wait for downloads to finish. The command below also searches up to three folder levels inside those locations, including extracted OneDrive folders. It verifies the files before copying them directly into `C:\Downloads`; original downloads are kept. Do not use incomplete `.partial` files.
+Save both files in your normal Downloads folder or `C:\Downloads`. Keep the exact model filenames without `(1)` suffixes and wait for downloads to finish. The command below also searches up to three folder levels inside those locations, including extracted OneDrive folders. It verifies the files before copying them into your normal Downloads folder if needed; original downloads are kept. Do not use incomplete `.partial` files.
 
 **Only if you used the old whole-folder link:** first extract the outer OneDrive collection ZIP into Downloads. Leave the OpenVINO model ZIP inside it zipped. The preparation command can find the two model downloads in the extracted folders; it cannot search inside an unopened outer ZIP. You can also place the two files directly into Downloads yourself.
 
@@ -268,12 +270,12 @@ The downloads total about 7.36 GB and OpenVINO extraction needs about another 6.
 
 **If you already extracted OpenVINO manually:** keep its original model ZIP available too. The command needs the verified ZIP to check or prepare the model. Moving an extracted folder alone does not remove Windows download marks.
 
-**IMPORTANT: Run the following command after downloading the OpenVINO ZIP and before importing it. Otherwise Windows download marks can cause `package_unsafe_path`.** It finds and verifies both complete downloads, copies them to `C:\Downloads` if needed, extracts OpenVINO directly to **C:\Downloads\Granite-4.1-3B-OpenVINO-Raw**, and removes the download marks from verified files. It does not open File Explorer or download the models through PowerShell.
+**IMPORTANT: Run the following command after downloading the OpenVINO ZIP and before importing it. Otherwise Windows download marks can cause `package_unsafe_path`.** It finds and verifies both complete downloads, copies them to your normal Downloads folder if needed, extracts OpenVINO directly to **Downloads\Granite-4.1-3B-OpenVINO-Raw**, and removes the download marks from verified files. It does not open File Explorer or download the models through PowerShell.
 
 ```powershell
 & {
 $ErrorActionPreference = 'Stop'
-$graniteModelsScript = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.4\Prepare-GraniteModels.ps1'
+$graniteModelsScript = 'C:\Downloads\Granite-Edge-AI-Setup-1.0.5\Prepare-GraniteModels.ps1'
 if (-not (Test-Path -LiteralPath $graniteModelsScript -PathType Leaf)) {
     throw 'STOP: You need the correct application ZIP first. Return to STEP 1 and complete Step 2, then repeat this model-preparation command.'
 }
@@ -283,8 +285,8 @@ if ((Get-FileHash -LiteralPath $graniteModelsScript -Algorithm SHA256).Hash -ne 
 Unblock-File -LiteralPath $graniteModelsScript
 
 # Find complete model downloads, including files inside extracted folders.
-$graniteDestination = 'C:\Downloads'
 $graniteBrowserDownloads = Join-Path $env:USERPROFILE 'Downloads'
+$graniteDestination = $graniteBrowserDownloads
 function Assert-GraniteRegularPath([string]$Path) {
     $current = [IO.Path]::GetFullPath($Path)
     while ($current) {
@@ -316,7 +318,7 @@ function Get-GraniteDownloads([string]$Root) {
         }
     }
 }
-$graniteFiles = @(foreach ($root in @($graniteDestination, $graniteBrowserDownloads) | Select-Object -Unique) { Get-GraniteDownloads $root })
+$graniteFiles = @(foreach ($root in @($graniteDestination, 'C:\Downloads') | Select-Object -Unique) { Get-GraniteDownloads $root })
 $graniteVerified = @()
 foreach ($expected in @(
     @{ Name = 'granite-4.1-3b-Q4_K_M.gguf'; Bytes = 2099501664; Hash = '662B0626CD58F443BAEA23559B469DF6576A81D349649C59413B36A9FB32EB29' },
@@ -404,7 +406,7 @@ if ($graniteRepair) {
     Rename-Item -LiteralPath $graniteModelFolder -NewName $backupName
     Write-Host "Previous folder preserved at $(Join-Path $graniteDestination $backupName). Preparing a fresh extraction."
 }
-powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File $graniteModelsScript -ModelsDirectory 'C:\Downloads'
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File $graniteModelsScript -ModelsDirectory $graniteDestination
 if ($LASTEXITCODE -ne 0) { throw 'STOP: Model preparation failed. Follow the error above and do not import an incomplete folder. Missing model downloads require STEP 6; missing setup files require STEP 1.' }
 
 # Check every extracted file against the verified ZIP before final success.
@@ -436,6 +438,50 @@ Write-Host "STEP 6 COMPLETE: OpenVINO files verified. Import $graniteModelFolder
 
 Wait for the final **STEP 6 COMPLETE: OpenVINO files verified** message. Earlier messages from the packaged script are not the end of this step. Large-file verification takes time. The final check compares every extracted file with the verified ZIP, removes Windows download marks from those verified files and the model folder, then checks that none remain. This addresses the download-mark cause of `package_unsafe_path`, not every possible unsafe-path error. Close and reopen Granite, then import the exact prepared folder again; do not re-extract the ZIP afterwards. Keep the model folder in place after importing it.
 
+### 6A. Install the hardware inspection tool
+
+The 1.0.5.0 setup ZIP omits the pinned `llmfit` tool. Without it, hardware inspection cannot continue to compatibility. Run this in ordinary Windows PowerShell before Step 7. If access to `C:\ProgramData` is denied, run it in the administrator PowerShell used for Step 4.
+
+```powershell
+& {
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$graniteArchive = Join-Path $env:USERPROFILE 'Downloads\llmfit-v1.1.9-x86_64-pc-windows-msvc.zip'
+$graniteTarget = 'C:\ProgramData\GraniteEdgeAI\HardwareInspection\llmfit\1.1.9\win-x64'
+$graniteArchiveHash = 'A030269D7CC8A5BF40383F526A481655D698EC71DD792A25B06510CEF9F8B738'
+$graniteExeHash = 'DB82BCB17F065B7FF7528FFE9904B2B0E1CCE0C843FCD659B4EE1432A2E72E19'
+if (Test-Path -LiteralPath $graniteTarget) {
+    $graniteItems = @(Get-ChildItem -LiteralPath $graniteTarget -Force)
+    if ($graniteItems.Count -ne 3 -or @($graniteItems | Where-Object { $_.Name -notin @('llmfit.exe','LICENSE','README.md') }).Count -ne 0 -or
+        (Get-FileHash -LiteralPath (Join-Path $graniteTarget 'llmfit.exe') -Algorithm SHA256).Hash -ne $graniteExeHash) {
+        throw 'The existing llmfit folder differs. Leave it untouched and report this error.'
+    }
+    Write-Host 'Pinned llmfit is already installed and verified.'
+    return
+}
+if (-not (Test-Path -LiteralPath $graniteArchive)) {
+    Invoke-WebRequest 'https://github.com/AlexsJones/llmfit/releases/download/v1.1.9/llmfit-v1.1.9-x86_64-pc-windows-msvc.zip' -OutFile $graniteArchive
+}
+if ((Get-FileHash -LiteralPath $graniteArchive -Algorithm SHA256).Hash -ne $graniteArchiveHash) {
+    throw 'llmfit download checksum mismatch. Stop.'
+}
+$graniteStage = Join-Path $env:TEMP ('granite-llmfit-' + [guid]::NewGuid().ToString('N'))
+[IO.Compression.ZipFile]::ExtractToDirectory($graniteArchive, $graniteStage)
+$graniteSource = Join-Path $graniteStage 'llmfit-v1.1.9-x86_64-pc-windows-msvc'
+$graniteItems = @(Get-ChildItem -LiteralPath $graniteSource -Force)
+if ($graniteItems.Count -ne 3 -or @($graniteItems | Where-Object { $_.Name -notin @('llmfit.exe','LICENSE','README.md') }).Count -ne 0 -or
+    (Get-FileHash -LiteralPath (Join-Path $graniteSource 'llmfit.exe') -Algorithm SHA256).Hash -ne $graniteExeHash) {
+    throw 'The verified llmfit archive has an unexpected layout. Stop.'
+}
+New-Item -ItemType Directory -Path $graniteTarget -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $graniteSource 'llmfit.exe'),(Join-Path $graniteSource 'LICENSE'),(Join-Path $graniteSource 'README.md') -Destination $graniteTarget
+if ((Get-FileHash -LiteralPath (Join-Path $graniteTarget 'llmfit.exe') -Algorithm SHA256).Hash -ne $graniteExeHash) {
+    throw 'Installed llmfit failed verification. Stop.'
+}
+Write-Host 'Pinned llmfit installed and verified. Run hardware inspection again.'
+}
+```
+
 ### 7. Select a model
 
 In Granite, use **Choose model** and try one route at a time:
@@ -443,7 +489,7 @@ In Granite, use **Choose model** and try one route at a time:
 If you downloaded the whole model folder, complete the outer-ZIP instructions and preparation command in Step 6 first. Do not select the downloaded collection folder or either ZIP in Granite.
 
 - **GGUF:** select `granite-4.1-3b-Q4_K_M.gguf` at the exact **GGUF ready** path printed by Step 6.
-- **OpenVINO:** select the complete folder `C:\Downloads\Granite-4.1-3B-OpenVINO-Raw`. Do not select its ZIP, XML or BIN individually. There should not be another Raw folder inside it.
+- **OpenVINO:** select the complete folder `C:\Users\<your username>\Downloads\Granite-4.1-3B-OpenVINO-Raw`. Do not select its ZIP, XML or BIN individually. There should not be another Raw folder inside it.
 
 Follow inspection, hardware fit and configuration. Available choices depend on the laptop's RAM, free storage and verified runtime support. Once chat opens, try: **Explain what a computer processor does in two sentences.**
 

@@ -18,6 +18,9 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
     private const uint FileFlagOpenReparsePoint = 0x00200000;
     private const uint DeleteAccess = 0x00010000;
     private const uint FileReadAttributes = 0x00000080;
+    private const int ErrorSuccess = 0;
+    private const int ErrorInsufficientBuffer = 122;
+    private const int AppModelErrorNoPackage = 15700;
     private string? _temporaryDirectory;
     private SafeFileHandle? _directoryCustody;
     private SafeFileHandle? _rootCustody;
@@ -75,9 +78,7 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
     {
         ArgumentNullException.ThrowIfNull(explicitEnvironment);
         string localApplicationData = localApplicationDataOverride ??
-            Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData,
-                Environment.SpecialFolderOption.DoNotVerify);
+            ResolveApplicationStorage();
         if (string.IsNullOrWhiteSpace(localApplicationData))
         {
             throw Failure();
@@ -160,6 +161,33 @@ public sealed class TrustedToolOperationEnvironment : IDisposable
             _rootCustody = null;
         }
     }
+
+    private static string ResolveApplicationStorage()
+    {
+        uint length = 0;
+        int result = GetCurrentPackageFullName(ref length, IntPtr.Zero);
+        if (result is ErrorSuccess or ErrorInsufficientBuffer)
+        {
+            // MSIX virtualizes ordinary LocalAppData paths. Use the physical
+            // package storage path so custody checks compare the same location
+            // that CreateFile opens, without relaxing reparse-point checks.
+            return global::Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+        }
+
+        if (result != AppModelErrorNoPackage)
+        {
+            throw Failure();
+        }
+
+        return Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData,
+            Environment.SpecialFolderOption.DoNotVerify);
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern int GetCurrentPackageFullName(
+        ref uint packageFullNameLength,
+        IntPtr packageFullName);
 
     private static void RequireLocalFixedPath(string path)
     {

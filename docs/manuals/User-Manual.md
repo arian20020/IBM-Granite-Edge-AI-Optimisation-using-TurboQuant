@@ -1,10 +1,12 @@
 # Using Granite
 
+The 1.0.5.0 test preview includes a model-inspection fix for a failure observed in 1.0.4.0 on one laptop. Hardware inspection also needs the pinned `llmfit` tool installed separately. See [setup and known limitations](Known-Limitations.md#troubleshooting) before starting the workflow.
+
 Granite is a Windows desktop research application for running selected IBM Granite models on your own computer. This guide follows the normal app, not its developer test galleries.
 
 Start with [Run the app](Run-the-App.md), then [Download a model](Download-a-Model.md). You do not need to build the source to use a prepared installation.
 
-For installation on your own computer, use the [starter guide](Granite-Start-Here.md). Follow its complete command blocks rather than combining commands from an older guide. Before importing the OneDrive OpenVINO model, complete Step 6 to verify, extract and remove Windows download marks. Select `C:\Downloads\Granite-4.1-3B-OpenVINO-Raw`, not the ZIP or a surrounding folder.
+For installation on your own computer, use the [starter guide](Granite-Start-Here.md). Follow its complete command blocks rather than combining commands from an older guide. Before importing the OneDrive OpenVINO model, complete Step 6 to verify, extract and remove Windows download marks. Select `C:\Users\<your username>\Downloads\Granite-4.1-3B-OpenVINO-Raw`, not the ZIP or a surrounding folder.
 
 ## Before you start
 
@@ -77,7 +79,7 @@ For example, type “Explain what a computer processor does in two short sentenc
 
 Download the required model and obtain the complete runtime package before going offline. The developer reported completing inspection, optimisation, export and chat with Wi-Fi disconnected. This was a manual check of one journey, not a full network audit or proof for every route.
 
-Models downloaded inside the app use its local-data folder under `GraniteEdgeAI/Models`. The starter guide's separately downloaded models are prepared in `C:\Downloads`; they are not moved into the in-app download catalogue by these instructions. The GGUF chat-history store uses `%LOCALAPPDATA%/GraniteEdgeAI/ChatHistory`; optimisation work uses `%LOCALAPPDATA%/GraniteEdgeAI/Optimization`. These are implementation locations, not folders to edit during a running operation.
+Models downloaded inside the app use its local-data folder under `GraniteEdgeAI/Models`. The starter guide's separately downloaded models are prepared in your normal Downloads folder; they are not moved into the in-app download catalogue by these instructions. The GGUF chat-history store uses `%LOCALAPPDATA%/GraniteEdgeAI/ChatHistory`; optimisation work uses `%LOCALAPPDATA%/GraniteEdgeAI/Optimization`. These are implementation locations, not folders to edit during a running operation.
 
 Export important models to a location you control. Before reinstalling or resetting the app, back up data you need. Uninstall behaviour has not been verified for every storage location, so do not assume it either keeps or removes everything.
 

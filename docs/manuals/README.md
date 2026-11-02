@@ -2,7 +2,9 @@
 
 ## Beginner route
 
-Start with [Run the app](Run-the-App.md) for the examiner's overview and [Granite-Start-Here.md](Granite-Start-Here.md) for every copy-and-paste setup command. These instructions use **Granite-Edge-AI-Setup.zip**, version **1.0.4.0**. No source build is needed.
+**Test build:** Version 1.0.5.0 is Granite Local Preview, assembled from the 1.0.4.0 package with the tested model-inspection fix. It uses a new self-signed certificate and installs alongside the earlier app. A clean-machine installation has not been verified. Complete the separate [`llmfit` step](../../README.md#6a-install-the-hardware-inspection-tool) for hardware inspection.
+
+Start with [Run the app](Run-the-App.md) for the examiner's overview and [Granite-Start-Here.md](Granite-Start-Here.md) for the setup sequence, including its link to the hardware tool command. These instructions use **Granite-Edge-AI-Setup.zip**, version **1.0.5.0**.
 
 | Starter-guide step | Action |
 | --- | --- |
@@ -10,9 +12,11 @@ Start with [Run the app](Run-the-App.md) for the examiner's overview and [Granit
 | 3 | Check files only; **Nothing installed** means the check passed. |
 | 4A–4B | Open administrator PowerShell, then install in that new window using your own account. |
 | 5 | Launch in ordinary PowerShell and wait for the Granite window. |
-| 6–7 | Download and prepare both models, then import a prepared model in Granite. |
+| 6 | Download and prepare both models. |
+| 6A | Install the verified, pinned `llmfit` hardware tool using the main README command. |
+| 7 | Import a prepared model in Granite and review the inspection result. |
 
-Normal Downloads is `C:\Users\<your username>\Downloads`. The guide prepares files in `C:\Downloads`. Do not confuse the two locations or mix these steps with historical demonstration commands. If a command fails, stop before running the next step.
+Normal Downloads is `C:\Users\<your username>\Downloads`. The app setup files go into `C:\Downloads`; the model preparation command uses your normal Downloads folder. If a command fails, stop before running the next step.
 
 New to the project? Start with [Granite installation and model setup](Granite-Start-Here.md). It covers the packaged app, launch and model preparation without building the source. Then follow the user guide. [Run the app](Run-the-App.md) also retains the historical demonstration-computer details.
 

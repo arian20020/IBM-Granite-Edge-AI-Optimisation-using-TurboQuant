@@ -1,11 +1,12 @@
 # Granite build 1.0.4.0 for Windows
 
-This folder contains the Windows test build currently shared with schools. Download the setup ZIP from this folder, then follow the setup guide in the repository root.
+This folder retains the earlier Windows test build. The current setup guide points to the separate 1.0.5.0 test preview.
 
 ## Download and run
 
-1. Download [Granite-Edge-AI-Setup.zip](Granite-Edge-AI-Setup.zip) and save it in your Downloads folder.
-2. Follow [Setup and first use](../README.md#setup-and-first-use), starting at **1. Download the application ZIP**. The guide verifies and extracts the package, installs and launches Granite, and prepares the model files.
+**Historical package limitation:** Version 1.0.4.0 failed model inspection on one fresh laptop due to Windows package storage redirection. The later [1.0.5.0 test preview](../build-version-1.0.5.0/README.md) contains the tested fix and uses a different self-signed publisher. Keep existing models when testing it.
+
+For the newer test build, follow [Setup and first use](../README.md#setup-and-first-use). The old [1.0.4.0 ZIP](Granite-Edge-AI-Setup.zip) is retained for reference; the current guide verifies and installs the different 1.0.5.0 ZIP.
 
 Package size: 585,596,470 bytes. SHA-256: `6788E6E293EB1D7129733F4C7246AABA26F8BC5F068751C35806418C17391126`.
 

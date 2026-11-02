@@ -2,11 +2,17 @@
 
 This record separates checks of the instructions from tests of the application.
 
+## Inspection issue found on a fresh laptop
+
+The supplied 1.0.4.0 package failed model inspection on one new laptop because the packaged process rejected its redirected temporary folder. A local source fix was tested under package identity and the local app completed GGUF inspection. Hardware inspection then required the separately installed pinned `llmfit` tool; after that, the local app reached compatibility. The main README's new tool-install command was tested with a separate test destination, including a repeat run.
+
+The 1.0.5.0 preview was assembled from 1.0.4.0 with the fixed foundation DLL and a new self-signed publisher. It installed alongside the old app on the tested laptop; the user reported that the application was working after trying GGUF and OpenVINO. Its extracted setup bundle passed the checksum and dependency checks, and recognised the existing preview. A fresh-computer installation and complete source rebuild remain unverified. The historical results below remain records of their original scopes.
+
 ## Beginner-manual alignment
 
-All eleven files in `docs/manuals` were reviewed and edited to distinguish the current packaged setup from optional model downloads, historical installations and developer builds. `Run-the-App.md` includes the complete current setup sequence, with historical details retained in a collapsed section. Its setup sequence matches `Granite-Start-Here.md` exactly.
+In the earlier documentation review, all eleven files in `docs/manuals` were reviewed to distinguish packaged setup from model downloads, historical installations and developer builds. The two beginner guides now link to the main README for the additional hardware tool command; historical details remain labelled.
 
-All 35 PowerShell code blocks across the manuals passed syntax parsing. Installation, model downloads and security-setting changes were not executed for this documentation review. Syntax parsing is not proof that commands will succeed on another laptop. The package version, ZIP checksum and application code were not changed.
+In that earlier review, all 35 PowerShell code blocks across the manuals passed syntax parsing. Installation, model downloads and security-setting changes were not executed for that review. Those historical counts do not cover subsequent edits.
 
 ## Latest test-only verification
 
@@ -18,7 +24,7 @@ These results do not prove a clean installation or every model journey on an exa
 
 ## Current setup-instruction checks
 
-The [starter guide](Granite-Start-Here.md) targets signed package version 1.0.4.0. The ZIP SHA-256 is `6788E6E293EB1D7129733F4C7246AABA26F8BC5F068751C35806418C17391126`.
+The [starter guide](Granite-Start-Here.md) targets the self-signed 1.0.5.0 preview. The ZIP SHA-256 is `87AD9CE4E829F8DD4CF3709D6851B693DCA38B635AB9F5D768619FFB64A44AAC`. The bullets below describe the earlier 1.0.4.0 checks unless stated otherwise.
 
 - All eleven starter-guide PowerShell blocks passed syntax parsing; this does not establish successful execution on another laptop. The optional Smart App Control diagnostic block only prints warnings and opens settings; no security setting was changed to test these instructions.
 - ZIP extraction and matching-folder reuse passed locally. Numbered browser filenames were tested with a simulated file listing, and a wrong checksum stopped the step.

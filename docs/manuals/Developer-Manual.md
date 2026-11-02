@@ -1,6 +1,6 @@
 # Developer guide
 
-To run the supplied application rather than develop it, use [Run the app](Run-the-App.md) and [Granite-Start-Here.md](Granite-Start-Here.md). Their commands target the 1.0.4.0 ZIP; a later documentation or test commit does not mean the ZIP was rebuilt. Do not apply the published ZIP checksum to your own build.
+To run the supplied application rather than develop it, use [Run the app](Run-the-App.md) and [Granite-Start-Here.md](Granite-Start-Here.md). Their commands target the 1.0.5.0 test preview, which was assembled from 1.0.4.0 with the inspection fix. Do not apply the published ZIP checksum to your own build.
 
 Start with [build and installation](Build-and-Installation.md). This page explains where the code lives and how to check a change without confusing experiments, unit tests and the installed app.
 

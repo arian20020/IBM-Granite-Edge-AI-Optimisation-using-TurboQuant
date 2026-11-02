@@ -155,6 +155,27 @@ public sealed class TrustedToolEnvironmentPolicyTests
     }
 
     [TestMethod]
+    public void OperationEnvironmentUsesCanonicalApplicationStorage()
+    {
+        string localStorage;
+        try
+        {
+            localStorage = global::Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+        }
+        catch (InvalidOperationException)
+        {
+            localStorage = Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData);
+        }
+
+        using TrustedToolOperationEnvironment operation =
+            TrustedToolOperationEnvironment.CreateCurrent(includeDotnetRoots: false);
+        string expectedRoot = Path.Combine(localStorage, "GraniteEdgeAI", "TrustedToolTemp")
+            + Path.DirectorySeparatorChar;
+        Assert.StartsWith(expectedRoot, operation.Variables["TEMP"]);
+    }
+
+    [TestMethod]
     public void OperationEnvironmentUsesPrivateAclAndDeletesItsExactDirectory()
     {
         Dictionary<string, string?> parent = ValidParent();

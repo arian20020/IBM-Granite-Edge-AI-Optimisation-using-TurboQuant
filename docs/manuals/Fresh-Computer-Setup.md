@@ -1,6 +1,6 @@
 # Set up Granite from source
 
-**This is the developer route, not the examiner's installation guide.** For the supplied 1.0.4.0 ZIP, use [Run the app](Run-the-App.md) and the complete [starter guide](Granite-Start-Here.md). Those steps install without Git or Visual Studio: download/verify, check, install in administrator PowerShell, launch in ordinary PowerShell, then prepare models. The numbered source-build steps below are a different sequence.
+**This is the developer route, not the examiner's installation guide.** For the 1.0.5.0 test preview, use [Run the app](Run-the-App.md) and the [starter guide](Granite-Start-Here.md). Those steps install without Git or Visual Studio; they include a separate pinned hardware tool download. The numbered source-build steps below are a different sequence.
 
 This guide is for a new Windows development computer. It does not use the existing demonstration installation. Read the release-input section before spending time on a build: not all native inputs have a complete public preparation recipe yet.
 
